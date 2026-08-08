@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -64,5 +61,14 @@ class DefaultFirebaseOptions {
     projectId: 'daily-dating-app',
     storageBucket: 'daily-dating-app.firebasestorage.app',
     iosBundleId: 'com.example.appIncontri',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyDOD38pzCVVwt6fuqSJSJOyL6kPNDyjS2g',
+    appId: '1:781052311292:android:3cc1796f149d9b04264979',
+    messagingSenderId: '781052311292',
+    projectId: 'daily-dating-app',
+    authDomain: 'daily-dating-app.firebaseapp.com',
+    storageBucket: 'daily-dating-app.firebasestorage.app',
   );
 }
