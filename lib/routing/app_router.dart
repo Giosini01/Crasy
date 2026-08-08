@@ -1,28 +1,45 @@
 import 'package:app_incontri/core/constants/app_routes.dart';
-import 'package:app_incontri/features/auth/presentation/controllers/mock_session_controller.dart';
 import 'package:app_incontri/features/auth/presentation/pages/auth_page.dart';
+import 'package:app_incontri/features/auth/presentation/providers/auth_providers.dart';
 import 'package:app_incontri/features/home/presentation/pages/home_page.dart';
 import 'package:app_incontri/features/home/presentation/pages/splash_page.dart';
 import 'package:app_incontri/features/onboarding/presentation/pages/onboarding_page.dart';
+import 'package:app_incontri/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 final sessionLandingRouteProvider = Provider<String>((ref) {
-  final session = ref.watch(mockSessionControllerProvider);
+  final authState = ref.watch(authStateProvider);
 
-  if (!session.isAuthenticated) {
+  if (authState is LoadingAuthState) {
+    return AppRoutes.splash;
+  }
+
+  if (authState is UnauthenticatedAuthState || authState is ErrorAuthState) {
     return AppRoutes.auth;
   }
 
-  if (!session.isOnboardingComplete) {
-    return AppRoutes.onboarding;
+  if (authState is AuthenticatedAuthState) {
+    final profileState = ref.watch(currentUserProfileProvider);
+
+    return profileState.when(
+      loading: () => AppRoutes.splash,
+      error: (_, _) => AppRoutes.onboarding,
+      data: (profile) {
+        if (profile == null || !profile.onboardingCompleted) {
+          return AppRoutes.onboarding;
+        }
+
+        return AppRoutes.discover;
+      },
+    );
   }
 
-  return AppRoutes.discover;
+  return AppRoutes.splash;
 });
 
 final goRouterProvider = Provider<GoRouter>((ref) {
-  final session = ref.watch(mockSessionControllerProvider);
+  final targetRoute = ref.watch(sessionLandingRouteProvider);
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
@@ -61,26 +78,27 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     ],
     redirect: (context, state) {
       final location = state.matchedLocation;
-      final isAuthenticated = session.isAuthenticated;
-      final isOnboardingComplete = session.isOnboardingComplete;
-      final isInAuthFlow =
-          location == AppRoutes.auth || location == AppRoutes.splash;
+      final homeLocations = <String>{
+        AppRoutes.discover,
+        AppRoutes.camera,
+        AppRoutes.matches,
+        AppRoutes.profile,
+      };
 
-      if (!isAuthenticated && !isInAuthFlow) {
-        return AppRoutes.auth;
+      if (targetRoute == AppRoutes.splash) {
+        return location == AppRoutes.splash ? null : AppRoutes.splash;
       }
 
-      if (isAuthenticated &&
-          !isOnboardingComplete &&
-          location != AppRoutes.onboarding &&
-          location != AppRoutes.splash) {
-        return AppRoutes.onboarding;
+      if (targetRoute == AppRoutes.auth) {
+        return location == AppRoutes.auth ? null : AppRoutes.auth;
       }
 
-      if (isAuthenticated &&
-          isOnboardingComplete &&
-          (location == AppRoutes.auth || location == AppRoutes.onboarding)) {
-        return AppRoutes.discover;
+      if (targetRoute == AppRoutes.onboarding) {
+        return location == AppRoutes.onboarding ? null : AppRoutes.onboarding;
+      }
+
+      if (targetRoute == AppRoutes.discover) {
+        return homeLocations.contains(location) ? null : AppRoutes.discover;
       }
 
       return null;

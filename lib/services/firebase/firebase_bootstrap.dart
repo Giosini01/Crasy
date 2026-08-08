@@ -1,3 +1,4 @@
+import 'package:app_incontri/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_bootstrap_result.dart';
@@ -9,11 +10,17 @@ abstract final class FirebaseBootstrap {
     }
 
     try {
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
       return const FirebaseBootstrapResult.configured();
     } on Exception catch (error) {
       return FirebaseBootstrapResult.unavailable(
-        'Firebase non configurato localmente: $error',
+        'Firebase non disponibile: $error',
+      );
+    } on Error catch (error) {
+      return FirebaseBootstrapResult.unavailable(
+        'Firebase non disponibile: $error',
       );
     }
   }
