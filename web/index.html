@@ -1,0 +1,61 @@
+﻿<!DOCTYPE html>
+<html lang="it">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Rawsy: una foto al giorno, e chi c'e' oggi.">
+  <meta name="theme-color" content="#F7F6F9">
+
+  <!-- Su iPhone la pagina va a tutto schermo se aggiunta alla schermata home;
+       la barra di stato resta chiara come il resto dell'app. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Rawsy">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Rawsy</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    /* Evita il lampo scuro fra il caricamento della pagina e la prima frame
+       di Flutter sui dispositivi in tema scuro. */
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #F7F6F9;
+      color-scheme: light;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    // Le build di prova si compilano di continuo: un service worker rimasto
+    // registrato da una visita precedente continuerebbe a servire la versione
+    // vecchia anche quando il server manda quella nuova. Qui lo si disiscrive
+    // e si svuota la sua cache, cosi' il problema si risolve da solo.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (registrations) {
+        registrations.forEach(function (registration) {
+          registration.unregister();
+        });
+      });
+    }
+
+    if (window.caches) {
+      caches.keys().then(function (keys) {
+        keys.forEach(function (key) {
+          caches.delete(key);
+        });
+      });
+    }
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
+

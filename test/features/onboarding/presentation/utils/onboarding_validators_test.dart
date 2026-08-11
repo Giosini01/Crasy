@@ -1,4 +1,5 @@
-import 'package:app_incontri/features/onboarding/presentation/utils/onboarding_validators.dart';
+﻿import 'package:app_incontri/features/onboarding/presentation/utils/onboarding_validators.dart';
+import 'package:app_incontri/features/profile/domain/entities/coordinates.dart';
 import 'package:app_incontri/features/profile/domain/entities/user_profile.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -28,10 +29,32 @@ void main() {
       );
     });
 
-    test('validates city', () {
-      expect(OnboardingValidators.validateCity(''), isNotNull);
-      expect(OnboardingValidators.validateCity('R'), isNotNull);
-      expect(OnboardingValidators.validateCity('Roma'), isNull);
+    test('validates icebreaker length but allows it to be empty', () {
+      expect(OnboardingValidators.validateIcebreaker(''), isNull);
+      expect(
+        OnboardingValidators.validateIcebreaker('Chiedimi del mio ultimo viaggio'),
+        isNull,
+      );
+      expect(
+        OnboardingValidators.validateIcebreaker(
+          'x' * (OnboardingValidators.icebreakerMaxLength + 1),
+        ),
+        isNotNull,
+      );
+    });
+
+    test('requires a minimum number of interests', () {
+      expect(OnboardingValidators.validateInterests(const []), isNotNull);
+      expect(
+        OnboardingValidators.validateInterests(const ['libri', 'musica']),
+        isNotNull,
+      );
+      expect(
+        OnboardingValidators.validateInterests(
+          const ['libri', 'musica', 'viaggi'],
+        ),
+        isNull,
+      );
     });
 
     test('checks onboarding completion requirements', () {
@@ -41,11 +64,26 @@ void main() {
           birthDate: DateTime(1998, 6, 1),
           gender: GenderIdentity.woman,
           interestedIn: InterestPreference.men,
-          city: 'Roma',
+          coordinates: const Coordinates(latitude: 41.9, longitude: 12.5),
           now: now,
         ),
         isTrue,
       );
     });
+
+    test('onboarding cannot complete without coordinates', () {
+      expect(
+        OnboardingValidators.canComplete(
+          name: 'Anna',
+          birthDate: DateTime(1998, 6, 1),
+          gender: GenderIdentity.woman,
+          interestedIn: InterestPreference.men,
+          coordinates: null,
+          now: now,
+        ),
+        isFalse,
+      );
+    });
   });
 }
+

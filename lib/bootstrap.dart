@@ -16,7 +16,7 @@ Future<void> bootstrap() async {
           firebaseBootstrapResult,
         ),
       ],
-      child: const DailyApp(),
+      child: const RawsyApp(),
     ),
   );
 }

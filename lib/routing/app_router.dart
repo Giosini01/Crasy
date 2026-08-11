@@ -5,6 +5,7 @@ import 'package:app_incontri/features/home/presentation/pages/home_page.dart';
 import 'package:app_incontri/features/home/presentation/pages/splash_page.dart';
 import 'package:app_incontri/features/onboarding/presentation/pages/onboarding_page.dart';
 import 'package:app_incontri/features/profile/presentation/providers/user_profile_providers.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -38,43 +39,33 @@ final sessionLandingRouteProvider = Provider<String>((ref) {
   return AppRoutes.splash;
 });
 
+/// Rotta senza animazione di ingresso.
+///
+/// Le quattro schede in fondo sono rotte distinte, quindi go_router le
+/// tratterebbe come pagine da impilare e le farebbe entrare da destra. Qui
+/// invece cambiare scheda deve sembrare cambiare vista, non aprire una pagina
+/// nuova: [NoTransitionPage] toglie l'animazione e lo scambio e' immediato.
+GoRoute _route(String path, Widget child) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) =>
+        NoTransitionPage<void>(key: state.pageKey, child: child),
+  );
+}
+
 final goRouterProvider = Provider<GoRouter>((ref) {
   final targetRoute = ref.watch(sessionLandingRouteProvider);
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
     routes: [
-      GoRoute(
-        path: AppRoutes.splash,
-        builder: (context, state) => const SplashPage(),
-      ),
-      GoRoute(
-        path: AppRoutes.auth,
-        builder: (context, state) => const AuthPage(),
-      ),
-      GoRoute(
-        path: AppRoutes.onboarding,
-        builder: (context, state) => const OnboardingPage(),
-      ),
-      GoRoute(
-        path: AppRoutes.discover,
-        builder: (context, state) =>
-            const HomePage(location: AppRoutes.discover),
-      ),
-      GoRoute(
-        path: AppRoutes.camera,
-        builder: (context, state) => const HomePage(location: AppRoutes.camera),
-      ),
-      GoRoute(
-        path: AppRoutes.matches,
-        builder: (context, state) =>
-            const HomePage(location: AppRoutes.matches),
-      ),
-      GoRoute(
-        path: AppRoutes.profile,
-        builder: (context, state) =>
-            const HomePage(location: AppRoutes.profile),
-      ),
+      _route(AppRoutes.splash, const SplashPage()),
+      _route(AppRoutes.auth, const AuthPage()),
+      _route(AppRoutes.onboarding, const OnboardingPage()),
+      _route(AppRoutes.discover, const HomePage(location: AppRoutes.discover)),
+      _route(AppRoutes.camera, const HomePage(location: AppRoutes.camera)),
+      _route(AppRoutes.matches, const HomePage(location: AppRoutes.matches)),
+      _route(AppRoutes.profile, const HomePage(location: AppRoutes.profile)),
     ],
     redirect: (context, state) {
       final location = state.matchedLocation;

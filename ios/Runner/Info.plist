@@ -4,10 +4,16 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Serve per mostrarti chi ti sta vicino. Salviamo solo una zona approssimata, mai la tua posizione esatta.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Serve per scegliere la tua foto profilo, quella con cui gli altri ti riconoscono.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Serve la fotocamera per scattare la tua Daily. Le foto si scattano solo dentro l'app, mai caricate dalla galleria.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>App Incontri</string>
+	<string>Vibesy</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

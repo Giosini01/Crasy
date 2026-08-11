@@ -1,7 +1,12 @@
+import 'package:app_incontri/features/daily/presentation/controllers/daily_capture_controller.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 abstract final class ErrorMessageMapper {
   static String map(Object error) {
+    if (error is DailyWindowClosedException) {
+      return 'La finestra si e chiusa. Riprova alla prossima apertura.';
+    }
+
     if (error is FirebaseAuthException) {
       return _mapAuthError(error);
     }

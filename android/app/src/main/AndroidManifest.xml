@@ -1,6 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Le Daily si scattano solo in-app: serve la fotocamera, non la galleria. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <!-- Serve la zona per costruire il feed, non la posizione esatta: le
+         coordinate vengono comunque arrotondate prima di essere salvate. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <application
-        android:label="app_incontri"
+        android:label="Vibesy"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

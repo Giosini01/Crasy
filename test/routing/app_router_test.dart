@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:app_incontri/core/constants/app_routes.dart';
 import 'package:app_incontri/features/auth/domain/entities/app_user.dart';
@@ -62,7 +62,6 @@ void main() {
               birthDate: DateTime(1996, 8, 8),
               gender: GenderIdentity.man,
               interestedIn: InterestPreference.women,
-              city: 'Roma',
               createdAt: DateTime(2026, 8, 8),
               updatedAt: DateTime(2026, 8, 8),
               onboardingCompleted: true,
@@ -124,3 +123,4 @@ class _FakeAuthRepository implements AuthRepository {
     throw UnimplementedError();
   }
 }
+

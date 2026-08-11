@@ -1,13 +1,20 @@
-import 'package:app_incontri/core/theme/app_colors.dart';
-import 'package:app_incontri/core/theme/app_radius.dart';
+import 'package:app_incontri/core/theme/app_palette.dart';
 import 'package:app_incontri/core/theme/app_spacing.dart';
+import 'package:app_incontri/core/widgets/app_background.dart';
+import 'package:app_incontri/core/widgets/brand_mark.dart';
 import 'package:flutter/material.dart';
 
+/// Impalcatura comune delle sezioni ancora da riempire.
+///
+/// Tiene insieme occhiello, icona, titolo e azioni con lo stesso ritmo
+/// verticale in ogni tab, cosi' le schermate sembrano gia' parte di un
+/// prodotto anche quando il contenuto vero non c'e' ancora.
 class PlaceholderPageScaffold extends StatelessWidget {
   const PlaceholderPageScaffold({
     required this.eyebrow,
     required this.title,
     required this.description,
+    this.icon = Icons.auto_awesome,
     this.actions = const [],
     super.key,
   });
@@ -15,72 +22,47 @@ class PlaceholderPageScaffold extends StatelessWidget {
   final String eyebrow;
   final String title;
   final String description;
+  final IconData icon;
   final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final palette = context.palette;
 
     return Scaffold(
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppColors.background, AppColors.surfaceMuted],
-          ),
-        ),
+      body: AppBackground(
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.xs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Text(
-                    eyebrow.toUpperCase(),
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(AppSpacing.xl),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title, style: theme.textTheme.displayMedium),
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        description,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.xl,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    EyebrowLabel(eyebrow),
+                    const SizedBox(height: AppSpacing.xl),
+                    GlyphTile(icon: icon),
+                    const SizedBox(height: AppSpacing.lg),
+                    Text(title, style: context.texts.displaySmall),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      description,
+                      style: context.texts.bodyLarge?.copyWith(
+                        color: palette.textSecondary,
                       ),
-                      if (actions.isNotEmpty) ...[
-                        const SizedBox(height: AppSpacing.xl),
-                        ...actions,
-                      ],
+                    ),
+                    if (actions.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.xl),
+                      ...actions,
                     ],
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),

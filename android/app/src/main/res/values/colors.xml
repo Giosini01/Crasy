@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tenere allineati a lib/core/theme/app_colors.dart -->
+<resources>
+    <color name="brand_background">#FFFFFF</color>
+    <color name="brand_iris">#8A00C4</color>
+</resources>

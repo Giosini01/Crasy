@@ -64,8 +64,8 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDOD38pzCVVwt6fuqSJSJOyL6kPNDyjS2g',
-    appId: '1:781052311292:android:3cc1796f149d9b04264979',
+    apiKey: 'AIzaSyBU4t2vSi7fv9T3J3iUB2cylopQ5GONwrA',
+    appId: '1:781052311292:web:4e9ed36cc12836f6264979',
     messagingSenderId: '781052311292',
     projectId: 'daily-dating-app',
     authDomain: 'daily-dating-app.firebaseapp.com',

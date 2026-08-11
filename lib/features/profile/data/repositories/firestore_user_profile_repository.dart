@@ -1,12 +1,40 @@
+import 'dart:typed_data';
+
 import 'package:app_incontri/features/profile/data/mappers/user_profile_mapper.dart';
 import 'package:app_incontri/features/profile/domain/entities/user_profile.dart';
 import 'package:app_incontri/features/profile/domain/repositories/user_profile_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class FirestoreUserProfileRepository implements UserProfileRepository {
-  FirestoreUserProfileRepository(this._firestore);
+  FirestoreUserProfileRepository(this._firestore, this._storage);
 
   final FirebaseFirestore _firestore;
+  final FirebaseStorage _storage;
+
+  @override
+  Future<void> uploadPhoto({
+    required String userId,
+    required Uint8List bytes,
+    String? contentType,
+  }) async {
+    // Percorso fisso: la foto profilo e' una sola, e sovrascriverla evita di
+    // accumulare i vecchi scatti di ogni cambio.
+    final storagePath = 'profiles/$userId/photo.jpg';
+    final reference = _storage.ref(storagePath);
+
+    await reference.putData(
+      bytes,
+      SettableMetadata(contentType: contentType ?? 'image/jpeg'),
+    );
+
+    await _usersCollection.doc(userId).update({
+      'photoUrl': await reference.getDownloadURL(),
+      'photoStoragePath': storagePath,
+      'photoStatus': PhotoStatus.pending.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
       _firestore.collection('users');

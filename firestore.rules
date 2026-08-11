@@ -7,6 +7,113 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow update: if request.auth != null && request.auth.uid == userId;
       allow delete: if false;
+
+      // Le Daily sono una sottocollezione: `match /users/{userId}` copre solo
+      // il documento, non cio' che sta sotto, quindi serve una regola propria.
+      //
+      // Nessun client legge le Daily altrui, nemmeno di chi gli e' compatibile:
+      // a distribuirle e' la Cloud Function, che con l'SDK di amministrazione
+      // non passa da queste regole. Cosi' non esiste una query che permetta di
+      // scaricare le foto di tutti.
+      match /dailies/{dailyId} {
+        allow create: if request.auth != null
+                      && request.auth.uid == userId
+                      && request.resource.data.dateKey is string
+                      && request.resource.data.storagePath is string;
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow update, delete: if false;
+      }
+
+      // Il feed gia' costruito per questo utente. Lo riempie il server; il
+      // proprietario legge e puo' toccare **un solo campo**: `seen`, per dire
+      // "questa l'ho guardata".
+      //
+      // E' la sola cosa che il client sa e il server no. Il permesso e'
+      // ritagliato sul singolo campo e a senso unico — si puo' solo mettere a
+      // vero — altrimenti da qui si potrebbe riscrivere la propria distanza,
+      // la propria affinita' o la foto di chiunque.
+      match /feed/{dailyId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create, delete: if false;
+        allow update: if request.auth != null
+                      && request.auth.uid == userId
+                      && request.resource.data.diff(resource.data)
+                           .affectedKeys().hasOnly(['seen'])
+                      && request.resource.data.seen == true;
+      }
+
+      // Il diario privato: quante persone hanno guardato, quanti cuori,
+      // quanti match, e la striscia di giorni. Solo lettura, e solo la
+      // propria: sono numeri che il server calcola e nessuno puo' gonfiare.
+      match /stats/{statsId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if false;
+      }
+
+      // Cuore o scarto. Le scrive il diretto interessato, ma **non le puo'
+      // leggere nessun altro**: sapere chi ti ha messo da parte non deve
+      // essere possibile. A confrontare le due decisioni e' il server.
+      //
+      // Non si aggiornano ne' si cancellano: una scelta gia' presa resta tale,
+      // altrimenti si potrebbe sondare l'altro mettendo e togliendo il cuore.
+      match /decisions/{targetId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        //
+        // Al cuore si puo' allegare una riga. Resta qui dentro, dove nessun
+        // altro puo' leggerla, finche' il server non la consegna al match: e'
+        // il motivo per cui scrivere non espone a niente.
+        allow create: if request.auth != null
+                      && request.auth.uid == userId
+                      && targetId != userId
+                      && request.resource.data.liked is bool
+                      && (!('message' in request.resource.data.keys())
+                          || (request.resource.data.message is string
+                              && request.resource.data.message.size() <= 200));
+        allow update, delete: if false;
+      }
+
+      // I match nascono solo dal cuore reciproco, quindi solo dal server.
+      match /matches/{otherUserId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if false;
+      }
+    }
+
+    // Le conversazioni.
+    //
+    // Stanno **fuori** da `users` perche' sono l'unica cosa dell'app che
+    // appartiene a due persone invece che a una: sotto l'albero di uno dei
+    // due, l'altro non potrebbe scriverci. L'identificativo e' la coppia di
+    // id in ordine alfabetico unita da `_`, quindi le due parti lo calcolano
+    // uguale senza doverselo dire.
+    match /chats/{chatId}/messages/{messageId} {
+      // Due condizioni, e servono tutte e due. La prima dice che sei una
+      // delle due persone nell'indirizzo; la seconda che quel match esiste
+      // davvero — senza, chiunque potrebbe inventarsi un indirizzo con un
+      // estraneo e scrivergli.
+      function matchedWith(other) {
+        return exists(/databases/$(database)/documents/users/$(request.auth.uid)/matches/$(other));
+      }
+
+      function participant() {
+        let parts = chatId.split('_');
+
+        return request.auth != null
+               && parts.hasAny([request.auth.uid])
+               && (matchedWith(parts[0]) || matchedWith(parts[1]));
+      }
+
+      allow read: if participant();
+
+      allow create: if participant()
+                    && request.resource.data.senderId == request.auth.uid
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() > 0
+                    && request.resource.data.text.size() <= 1000;
+
+      // Quello che si e' detto resta detto: come per il cuore e lo scarto,
+      // niente ripensamenti a posteriori.
+      allow update, delete: if false;
     }
   }
 }

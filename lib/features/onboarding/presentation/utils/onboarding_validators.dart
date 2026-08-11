@@ -1,4 +1,6 @@
 import 'package:app_incontri/core/utils/app_date_utils.dart';
+import 'package:app_incontri/features/profile/domain/entities/coordinates.dart';
+import 'package:app_incontri/features/profile/domain/entities/profile_interests.dart';
 import 'package:app_incontri/features/profile/domain/entities/user_profile.dart';
 
 abstract final class OnboardingValidators {
@@ -30,7 +32,7 @@ abstract final class OnboardingValidators {
     final age = AppDateUtils.calculateAge(birthDate, now: today);
 
     if (age < 18) {
-      return 'Devi avere almeno 18 anni per usare Daily.';
+      return 'Devi avere almeno 18 anni per usare Rawsy.';
     }
 
     return null;
@@ -52,15 +54,40 @@ abstract final class OnboardingValidators {
     return null;
   }
 
-  static String? validateCity(String? value) {
-    final city = value?.trim() ?? '';
+  /// Quanto puo' essere lungo l'"Oggi...".
+  ///
+  /// Volutamente cortissimo: non e' una biografia, e' cosa stai facendo
+  /// **oggi**. Se ci sta un paragrafo, la gente ci scrive un paragrafo, e da
+  /// li' a una scheda di presentazione il passo e' breve.
+  static const int icebreakerMaxLength = 80;
 
-    if (city.isEmpty) {
-      return 'Inserisci la tua citta o zona.';
+  /// Il rompighiaccio e' facoltativo: solo la lunghezza puo' renderlo non
+  /// valido.
+  static String? validateIcebreaker(String? value) {
+    final icebreaker = value?.trim() ?? '';
+
+    if (icebreaker.length > icebreakerMaxLength) {
+      return 'Al massimo $icebreakerMaxLength caratteri.';
     }
 
-    if (city.length < 2) {
-      return 'Inserisci una citta o zona valida.';
+    return null;
+  }
+
+  /// Gli interessi sono obbligatori: sono la base dell'affinita', e con
+  /// meno del minimo ogni percentuale risulterebbe falsata.
+  static String? validateInterests(List<String> interests) {
+    if (interests.length < ProfileInterests.minChoices) {
+      return 'Scegli almeno ${ProfileInterests.minChoices} interessi.';
+    }
+
+    return null;
+  }
+
+  /// Senza coordinate il profilo non entra in nessun feed, quindi la
+  /// posizione e' obbligatoria quanto il nome.
+  static String? validateLocation(Coordinates? coordinates) {
+    if (coordinates == null) {
+      return 'Tocca "Usa la mia posizione" per continuare.';
     }
 
     return null;
@@ -71,13 +98,13 @@ abstract final class OnboardingValidators {
     required DateTime? birthDate,
     required GenderIdentity? gender,
     required InterestPreference? interestedIn,
-    required String city,
+    required Coordinates? coordinates,
     DateTime? now,
   }) {
     return validateName(name) == null &&
         validateBirthDate(birthDate, now: now) == null &&
         validateGender(gender) == null &&
         validateInterest(interestedIn) == null &&
-        validateCity(city) == null;
+        validateLocation(coordinates) == null;
   }
 }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stessi valori del tema chiaro: l'app non ha una variante scura, quindi la
+     schermata di avvio non deve virare al nero sui dispositivi in dark mode. -->
+<resources>
+    <color name="brand_background">#FFFFFF</color>
+    <color name="brand_iris">#8A00C4</color>
+</resources>

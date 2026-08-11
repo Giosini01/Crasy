@@ -13,13 +13,30 @@
           "projectId": "daily-dating-app",
           "configurations": {
             "android": "1:781052311292:android:3cc1796f149d9b04264979",
-            "ios": "1:781052311292:ios:6fdfb01344985a3c264979"
+            "ios": "1:781052311292:ios:6fdfb01344985a3c264979",
+            "web": "1:781052311292:web:4e9ed36cc12836f6264979"
           }
         }
       }
     }
   },
   "firestore": {
-    "rules": "firestore.rules"
-  }
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log"
+      ]
+    }
+  ]
 }
