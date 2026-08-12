@@ -1,3 +1,4 @@
+import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/utils/app_date_utils.dart';
@@ -8,6 +9,7 @@ import 'package:crasy/features/challenges/presentation/providers/challenge_provi
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 /// Una partecipazione nel feed: la foto, chi l'ha mandata, il voto.
 ///
@@ -38,8 +40,7 @@ class EntryTile extends ConsumerWidget {
       children: [
         FireTap(
           voted: voted,
-          onFire: () =>
-              ref.read(voteControllerProvider).toggle(entry, voted: true),
+          onFire: () => giveFire(context, ref, entry, voted: true),
           child: MediaFrame(url: entry.mediaUrl, caption: entry.authorName),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -92,6 +93,29 @@ class EntryTile extends ConsumerWidget {
   }
 }
 
+/// Accende o spegne la fiamma su una partecipazione.
+///
+/// Sta qui e non dentro i widget perche' la chiamano in tre posti — la foto nel
+/// feed, il contatore accanto, la griglia dentro una challenge — e la parte che
+/// non va duplicata e' cosa fare quando il voto **non** si puo' dare: mandare
+/// alla registrazione, o non fare niente se e' la propria foto.
+Future<void> giveFire(
+  BuildContext context,
+  WidgetRef ref,
+  ChallengeEntry entry, {
+  required bool voted,
+}) async {
+  final outcome = await ref
+      .read(voteControllerProvider)
+      .toggle(entry, voted: voted);
+
+  if (outcome != VoteOutcome.needsAccount || !context.mounted) {
+    return;
+  }
+
+  context.push(AppRoutes.auth);
+}
+
 /// Il voto: una fiamma e un numero.
 ///
 /// Non e' un cuore e non e' un pollice. Un cuore su una foto di una persona
@@ -118,8 +142,7 @@ class VoteButton extends ConsumerWidget {
       button: true,
       label: voted ? 'Togli la fiamma' : 'Dai la fiamma',
       child: InkWell(
-        onTap: () =>
-            ref.read(voteControllerProvider).toggle(entry, voted: !voted),
+        onTap: () => giveFire(context, ref, entry, voted: !voted),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.xs,

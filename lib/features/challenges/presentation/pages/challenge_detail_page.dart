@@ -8,7 +8,6 @@ import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
-import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
@@ -85,7 +84,6 @@ class _Body extends ConsumerWidget {
     final palette = context.palette;
     final texts = context.texts;
     final entries = ref.watch(challengeEntriesProvider(challenge.id));
-    final cover = ref.watch(challengeCoverProvider(challenge.id));
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -111,10 +109,11 @@ class _Body extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         Text(challenge.title.toUpperCase(), style: texts.displaySmall),
-        if (MediaFrame.hasMedia(cover)) ...[
-          const SizedBox(height: AppSpacing.lg),
-          MediaFrame(url: cover),
-        ],
+        // Qui dentro **non** c'e' la foto in testa, e fuori si': nella home
+        // serve a far capire di che gara si tratta, ma dopo aver aperto la
+        // challenge sarebbe la stessa immagine due volte di fila, e per giunta
+        // sopra la griglia dove quella foto compare di nuovo. Chi entra qui
+        // vuole scorrere e vederle tutte.
         const SizedBox(height: AppSpacing.lg),
         Text(challenge.brief, style: texts.bodyLarge),
         if (challenge.hasCreator) ...[
@@ -284,8 +283,7 @@ class _EntryGridTile extends ConsumerWidget {
       children: [
         FireTap(
           voted: voted,
-          onFire: () =>
-              ref.read(voteControllerProvider).toggle(entry, voted: true),
+          onFire: () => giveFire(context, ref, entry, voted: true),
           child: MediaFrame(
             url: entry.mediaUrl,
             aspectRatio: 1,

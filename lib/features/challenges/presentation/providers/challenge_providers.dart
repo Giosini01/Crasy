@@ -123,6 +123,14 @@ final myEntriesProvider = StreamProvider<List<ChallengeEntry>>((ref) {
       .watchEntriesByUser(authState.user.id);
 });
 
+/// L'identita' di chi guarda senza aver fatto l'accesso.
+///
+/// Le sue fiamme vivono **solo in memoria**, sulle challenge di esempio, e
+/// spariscono chiudendo l'app. Serve a poter provare il gesto prima di
+/// registrarsi: un'app in cui il primo tocco chiede un indirizzo email non la
+/// prova nessuno.
+const String guestVoterId = 'ospite-locale';
+
 /// Cosa ho gia' votato.
 ///
 /// Un insieme e non un elenco: all'interfaccia serve rispondere a una domanda
@@ -133,7 +141,13 @@ final votedEntryIdsProvider = StreamProvider<Set<String>>((ref) {
   final authState = ref.watch(authStateProvider);
 
   if (authState is! AuthenticatedAuthState) {
-    return Stream.value(const <String>{});
+    // Per l'ospite si legge **solo** dal repository di esempio, mai da
+    // Firestore: una richiesta su `users/ospite-locale/votes` verrebbe
+    // respinta dalle regole, lo stream cadrebbe in errore, e nessuna fiamma
+    // risulterebbe piu' accesa.
+    return ref
+        .watch(sampleChallengeRepositoryProvider)
+        .watchVotedEntryIds(guestVoterId);
   }
 
   return ref

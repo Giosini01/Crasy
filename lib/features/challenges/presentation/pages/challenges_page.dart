@@ -68,14 +68,15 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.page - AppSpacing.xs,
-        AppSpacing.md,
         AppSpacing.page,
+        AppSpacing.md,
+        AppSpacing.page - AppSpacing.xs,
         AppSpacing.xl,
       ),
       sliver: SliverToBoxAdapter(
         child: Row(
           children: [
+            const Expanded(child: CrasyWordmark(size: 30)),
             // Creare una challenge sta qui e non in una scheda in fondo: e'
             // una cosa che si fa una volta ogni tanto, non una delle quattro
             // sezioni dell'app.
@@ -83,16 +84,6 @@ class _Header extends StatelessWidget {
               onPressed: () => context.push(AppRoutes.create),
               icon: const Icon(Icons.add_rounded),
               tooltip: 'Crea una challenge',
-            ),
-            // Il logotipo sta a destra, ed e' una scelta contro il riflesso.
-            // Un marchio in alto a sinistra e' l'intestazione di un sito; a
-            // destra diventa una firma, e lascia l'angolo in cui l'occhio
-            // comincia a leggere al contenuto invece che a se stesso.
-            const Expanded(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: CrasyWordmark(size: 30),
-              ),
             ),
           ],
         ),
@@ -136,8 +127,19 @@ class _ChallengeList extends StatelessWidget {
       ),
       sliver: SliverList.separated(
         itemCount: challenges.length,
-        separatorBuilder: (context, index) =>
-            const SizedBox(height: AppSpacing.section),
+        // Fra una missione e l'altra: spazio, un filetto, altro spazio.
+        //
+        // Lo spazio da solo non bastava. Ogni challenge finisce con una foto e
+        // comincia con un premio, e senza un segno in mezzo il premio della
+        // seconda sembrava appartenere alla foto della prima. Il filetto e' da
+        // mezzo pixel — dice "qui finisce" e nient'altro.
+        separatorBuilder: (context, index) => Column(
+          children: [
+            const SizedBox(height: AppSpacing.xl),
+            Divider(color: context.palette.line),
+            const SizedBox(height: AppSpacing.xl),
+          ],
+        ),
         itemBuilder: (context, index) {
           final challenge = challenges[index];
 
