@@ -13,9 +13,6 @@ enum VoteOutcome {
 
   /// Serve un account. Capita solo sulle challenge vere.
   needsAccount,
-
-  /// Nessuno vota se stesso.
-  ownEntry,
 }
 
 /// La fiamma.
@@ -47,12 +44,14 @@ class VoteController {
 
     final userId = signedIn ? authState.user.id : guestVoterId;
 
-    // Nessuno vota se stesso. Con dei soldi in palio non e' una questione di
-    // eleganza: e' il primo modo in cui si prova a barare.
-    if (entry.userId == userId) {
-      return VoteOutcome.ownEntry;
-    }
-
+    // **La propria foto si puo' votare.** Sembra un buco e non lo e': tutti
+    // possono farlo, quindi non sposta la classifica di un millimetro — e' un
+    // voto in piu' per ciascuno, non un vantaggio per qualcuno. Vietarlo
+    // servirebbe solo a far sembrare rotta l'app a chi tocca la propria foto e
+    // non vede succedere niente.
+    //
+    // A tenere onesta la gara e' un'altra regola: chi lancia la challenge non
+    // puo' parteciparvi.
     await _ref
         .read(challengeRepositoryProvider)
         .setVote(

@@ -93,6 +93,30 @@ final challengeCoverProvider = Provider.autoDispose.family<String?, String>(
       ref.watch(challengeTopEntryProvider(challengeId))?.mediaUrl,
 );
 
+/// Chi sono, se ho fatto l'accesso.
+final currentUserIdProvider = Provider<String?>((ref) {
+  final authState = ref.watch(authStateProvider);
+
+  return authState is AuthenticatedAuthState ? authState.user.id : null;
+});
+
+/// Vero se questa challenge l'ho lanciata io.
+///
+/// Chi la lancia **non ci partecipa**: mette lui i soldi del premio, e una gara
+/// in cui chi paga puo' anche vincere non e' una gara. La regola vale anche
+/// dalla parte del database, non solo qui.
+final isMyChallengeProvider = Provider.autoDispose.family<bool, String>((
+  ref,
+  challengeId,
+) {
+  final userId = ref.watch(currentUserIdProvider);
+  final challenge = ref.watch(challengeProvider(challengeId)).valueOrNull;
+
+  return userId != null &&
+      challenge != null &&
+      challenge.createdByUserId == userId;
+});
+
 /// La mia partecipazione a una challenge, se c'e'.
 ///
 /// Nulla significa "non ho ancora partecipato", ed e' la sola cosa che decide
@@ -148,47 +172,6 @@ final votedEntryIdsProvider = StreamProvider<Set<String>>((ref) {
   return ref
       .watch(challengeRepositoryProvider)
       .watchVotedEntryIds(authState.user.id);
-});
-
-/// Una mia foto in gara, insieme alla challenge in cui corre.
-///
-/// Le due cose viaggiano appaiate perche' da sole non dicono niente: la foto
-/// senza la challenge non ha un tempo che scorre, la challenge senza la foto
-/// non e' affar mio.
-class EntryInPlay {
-  const EntryInPlay({required this.entry, required this.challenge});
-
-  final ChallengeEntry entry;
-  final Challenge challenge;
-}
-
-/// Le mie foto nelle challenge ancora aperte, dalla scadenza piu' vicina.
-///
-/// Non e' un archivio: e' **quello che ho in gara adesso**. Le partecipazioni a
-/// challenge gia' chiuse non hanno piu' niente da dire — il loro esito sta fra i
-/// vincitori, e tutte le foto restano comunque nel profilo — mentre queste
-/// stanno ancora prendendo fiamme.
-///
-/// L'ordine e' per scadenza e non per data d'invio: quella che chiude prima e'
-/// quella su cui non si puo' piu' fare niente fra poco, quindi va guardata per
-/// prima.
-final myEntriesInPlayProvider = Provider<List<EntryInPlay>>((ref) {
-  final mine = ref.watch(myEntriesProvider).valueOrNull ?? const [];
-  final live = ref.watch(liveChallengesProvider).valueOrNull ?? const [];
-  final byId = {for (final challenge in live) challenge.id: challenge};
-
-  final inPlay = <EntryInPlay>[];
-
-  for (final entry in mine) {
-    final challenge = byId[entry.challengeId];
-
-    if (challenge != null) {
-      inPlay.add(EntryInPlay(entry: entry, challenge: challenge));
-    }
-  }
-
-  return inPlay
-    ..sort((a, b) => a.challenge.endsAt.compareTo(b.challenge.endsAt));
 });
 
 /// Le mie partecipazioni che hanno vinto.

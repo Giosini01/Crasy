@@ -129,6 +129,10 @@ service cloud.firestore {
 
         allow create: if isAuthor()
                       && request.resource.data.userId == request.auth.uid
+                      // Chi ha lanciato la challenge non ci partecipa: mette
+                      // lui i soldi del premio, e una gara in cui chi paga
+                      // puo' anche vincere non e' una gara.
+                      && challenge().createdByUserId != request.auth.uid
                       && request.resource.data.mediaUrl is string
                       && request.resource.data.mediaUrl.size() > 0
                       // Le fiamme partono da zero.
@@ -151,17 +155,20 @@ service cloud.firestore {
         // quante fiamme prende, che sarebbe cambiare la mano dopo aver guardato
         // le carte degli altri.
 
-        // Il voto di chiunque altro: un campo solo, e di uno alla volta.
+        // La fiamma: un campo solo, e di uno alla volta.
         //
         // Che il voto non venga messo due volte lo garantisce il documento
         // sotto `users/{uid}/votes`, che esiste o non esiste: qui si controlla
         // solo che il contatore non possa fare salti.
         //
+        // Non c'e' nessun divieto di votarsi da soli: possono farlo tutti,
+        // quindi non sposta la classifica: e' un voto in piu' per ciascuno.
+        // A tenere onesta la gara e' il fatto che chi la lancia non partecipa.
+        //
         // Il valore di partenza si legge con `get('votes', 0)` invece che
         // direttamente: le partecipazioni scritte prima che il campo esistesse
         // altrimenti resterebbero per sempre senza poter ricevere una fiamma.
         allow update: if signedIn()
-                      && request.auth.uid != entryId
                       && changedOnly(['votes'])
                       && (request.resource.data.votes
                             == resource.data.get('votes', 0) + 1

@@ -3,13 +3,10 @@ abstract final class AppRoutes {
   static const auth = '/auth';
   static const onboarding = '/onboarding';
 
-  // --- Le quattro schede ----------------------------------------------------
+  // --- Le tre schede ---------------------------------------------------------
 
   /// La home: le challenge aperte.
   static const challenges = '/challenges';
-
-  /// Il feed: cosa hanno mandato gli altri.
-  static const feed = '/feed';
 
   /// I vincitori delle challenge concluse.
   static const winners = '/winners';
@@ -26,14 +23,15 @@ abstract final class AppRoutes {
 
   static String participateOf(String id) => '/challenge/$id/partecipa';
 
-  /// Le quattro schede in fondo, nell'ordine in cui compaiono.
-  static const tabs = <String>[challenges, feed, winners, profile];
+  /// Le schede in fondo, nell'ordine in cui compaiono.
+  static const tabs = <String>[challenges, winners, profile];
 
   /// Le sezioni che si possono guardare senza aver fatto l'accesso.
   ///
-  /// Le challenge e il feed sono aperti a tutti di proposito: chi apre CRASY
-  /// per la prima volta deve **vedere** cosa c'e' in palio prima che gli venga
-  /// chiesto qualcosa. La registrazione arriva al primo gesto che lascia una
-  /// traccia — partecipare, votare, avere un profilo.
-  static const guestAllowed = <String>{challenges, feed, winners};
+  /// Le challenge e i vincitori sono aperti a tutti di proposito: chi apre
+  /// CRASY per la prima volta deve **vedere** cosa c'e' in palio, e che
+  /// qualcuno ha davvero vinto, prima che gli venga chiesto qualcosa. La
+  /// registrazione arriva al primo gesto che lascia una traccia — partecipare,
+  /// votare, avere un profilo.
+  static const guestAllowed = <String>{challenges, winners};
 }

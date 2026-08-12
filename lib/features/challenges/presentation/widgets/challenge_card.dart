@@ -38,6 +38,9 @@ class ChallengeCard extends ConsumerWidget {
     final texts = context.texts;
     final myEntry = ref.watch(myEntryForChallengeProvider(challenge.id));
     final leader = ref.watch(challengeTopEntryProvider(challenge.id));
+    final isMine =
+        challenge.createdByUserId.isNotEmpty &&
+        challenge.createdByUserId == ref.watch(currentUserIdProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -103,7 +106,9 @@ class ChallengeCard extends ConsumerWidget {
         // vincendo si sa cosa bisogna battere, ed e' quello il momento in cui
         // uno decide se partecipare — non prima.
         const SizedBox(height: AppSpacing.md),
-        if (myEntry == null)
+        if (isMine)
+          const OwnChallengeNote()
+        else if (myEntry == null)
           CrasyButton(label: 'Partecipa', onPressed: onParticipate)
         else
           const AlreadyJoinedNote(),
@@ -240,6 +245,37 @@ class ChallengeAuthor extends StatelessWidget {
           child: Text(
             'Lanciata da @${challenge.createdByUsername}',
             style: texts.labelMedium,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Cosa prende il posto del comando sulle challenge che hai lanciato tu.
+///
+/// Chi mette il premio non corre per vincerlo. Detto qui invece che con un
+/// bottone che poi rifiuta: il limite si spiega prima, non dopo lo scatto.
+class OwnChallengeNote extends StatelessWidget {
+  const OwnChallengeNote({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return Row(
+      children: [
+        Icon(
+          Icons.workspace_premium_outlined,
+          size: 16,
+          color: palette.textFaint,
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Flexible(
+          child: Text(
+            'L\'hai lanciata tu — il premio lo metti tu',
+            style: context.texts.labelMedium,
             overflow: TextOverflow.ellipsis,
           ),
         ),

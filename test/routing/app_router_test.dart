@@ -103,7 +103,7 @@ void main() {
 
   test('le sezioni aperte agli ospiti non comprendono il profilo', () {
     expect(AppRoutes.guestAllowed, contains(AppRoutes.challenges));
-    expect(AppRoutes.guestAllowed, contains(AppRoutes.feed));
+    expect(AppRoutes.guestAllowed, contains(AppRoutes.winners));
     expect(AppRoutes.guestAllowed, isNot(contains(AppRoutes.profile)));
     expect(AppRoutes.guestAllowed, isNot(contains(AppRoutes.create)));
   });

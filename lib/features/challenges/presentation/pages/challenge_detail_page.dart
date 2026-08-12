@@ -319,6 +319,7 @@ class _BottomAction extends ConsumerWidget {
     final palette = context.palette;
     final ended = challenge.hasEndedAt(DateTime.now());
     final myEntry = ref.watch(myEntryForChallengeProvider(challenge.id));
+    final isMine = ref.watch(isMyChallengeProvider(challenge.id));
 
     return Container(
       color: palette.background,
@@ -328,9 +329,10 @@ class _BottomAction extends ConsumerWidget {
         AppSpacing.page,
         AppSpacing.sm + MediaQuery.paddingOf(context).bottom,
       ),
-      child: switch ((ended, myEntry)) {
-        (true, _) => ChallengeMetaRow(challenge: challenge),
-        (false, final entry?) => Row(
+      child: switch ((ended, isMine, myEntry)) {
+        (true, _, _) => ChallengeMetaRow(challenge: challenge),
+        (false, true, _) => const OwnChallengeNote(),
+        (false, false, final entry?) => Row(
           children: [
             const AlreadyJoinedNote(),
             const Spacer(),
@@ -347,7 +349,7 @@ class _BottomAction extends ConsumerWidget {
             ),
           ],
         ),
-        (false, null) => CrasyButton(
+        (false, false, null) => CrasyButton(
           label: 'Partecipa',
           onPressed: () => context.push(AppRoutes.participateOf(challenge.id)),
         ),

@@ -116,18 +116,25 @@ void main() {
     );
   });
 
-  test('nessuno vota la propria foto', () async {
+  test('la propria foto si puo\' votare', () async {
     final container = guestContainer();
     final entry = await someoneElsesEntry(container);
 
-    // L'ospite firma con `guestVoterId`: una partecipazione con quel nome e'
-    // la sua, e con dei soldi in palio auto-votarsi e' il primo modo in cui si
-    // prova a barare.
+    // Sembra un buco e non lo e': possono farlo tutti, quindi non sposta la
+    // classifica di un millimetro. A tenere onesta la gara e' un'altra regola —
+    // chi lancia la challenge non ci partecipa.
     expect(
       await container
           .read(voteControllerProvider)
           .toggle(entry.copyWith(userId: guestVoterId), voted: true),
-      VoteOutcome.ownEntry,
+      VoteOutcome.done,
     );
+
+    final updated = await container
+        .read(sampleChallengeRepositoryProvider)
+        .watchEntries(entry.challengeId)
+        .first;
+
+    expect(updated.firstWhere((item) => item.id == entry.id).votes, 1);
   });
 }

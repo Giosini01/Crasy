@@ -65,6 +65,18 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
               );
             }
 
+            // Chi ha lanciato la challenge non ci partecipa: mette lui i soldi
+            // del premio, e una gara in cui chi paga puo' anche vincere non e'
+            // una gara.
+            if (ref.watch(isMyChallengeProvider(widget.challengeId))) {
+              return const _Notice(
+                title: 'E\' la tua challenge',
+                message:
+                    'Il premio lo metti tu, quindi non puoi correre per '
+                    'vincerlo. Guarda cosa manda la gente e chi sta in testa.',
+              );
+            }
+
             // Chi ha gia' mandato la sua foto non vede nemmeno la fotocamera:
             // il limite si spiega prima, non dopo lo scatto.
             if (myEntry != null) {

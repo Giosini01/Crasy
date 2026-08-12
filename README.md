@@ -46,15 +46,21 @@ ognuna i tre soliti strati:
         home/                impalcatura con le quattro schede, splash
       routing/               router e regole di accesso
 
-Le quattro schede in fondo sono **Challenge, Feed, Vincitori, Profilo**. Creare
-una challenge sta nell'intestazione della home: e' una cosa che si fa una volta
-ogni tanto, non una delle quattro sezioni.
+Le tre schede in fondo sono **Challenge, Vincitori, Profilo**, e ognuna risponde
+a una domanda diversa: *cosa c'e' in palio*, *chi ha vinto*, *come stanno andando
+le mie*. Creare una challenge sta nell'intestazione della home: e' una cosa che
+si fa una volta ogni tanto, non una sezione.
 
-Il Feed non e' la bacheca di tutti: contiene **solo le proprie foto ancora in
-gara**. Le foto degli altri stanno dentro la loro challenge, che e' il posto in
-cui hanno un senso — li' si confrontano fra loro e li' si vota. Con qualche
-challenge aperta in contemporanea il Feed diventa un cruscotto: quante fiamme ha
-presa ognuna, quanto tempo resta, e un tocco per andare a vedere la gara.
+**Non c'e' un feed di tutti.** Le foto degli altri stanno dentro la loro
+challenge, che e' il posto in cui hanno un senso — li' si confrontano fra loro e
+li' si vota. Le proprie stanno nel profilo, e toccandone una si torna alla gara.
+
+Due regole tengono onesta la competizione:
+
+- **chi lancia una challenge non ci partecipa**: mette lui i soldi del premio, e
+  una gara in cui chi paga puo' anche vincere non e' una gara;
+- **la propria foto si puo' votare**. Sembra un buco e non lo e': possono farlo
+  tutti, quindi e' un voto in piu' per ciascuno e non sposta la classifica.
 
 ### Le schermate
 
@@ -63,7 +69,6 @@ presa ognuna, quanto tempo resta, e un tocco per andare a vedere la gara.
 | Challenge (home) | Le challenge aperte: premio, titolo, consegna, tempo, chi l'ha lanciata, la foto in testa, comando |
 | Dettaglio | Premio, consegna, regole, countdown, partecipazioni gia' inviate |
 | Partecipa | Scatta sul momento, guarda l'anteprima, mandi in gara |
-| Feed | **Le tue** foto ancora in gara: fiamme prese, tempo che resta, e la scorciatoia alla gara |
 | Vincitori | Le challenge concluse e chi le ha vinte |
 | Profilo | Partecipazioni, vittorie, premi, e la griglia delle proprie foto |
 | Crea | Lancia una challenge: premio, titolo, consegna, dove, per quanto |

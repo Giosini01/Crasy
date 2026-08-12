@@ -138,7 +138,13 @@ Future<VoteOutcome> giveFire(
 /// La foto con piu' fiamme allo scadere del tempo si prende il premio, quindi
 /// questo e' letteralmente il bottone che decide chi vince.
 class VoteButton extends ConsumerStatefulWidget {
-  const VoteButton({required this.entry, super.key});
+  /// La chiave e' l'identificativo della partecipazione, e **non e' opzionale**.
+  ///
+  /// Senza, dentro una lista che si riordina — e questa si riordina a ogni
+  /// fiamma, perche' e' ordinata per fiamme — Flutter riusa lo stato di un
+  /// elemento su un altro. Il risultato era una fiamma accesa sulla foto
+  /// sbagliata: si votava la prima e si vedeva colorarsi la seconda.
+  VoteButton({required this.entry}) : super(key: ValueKey(entry.id));
 
   final ChallengeEntry entry;
 
@@ -149,6 +155,17 @@ class VoteButton extends ConsumerStatefulWidget {
 class _VoteButtonState extends ConsumerState<VoteButton> {
   /// Quello che l'utente ha appena chiesto, finche' lo stream non lo conferma.
   bool? _pending;
+
+  @override
+  void didUpdateWidget(VoteButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // Cintura oltre alle bretelle: se per qualunque motivo questo stato
+    // finisse su un'altra foto, l'attesa della precedente non deve seguirlo.
+    if (oldWidget.entry.id != widget.entry.id) {
+      _pending = null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
