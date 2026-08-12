@@ -25,8 +25,9 @@ Tre regole, e non sono dettagli — sono il prodotto:
 - **Una foto sola a testa, e non si cambia.** Poter sostituire il proprio scatto
   dopo aver visto quante fiamme prende sarebbe cambiare la mano dopo aver
   guardato le carte degli altri.
-- **Si vota con una fiamma**, non con un cuore e non con un pollice. La foto con
-  piu' fiamme allo scadere del tempo si prende i soldi.
+- **Si vota con una fiamma**, non con un cuore e non con un pollice. Si da' con
+  il doppio tocco sulla foto o dal contatore accanto. La foto con piu' fiamme
+  allo scadere del tempo si prende i soldi.
 
 ---
 
@@ -53,7 +54,7 @@ ogni tanto, non una delle quattro sezioni.
 
 | Schermata | Cosa fa |
 | --- | --- |
-| Challenge (home) | Le challenge aperte, una per schermata: premio, titolo, foto, tempo, comando |
+| Challenge (home) | Le challenge aperte: premio, titolo, consegna, tempo, chi l'ha lanciata, la foto in testa, comando |
 | Dettaglio | Premio, consegna, regole, countdown, partecipazioni gia' inviate |
 | Partecipa | Scatta sul momento, guarda l'anteprima, mandi in gara |
 | Feed | Le partecipazioni piu' recenti di tutte le challenge, con la fiamma |
@@ -83,9 +84,13 @@ del fuoco**.
   sono lo spazio bianco e, dove serve, un filetto da mezzo pixel.
 - La gerarchia la fa la tipografia: dal 64 del premio all'11 dell'occhiello.
 - **Le foto compaiono solo se esistono.** Una challenge senza immagine e' premio,
-  titolo e comando — non un rettangolo grigio, che non e' una foto mancante ma
-  una schermata che sembra rotta. Appena qualcuno partecipa, la sua foto diventa
-  la copertina della gara.
+  titolo, consegna e comando — non un rettangolo grigio, che non e' una foto
+  mancante ma una schermata che sembra rotta.
+- **Chi crea una challenge non allega nessuna foto**: mette in palio dei soldi e
+  detta una consegna. La faccia della gara la mettono i partecipanti — la
+  copertina e' sempre la foto con piu' fiamme, quindi una challenge cambia
+  aspetto man mano che qualcuno fa di meglio invece di restare ferma
+  sull'immagine scelta il primo giorno.
 - Tema chiaro e basta, anche su un dispositivo in tema scuro: le foto devono
   cadere sempre sullo stesso fondo.
 
@@ -170,7 +175,8 @@ Un documento in `challenges/`:
   "prizeCents": 50000,
   "scope": "global",
   "place": "",
-  "coverUrl": null,
+  "createdByUsername": "crasy",
+  "createdByUserId": "",
   "startsAt": "<timestamp>",
   "endsAt": "<timestamp>",
   "participantsCount": 0,

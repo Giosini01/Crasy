@@ -263,8 +263,8 @@ class SampleChallengeRepository implements ChallengeRepository {
         scope: ChallengeScope.global,
         startsAt: now.subtract(const Duration(hours: 18)),
         endsAt: now.add(const Duration(hours: 5, minutes: 32)),
+        createdByUsername: 'crasy',
         participantsCount: 243,
-        coverUrl: _samplePhoto('crasy-global'),
       ),
       [
         ChallengeEntry(
@@ -306,8 +306,8 @@ class SampleChallengeRepository implements ChallengeRepository {
         scope: ChallengeScope.country,
         startsAt: now.subtract(const Duration(days: 1)),
         endsAt: now.add(const Duration(days: 2, hours: 4)),
+        createdByUsername: 'crasy',
         participantsCount: 87,
-        coverUrl: _samplePhoto('crasy-cucina'),
       ),
       [
         ChallengeEntry(
@@ -338,8 +338,8 @@ class SampleChallengeRepository implements ChallengeRepository {
         place: 'NAPOLI',
         startsAt: now.subtract(const Duration(hours: 4)),
         endsAt: now.add(const Duration(minutes: 47)),
+        createdByUsername: 'crasy',
         participantsCount: 31,
-        coverUrl: _samplePhoto('crasy-napoli'),
       ),
       const [],
     );
@@ -354,9 +354,9 @@ class SampleChallengeRepository implements ChallengeRepository {
         scope: ChallengeScope.global,
         startsAt: now.subtract(const Duration(days: 4)),
         endsAt: now.subtract(const Duration(days: 1)),
+        createdByUsername: 'crasy',
         participantsCount: 412,
         winnerEntryId: 'demo-user-4',
-        coverUrl: _samplePhoto('crasy-salto'),
       ),
       [
         ChallengeEntry(

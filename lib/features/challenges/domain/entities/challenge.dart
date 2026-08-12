@@ -19,7 +19,8 @@ class Challenge {
     required this.endsAt,
     this.place = '',
     this.rules = const [],
-    this.coverUrl,
+    this.createdByUsername = '',
+    this.createdByUserId = '',
     this.participantsCount = 0,
     this.winnerEntryId,
   });
@@ -46,9 +47,19 @@ class Challenge {
   /// Le regole, una per riga. Poche e secche.
   final List<String> rules;
 
-  /// La foto di copertina. Puo' mancare — l'interfaccia in quel caso mostra il
-  /// titolo al posto dell'immagine invece di un rettangolo muto.
-  final String? coverUrl;
+  /// Il nome di chi ha lanciato la challenge.
+  ///
+  /// Chi la crea **non allega nessuna foto**: mette in palio dei soldi e detta
+  /// una consegna, e basta. La faccia della gara la mettono i partecipanti — e'
+  /// la foto in testa a decidere come si presenta la challenge, e cambia da sola
+  /// man mano che qualcuno fa di meglio.
+  final String createdByUsername;
+
+  /// L'identificativo di chi l'ha creata, per quando ci sara' una pagina da
+  /// aprire. Vuoto per le challenge lanciate da CRASY.
+  final String createdByUserId;
+
+  bool get hasCreator => createdByUsername.isNotEmpty;
 
   final DateTime startsAt;
   final DateTime endsAt;
@@ -99,7 +110,8 @@ class Challenge {
     ChallengeScope? scope,
     String? place,
     List<String>? rules,
-    String? coverUrl,
+    String? createdByUsername,
+    String? createdByUserId,
     DateTime? startsAt,
     DateTime? endsAt,
     int? participantsCount,
@@ -113,7 +125,8 @@ class Challenge {
       scope: scope ?? this.scope,
       place: place ?? this.place,
       rules: rules ?? this.rules,
-      coverUrl: coverUrl ?? this.coverUrl,
+      createdByUsername: createdByUsername ?? this.createdByUsername,
+      createdByUserId: createdByUserId ?? this.createdByUserId,
       startsAt: startsAt ?? this.startsAt,
       endsAt: endsAt ?? this.endsAt,
       participantsCount: participantsCount ?? this.participantsCount,
@@ -134,7 +147,8 @@ class Challenge {
         other.prizeCents == prizeCents &&
         other.scope == scope &&
         other.place == place &&
-        other.coverUrl == coverUrl &&
+        other.createdByUsername == createdByUsername &&
+        other.createdByUserId == createdByUserId &&
         other.startsAt == startsAt &&
         other.endsAt == endsAt &&
         other.participantsCount == participantsCount &&
@@ -149,7 +163,8 @@ class Challenge {
     prizeCents,
     scope,
     place,
-    coverUrl,
+    createdByUsername,
+    createdByUserId,
     startsAt,
     endsAt,
     participantsCount,

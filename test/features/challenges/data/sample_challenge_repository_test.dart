@@ -116,18 +116,23 @@ void main() {
     expect(entry.mediaUrl.length, greaterThan('data:image/png;base64,'.length));
   });
 
-  test('le challenge e le partecipazioni di esempio hanno una foto', () async {
-    final live = await repository.watchLiveChallenges().first;
-
-    expect(
-      live.every((challenge) => (challenge.coverUrl ?? '').isNotEmpty),
-      isTrue,
-    );
-
+  test('le partecipazioni di esempio hanno una foto', () async {
     final challengeId = await challengeWithEntriesId();
     final entries = await repository.watchEntries(challengeId).first;
 
     expect(entries.every((entry) => entry.mediaUrl.isNotEmpty), isTrue);
+  });
+
+  test('ogni challenge di esempio dice chi l\'ha lanciata', () async {
+    final live = await repository.watchLiveChallenges().first;
+
+    // Chi crea non allega nessuna foto: mette in palio dei soldi e detta una
+    // consegna. La faccia della gara la mettono i partecipanti.
+    expect(live.every((challenge) => challenge.hasCreator), isTrue);
+    expect(
+      live.every((challenge) => challenge.createdByUsername == 'crasy'),
+      isTrue,
+    );
   });
 
   test('due persone diverse partecipano entrambe', () async {

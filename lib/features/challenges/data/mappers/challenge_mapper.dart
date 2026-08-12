@@ -13,7 +13,8 @@ abstract final class ChallengeMapper {
       scope: ChallengeScope.fromName(data['scope'] as String?),
       place: data['place'] as String? ?? '',
       rules: _stringList(data['rules']),
-      coverUrl: data['coverUrl'] as String?,
+      createdByUsername: data['createdByUsername'] as String? ?? '',
+      createdByUserId: data['createdByUserId'] as String? ?? '',
       // Le date sono obbligatorie per il prodotto ma non per il documento: un
       // record scritto a mano male non deve far cadere l'intera schermata.
       // Senza inizio e fine la challenge risulta chiusa, che e' lo stato piu'
@@ -33,7 +34,8 @@ abstract final class ChallengeMapper {
       'scope': challenge.scope.name,
       'place': challenge.place,
       'rules': challenge.rules,
-      'coverUrl': challenge.coverUrl,
+      'createdByUsername': challenge.createdByUsername,
+      'createdByUserId': challenge.createdByUserId,
       'startsAt': Timestamp.fromDate(challenge.startsAt),
       'endsAt': Timestamp.fromDate(challenge.endsAt),
       'participantsCount': challenge.participantsCount,

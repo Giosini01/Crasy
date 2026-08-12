@@ -88,18 +88,25 @@ class ChallengeCard extends ConsumerWidget {
               ],
               const SizedBox(height: AppSpacing.md),
               ChallengeMetaRow(challenge: challenge),
+              if (challenge.hasCreator) ...[
+                const SizedBox(height: AppSpacing.xs),
+                ChallengeAuthor(challenge: challenge),
+              ],
             ],
           ),
         ),
+        if (leader != null) ...[
+          const SizedBox(height: AppSpacing.lg),
+          ChallengeShowcase(entry: leader, onOpen: onOpen),
+        ],
+        // Il comando chiude il blocco, sempre. Dopo aver visto cosa sta
+        // vincendo si sa cosa bisogna battere, ed e' quello il momento in cui
+        // uno decide se partecipare — non prima.
         const SizedBox(height: AppSpacing.md),
         if (myEntry == null)
           CrasyButton(label: 'Partecipa', onPressed: onParticipate)
         else
           const AlreadyJoinedNote(),
-        if (leader != null) ...[
-          const SizedBox(height: AppSpacing.lg),
-          ChallengeShowcase(entry: leader, onOpen: onOpen),
-        ],
       ],
     );
   }
@@ -180,6 +187,63 @@ class ChallengeShowcase extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Chi ha lanciato la challenge.
+///
+/// Con dei soldi in palio, **chi li mette e' un'informazione**, non un dettaglio
+/// di cortesia: cambia la fiducia con cui uno decide di partecipare. Le
+/// challenge di CRASY portano il nome di CRASY, quelle di una persona il suo.
+///
+/// C'e' solo il nome e non una foto: i profili altrui non sono leggibili — le
+/// regole permettono a ognuno di leggere il proprio e basta — quindi si mostra
+/// quello che si ha davvero, invece di un cerchio grigio che finge un ritratto.
+class ChallengeAuthor extends StatelessWidget {
+  const ChallengeAuthor({required this.challenge, super.key});
+
+  final Challenge challenge;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+    final official = challenge.createdByUserId.isEmpty;
+
+    return Row(
+      children: [
+        Container(
+          width: 20,
+          height: 20,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: official ? palette.accentTint : palette.surfaceMuted,
+            shape: BoxShape.circle,
+          ),
+          child: official
+              ? Icon(
+                  Icons.local_fire_department,
+                  size: 12,
+                  color: palette.accent,
+                )
+              : Text(
+                  challenge.createdByUsername.substring(0, 1).toUpperCase(),
+                  style: texts.labelSmall?.copyWith(
+                    color: palette.textSecondary,
+                    letterSpacing: 0,
+                  ),
+                ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Flexible(
+          child: Text(
+            'Lanciata da @${challenge.createdByUsername}',
+            style: texts.labelMedium,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 }

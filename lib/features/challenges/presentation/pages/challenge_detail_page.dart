@@ -117,6 +117,10 @@ class _Body extends ConsumerWidget {
         ],
         const SizedBox(height: AppSpacing.lg),
         Text(challenge.brief, style: texts.bodyLarge),
+        if (challenge.hasCreator) ...[
+          const SizedBox(height: AppSpacing.md),
+          ChallengeAuthor(challenge: challenge),
+        ],
         const SizedBox(height: AppSpacing.lg),
         _TimeBlock(challenge: challenge),
         if (challenge.rules.isNotEmpty) ...[

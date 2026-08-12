@@ -78,23 +78,20 @@ final challengeTopEntryProvider = Provider.autoDispose
       return entries?.where((entry) => entry.mediaUrl.isNotEmpty).firstOrNull;
     });
 
-/// La foto che rappresenta una challenge.
+/// La foto che rappresenta una challenge: **quella con piu' fiamme**.
 ///
-/// Se chi l'ha creata ha messo una copertina si usa quella; altrimenti **la
-/// foto con piu' fiamme fra quelle arrivate**. E se non e' arrivato ancora
-/// niente non c'e' nessuna immagine, e la scheda resta premio, titolo e comando.
-final challengeCoverProvider = Provider.autoDispose.family<String?, String>((
-  ref,
-  challengeId,
-) {
-  final cover = ref.watch(challengeProvider(challengeId)).valueOrNull?.coverUrl;
-
-  if (cover != null && cover.isNotEmpty) {
-    return cover;
-  }
-
-  return ref.watch(challengeTopEntryProvider(challengeId))?.mediaUrl;
-});
+/// Non esiste una copertina scelta da chi crea la challenge, e non e' una
+/// mancanza: chi la lancia mette dei soldi e detta una consegna, la faccia della
+/// gara la mettono i partecipanti. Cosi' una challenge cambia aspetto man mano
+/// che qualcuno fa di meglio, invece di restare ferma sull'immagine scelta il
+/// primo giorno.
+///
+/// Nullo finche' non partecipa nessuno, e in quel caso la scheda e' premio,
+/// titolo, consegna e comando.
+final challengeCoverProvider = Provider.autoDispose.family<String?, String>(
+  (ref, challengeId) =>
+      ref.watch(challengeTopEntryProvider(challengeId))?.mediaUrl,
+);
 
 /// La mia partecipazione a una challenge, se c'e'.
 ///
