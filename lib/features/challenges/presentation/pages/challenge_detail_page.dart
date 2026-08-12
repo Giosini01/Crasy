@@ -8,9 +8,11 @@ import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
+import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -262,20 +264,29 @@ class _Entries extends StatelessWidget {
   }
 }
 
-class _EntryGridTile extends StatelessWidget {
+class _EntryGridTile extends ConsumerWidget {
   const _EntryGridTile({required this.entry});
 
   final ChallengeEntry entry;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final voted =
+        ref.watch(votedEntryIdsProvider).valueOrNull?.contains(entry.id) ??
+        false;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        MediaFrame(
-          url: entry.mediaUrl,
-          aspectRatio: 1,
-          caption: entry.authorName,
+        FireTap(
+          voted: voted,
+          onFire: () =>
+              ref.read(voteControllerProvider).toggle(entry, voted: true),
+          child: MediaFrame(
+            url: entry.mediaUrl,
+            aspectRatio: 1,
+            caption: entry.authorName,
+          ),
         ),
         const SizedBox(height: AppSpacing.xxs),
         Row(

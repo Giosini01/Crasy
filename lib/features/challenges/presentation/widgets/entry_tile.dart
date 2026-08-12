@@ -5,6 +5,7 @@ import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,11 +29,19 @@ class EntryTile extends ConsumerWidget {
     final palette = context.palette;
     final texts = context.texts;
     final createdAt = entry.createdAt;
+    final voted =
+        ref.watch(votedEntryIdsProvider).valueOrNull?.contains(entry.id) ??
+        false;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        MediaFrame(url: entry.mediaUrl, caption: entry.authorName),
+        FireTap(
+          voted: voted,
+          onFire: () =>
+              ref.read(voteControllerProvider).toggle(entry, voted: true),
+          child: MediaFrame(url: entry.mediaUrl, caption: entry.authorName),
+        ),
         const SizedBox(height: AppSpacing.sm),
         Row(
           children: [

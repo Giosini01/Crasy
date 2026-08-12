@@ -65,31 +65,35 @@ final challengeEntriesProvider = StreamProvider.autoDispose
           ref.watch(challengeRepositoryProvider).watchEntries(challengeId),
     );
 
+/// La foto in testa a una challenge: quella con piu' fiamme.
+///
+/// E' la vetrina della gara. Le partecipazioni arrivano gia' ordinate per voti,
+/// quindi "la prima che ha una foto" e' esattamente "quella che sta vincendo".
+final challengeTopEntryProvider = Provider.autoDispose
+    .family<ChallengeEntry?, String>((ref, challengeId) {
+      final entries = ref
+          .watch(challengeEntriesProvider(challengeId))
+          .valueOrNull;
+
+      return entries?.where((entry) => entry.mediaUrl.isNotEmpty).firstOrNull;
+    });
+
 /// La foto che rappresenta una challenge.
 ///
 /// Se chi l'ha creata ha messo una copertina si usa quella; altrimenti **la
-/// foto piu' votata fra quelle arrivate**. E se non e' arrivato ancora niente
-/// non c'e' nessuna immagine, e la scheda resta premio, titolo e comando.
-///
-/// E' il modo in cui una challenge si riempie da sola: appena qualcuno
-/// partecipa, la sua foto diventa la faccia della gara.
+/// foto con piu' fiamme fra quelle arrivate**. E se non e' arrivato ancora
+/// niente non c'e' nessuna immagine, e la scheda resta premio, titolo e comando.
 final challengeCoverProvider = Provider.autoDispose.family<String?, String>((
   ref,
   challengeId,
 ) {
-  final challenge = ref.watch(challengeProvider(challengeId)).valueOrNull;
-  final cover = challenge?.coverUrl;
+  final cover = ref.watch(challengeProvider(challengeId)).valueOrNull?.coverUrl;
 
   if (cover != null && cover.isNotEmpty) {
     return cover;
   }
 
-  final entries = ref.watch(challengeEntriesProvider(challengeId)).valueOrNull;
-
-  return entries
-      ?.where((entry) => entry.mediaUrl.isNotEmpty)
-      .firstOrNull
-      ?.mediaUrl;
+  return ref.watch(challengeTopEntryProvider(challengeId))?.mediaUrl;
 });
 
 /// La mia partecipazione a una challenge, se c'e'.
@@ -138,6 +142,20 @@ final votedEntryIdsProvider = StreamProvider<Set<String>>((ref) {
   return ref
       .watch(challengeRepositoryProvider)
       .watchVotedEntryIds(authState.user.id);
+});
+
+/// Le mie foto nelle challenge ancora aperte.
+///
+/// Non e' un archivio: e' **quello che ho in gara adesso**. Le partecipazioni a
+/// challenge gia' chiuse non hanno piu' niente da dire — il loro esito sta fra i
+/// vincitori — mentre queste stanno ancora prendendo fiamme, e sono l'unica cosa
+/// che vale la pena guardare tornando sull'app.
+final myOpenEntriesProvider = Provider<List<ChallengeEntry>>((ref) {
+  final mine = ref.watch(myEntriesProvider).valueOrNull ?? const [];
+  final live = ref.watch(liveChallengesProvider).valueOrNull ?? const [];
+  final liveIds = {for (final challenge in live) challenge.id};
+
+  return mine.where((entry) => liveIds.contains(entry.challengeId)).toList();
 });
 
 /// Le mie partecipazioni che hanno vinto.

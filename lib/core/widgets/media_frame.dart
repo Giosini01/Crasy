@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:flutter/material.dart';
@@ -69,8 +72,24 @@ class _Surface extends StatelessWidget {
   final String url;
   final String? caption;
 
+  /// Una foto che non e' su nessun server: i byte stanno dentro l'indirizzo.
+  ///
+  /// Serve alle challenge di esempio, dove non c'e' Storage. Senza questo, una
+  /// foto appena scattata in prova non si vedrebbe da nessuna parte —
+  /// esisterebbe solo come partecipazione senza immagine.
+  static const _dataPrefix = 'data:';
+
   @override
   Widget build(BuildContext context) {
+    if (url.startsWith(_dataPrefix)) {
+      return Image.memory(
+        _decodeDataUri(url),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            _Placeholder(caption: caption),
+      );
+    }
+
     return Image.network(
       url,
       fit: BoxFit.cover,
@@ -95,6 +114,25 @@ class _Surface extends StatelessWidget {
         return _Placeholder(caption: caption);
       },
     );
+  }
+}
+
+/// Estrae i byte da un indirizzo `data:image/jpeg;base64,...`.
+///
+/// Se la stringa e' malformata torna un vuoto invece di sollevare: la foto non
+/// si vedra', ma un indirizzo storto non deve far cadere la schermata che la
+/// contiene.
+Uint8List _decodeDataUri(String uri) {
+  final comma = uri.indexOf(',');
+
+  if (comma < 0) {
+    return Uint8List(0);
+  }
+
+  try {
+    return base64Decode(uri.substring(comma + 1));
+  } on FormatException {
+    return Uint8List(0);
   }
 }
 

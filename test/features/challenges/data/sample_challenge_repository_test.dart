@@ -99,6 +99,37 @@ void main() {
     expect(await repository.watchEntriesByUser('me').first, hasLength(1));
   });
 
+  test('la foto scattata resta visibile senza Storage', () async {
+    final challengeId = await firstLiveChallengeId();
+
+    final entry = await repository.submitEntry(
+      challengeId: challengeId,
+      userId: 'me',
+      authorName: 'io',
+      bytes: bytes,
+      contentType: 'image/png',
+    );
+
+    // I byte finiscono dentro l'indirizzo: e' l'unico modo perche' una foto
+    // scattata in prova si veda davvero, senza un bucket dietro.
+    expect(entry.mediaUrl, startsWith('data:image/png;base64,'));
+    expect(entry.mediaUrl.length, greaterThan('data:image/png;base64,'.length));
+  });
+
+  test('le challenge e le partecipazioni di esempio hanno una foto', () async {
+    final live = await repository.watchLiveChallenges().first;
+
+    expect(
+      live.every((challenge) => (challenge.coverUrl ?? '').isNotEmpty),
+      isTrue,
+    );
+
+    final challengeId = await challengeWithEntriesId();
+    final entries = await repository.watchEntries(challengeId).first;
+
+    expect(entries.every((entry) => entry.mediaUrl.isNotEmpty), isTrue);
+  });
+
   test('due persone diverse partecipano entrambe', () async {
     final challengeId = await firstLiveChallengeId();
     final before = (await repository.watchChallenge(challengeId).first)!;

@@ -4,6 +4,7 @@ import 'package:crasy/core/widgets/countdown_text.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,17 +12,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Una challenge nella home.
 ///
 /// La gerarchia e' tutto qui dentro, e l'ordine non e' casuale: **premio,
-/// titolo, foto, tempo, comando**. Chi scorre deve capire in due secondi quanto
-/// puo' vincere, cosa deve fare e quanto tempo gli resta — in quest'ordine,
-/// perche' e' l'ordine in cui uno decide se la cosa lo riguarda.
+/// titolo, consegna, tempo, comando** — poi la vetrina. E' l'ordine in cui uno
+/// decide se la cosa lo riguarda: quanto si vince, cosa bisogna fare, quanto
+/// tempo resta, come si entra. Solo dopo aver deciso viene voglia di vedere
+/// cosa hanno combinato gli altri.
 ///
 /// Non e' una scheda: non c'e' un riquadro, non c'e' un'ombra, non c'e' un
 /// fondo diverso. E' un blocco di pagina, e a separarlo dal successivo e' solo
 /// dello spazio bianco.
-///
-/// La foto compare **solo se esiste**: una challenge appena aperta, a cui non ha
-/// ancora partecipato nessuno, e' tre righe di testo e un bottone. Appena arriva
-/// la prima partecipazione, quella foto diventa la faccia della gara.
 class ChallengeCard extends ConsumerWidget {
   const ChallengeCard({
     required this.challenge,
@@ -38,55 +36,150 @@ class ChallengeCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
     final texts = context.texts;
-    final cover = ref.watch(challengeCoverProvider(challenge.id));
     final myEntry = ref.watch(myEntryForChallengeProvider(challenge.id));
+    final leader = ref.watch(challengeTopEntryProvider(challenge.id));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            // Il premio in rosso, ed e' la cosa piu' grande della schermata.
-            // Se non lo fosse, questa sarebbe un'app di foto qualunque.
-            Expanded(
-              child: Text(
-                challenge.prizeLabel,
-                style: texts.displayLarge?.copyWith(color: palette.accent),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xs),
-              child: Text(
-                challenge.scopeLabel,
-                style: texts.labelSmall?.copyWith(color: palette.textFaint),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.md),
         GestureDetector(
           onTap: onOpen,
           behavior: HitTestBehavior.opaque,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Row(
+                children: [
+                  // Il premio in rosso, ed e' la cosa piu' grande della
+                  // schermata. Se non lo fosse, questa sarebbe un'app di foto
+                  // qualunque.
+                  Expanded(
+                    child: Text(
+                      challenge.prizeLabel,
+                      style: texts.displayLarge?.copyWith(
+                        color: palette.accent,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.xs),
+                    child: Text(
+                      challenge.scopeLabel,
+                      style: texts.labelSmall?.copyWith(
+                        color: palette.textFaint,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
               Text(challenge.title.toUpperCase(), style: texts.displayMedium),
-              if (MediaFrame.hasMedia(cover)) ...[
-                const SizedBox(height: AppSpacing.lg),
-                MediaFrame(url: cover),
+              if (challenge.brief.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.xs),
+                // La consegna, non un riassunto: due righe bastano a dire cosa
+                // bisogna fare, e chi ne vuole di piu' apre la challenge.
+                Text(
+                  challenge.brief,
+                  style: texts.bodyMedium,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
+              const SizedBox(height: AppSpacing.md),
+              ChallengeMetaRow(challenge: challenge),
             ],
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
-        ChallengeMetaRow(challenge: challenge),
         const SizedBox(height: AppSpacing.md),
         if (myEntry == null)
           CrasyButton(label: 'Partecipa', onPressed: onParticipate)
         else
           const AlreadyJoinedNote(),
+        if (leader != null) ...[
+          const SizedBox(height: AppSpacing.lg),
+          ChallengeShowcase(entry: leader, onOpen: onOpen),
+        ],
       ],
+    );
+  }
+}
+
+/// La vetrina: la foto in testa alla challenge.
+///
+/// Una sola, la piu' votata, grande. E' la risposta alla domanda che uno si fa
+/// leggendo la consegna — *cosa ci si e' inventato la gente?* — e insieme il
+/// metro con cui misurarsi: per vincere bisogna fare meglio di questa.
+///
+/// Toccandola si entra nella challenge, dove ci sono tutte le altre. Il numero
+/// di fiamme sta sopra la foto e non sotto: e' l'unica cosa che va letta
+/// insieme all'immagine, non dopo.
+class ChallengeShowcase extends StatelessWidget {
+  const ChallengeShowcase({
+    required this.entry,
+    required this.onOpen,
+    super.key,
+  });
+
+  final ChallengeEntry entry;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+
+    return GestureDetector(
+      onTap: onOpen,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'IN TESTA',
+                style: texts.labelSmall?.copyWith(color: palette.textFaint),
+              ),
+              const Spacer(),
+              Icon(
+                Icons.local_fire_department,
+                size: 16,
+                color: palette.accent,
+              ),
+              const SizedBox(width: 2),
+              Text(
+                '${entry.votes}',
+                style: texts.labelMedium?.copyWith(color: palette.accent),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          MediaFrame(url: entry.mediaUrl, caption: entry.authorName),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '@${entry.authorName}',
+                  style: texts.labelMedium,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Text(
+                'VEDI TUTTE',
+                style: texts.labelSmall?.copyWith(color: palette.textPrimary),
+              ),
+              const SizedBox(width: 2),
+              Icon(
+                Icons.arrow_forward_rounded,
+                size: 14,
+                color: palette.textPrimary,
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
@@ -15,6 +16,7 @@ import 'package:crasy/features/profile/presentation/controllers/profile_edit_con
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 /// Il profilo: quello che hai fatto, non quello che sei.
@@ -22,11 +24,16 @@ import 'package:image_picker/image_picker.dart';
 /// Tre numeri e una griglia di foto. Non c'e' una copertina, non ci sono badge,
 /// non c'e' un livello da salire: su CRASY una persona vale le foto che ha
 /// mandato e le challenge che ha vinto, ed e' tutto li' sopra.
+///
+/// L'impaginazione segue la stessa regola delle challenge — un blocco grande in
+/// cima, una riga di numeri, poi il contenuto — cosi' il profilo non sembra una
+/// schermata presa da un'altra app.
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
     final profileState = ref.watch(currentUserProfileProvider);
     final entries = ref.watch(myEntriesProvider).valueOrNull ?? const [];
     final wins = ref.watch(myWinsProvider);
@@ -51,14 +58,14 @@ class ProfilePage extends ConsumerWidget {
               }
 
               return ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.page,
-                  AppSpacing.md,
-                  AppSpacing.page,
-                  AppSpacing.xxl,
-                ),
+                padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
                 children: [
-                  _Head(profile: profile),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.page,
+                    ),
+                    child: _Identity(profile: profile),
+                  ),
                   const SizedBox(height: AppSpacing.xl),
                   _Stats(
                     entries: entries.length,
@@ -66,16 +73,34 @@ class ProfilePage extends ConsumerWidget {
                     prizeCents: prizeCents,
                   ),
                   const SizedBox(height: AppSpacing.xl),
-                  Divider(color: context.palette.line),
-                  const SizedBox(height: AppSpacing.lg),
                   if (entries.isEmpty)
-                    const EmptyState(
-                      title: 'Ancora niente',
-                      message:
-                          'Le foto che mandi alle challenge finiscono qui.',
+                    const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppSpacing.page,
+                      ),
+                      child: EmptyState(
+                        title: 'Ancora nessuno scatto',
+                        message:
+                            'Le foto che mandi alle challenge finiscono qui, '
+                            'con le fiamme che si prendono.',
+                      ),
                     )
                   else
                     _EntryGrid(entries: entries),
+                  const SizedBox(height: AppSpacing.xl),
+                  Center(
+                    child: TextButton(
+                      onPressed: () => ref
+                          .read(authActionControllerProvider.notifier)
+                          .signOut(),
+                      child: Text(
+                        'Esci',
+                        style: context.texts.titleMedium?.copyWith(
+                          color: palette.textFaint,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               );
             },
@@ -86,8 +111,9 @@ class ProfilePage extends ConsumerWidget {
   }
 }
 
-class _Head extends ConsumerWidget {
-  const _Head({required this.profile});
+/// Chi sei: la foto, il nome grande, una riga, la citta'.
+class _Identity extends ConsumerWidget {
+  const _Identity({required this.profile});
 
   final UserProfile profile;
 
@@ -96,49 +122,39 @@ class _Head extends ConsumerWidget {
     final palette = context.palette;
     final texts = context.texts;
 
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        GestureDetector(
-          onTap: () => _changePhoto(context, ref),
-          child: _Avatar(profile: profile),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Avatar(profile: profile, onTap: () => _changePhoto(context, ref)),
+            const Spacer(),
+            // La modifica e' un'icona e non un bottone: si usa due volte in
+            // tutta la vita del profilo, e un bottone a tutta larghezza qui
+            // peserebbe quanto il nome.
+            IconButton(
+              onPressed: () => _edit(context, ref, profile),
+              icon: const Icon(Icons.tune_rounded, size: 20),
+              tooltip: 'Modifica profilo',
+              color: palette.textFaint,
+            ),
+          ],
         ),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('@${profile.username}', style: texts.headlineMedium),
-              if (profile.hasBio) Text(profile.bio, style: texts.bodyMedium),
-              if (profile.city.isNotEmpty)
-                Text(
-                  profile.city.toUpperCase(),
-                  style: texts.labelSmall?.copyWith(color: palette.textFaint),
-                ),
-              const SizedBox(height: AppSpacing.xs),
-              Row(
-                children: [
-                  TextButton(
-                    onPressed: () => _edit(context, ref, profile),
-                    child: const Text('Modifica'),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  TextButton(
-                    onPressed: () => ref
-                        .read(authActionControllerProvider.notifier)
-                        .signOut(),
-                    child: Text(
-                      'Esci',
-                      style: texts.titleMedium?.copyWith(
-                        color: palette.textFaint,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+        const SizedBox(height: AppSpacing.md),
+        Text('@${profile.username}', style: texts.displaySmall),
+        if (profile.hasBio) ...[
+          const SizedBox(height: AppSpacing.xxs),
+          Text(profile.bio, style: texts.bodyMedium),
+        ],
+        if (profile.city.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            profile.city.toUpperCase(),
+            style: texts.labelSmall?.copyWith(color: palette.textFaint),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -155,6 +171,9 @@ class _Head extends ConsumerWidget {
               title: const Text('Scatta una foto'),
               onTap: () => Navigator.of(context).pop(ImageSource.camera),
             ),
+            // Qui la galleria c'e', a differenza delle challenge: la foto
+            // profilo non e' una gara, e obbligare a farsi un selfie sul
+            // momento per cambiarla sarebbe una regola senza motivo.
             ListTile(
               leading: const Icon(Icons.image_outlined),
               title: const Text('Scegli dalla galleria'),
@@ -228,29 +247,61 @@ class _Head extends ConsumerWidget {
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.profile});
+  const _Avatar({required this.profile, required this.onTap});
 
   final UserProfile profile;
+  final VoidCallback onTap;
 
-  static const double _size = 64;
+  static const double _size = 76;
 
   @override
   Widget build(BuildContext context) {
-    if (profile.hasPhoto) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        child: Image.network(
-          profile.photoUrl!,
-          width: _size,
-          height: _size,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) =>
-              _Initials(profile: profile),
-        ),
-      );
-    }
+    final palette = context.palette;
 
-    return _Initials(profile: profile);
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: _size,
+        height: _size,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                child: profile.hasPhoto
+                    ? Image.network(
+                        profile.photoUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            _Initials(profile: profile),
+                      )
+                    : _Initials(profile: profile),
+              ),
+            ),
+            // Il segno che la foto si puo' cambiare. Piccolo e sul bordo:
+            // deve farsi trovare da chi lo cerca, non annunciarsi.
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: palette.background,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: palette.line),
+                ),
+                child: Icon(
+                  Icons.photo_camera_outlined,
+                  size: 12,
+                  color: palette.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -263,27 +314,25 @@ class _Initials extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
 
-    return Container(
-      width: _Avatar._size,
-      height: _Avatar._size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: palette.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Text(
-        profile.initials,
-        style: context.texts.titleLarge?.copyWith(color: palette.textSecondary),
+    return ColoredBox(
+      color: palette.surfaceMuted,
+      child: Center(
+        child: Text(
+          profile.initials,
+          style: context.texts.headlineSmall?.copyWith(
+            color: palette.textFaint,
+          ),
+        ),
       ),
     );
   }
 }
 
-/// I tre numeri.
+/// I tre numeri, fra due filetti.
 ///
-/// Sono tre e non otto: partecipazioni, vittorie, premi. Tutto il resto —
-/// visualizzazioni, voti ricevuti, giorni di fila — sarebbe roba da far salire
-/// per il gusto di farla salire.
+/// Sono tre e non otto: scatti, vinte, vinti. Tutto il resto —
+/// visualizzazioni, fiamme ricevute, giorni di fila — sarebbe roba da far
+/// salire per il gusto di farla salire.
 class _Stats extends StatelessWidget {
   const _Stats({
     required this.entries,
@@ -299,18 +348,45 @@ class _Stats extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
       children: [
-        _Stat(label: 'PARTECIPAZIONI', value: '$entries'),
-        _Stat(label: 'VINTE', value: '$wins'),
-        _Stat(
-          label: 'PREMI',
-          value: AppMoney.format(prizeCents),
-          color: prizeCents > 0 ? palette.accent : null,
+        Divider(color: palette.line),
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.page,
+            vertical: AppSpacing.md,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Stat(label: 'SCATTI', value: '$entries'),
+              _Divider(color: palette.line),
+              _Stat(label: 'VINTE', value: '$wins'),
+              _Divider(color: palette.line),
+              _Stat(
+                label: 'VINTI',
+                value: AppMoney.format(prizeCents),
+                // Il denaro prende il rosso solo quando ce n'e' davvero: un
+                // "€0" acceso sarebbe una promessa mancata scritta a colori.
+                color: prizeCents > 0 ? palette.accent : null,
+              ),
+            ],
+          ),
         ),
+        Divider(color: palette.line),
       ],
     );
+  }
+}
+
+class _Divider extends StatelessWidget {
+  const _Divider({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(width: 0.5, height: 34, color: color);
   }
 }
 
@@ -328,7 +404,6 @@ class _Stat extends StatelessWidget {
 
     return Expanded(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             value,
@@ -347,6 +422,12 @@ class _Stat extends StatelessWidget {
   }
 }
 
+/// La griglia degli scatti.
+///
+/// Tre colonne, due pixel di distanza, quadrati: la stessa griglia che ha
+/// qualunque raccolta di foto, e va bene che sia cosi'. Qui l'interfaccia non ha
+/// niente da aggiungere — sopra ogni foto sta solo il numero di fiamme che ha
+/// preso, perche' e' l'unica cosa che distingue uno scatto dall'altro.
 class _EntryGrid extends StatelessWidget {
   const _EntryGrid({required this.entries});
 
@@ -357,7 +438,7 @@ class _EntryGrid extends StatelessWidget {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.zero,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
         crossAxisSpacing: 2,
@@ -367,13 +448,69 @@ class _EntryGrid extends StatelessWidget {
       itemBuilder: (context, index) {
         final entry = entries[index];
 
-        return MediaFrame(
-          url: entry.mediaUrl,
-          aspectRatio: 1,
-          radius: AppRadius.xs,
-          caption: entry.challengeTitle,
+        return GestureDetector(
+          onTap: () =>
+              context.push(AppRoutes.challengeDetailOf(entry.challengeId)),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              MediaFrame(
+                url: entry.mediaUrl,
+                aspectRatio: 1,
+                radius: AppRadius.xs,
+                caption: entry.challengeTitle,
+              ),
+              Positioned(
+                left: 4,
+                bottom: 4,
+                child: _FireBadge(votes: entry.votes, winner: entry.isWinner),
+              ),
+            ],
+          ),
         );
       },
+    );
+  }
+}
+
+/// Il conteggio delle fiamme sopra una foto.
+///
+/// Bianco su un velo scuro, non rosso: sotto c'e' una foto qualunque, e il rosso
+/// su un'immagine rossa sparirebbe. La leggibilita' qui viene prima della
+/// coerenza cromatica.
+class _FireBadge extends StatelessWidget {
+  const _FireBadge({required this.votes, required this.winner});
+
+  final int votes;
+  final bool winner;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: const Color(0x8C000000),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            winner ? Icons.emoji_events : Icons.local_fire_department,
+            size: 11,
+            color: Colors.white,
+          ),
+          const SizedBox(width: 2),
+          Text(
+            '$votes',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

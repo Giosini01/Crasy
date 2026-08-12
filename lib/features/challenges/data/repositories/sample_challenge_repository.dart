@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:crasy/features/challenges/data/repositories/firestore_challenge_repository.dart'
@@ -152,10 +153,11 @@ class SampleChallengeRepository implements ChallengeRepository {
       challengeTitle: challenge.title,
       userId: userId,
       authorName: authorName,
-      // Le foto di esempio non hanno un indirizzo: restano in memoria per la
-      // sessione. Caricarle davvero vorrebbe dire avere Storage, cioe'
-      // esattamente cio' che qui manca.
-      mediaUrl: '',
+      // La foto appena scattata **si vede davvero**, anche senza Storage: i
+      // byte finiscono dentro l'indirizzo stesso. E' l'unico modo per provare
+      // il giro completo — scatto, invio, la mia foto in gara — con un
+      // repository che vive in memoria.
+      mediaUrl: _dataUri(bytes, contentType),
       createdAt: DateTime.now(),
     );
 
@@ -206,6 +208,29 @@ class SampleChallengeRepository implements ChallengeRepository {
 
   static final DateTime _never = DateTime.fromMillisecondsSinceEpoch(0);
 
+  /// I byte di una foto trasformati in un indirizzo che li contiene.
+  static String _dataUri(Uint8List bytes, String? contentType) {
+    final type = (contentType ?? '').startsWith('image/')
+        ? contentType!
+        : 'image/jpeg';
+
+    return 'data:$type;base64,${base64Encode(bytes)}';
+  }
+
+  /// Le foto delle challenge di esempio.
+  ///
+  /// Sono indirizzi remoti con un seme fisso, quindi la stessa challenge mostra
+  /// sempre la stessa immagine invece di cambiarla a ogni avvio. Senza rete non
+  /// si vedono, e va bene cosi': l'interfaccia in quel caso non lascia un buco
+  /// grigio, semplicemente non mostra la foto.
+  static String _samplePhoto(
+    String seed, {
+    int width = 800,
+    int height = 1000,
+  }) {
+    return 'https://picsum.photos/seed/$seed/$width/$height';
+  }
+
   void _add(Challenge challenge, List<ChallengeEntry> entries) {
     _challenges[challenge.id] = challenge;
     // La lista si copia: quelle del seme sono `const`, e partecipare a una
@@ -239,6 +264,7 @@ class SampleChallengeRepository implements ChallengeRepository {
         startsAt: now.subtract(const Duration(hours: 18)),
         endsAt: now.add(const Duration(hours: 5, minutes: 32)),
         participantsCount: 243,
+        coverUrl: _samplePhoto('crasy-global'),
       ),
       [
         ChallengeEntry(
@@ -247,7 +273,7 @@ class SampleChallengeRepository implements ChallengeRepository {
           challengeTitle: 'Do something crazy',
           userId: 'demo-user-1',
           authorName: 'martina',
-          mediaUrl: '',
+          mediaUrl: _samplePhoto('crasy-martina'),
           createdAt: now.subtract(const Duration(hours: 3)),
           votes: 128,
         ),
@@ -257,7 +283,7 @@ class SampleChallengeRepository implements ChallengeRepository {
           challengeTitle: 'Do something crazy',
           userId: 'demo-user-2',
           authorName: 'leo',
-          mediaUrl: '',
+          mediaUrl: _samplePhoto('crasy-leo'),
           createdAt: now.subtract(const Duration(hours: 6)),
           votes: 91,
         ),
@@ -281,6 +307,7 @@ class SampleChallengeRepository implements ChallengeRepository {
         startsAt: now.subtract(const Duration(days: 1)),
         endsAt: now.add(const Duration(days: 2, hours: 4)),
         participantsCount: 87,
+        coverUrl: _samplePhoto('crasy-cucina'),
       ),
       [
         ChallengeEntry(
@@ -289,7 +316,7 @@ class SampleChallengeRepository implements ChallengeRepository {
           challengeTitle: 'Cucina creativa',
           userId: 'demo-user-3',
           authorName: 'giulia',
-          mediaUrl: '',
+          mediaUrl: _samplePhoto('crasy-giulia'),
           createdAt: now.subtract(const Duration(hours: 9)),
           votes: 44,
         ),
@@ -312,6 +339,7 @@ class SampleChallengeRepository implements ChallengeRepository {
         startsAt: now.subtract(const Duration(hours: 4)),
         endsAt: now.add(const Duration(minutes: 47)),
         participantsCount: 31,
+        coverUrl: _samplePhoto('crasy-napoli'),
       ),
       const [],
     );
@@ -328,6 +356,7 @@ class SampleChallengeRepository implements ChallengeRepository {
         endsAt: now.subtract(const Duration(days: 1)),
         participantsCount: 412,
         winnerEntryId: 'demo-user-4',
+        coverUrl: _samplePhoto('crasy-salto'),
       ),
       [
         ChallengeEntry(
@@ -336,7 +365,7 @@ class SampleChallengeRepository implements ChallengeRepository {
           challengeTitle: 'Salto nel vuoto',
           userId: 'demo-user-4',
           authorName: 'sara',
-          mediaUrl: '',
+          mediaUrl: _samplePhoto('crasy-sara'),
           createdAt: now.subtract(const Duration(days: 2)),
           votes: 389,
           isWinner: true,
