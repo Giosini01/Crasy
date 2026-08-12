@@ -76,7 +76,11 @@ class _Header extends StatelessWidget {
       sliver: SliverToBoxAdapter(
         child: Row(
           children: [
-            const Expanded(child: CrasyWordmark(size: 30)),
+            // Il logotipo prende la sua larghezza vera e lo spazio lo mangia lo
+            // `Spacer`: dentro un `Expanded` l'immagine si allargherebbe e si
+            // centrerebbe da sola.
+            const CrasyWordmark(size: 30),
+            const Spacer(),
             // Creare una challenge sta qui e non in una scheda in fondo: e'
             // una cosa che si fa una volta ogni tanto, non una delle quattro
             // sezioni dell'app.
