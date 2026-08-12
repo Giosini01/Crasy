@@ -84,9 +84,12 @@ abstract final class ChallengeEntryMapper {
 
   /// La mappa con cui nasce una partecipazione.
   ///
-  /// I voti **non ci sono**: sono scritti solo con `increment`, e includerli
-  /// qui significherebbe azzerarli ogni volta che qualcuno rimanda la propria
-  /// foto per la stessa challenge.
+  /// I voti partono da zero e **il campo deve esserci**. Ometterlo sembrava
+  /// piu' pulito — tanto chi legge tratta l'assenza come zero — ma le regole di
+  /// Firestore no: la condizione che protegge il contatore confronta il valore
+  /// nuovo con `resource.data.votes`, e su un documento dove quel campo non
+  /// esiste la valutazione fallisce e il voto viene respinto. Una partecipazione
+  /// nata senza `votes` e' una partecipazione che non puo' riceverne.
   static Map<String, dynamic> toCreateMap(ChallengeEntry entry) {
     return {
       'challengeId': entry.challengeId,
@@ -95,6 +98,7 @@ abstract final class ChallengeEntryMapper {
       'authorName': entry.authorName,
       'mediaUrl': entry.mediaUrl,
       'storagePath': entry.storagePath,
+      'votes': 0,
       'createdAt': FieldValue.serverTimestamp(),
     };
   }

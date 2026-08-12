@@ -116,9 +116,12 @@ service cloud.firestore {
                       && request.resource.data.userId == request.auth.uid
                       && request.resource.data.mediaUrl is string
                       && request.resource.data.mediaUrl.size() > 0
-                      // I voti e la vittoria non si portano da casa: li scrive
-                      // solo chi vota e solo il server.
-                      && !('votes' in request.resource.data)
+                      // Le fiamme partono da zero, e il campo deve esserci: la
+                      // regola qui sotto lo confronta, e su un documento dove
+                      // non esiste la valutazione fallisce — cioe' una foto
+                      // nata senza `votes` non potrebbe riceverne nessuno.
+                      && request.resource.data.votes == 0
+                      // La vittoria non si porta da casa: la scrive il server.
                       && !('isWinner' in request.resource.data)
                       && challengeIsLive();
 
@@ -132,11 +135,17 @@ service cloud.firestore {
         // Che il voto non venga messo due volte lo garantisce il documento
         // sotto `users/{uid}/votes`, che esiste o non esiste: qui si controlla
         // solo che il contatore non possa fare salti.
+        //
+        // Il valore di partenza si legge con `get('votes', 0)` invece che
+        // direttamente: le partecipazioni scritte prima che il campo esistesse
+        // altrimenti resterebbero per sempre senza poter ricevere una fiamma.
         allow update: if signedIn()
                       && request.auth.uid != entryId
                       && changedOnly(['votes'])
-                      && (request.resource.data.votes == resource.data.votes + 1
-                          || request.resource.data.votes == resource.data.votes - 1);
+                      && (request.resource.data.votes
+                            == resource.data.get('votes', 0) + 1
+                          || request.resource.data.votes
+                            == resource.data.get('votes', 0) - 1);
 
         // Una foto mandata in gara non si cancella: e' il patto con chi la
         // vota e con gli altri concorrenti.
