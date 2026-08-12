@@ -36,9 +36,9 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
   final _brief = TextEditingController();
   final _prize = TextEditingController();
   final _place = TextEditingController();
+  final _hours = TextEditingController(text: '24');
 
   ChallengeScope _scope = ChallengeScope.global;
-  int _days = 1;
   String? _error;
 
   @override
@@ -47,6 +47,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     _brief.dispose();
     _prize.dispose();
     _place.dispose();
+    _hours.dispose();
     super.dispose();
   }
 
@@ -125,15 +126,30 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                 ),
               ],
               const SizedBox(height: AppSpacing.lg),
-              _SectionLabel('Quanto dura'),
+              _Field(
+                label: 'Quanto dura — ore (max 24)',
+                controller: _hours,
+                hint: '24',
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(2),
+                ],
+                validator: ChallengeDraftValidators.validateHours,
+              ),
+              // Le scorciatoie riempiono il campo invece di sostituirlo: il
+              // valore resta uno solo e sempre visibile, e chi vuole 7 ore le
+              // scrive senza cercare una voce che non c'e'.
               Wrap(
                 spacing: AppSpacing.xs,
                 children: [
-                  for (final days in const [1, 3, 7])
+                  for (final hours in const [1, 3, 6, 12, 24])
                     _Choice(
-                      label: days == 1 ? '24 ORE' : '$days GIORNI',
-                      selected: _days == days,
-                      onTap: () => setState(() => _days = days),
+                      label: '${hours}H',
+                      selected: _hours.text == '$hours',
+                      onTap: () => setState(() {
+                        _hours.text = '$hours';
+                      }),
                     ),
                 ],
               ),
@@ -178,7 +194,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
           prizeEuro: int.parse(_prize.text.trim()),
           scope: _scope,
           place: _place.text,
-          days: _days,
+          hours: int.parse(_hours.text.trim()),
         );
 
     if (!mounted) {

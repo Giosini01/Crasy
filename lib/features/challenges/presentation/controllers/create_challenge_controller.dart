@@ -66,6 +66,29 @@ abstract final class ChallengeDraftValidators {
     return null;
   }
 
+  /// Quanto puo' durare una challenge, in ore.
+  ///
+  /// Il tetto e' **un giorno**, e non e' un limite tecnico: e' il prodotto. Una
+  /// gara che dura una settimana non ha nessuna urgenza, e l'urgenza e' meta'
+  /// del motivo per cui uno esce di casa a fare una foto assurda. Il minimo e'
+  /// un'ora perche' sotto non ci sta nemmeno il tempo di parteciparvi.
+  static const int hoursMin = 1;
+  static const int hoursMax = 24;
+
+  static String? validateHours(String? value) {
+    final hours = int.tryParse(value?.trim() ?? '');
+
+    if (hours == null) {
+      return 'Inserisci quante ore dura.';
+    }
+
+    if (hours < hoursMin || hours > hoursMax) {
+      return 'Da $hoursMin a $hoursMax ore.';
+    }
+
+    return null;
+  }
+
   static String? validatePlace(ChallengeScope scope, String? value) {
     if (scope != ChallengeScope.local) {
       return null;
@@ -95,7 +118,7 @@ class CreateChallengeController extends AsyncNotifier<void> {
     required int prizeEuro,
     required ChallengeScope scope,
     required String place,
-    required int days,
+    required int hours,
   }) async {
     final authState = ref.read(authStateProvider);
 
@@ -124,7 +147,7 @@ class CreateChallengeController extends AsyncNotifier<void> {
       createdByUsername: profile?.username ?? 'anonimo',
       createdByUserId: authState.user.id,
       startsAt: now,
-      endsAt: now.add(Duration(days: days)),
+      endsAt: now.add(Duration(hours: hours)),
     );
 
     state = const AsyncLoading<void>();

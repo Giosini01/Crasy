@@ -62,9 +62,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
     textPrimary: AppColors.ink,
     textSecondary: AppColors.inkSoft,
     textFaint: AppColors.inkFaint,
-    accent: AppColors.crasyFlame,
-    accentDeep: AppColors.crasyFlameDeep,
-    accentTint: AppColors.crasyFlameTint,
+    accent: AppColors.crasyRed,
+    accentDeep: AppColors.crasyRedDeep,
+    accentTint: AppColors.crasyRedTint,
     onAccent: AppColors.paper,
   );
 

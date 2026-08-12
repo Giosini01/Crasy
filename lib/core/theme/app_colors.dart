@@ -9,30 +9,29 @@ import 'package:flutter/material.dart';
 ///
 /// Il colore vero lo mettono le foto delle challenge. L'interfaccia sta zitta.
 abstract final class AppColors {
-  /// Il rosso della fiamma, preso dal logotipo.
+  /// Il rosso di CRASY, preso dal logotipo.
   ///
-  /// Non e' un rosso scelto a tavolino: e' il colore campionato dalle fiamme
-  /// della "sy" di `assets/brand/crasy-wordmark.png`, la tinta piu' frequente
-  /// dei quasi centomila pixel di fiamma. Il marchio e l'interfaccia usano
-  /// letteralmente lo stesso colore, che e' l'unico modo perche' un accento
-  /// diventi riconoscibile.
-  static const crasyFlame = Color(0xFFFC3000);
+  /// Non e' un rosso scelto a tavolino: e' il colore campionato dalla "sy" di
+  /// `assets/brand/crasy-wordmark.png`, la tinta piu' frequente dei suoi pixel
+  /// rossi. Marchio e interfaccia usano letteralmente lo stesso colore, che e'
+  /// l'unico modo perche' un accento diventi riconoscibile.
+  static const crasyRed = Color(0xFFFA0000);
 
-  /// Lo stesso fuoco, piu' in fondo alla fiamma.
+  /// Lo stesso rosso, piu' scuro.
   ///
   /// Serve a **un solo scopo**: fare da riempimento sotto il testo bianco.
-  /// [crasyFlame] su bianco ha un contrasto di 3,8:1 — abbastanza per un premio
+  /// [crasyRed] su bianco ha un contrasto di 4,2:1 — abbastanza per un premio
   /// scritto a 64 punti, non abbastanza per l'etichetta di un bottone a 14. Qui
-  /// si sale a 4,8:1, che passa la soglia.
+  /// si sale a 5,0:1, che passa la soglia con margine.
   ///
-  /// Non e' un secondo colore: e' la stessa tinta a una profondita' diversa,
-  /// come le due zone di una fiamma vera. La regola resta una — chi scrive del
-  /// testo bianco sopra il rosso usa questo, tutti gli altri usano quello.
-  static const crasyFlameDeep = Color(0xFFE02200);
+  /// Non e' un secondo colore: e' la stessa tinta a una luminosita' diversa. La
+  /// regola resta una — chi scrive del testo bianco sopra il rosso usa questo,
+  /// tutti gli altri usano quello.
+  static const crasyRedDeep = Color(0xFFE00000);
 
-  /// La fiamma al 6% su bianco, precalcolata per restare `const`. Serve al
-  /// fondo degli stati attivi, dove il rosso pieno griderebbe.
-  static const crasyFlameTint = Color(0xFFFFEFEB);
+  /// Il rosso al 6% su bianco, precalcolato per restare `const`. Serve al fondo
+  /// degli elementi attivi, dove il rosso pieno griderebbe.
+  static const crasyRedTint = Color(0xFFFFF0F0);
 
   // --- Neutrali -------------------------------------------------------------
 
@@ -43,7 +42,7 @@ abstract final class AppColors {
   /// bianco e il bianco sparisce.
   static const paper = Color(0xFFFFFFFF);
 
-  /// Riempimenti tenui: il posto di una foto che non c'e' ancora, i campi.
+  /// Riempimenti tenui: il posto di una foto che sta arrivando, i campi.
   static const paperMuted = Color(0xFFF4F4F5);
 
   /// I filetti. Sottilissimi, quasi invisibili: separano senza disegnare.

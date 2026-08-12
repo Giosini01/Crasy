@@ -71,6 +71,25 @@ void main() {
     });
   });
 
+  group('durata', () {
+    test('e\' obbligatoria e sta fra un\'ora e un giorno', () {
+      expect(ChallengeDraftValidators.validateHours(null), isNotNull);
+      expect(ChallengeDraftValidators.validateHours(''), isNotNull);
+      expect(ChallengeDraftValidators.validateHours('0'), isNotNull);
+      expect(ChallengeDraftValidators.validateHours('1'), isNull);
+      expect(ChallengeDraftValidators.validateHours('7'), isNull);
+      expect(ChallengeDraftValidators.validateHours('24'), isNull);
+    });
+
+    test('oltre le ventiquattro ore non si va', () {
+      // Non e' un limite tecnico: una gara che dura una settimana non ha
+      // nessuna urgenza, e l'urgenza e' meta' del motivo per cui uno esce di
+      // casa a fare una foto assurda.
+      expect(ChallengeDraftValidators.validateHours('25'), isNotNull);
+      expect(ChallengeDraftValidators.validateHours('99'), isNotNull);
+    });
+  });
+
   group('luogo', () {
     test('serve solo alle challenge locali', () {
       expect(

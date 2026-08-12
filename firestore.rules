@@ -12,6 +12,21 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
     }
 
+    // Le partecipazioni lette **attraverso tutte le challenge insieme**.
+    //
+    // Serve una regola a se', e non e' un doppione di quella annidata piu'
+    // sotto: una query su un gruppo di collezioni non viene autorizzata dalle
+    // regole scritte su un percorso annidato. Firestore la valuta contro un
+    // `match` che comincia con il jolly, e se non lo trova rifiuta.
+    //
+    // Senza questa riga il feed, "le tue in gara" e la griglia del profilo —
+    // che sono tutti query sul gruppo — tornavano vuoti, mentre le stesse foto
+    // dentro la loro challenge si vedevano benissimo. Nessun errore a schermo:
+    // solo sezioni vuote.
+    match /{path=**}/entries/{entryId} {
+      allow read: if true;
+    }
+
     // Il profilo.
     //
     // Lo legge solo il diretto interessato. Il feed non ne ha bisogno: il nome

@@ -99,7 +99,7 @@ class EntryTile extends ConsumerWidget {
 /// feed, il contatore accanto, la griglia dentro una challenge — e la parte che
 /// non va duplicata e' cosa fare quando il voto **non** si puo' dare: mandare
 /// alla registrazione, o non fare niente se e' la propria foto.
-Future<void> giveFire(
+Future<VoteOutcome> giveFire(
   BuildContext context,
   WidgetRef ref,
   ChallengeEntry entry, {
@@ -109,14 +109,25 @@ Future<void> giveFire(
       .read(voteControllerProvider)
       .toggle(entry, voted: voted);
 
-  if (outcome != VoteOutcome.needsAccount || !context.mounted) {
-    return;
+  if (outcome == VoteOutcome.needsAccount && context.mounted) {
+    context.push(AppRoutes.auth);
   }
 
-  context.push(AppRoutes.auth);
+  return outcome;
 }
 
-/// Il voto: una fiamma e un numero.
+/// La fiamma e il suo numero.
+///
+/// Tocco singolo: accende se e' spenta, spegne se e' accesa. E' l'unico
+/// comando dell'app che fa due cose opposte, e va bene cosi': e' il gesto che
+/// tutti si aspettano da un "mi piace".
+///
+/// Il colore **non aspetta il server**. Al tocco la fiamma diventa subito
+/// rossa, e resta cosi' finche' lo stream non conferma; se la scrittura non va
+/// a buon fine torna com'era. Senza questo, fra il tocco e il viaggio di andata
+/// e ritorno su Firestore c'e' un momento in cui non succede niente — e in quel
+/// momento la gente tocca una seconda volta, disfacendo quello che aveva appena
+/// fatto.
 ///
 /// Non e' un cuore e non e' un pollice. Un cuore su una foto di una persona
 /// vuol dire una cosa sola, ed e' esattamente la cosa che CRASY non e'; un
@@ -126,23 +137,39 @@ Future<void> giveFire(
 ///
 /// La foto con piu' fiamme allo scadere del tempo si prende il premio, quindi
 /// questo e' letteralmente il bottone che decide chi vince.
-class VoteButton extends ConsumerWidget {
+class VoteButton extends ConsumerStatefulWidget {
   const VoteButton({required this.entry, super.key});
 
   final ChallengeEntry entry;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<VoteButton> createState() => _VoteButtonState();
+}
+
+class _VoteButtonState extends ConsumerState<VoteButton> {
+  /// Quello che l'utente ha appena chiesto, finche' lo stream non lo conferma.
+  bool? _pending;
+
+  @override
+  Widget build(BuildContext context) {
     final palette = context.palette;
-    final voted =
+    final entry = widget.entry;
+    final confirmed =
         ref.watch(votedEntryIdsProvider).valueOrNull?.contains(entry.id) ??
         false;
+
+    // Quando la realta' raggiunge l'attesa, l'attesa non serve piu'.
+    if (_pending == confirmed) {
+      _pending = null;
+    }
+
+    final voted = _pending ?? confirmed;
 
     return Semantics(
       button: true,
       label: voted ? 'Togli la fiamma' : 'Dai la fiamma',
       child: InkWell(
-        onTap: () => giveFire(context, ref, entry, voted: !voted),
+        onTap: () => _toggle(voted: !voted),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.xs,
@@ -170,5 +197,17 @@ class VoteButton extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _toggle({required bool voted}) async {
+    setState(() => _pending = voted);
+
+    final outcome = await giveFire(context, ref, widget.entry, voted: voted);
+
+    // Se non e' andata — serve un account, o e' la propria foto — la fiamma
+    // torna com'era invece di restare accesa su una promessa non mantenuta.
+    if (outcome != VoteOutcome.done && mounted) {
+      setState(() => _pending = null);
+    }
   }
 }
