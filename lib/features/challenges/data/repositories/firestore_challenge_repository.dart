@@ -123,6 +123,15 @@ class FirestoreChallengeRepository implements ChallengeRepository {
   }
 
   @override
+  Future<Challenge> createChallenge(Challenge challenge) async {
+    final document = await _challenges.add(
+      ChallengeMapper.toCreateMap(challenge),
+    );
+
+    return challenge.copyWith(id: document.id);
+  }
+
+  @override
   Future<ChallengeEntry> submitEntry({
     required String challengeId,
     required String userId,

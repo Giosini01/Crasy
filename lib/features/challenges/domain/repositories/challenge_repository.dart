@@ -28,6 +28,11 @@ abstract class ChallengeRepository {
   /// Le partecipazioni di una persona, per il suo profilo.
   Stream<List<ChallengeEntry>> watchEntriesByUser(String userId);
 
+  /// Lancia una challenge. Torna quella creata, con il suo identificativo.
+  ///
+  /// L'oggetto passato arriva senza `id` — lo assegna chi scrive.
+  Future<Challenge> createChallenge(Challenge challenge);
+
   /// Invia una partecipazione: carica la foto e registra il documento.
   ///
   /// Prende i byte e non un percorso perche' su web `XFile.path` e' un blob url

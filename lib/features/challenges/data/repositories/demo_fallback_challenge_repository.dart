@@ -82,6 +82,14 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
   }
 
   @override
+  Future<Challenge> createChallenge(Challenge challenge) {
+    // Le challenge nuove vanno **sempre** su Firestore, mai fra gli esempi:
+    // una challenge lanciata da una persona vera deve poterla vedere anche
+    // qualcun altro, ed e' esattamente cio' che gli esempi non sanno fare.
+    return _remote.createChallenge(challenge);
+  }
+
+  @override
   Future<ChallengeEntry> submitEntry({
     required String challengeId,
     required String userId,

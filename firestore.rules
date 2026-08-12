@@ -52,10 +52,45 @@ service cloud.firestore {
       // partecipa.
       allow read: if true;
 
-      // Le challenge non le crea il client. Chi mette il premio e chi decide le
-      // regole e' un problema aperto, e finche' lo e' questa porta resta
-      // chiusa.
-      allow create, delete: if false;
+      // Una challenge la lancia chiunque abbia un account.
+      //
+      // **Chi la lancia paga il premio, e CRASY non fa da garante.** E' una
+      // scelta di prodotto, non una svista di sicurezza: qui si controlla che
+      // il documento sia ben formato, non che dietro ci siano davvero i soldi.
+      // Nessuna regola di database puo' controllare quello.
+      //
+      // I controlli servono a impedire le cose che il database *puo'* sapere:
+      // che nessuno si spacci per un altro, che una challenge non nasca gia'
+      // scaduta, che non nasca con dei partecipanti o con un vincitore gia'
+      // scritto.
+      allow create: if signedIn()
+                    && request.resource.data.createdByUserId == request.auth.uid
+                    && request.resource.data.createdByUsername is string
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() >= 3
+                    && request.resource.data.title.size() <= 60
+                    && request.resource.data.brief is string
+                    && request.resource.data.brief.size() > 0
+                    && request.resource.data.brief.size() <= 280
+                    && request.resource.data.place is string
+                    && request.resource.data.scope in
+                       ['global', 'country', 'local', 'private']
+                    && request.resource.data.rules is list
+                    && request.resource.data.prizeCents is int
+                    && request.resource.data.prizeCents > 0
+                    && request.resource.data.prizeCents <= 100000000
+                    // Nasce vuota e senza vincitore: i partecipanti li porta
+                    // il tempo, il vincitore lo proclama il server.
+                    && request.resource.data.participantsCount == 0
+                    && request.resource.data.winnerEntryId == null
+                    && request.resource.data.startsAt is timestamp
+                    && request.resource.data.endsAt is timestamp
+                    && request.resource.data.endsAt > request.resource.data.startsAt
+                    && request.resource.data.endsAt > request.time;
+
+      // Una challenge lanciata non si cancella: c'e' gente che ci ha gia'
+      // mandato le proprie foto.
+      allow delete: if false;
 
       // L'unica cosa che il client puo' toccare e' il contatore dei
       // partecipanti, e solo per farlo salire di uno: e' la transazione con cui

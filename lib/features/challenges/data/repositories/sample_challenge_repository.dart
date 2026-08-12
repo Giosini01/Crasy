@@ -125,6 +125,23 @@ class SampleChallengeRepository implements ChallengeRepository {
   }
 
   @override
+  Future<Challenge> createChallenge(Challenge challenge) async {
+    // Anche le challenge lanciate senza Firebase restano riconoscibili come
+    // roba di prova: il prefisso `demo-` e' quello che dice a tutto il resto
+    // dell'app che questa vive in memoria.
+    final created = challenge.copyWith(
+      id:
+          '${Challenge.demoIdPrefix}${_challenges.length + 1}-'
+          '${challenge.title.hashCode.abs()}',
+    );
+
+    _add(created, const []);
+    _emit();
+
+    return created;
+  }
+
+  @override
   Future<ChallengeEntry> submitEntry({
     required String challengeId,
     required String userId,

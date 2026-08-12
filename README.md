@@ -60,7 +60,7 @@ ogni tanto, non una delle quattro sezioni.
 | Feed | Le partecipazioni piu' recenti di tutte le challenge, con la fiamma |
 | Vincitori | Le challenge concluse e chi le ha vinte |
 | Profilo | Partecipazioni, vittorie, premi, e la griglia delle proprie foto |
-| Crea | La struttura di una challenge. L'invio non e' ancora aperto — vedi sotto |
+| Crea | Lancia una challenge: premio, titolo, consegna, dove, per quanto |
 
 ---
 
@@ -162,10 +162,12 @@ partecipare, votare e avere un profilo.
 > davvero serve creare un progetto Firebase nuovo e rigenerare
 > `firebase_options.dart` con `flutterfire configure`.
 
-### Creare una challenge a mano
+### Creare una challenge
 
-Finche' la creazione non e' aperta, le challenge si inseriscono dalla console.
-Un documento in `challenges/`:
+Dall'app, con il **+** nell'intestazione della home. Serve un account.
+
+Volendo inserirla a mano dalla console, un documento in `challenges/` fatto
+cosi':
 
 ```json
 {
@@ -218,11 +220,14 @@ fino alla prima challenge sullo schermo.
 
 Detto chiaramente, perche' un README che tace su questo fa perdere tempo:
 
-- **Creare una challenge.** La schermata c'e' e i campi sono quelli veri, ma
-  l'invio e' spento. Manca la parte che non e' codice: chi mette i soldi del
-  premio, chi risponde se il premio non arriva, chi decide che una consegna e'
-  accettabile.
 - **Il pagamento dei premi.** Il vincitore viene proclamato; il bonifico no.
+  Chi lancia una challenge paga di tasca propria e CRASY non fa da garante: la
+  schermata di creazione lo dice, ma resta un patto sulla fiducia. E' il buco
+  piu' grosso che il prodotto ha adesso.
+- **Moderazione delle challenge.** Chiunque abbia un account puo' lanciarne una
+  e promettere qualunque cifra. Le regole controllano che il documento sia ben
+  formato, non che dietro ci siano davvero i soldi — nessuna regola di database
+  puo' controllare quello.
 - **Moderazione dei contenuti.** Non c'e' nessun controllo su cosa viene
   caricato.
 - **Le challenge geolocalizzate.** L'ambito e' un'etichetta scelta da chi crea la
