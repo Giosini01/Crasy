@@ -83,22 +83,53 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     });
   }
 
+  /// Le partecipazioni a una challenge, dalla piu' votata.
+  ///
+  /// **L'ordinamento si fa in memoria, non su Firestore**, e la ragione e' una
+  /// trappola che e' gia' costata una foto sparita: una query ordinata per un
+  /// campo *esclude i documenti che quel campo non ce l'hanno*. Una
+  /// partecipazione scritta da una versione dell'app che non salvava ancora
+  /// `votes` non spariva dalla classifica — spariva dalla schermata, pur
+  /// esistendo nel database.
+  ///
+  /// Qui si chiedono tutte le partecipazioni e si ordinano dopo. Con qualche
+  /// centinaio di foto per challenge il costo e' nullo, e nessun documento puo'
+  /// piu' rendersi invisibile perche' gli manca un campo.
   @override
   Stream<List<ChallengeEntry>> watchEntries(String challengeId) {
-    return _entries(challengeId)
-        .orderBy('votes', descending: true)
-        .limit(100)
-        .snapshots()
-        .map(
-          (snapshot) => [
-            for (final document in snapshot.docs)
-              ChallengeEntryMapper.fromFirestore(
-                document.id,
-                challengeId,
-                document.data(),
-              ),
-          ],
-        );
+    return _entries(challengeId).limit(300).snapshots().map((snapshot) {
+      final entries = [
+        for (final document in snapshot.docs)
+          ChallengeEntryMapper.fromFirestore(
+            document.id,
+            challengeId,
+            document.data(),
+          ),
+      ];
+
+      return entries..sort(_byVotesThenOldest);
+    });
+  }
+
+  /// Piu' fiamme per prima; a parita', chi ha mandato prima.
+  ///
+  /// E' lo stesso criterio con cui il server proclama il vincitore: la
+  /// classifica che si vede deve essere quella che poi paga.
+  static int _byVotesThenOldest(ChallengeEntry a, ChallengeEntry b) {
+    final byVotes = b.votes.compareTo(a.votes);
+
+    if (byVotes != 0) {
+      return byVotes;
+    }
+
+    final aTime = a.createdAt;
+    final bTime = b.createdAt;
+
+    if (aTime == null || bTime == null) {
+      return 0;
+    }
+
+    return aTime.compareTo(bTime);
   }
 
   @override
@@ -157,7 +188,19 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     }
 
     final entryRef = _entries(challengeId).doc(userId);
-    final storagePath = 'entries/$challengeId/$userId.jpg';
+
+    // Il nome del file e' casuale, la cartella no.
+    //
+    // La cartella porta l'identificativo di chi carica, ed e' quella a
+    // proteggere dalle foto altrui. Il nome casuale serve ai **ritentativi**:
+    // il file sale prima che il documento venga scritto, quindi un tentativo
+    // interrotto a meta' lascia un file la' — e con un nome fisso il tentativo
+    // successivo si scontrerebbe con un oggetto che le regole non lasciano
+    // sovrascrivere, bloccando quella persona per sempre.
+    //
+    // `doc().id` conia un identificativo nuovo senza scrivere niente.
+    final uploadId = _entries(challengeId).doc().id;
+    final storagePath = 'entries/$challengeId/$userId/$uploadId.jpg';
     final reference = _storage.ref(storagePath);
 
     // Il file sale per primo. Se l'upload fallisce non resta un documento che

@@ -10,15 +10,6 @@
       ]
     },
     {
-      "comment": "La proclamazione ordina le partecipazioni per voti e, a parita', per chi ha mandato prima.",
-      "collectionGroup": "entries",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "votes", "order": "DESCENDING" },
-        { "fieldPath": "createdAt", "order": "ASCENDING" }
-      ]
-    },
-    {
       "comment": "Il profilo mostra le proprie partecipazioni, che stanno sparse sotto challenge diverse: la query e' sul gruppo di collezioni, e un indice cosi' Firestore non lo crea da se'.",
       "collectionGroup": "entries",
       "queryScope": "COLLECTION_GROUP",
