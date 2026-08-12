@@ -106,11 +106,6 @@ final myEntryForChallengeProvider = Provider.autoDispose
           .firstOrNull;
     });
 
-/// Il feed: le partecipazioni piu' recenti, di qualunque challenge.
-final feedEntriesProvider = StreamProvider<List<ChallengeEntry>>((ref) {
-  return ref.watch(challengeRepositoryProvider).watchLatestEntries(limit: 30);
-});
-
 final myEntriesProvider = StreamProvider<List<ChallengeEntry>>((ref) {
   final authState = ref.watch(authStateProvider);
 
@@ -155,18 +150,45 @@ final votedEntryIdsProvider = StreamProvider<Set<String>>((ref) {
       .watchVotedEntryIds(authState.user.id);
 });
 
-/// Le mie foto nelle challenge ancora aperte.
+/// Una mia foto in gara, insieme alla challenge in cui corre.
+///
+/// Le due cose viaggiano appaiate perche' da sole non dicono niente: la foto
+/// senza la challenge non ha un tempo che scorre, la challenge senza la foto
+/// non e' affar mio.
+class EntryInPlay {
+  const EntryInPlay({required this.entry, required this.challenge});
+
+  final ChallengeEntry entry;
+  final Challenge challenge;
+}
+
+/// Le mie foto nelle challenge ancora aperte, dalla scadenza piu' vicina.
 ///
 /// Non e' un archivio: e' **quello che ho in gara adesso**. Le partecipazioni a
 /// challenge gia' chiuse non hanno piu' niente da dire — il loro esito sta fra i
-/// vincitori — mentre queste stanno ancora prendendo fiamme, e sono l'unica cosa
-/// che vale la pena guardare tornando sull'app.
-final myOpenEntriesProvider = Provider<List<ChallengeEntry>>((ref) {
+/// vincitori, e tutte le foto restano comunque nel profilo — mentre queste
+/// stanno ancora prendendo fiamme.
+///
+/// L'ordine e' per scadenza e non per data d'invio: quella che chiude prima e'
+/// quella su cui non si puo' piu' fare niente fra poco, quindi va guardata per
+/// prima.
+final myEntriesInPlayProvider = Provider<List<EntryInPlay>>((ref) {
   final mine = ref.watch(myEntriesProvider).valueOrNull ?? const [];
   final live = ref.watch(liveChallengesProvider).valueOrNull ?? const [];
-  final liveIds = {for (final challenge in live) challenge.id};
+  final byId = {for (final challenge in live) challenge.id: challenge};
 
-  return mine.where((entry) => liveIds.contains(entry.challengeId)).toList();
+  final inPlay = <EntryInPlay>[];
+
+  for (final entry in mine) {
+    final challenge = byId[entry.challengeId];
+
+    if (challenge != null) {
+      inPlay.add(EntryInPlay(entry: entry, challenge: challenge));
+    }
+  }
+
+  return inPlay
+    ..sort((a, b) => a.challenge.endsAt.compareTo(b.challenge.endsAt));
 });
 
 /// Le mie partecipazioni che hanno vinto.

@@ -38,7 +38,7 @@ void main() {
   test('nasce senza nessuna challenge', () async {
     expect(await repository.watchLiveChallenges().first, isEmpty);
     expect(await repository.watchEndedChallenges().first, isEmpty);
-    expect(await repository.watchLatestEntries().first, isEmpty);
+    expect(await repository.watchEntriesByUser('me').first, isEmpty);
   });
 
   test('una challenge lanciata compare fra quelle aperte', () async {

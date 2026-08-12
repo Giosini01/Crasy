@@ -133,16 +133,6 @@ class FirestoreChallengeRepository implements ChallengeRepository {
   }
 
   @override
-  Stream<List<ChallengeEntry>> watchLatestEntries({int limit = 30}) {
-    return _firestore
-        .collectionGroup('entries')
-        .orderBy('createdAt', descending: true)
-        .limit(limit)
-        .snapshots()
-        .map(_entriesFrom);
-  }
-
-  @override
   Stream<List<ChallengeEntry>> watchEntriesByUser(String userId) {
     return _firestore
         .collectionGroup('entries')

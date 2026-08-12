@@ -96,18 +96,6 @@ class SampleChallengeRepository implements ChallengeRepository {
   }
 
   @override
-  Stream<List<ChallengeEntry>> watchLatestEntries({int limit = 30}) {
-    return _watch(() {
-      final all = _entries.values.expand((entries) => entries).toList()
-        ..sort(
-          (a, b) => (b.createdAt ?? _never).compareTo(a.createdAt ?? _never),
-        );
-
-      return all.take(limit).toList();
-    });
-  }
-
-  @override
   Stream<List<ChallengeEntry>> watchEntriesByUser(String userId) {
     return _watch(() {
       final mine =

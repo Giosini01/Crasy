@@ -59,15 +59,6 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
   }
 
   @override
-  Stream<List<ChallengeEntry>> watchLatestEntries({int limit = 30}) {
-    return _remote.watchLatestEntries(limit: limit).asyncExpand((remote) {
-      return remote.isEmpty
-          ? _samples.watchLatestEntries(limit: limit)
-          : Stream.value(remote);
-    });
-  }
-
-  @override
   Stream<List<ChallengeEntry>> watchEntriesByUser(String userId) {
     // Qui le due sorgenti si sommano invece di sostituirsi, ed e' l'unico
     // punto in cui succede: sono le partecipazioni di una persona, e se ha

@@ -10,7 +10,7 @@
       ]
     },
     {
-      "comment": "Il profilo mostra le proprie partecipazioni, che stanno sparse sotto challenge diverse: la query e' sul gruppo di collezioni, e un indice cosi' Firestore non lo crea da se'.",
+      "comment": "Le proprie partecipazioni stanno sparse sotto challenge diverse, quindi si leggono con una query sul gruppo di collezioni: un indice cosi' Firestore non lo crea da se'. Serve al feed e alla griglia del profilo.",
       "collectionGroup": "entries",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
@@ -19,16 +19,5 @@
       ]
     }
   ],
-  "fieldOverrides": [
-    {
-      "comment": "Il feed prende le partecipazioni piu' recenti di qualunque challenge. Un indice su un solo campo Firestore lo crea da se', ma non per le interrogazioni sul gruppo di collezioni: quello va chiesto qui.",
-      "collectionGroup": "entries",
-      "fieldPath": "createdAt",
-      "indexes": [
-        { "order": "ASCENDING", "queryScope": "COLLECTION" },
-        { "order": "DESCENDING", "queryScope": "COLLECTION" },
-        { "order": "DESCENDING", "queryScope": "COLLECTION_GROUP" }
-      ]
-    }
-  ]
+  "fieldOverrides": []
 }

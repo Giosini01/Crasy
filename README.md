@@ -50,6 +50,12 @@ Le quattro schede in fondo sono **Challenge, Feed, Vincitori, Profilo**. Creare
 una challenge sta nell'intestazione della home: e' una cosa che si fa una volta
 ogni tanto, non una delle quattro sezioni.
 
+Il Feed non e' la bacheca di tutti: contiene **solo le proprie foto ancora in
+gara**. Le foto degli altri stanno dentro la loro challenge, che e' il posto in
+cui hanno un senso — li' si confrontano fra loro e li' si vota. Con qualche
+challenge aperta in contemporanea il Feed diventa un cruscotto: quante fiamme ha
+presa ognuna, quanto tempo resta, e un tocco per andare a vedere la gara.
+
 ### Le schermate
 
 | Schermata | Cosa fa |
@@ -57,7 +63,7 @@ ogni tanto, non una delle quattro sezioni.
 | Challenge (home) | Le challenge aperte: premio, titolo, consegna, tempo, chi l'ha lanciata, la foto in testa, comando |
 | Dettaglio | Premio, consegna, regole, countdown, partecipazioni gia' inviate |
 | Partecipa | Scatta sul momento, guarda l'anteprima, mandi in gara |
-| Feed | Le partecipazioni piu' recenti di tutte le challenge, con la fiamma |
+| Feed | **Le tue** foto ancora in gara: fiamme prese, tempo che resta, e la scorciatoia alla gara |
 | Vincitori | Le challenge concluse e chi le ha vinte |
 | Profilo | Partecipazioni, vittorie, premi, e la griglia delle proprie foto |
 | Crea | Lancia una challenge: premio, titolo, consegna, dove, per quanto |

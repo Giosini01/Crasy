@@ -22,9 +22,6 @@ abstract class ChallengeRepository {
   /// Le partecipazioni a una challenge, dalla piu' votata.
   Stream<List<ChallengeEntry>> watchEntries(String challengeId);
 
-  /// Le partecipazioni piu' recenti a qualunque challenge: e' il feed.
-  Stream<List<ChallengeEntry>> watchLatestEntries({int limit});
-
   /// Le partecipazioni di una persona, per il suo profilo.
   Stream<List<ChallengeEntry>> watchEntriesByUser(String userId);
 
