@@ -87,18 +87,10 @@ service cloud.firestore {
                       && !('isWinner' in request.resource.data)
                       && challengeIsLive();
 
-        // L'autore puo' sostituire la propria foto finche' c'e' tempo, ma non
-        // puo' toccare i propri voti.
-        allow update: if isAuthor()
-                      && changedOnly([
-                           'mediaUrl',
-                           'storagePath',
-                           'createdAt',
-                           'authorName',
-                           'challengeId',
-                           'challengeTitle'
-                         ])
-                      && challengeIsLive();
+        // **Una foto sola, e non si cambia.** L'autore non ha nessun permesso
+        // di aggiornamento: non puo' sostituire la propria foto dopo aver visto
+        // quante fiamme prende, che sarebbe cambiare la mano dopo aver guardato
+        // le carte degli altri.
 
         // Il voto di chiunque altro: un campo solo, e di uno alla volta.
         //

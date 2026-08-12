@@ -49,13 +49,60 @@ final endedChallengesProvider = StreamProvider<List<Challenge>>((ref) {
   return ref.watch(challengeRepositoryProvider).watchEndedChallenges();
 });
 
-final challengeProvider = StreamProvider.family<Challenge?, String>((ref, id) {
-  return ref.watch(challengeRepositoryProvider).watchChallenge(id);
+/// Una challenge sola.
+///
+/// `autoDispose` non e' un dettaglio: questi due provider sono per famiglia e
+/// la home li apre **uno per challenge visibile**. Senza, ogni scheda che passa
+/// sotto il dito lascerebbe dietro di se' un ascoltatore su Firestore aperto
+/// per sempre.
+final challengeProvider = StreamProvider.autoDispose.family<Challenge?, String>(
+  (ref, id) => ref.watch(challengeRepositoryProvider).watchChallenge(id),
+);
+
+final challengeEntriesProvider = StreamProvider.autoDispose
+    .family<List<ChallengeEntry>, String>(
+      (ref, challengeId) =>
+          ref.watch(challengeRepositoryProvider).watchEntries(challengeId),
+    );
+
+/// La foto che rappresenta una challenge.
+///
+/// Se chi l'ha creata ha messo una copertina si usa quella; altrimenti **la
+/// foto piu' votata fra quelle arrivate**. E se non e' arrivato ancora niente
+/// non c'e' nessuna immagine, e la scheda resta premio, titolo e comando.
+///
+/// E' il modo in cui una challenge si riempie da sola: appena qualcuno
+/// partecipa, la sua foto diventa la faccia della gara.
+final challengeCoverProvider = Provider.autoDispose.family<String?, String>((
+  ref,
+  challengeId,
+) {
+  final challenge = ref.watch(challengeProvider(challengeId)).valueOrNull;
+  final cover = challenge?.coverUrl;
+
+  if (cover != null && cover.isNotEmpty) {
+    return cover;
+  }
+
+  final entries = ref.watch(challengeEntriesProvider(challengeId)).valueOrNull;
+
+  return entries
+      ?.where((entry) => entry.mediaUrl.isNotEmpty)
+      .firstOrNull
+      ?.mediaUrl;
 });
 
-final challengeEntriesProvider =
-    StreamProvider.family<List<ChallengeEntry>, String>((ref, challengeId) {
-      return ref.watch(challengeRepositoryProvider).watchEntries(challengeId);
+/// La mia partecipazione a una challenge, se c'e'.
+///
+/// Nulla significa "non ho ancora partecipato", ed e' la sola cosa che decide
+/// se il comando dice "Partecipa" o "Hai gia' partecipato".
+final myEntryForChallengeProvider = Provider.autoDispose
+    .family<ChallengeEntry?, String>((ref, challengeId) {
+      final mine = ref.watch(myEntriesProvider).valueOrNull ?? const [];
+
+      return mine
+          .where((entry) => entry.challengeId == challengeId)
+          .firstOrNull;
     });
 
 /// Il feed: le partecipazioni piu' recenti, di qualunque challenge.

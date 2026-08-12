@@ -29,3 +29,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    # Il logotipo vero, gia' ritagliato sul segno e con il fondo trasparente.
+    # Il file d'origine ha attorno un margine bianco enorme: messo cosi' com'e'
+    # avrebbe occupato tre volte lo spazio che si vede.
+    - assets/brand/crasy-wordmark.png

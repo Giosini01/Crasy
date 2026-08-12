@@ -3,52 +3,29 @@ import 'package:flutter/material.dart';
 
 /// Il logotipo di CRASY.
 ///
-/// E' composto, non disegnato: cinque lettere del carattere di sistema in nero
-/// pieno, strette fra loro, e un punto rosso. In un'app che ha deciso di non
-/// avere colori, il **punto** e' l'unico posto in cui il rosso compare senza
-/// essere ne' un premio ne' un comando — ed e' esattamente cosi' che un colore
-/// diventa il colore di un marchio.
+/// E' il file vero del marchio, non una scritta ricomposta con il carattere di
+/// sistema: "cra" in nero e "sy" in fiamme sono lettere **disegnate**, e
+/// riscriverle con un font darebbe qualcosa che gli somiglia e basta.
 ///
-/// Il tracking negativo non e' un vezzo: a peso 800 le lettere spaziate
-/// normalmente si leggono come una parola qualunque, serrate diventano un
-/// segno.
+/// L'immagine ha il fondo trasparente, quindi si posa ovunque. E il rosso delle
+/// sue fiamme e' esattamente `AppColors.crasyFlame`, quello che l'interfaccia
+/// usa per i premi: non e' una somiglianza scelta a occhio, e' il colore
+/// campionato da questo file.
 class CrasyWordmark extends StatelessWidget {
-  const CrasyWordmark({this.size = 22, this.onDark = false, super.key});
+  const CrasyWordmark({this.size = 22, super.key});
 
+  /// Altezza del logotipo. La larghezza segue da se': il file e' gia' ritagliato
+  /// sul segno, quindi la sua proporzione e' quella vera.
   final double size;
-
-  /// Vero quando il logotipo poggia su una foto o su un fondo scuro.
-  final bool onDark;
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.palette;
-    final color = onDark ? palette.background : palette.textPrimary;
-
-    return Semantics(
-      label: 'CRASY',
-      child: ExcludeSemantics(
-        child: Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: 'CRASY',
-                style: TextStyle(color: color),
-              ),
-              TextSpan(
-                text: '.',
-                style: TextStyle(color: palette.accent),
-              ),
-            ],
-          ),
-          style: TextStyle(
-            fontSize: size,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -1,
-            height: 1,
-          ),
-        ),
-      ),
+    return Image.asset(
+      'assets/brand/crasy-wordmark.png',
+      height: size,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.medium,
+      semanticLabel: 'CRASY',
     );
   }
 }

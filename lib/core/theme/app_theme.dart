@@ -75,7 +75,10 @@ abstract final class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           elevation: 0,
-          backgroundColor: palette.accent,
+          // Il riempimento prende la fiamma profonda, non quella accesa:
+          // l'etichetta bianca a 14 punti su quella accesa non avrebbe
+          // abbastanza contrasto.
+          backgroundColor: palette.accentDeep,
           foregroundColor: palette.onAccent,
           disabledBackgroundColor: palette.surfaceMuted,
           disabledForegroundColor: palette.textFaint,

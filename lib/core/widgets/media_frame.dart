@@ -6,12 +6,16 @@ import 'package:flutter/material.dart';
 ///
 /// In CRASY l'immagine e' il contenuto, quindi vale la pena che **un solo
 /// widget** sappia come si comporta: che proporzione tiene, cosa mostra mentre
-/// arriva, e cosa mostra se non arriva affatto.
+/// arriva, e cosa fa se non arriva affatto.
 ///
-/// I tre stati sono deliberatamente identici a vedersi — un rettangolo grigio
-/// chiaro delle stesse dimensioni. Non c'e' una rotellina che gira, non c'e'
-/// un'icona di immagine rotta: qualunque cosa succeda la pagina non si muove di
-/// un pixel, e una foto che tarda non fa saltare il titolo sotto.
+/// Quest'ultimo caso ha una risposta sola: **non occupa spazio**. Senza un
+/// indirizzo il widget sparisce del tutto invece di lasciare un rettangolo
+/// grigio, perche' un rettangolo grigio non e' una foto mancante — e' una
+/// schermata che sembra rotta. Una challenge senza immagine e' semplicemente
+/// premio, titolo e comando, e sta benissimo cosi'.
+///
+/// Mentre la foto arriva il grigio c'e' invece eccome: li' lo spazio va tenuto,
+/// altrimenti il titolo sotto salta appena l'immagine si posa.
 class MediaFrame extends StatelessWidget {
   const MediaFrame({
     required this.url,
@@ -26,17 +30,21 @@ class MediaFrame extends StatelessWidget {
   final double aspectRatio;
   final double radius;
 
-  /// Cosa scrivere sul rettangolo quando la foto non c'e'.
-  ///
-  /// Serve alle challenge di esempio, che non hanno un'immagine vera: invece di
-  /// un buco grigio muto si legge il titolo, e la schermata resta comprensibile.
+  /// Cosa scrivere sul riquadro mentre la foto sta arrivando.
   final String? caption;
 
   /// Cio' che poggia **sopra** la foto, gia' ritagliato con lo stesso raggio.
   final Widget? overlay;
 
+  /// Vero se [url] contiene qualcosa da mostrare.
+  static bool hasMedia(String? url) => url != null && url.isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
+    if (!hasMedia(url)) {
+      return const SizedBox.shrink();
+    }
+
     final borderRadius = BorderRadius.circular(radius);
 
     return ClipRRect(
@@ -46,7 +54,7 @@ class MediaFrame extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            _Surface(url: url, caption: caption),
+            _Surface(url: url!, caption: caption),
             ?overlay,
           ],
         ),
@@ -58,19 +66,13 @@ class MediaFrame extends StatelessWidget {
 class _Surface extends StatelessWidget {
   const _Surface({required this.url, required this.caption});
 
-  final String? url;
+  final String url;
   final String? caption;
 
   @override
   Widget build(BuildContext context) {
-    final source = url;
-
-    if (source == null || source.isEmpty) {
-      return _Placeholder(caption: caption);
-    }
-
     return Image.network(
-      source,
+      url,
       fit: BoxFit.cover,
       // La foto entra con una dissolvenza breve invece di apparire di scatto.
       // E' l'unica animazione dell'immagine, e dura meno di un battito.

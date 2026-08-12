@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:crasy/features/challenges/data/repositories/firestore_challenge_repository.dart';
 import 'package:crasy/features/challenges/data/repositories/sample_challenge_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -68,7 +69,7 @@ void main() {
     expect(mine.first.authorName, 'io');
   });
 
-  test('rimandare una foto la sostituisce senza contare due volte', () async {
+  test('una foto sola a testa: la seconda viene rifiutata', () async {
     final challengeId = await firstLiveChallengeId();
 
     await repository.submitEntry(
@@ -80,17 +81,45 @@ void main() {
 
     final afterFirst = (await repository.watchChallenge(challengeId).first)!;
 
+    await expectLater(
+      repository.submitEntry(
+        challengeId: challengeId,
+        userId: 'me',
+        authorName: 'io',
+        bytes: bytes,
+      ),
+      throwsA(isA<AlreadyParticipatingException>()),
+    );
+
+    // Il rifiuto non deve lasciare tracce: ne' un partecipante in piu' ne' una
+    // seconda foto in gara.
+    final afterSecond = (await repository.watchChallenge(challengeId).first)!;
+
+    expect(afterSecond.participantsCount, afterFirst.participantsCount);
+    expect(await repository.watchEntriesByUser('me').first, hasLength(1));
+  });
+
+  test('due persone diverse partecipano entrambe', () async {
+    final challengeId = await firstLiveChallengeId();
+    final before = (await repository.watchChallenge(challengeId).first)!;
+
     await repository.submitEntry(
       challengeId: challengeId,
       userId: 'me',
       authorName: 'io',
       bytes: bytes,
     );
+    await repository.submitEntry(
+      challengeId: challengeId,
+      userId: 'altra',
+      authorName: 'altra',
+      bytes: bytes,
+    );
 
-    final afterSecond = (await repository.watchChallenge(challengeId).first)!;
+    final after = (await repository.watchChallenge(challengeId).first)!;
 
-    expect(afterSecond.participantsCount, afterFirst.participantsCount);
-    expect(await repository.watchEntriesByUser('me').first, hasLength(1));
+    expect(after.participantsCount, before.participantsCount + 2);
+    expect(await repository.watchEntries(challengeId).first, hasLength(2));
   });
 
   test('il voto si mette, si toglie, e non si conta due volte', () async {

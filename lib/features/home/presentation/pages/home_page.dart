@@ -23,8 +23,8 @@ class HomePage extends StatelessWidget {
     _HomeTab(
       route: AppRoutes.challenges,
       label: 'Challenge',
-      icon: Icons.bolt_outlined,
-      activeIcon: Icons.bolt,
+      icon: Icons.local_fire_department_outlined,
+      activeIcon: Icons.local_fire_department,
       page: ChallengesPage(),
     ),
     _HomeTab(

@@ -17,6 +17,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.textSecondary,
     required this.textFaint,
     required this.accent,
+    required this.accentDeep,
     required this.accentTint,
     required this.onAccent,
   });
@@ -34,13 +35,17 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color textSecondary;
   final Color textFaint;
 
-  /// L'unico colore. Premio, azione primaria, stato attivo. Nient'altro.
+  /// L'unico colore. Premio, fiamma, stato attivo. Nient'altro.
   final Color accent;
+
+  /// Lo stesso fuoco piu' in fondo, da usare **solo** come riempimento sotto
+  /// del testo bianco: il bottone principale. Su tutto il resto va [accent].
+  final Color accentDeep;
 
   /// Velo dello stesso rosso, per il fondo di cio' che e' selezionato.
   final Color accentTint;
 
-  /// Il colore del testo che poggia su [accent].
+  /// Il colore del testo che poggia su [accentDeep].
   final Color onAccent;
 
   /// Gli errori prendono lo stesso rosso dell'accento.
@@ -57,8 +62,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
     textPrimary: AppColors.ink,
     textSecondary: AppColors.inkSoft,
     textFaint: AppColors.inkFaint,
-    accent: AppColors.crasyRed,
-    accentTint: AppColors.crasyRedTint,
+    accent: AppColors.crasyFlame,
+    accentDeep: AppColors.crasyFlameDeep,
+    accentTint: AppColors.crasyFlameTint,
     onAccent: AppColors.paper,
   );
 
@@ -71,6 +77,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     Color? textSecondary,
     Color? textFaint,
     Color? accent,
+    Color? accentDeep,
     Color? accentTint,
     Color? onAccent,
   }) {
@@ -82,6 +89,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       textSecondary: textSecondary ?? this.textSecondary,
       textFaint: textFaint ?? this.textFaint,
       accent: accent ?? this.accent,
+      accentDeep: accentDeep ?? this.accentDeep,
       accentTint: accentTint ?? this.accentTint,
       onAccent: onAccent ?? this.onAccent,
     );
@@ -101,6 +109,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       textSecondary: Color.lerp(textSecondary, other.textSecondary, t)!,
       textFaint: Color.lerp(textFaint, other.textFaint, t)!,
       accent: Color.lerp(accent, other.accent, t)!,
+      accentDeep: Color.lerp(accentDeep, other.accentDeep, t)!,
       accentTint: Color.lerp(accentTint, other.accentTint, t)!,
       onAccent: Color.lerp(onAccent, other.onAccent, t)!,
     );

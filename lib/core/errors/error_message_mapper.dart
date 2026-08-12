@@ -11,6 +11,10 @@ abstract final class ErrorMessageMapper {
       return 'Questa challenge non esiste piu.';
     }
 
+    if (error is AlreadyParticipatingException) {
+      return 'Hai gia mandato la tua foto per questa challenge.';
+    }
+
     if (error is FirebaseAuthException) {
       return _mapAuthError(error);
     }

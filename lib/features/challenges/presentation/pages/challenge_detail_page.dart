@@ -83,6 +83,7 @@ class _Body extends ConsumerWidget {
     final palette = context.palette;
     final texts = context.texts;
     final entries = ref.watch(challengeEntriesProvider(challenge.id));
+    final cover = ref.watch(challengeCoverProvider(challenge.id));
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -108,8 +109,10 @@ class _Body extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         Text(challenge.title.toUpperCase(), style: texts.displaySmall),
-        const SizedBox(height: AppSpacing.lg),
-        MediaFrame(url: challenge.coverUrl),
+        if (MediaFrame.hasMedia(cover)) ...[
+          const SizedBox(height: AppSpacing.lg),
+          MediaFrame(url: cover),
+        ],
         const SizedBox(height: AppSpacing.lg),
         Text(challenge.brief, style: texts.bodyLarge),
         const SizedBox(height: AppSpacing.lg),
@@ -293,15 +296,16 @@ class _EntryGridTile extends StatelessWidget {
 }
 
 /// Il comando in fondo, sempre visibile.
-class _BottomAction extends StatelessWidget {
+class _BottomAction extends ConsumerWidget {
   const _BottomAction({required this.challenge});
 
   final Challenge challenge;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
     final ended = challenge.hasEndedAt(DateTime.now());
+    final myEntry = ref.watch(myEntryForChallengeProvider(challenge.id));
 
     return Container(
       color: palette.background,
@@ -311,13 +315,30 @@ class _BottomAction extends StatelessWidget {
         AppSpacing.page,
         AppSpacing.sm + MediaQuery.paddingOf(context).bottom,
       ),
-      child: ended
-          ? ChallengeMetaRow(challenge: challenge)
-          : CrasyButton(
-              label: 'Partecipa',
-              onPressed: () =>
-                  context.push(AppRoutes.participateOf(challenge.id)),
+      child: switch ((ended, myEntry)) {
+        (true, _) => ChallengeMetaRow(challenge: challenge),
+        (false, final entry?) => Row(
+          children: [
+            const AlreadyJoinedNote(),
+            const Spacer(),
+            Row(
+              children: [
+                Icon(
+                  Icons.local_fire_department,
+                  size: 18,
+                  color: palette.accent,
+                ),
+                const SizedBox(width: 4),
+                Text('${entry.votes}', style: context.texts.titleMedium),
+              ],
             ),
+          ],
+        ),
+        (false, null) => CrasyButton(
+          label: 'Partecipa',
+          onPressed: () => context.push(AppRoutes.participateOf(challenge.id)),
+        ),
+      },
     );
   }
 }

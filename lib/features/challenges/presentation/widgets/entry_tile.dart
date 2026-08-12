@@ -83,11 +83,16 @@ class EntryTile extends ConsumerWidget {
   }
 }
 
-/// Il voto: un segno e un numero.
+/// Il voto: una fiamma e un numero.
 ///
-/// Non e' un cuore. Un cuore su una foto di una persona vuol dire una cosa
-/// sola, ed e' esattamente la cosa che CRASY non e'. Qui si vota una foto
-/// perche' e' assurda, non perche' piace qualcuno.
+/// Non e' un cuore e non e' un pollice. Un cuore su una foto di una persona
+/// vuol dire una cosa sola, ed e' esattamente la cosa che CRASY non e'; un
+/// pollice in su e' il gesto di un sondaggio. La fiamma dice quello che va
+/// detto — **questa e' fuori di testa** — ed e' lo stesso segno che il marchio
+/// porta addosso.
+///
+/// La foto con piu' fiamme allo scadere del tempo si prende il premio, quindi
+/// questo e' letteralmente il bottone che decide chi vince.
 class VoteButton extends ConsumerWidget {
   const VoteButton({required this.entry, super.key});
 
@@ -102,7 +107,7 @@ class VoteButton extends ConsumerWidget {
 
     return Semantics(
       button: true,
-      label: voted ? 'Togli il voto' : 'Vota',
+      label: voted ? 'Togli la fiamma' : 'Dai la fiamma',
       child: InkWell(
         onTap: () =>
             ref.read(voteControllerProvider).toggle(entry, voted: !voted),
@@ -115,7 +120,9 @@ class VoteButton extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                voted ? Icons.bolt : Icons.bolt_outlined,
+                voted
+                    ? Icons.local_fire_department
+                    : Icons.local_fire_department_outlined,
                 size: 20,
                 color: voted ? palette.accent : palette.textSecondary,
               ),

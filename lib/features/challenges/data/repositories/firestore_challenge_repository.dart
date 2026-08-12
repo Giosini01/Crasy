@@ -169,23 +169,24 @@ class FirestoreChallengeRepository implements ChallengeRepository {
       storagePath: storagePath,
     );
 
-    // Il conteggio dei partecipanti cresce **solo alla prima foto** di quella
-    // persona: chi rimanda uno scatto per la stessa challenge sostituisce il
-    // suo, non aggiunge un concorrente.
+    // **Una foto sola, e non si cambia.** Il controllo sta dentro la
+    // transazione e non prima: fra una lettura e una scrittura separate ci
+    // starebbe comodamente un secondo invio partito da un altro dispositivo.
+    //
+    // Il rifiuto e' voluto anche a challenge aperta. Poter sostituire la
+    // propria foto dopo aver visto quante fiamme prende significherebbe
+    // cambiare la mano dopo aver guardato le carte degli altri.
     await _firestore.runTransaction((transaction) async {
       final existing = await transaction.get(entryRef);
 
-      transaction.set(
-        entryRef,
-        ChallengeEntryMapper.toCreateMap(entry),
-        SetOptions(merge: true),
-      );
-
-      if (!existing.exists) {
-        transaction.update(challengeRef, {
-          'participantsCount': FieldValue.increment(1),
-        });
+      if (existing.exists) {
+        throw const AlreadyParticipatingException();
       }
+
+      transaction.set(entryRef, ChallengeEntryMapper.toCreateMap(entry));
+      transaction.update(challengeRef, {
+        'participantsCount': FieldValue.increment(1),
+      });
     });
 
     return entry;
@@ -274,4 +275,12 @@ class ChallengeClosedException implements Exception {
 
   @override
   String toString() => 'ChallengeClosedException';
+}
+
+/// Una foto per questa challenge era gia' stata mandata.
+class AlreadyParticipatingException implements Exception {
+  const AlreadyParticipatingException();
+
+  @override
+  String toString() => 'AlreadyParticipatingException';
 }

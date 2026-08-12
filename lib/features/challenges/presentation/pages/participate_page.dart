@@ -11,13 +11,15 @@ import 'package:crasy/features/challenges/presentation/controllers/participation
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 
-/// Partecipare: scatta o scegli, guarda, manda.
+/// Partecipare: scatta, guarda, manda.
 ///
 /// Tre passi e nessuna decorazione in mezzo. Non c'e' un titolo da scrivere,
 /// non ci sono filtri, non c'e' una didascalia: il contenuto e' la foto, e ogni
 /// campo in piu' fra lo scatto e l'invio e' una partecipazione persa.
+///
+/// Due regole, e sono quelle che rendono la gara una gara: **si scatta sul
+/// momento**, niente galleria, e **si manda una foto sola**, senza ripensamenti.
 class ParticipatePage extends ConsumerStatefulWidget {
   const ParticipatePage({required this.challengeId, super.key});
 
@@ -35,30 +37,42 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
   Widget build(BuildContext context) {
     final challengeState = ref.watch(challengeProvider(widget.challengeId));
     final submitting = ref.watch(participationControllerProvider).isLoading;
+    final myEntry = ref.watch(myEntryForChallengeProvider(widget.challengeId));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Partecipa')),
       body: AppBackground(
         child: challengeState.when(
           loading: () => const SizedBox.shrink(),
-          error: (_, _) => const EmptyState(
+          error: (_, _) => const _Notice(
             title: 'Challenge non disponibile',
             message: 'Non riusciamo a caricarla. Riprova tra poco.',
           ),
           data: (challenge) {
             if (challenge == null) {
-              return const EmptyState(
+              return const _Notice(
                 title: 'Challenge non trovata',
                 message: 'Questa challenge non esiste piu\'.',
               );
             }
 
             if (challenge.hasEndedAt(DateTime.now())) {
-              return const EmptyState(
+              return const _Notice(
                 title: 'Tempo scaduto',
                 message:
                     'Questa challenge si e\' chiusa. Guarda chi ha vinto o '
                     'scegline un\'altra.',
+              );
+            }
+
+            // Chi ha gia' mandato la sua foto non vede nemmeno la fotocamera:
+            // il limite si spiega prima, non dopo lo scatto.
+            if (myEntry != null) {
+              return const _Notice(
+                title: 'Hai gia\' partecipato',
+                message:
+                    'Si manda una foto sola per challenge, e la tua e\' gia\' '
+                    'in gara. La trovi nel feed insieme a quelle degli altri.',
               );
             }
 
@@ -67,7 +81,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
               media: _media,
               error: _error,
               submitting: submitting,
-              onPick: _pick,
+              onCapture: _capture,
               onSubmit: () => _submit(challenge),
               onClear: () => setState(() => _media = null),
             );
@@ -77,13 +91,13 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
     );
   }
 
-  Future<void> _pick(ImageSource source) async {
+  Future<void> _capture() async {
     setState(() => _error = null);
 
     try {
       final media = await ref
           .read(participationControllerProvider.notifier)
-          .pick(source);
+          .capture();
 
       // Rinunciare a scattare non e' un errore: se l'utente chiude la
       // fotocamera non deve trovarsi un messaggio rosso in pagina.
@@ -133,8 +147,22 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
     final messenger = ScaffoldMessenger.of(context);
 
     Navigator.of(context).pop();
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Partecipazione inviata.')),
+    messenger.showSnackBar(const SnackBar(content: Text('Sei in gara.')));
+  }
+}
+
+/// Un messaggio a tutta pagina, con il margine laterale delle altre schermate.
+class _Notice extends StatelessWidget {
+  const _Notice({required this.title, required this.message});
+
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+      child: EmptyState(title: title, message: message),
     );
   }
 }
@@ -145,7 +173,7 @@ class _Form extends StatelessWidget {
     required this.media,
     required this.error,
     required this.submitting,
-    required this.onPick,
+    required this.onCapture,
     required this.onSubmit,
     required this.onClear,
   });
@@ -154,7 +182,7 @@ class _Form extends StatelessWidget {
   final PickedMedia? media;
   final String? error;
   final bool submitting;
-  final void Function(ImageSource source) onPick;
+  final VoidCallback onCapture;
   final VoidCallback onSubmit;
   final VoidCallback onClear;
 
@@ -182,23 +210,27 @@ class _Form extends StatelessWidget {
         Text(challenge.brief, style: texts.bodyMedium),
         const SizedBox(height: AppSpacing.xl),
         if (picked == null)
-          _Chooser(onPick: onPick)
+          SecondaryButton(
+            label: 'Scatta ora',
+            icon: Icons.photo_camera_outlined,
+            onPressed: onCapture,
+          )
         else
-          _Preview(media: picked, onClear: onClear),
+          _Preview(media: picked, onRetake: onClear),
         if (error != null) ...[
           const SizedBox(height: AppSpacing.md),
           InlineBanner(message: error!),
         ],
         const SizedBox(height: AppSpacing.xl),
         CrasyButton(
-          label: 'Invia la partecipazione',
+          label: 'Manda in gara',
           loading: submitting,
           onPressed: picked == null ? null : onSubmit,
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'Una sola foto a testa. Puoi sostituirla finche\' la challenge e\' '
-          'aperta.',
+          'Si scatta sul momento, niente galleria. Una foto sola a testa, e '
+          'una volta mandata non si cambia.',
           style: texts.bodySmall,
         ),
       ],
@@ -206,36 +238,11 @@ class _Form extends StatelessWidget {
   }
 }
 
-class _Chooser extends StatelessWidget {
-  const _Chooser({required this.onPick});
-
-  final void Function(ImageSource source) onPick;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SecondaryButton(
-          label: 'Scatta ora',
-          icon: Icons.photo_camera_outlined,
-          onPressed: () => onPick(ImageSource.camera),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        SecondaryButton(
-          label: 'Scegli dalla galleria',
-          icon: Icons.image_outlined,
-          onPressed: () => onPick(ImageSource.gallery),
-        ),
-      ],
-    );
-  }
-}
-
 class _Preview extends StatelessWidget {
-  const _Preview({required this.media, required this.onClear});
+  const _Preview({required this.media, required this.onRetake});
 
   final PickedMedia media;
-  final VoidCallback onClear;
+  final VoidCallback onRetake;
 
   @override
   Widget build(BuildContext context) {
@@ -252,7 +259,9 @@ class _Preview extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        TextButton(onPressed: onClear, child: const Text('Cambia foto')),
+        // Rifare lo scatto prima di mandarlo si puo': il patto e' che non si
+        // cambia **dopo** l'invio, quando la gara e' gia' cominciata.
+        TextButton(onPressed: onRetake, child: const Text('Scatta di nuovo')),
       ],
     );
   }

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:crasy/features/challenges/data/repositories/firestore_challenge_repository.dart'
+    show AlreadyParticipatingException;
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
@@ -136,7 +138,14 @@ class SampleChallengeRepository implements ChallengeRepository {
     }
 
     final entries = _entries.putIfAbsent(challengeId, () => []);
-    final existingIndex = entries.indexWhere((entry) => entry.userId == userId);
+
+    // Una foto sola a testa, come su Firestore. La regola vive in tutti e due i
+    // repository: se valesse solo su quello vero, provando l'app sugli esempi
+    // si vedrebbe un prodotto che si comporta in un altro modo.
+    if (entries.any((entry) => entry.userId == userId)) {
+      throw const AlreadyParticipatingException();
+    }
+
     final entry = ChallengeEntry(
       id: userId,
       challengeId: challengeId,
@@ -144,22 +153,16 @@ class SampleChallengeRepository implements ChallengeRepository {
       userId: userId,
       authorName: authorName,
       // Le foto di esempio non hanno un indirizzo: restano in memoria per la
-      // sessione, e l'interfaccia mostra il riquadro con il nome di chi ha
-      // partecipato. Caricarle davvero vorrebbe dire avere Storage, cioe'
+      // sessione. Caricarle davvero vorrebbe dire avere Storage, cioe'
       // esattamente cio' che qui manca.
       mediaUrl: '',
       createdAt: DateTime.now(),
-      votes: existingIndex >= 0 ? entries[existingIndex].votes : 0,
     );
 
-    if (existingIndex >= 0) {
-      entries[existingIndex] = entry;
-    } else {
-      entries.add(entry);
-      _challenges[challengeId] = challenge.copyWith(
-        participantsCount: challenge.participantsCount + 1,
-      );
-    }
+    entries.add(entry);
+    _challenges[challengeId] = challenge.copyWith(
+      participantsCount: challenge.participantsCount + 1,
+    );
 
     _emit();
 

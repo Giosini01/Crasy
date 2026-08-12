@@ -4,7 +4,9 @@ import 'package:crasy/core/widgets/countdown_text.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
+import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Una challenge nella home.
 ///
@@ -15,9 +17,12 @@ import 'package:flutter/material.dart';
 ///
 /// Non e' una scheda: non c'e' un riquadro, non c'e' un'ombra, non c'e' un
 /// fondo diverso. E' un blocco di pagina, e a separarlo dal successivo e' solo
-/// dello spazio bianco. Con l'immagine in proporzione 4:5 ne entra circa uno per
-/// schermata, ed e' voluto — cosi' il bottone rosso resta uno solo alla volta.
-class ChallengeCard extends StatelessWidget {
+/// dello spazio bianco.
+///
+/// La foto compare **solo se esiste**: una challenge appena aperta, a cui non ha
+/// ancora partecipato nessuno, e' tre righe di testo e un bottone. Appena arriva
+/// la prima partecipazione, quella foto diventa la faccia della gara.
+class ChallengeCard extends ConsumerWidget {
   const ChallengeCard({
     required this.challenge,
     required this.onOpen,
@@ -30,15 +35,16 @@ class ChallengeCard extends StatelessWidget {
   final VoidCallback onParticipate;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
     final texts = context.texts;
+    final cover = ref.watch(challengeCoverProvider(challenge.id));
+    final myEntry = ref.watch(myEntryForChallengeProvider(challenge.id));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Il premio in rosso, ed e' la cosa piu' grande della schermata.
             // Se non lo fosse, questa sarebbe un'app di foto qualunque.
@@ -66,18 +72,44 @@ class ChallengeCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(challenge.title.toUpperCase(), style: texts.displayMedium),
-              const SizedBox(height: AppSpacing.lg),
-              // Senza didascalia: il titolo sta gia' qui sopra, e ripeterlo
-              // dentro il riquadro della foto mancante lo scrive due volte a
-              // due centimetri di distanza.
-              MediaFrame(url: challenge.coverUrl),
+              if (MediaFrame.hasMedia(cover)) ...[
+                const SizedBox(height: AppSpacing.lg),
+                MediaFrame(url: cover),
+              ],
             ],
           ),
         ),
         const SizedBox(height: AppSpacing.md),
         ChallengeMetaRow(challenge: challenge),
         const SizedBox(height: AppSpacing.md),
-        CrasyButton(label: 'Partecipa', onPressed: onParticipate),
+        if (myEntry == null)
+          CrasyButton(label: 'Partecipa', onPressed: onParticipate)
+        else
+          const AlreadyJoinedNote(),
+      ],
+    );
+  }
+}
+
+/// Cosa prende il posto del comando quando hai gia' mandato la tua foto.
+///
+/// Non un bottone spento: un bottone spento invita comunque a premerlo e poi
+/// non fa niente. Una riga di testo dice la stessa cosa e non promette nulla.
+class AlreadyJoinedNote extends StatelessWidget {
+  const AlreadyJoinedNote({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return Row(
+      children: [
+        Icon(Icons.check_rounded, size: 16, color: palette.accent),
+        const SizedBox(width: AppSpacing.xs),
+        Text(
+          'Hai gia\' partecipato',
+          style: context.texts.labelLarge?.copyWith(color: palette.accent),
+        ),
       ],
     );
   }

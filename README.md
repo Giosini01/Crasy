@@ -14,7 +14,19 @@ la piu' votata.
 
 Il giro completo del prodotto e' uno solo, e tutto il resto viene dopo:
 
-**challenge → partecipazione → contenuto → feed → voto → vincitore**
+**challenge → partecipazione → contenuto → feed → fiamme → vincitore**
+
+Tre regole, e non sono dettagli — sono il prodotto:
+
+- **Si scatta sul momento.** Niente galleria. Una challenge chiede di fare
+  qualcosa *adesso*; potendo pescare dal rullino si vincerebbe con la foto piu'
+  bella che si ha in archivio, non con la piu' folle che si e' avuto il coraggio
+  di fare.
+- **Una foto sola a testa, e non si cambia.** Poter sostituire il proprio scatto
+  dopo aver visto quante fiamme prende sarebbe cambiare la mano dopo aver
+  guardato le carte degli altri.
+- **Si vota con una fiamma**, non con un cuore e non con un pollice. La foto con
+  piu' fiamme allo scadere del tempo si prende i soldi.
 
 ---
 
@@ -43,8 +55,8 @@ ogni tanto, non una delle quattro sezioni.
 | --- | --- |
 | Challenge (home) | Le challenge aperte, una per schermata: premio, titolo, foto, tempo, comando |
 | Dettaglio | Premio, consegna, regole, countdown, partecipazioni gia' inviate |
-| Partecipa | Scatta o scegli dalla galleria, guarda l'anteprima, invia |
-| Feed | Le partecipazioni piu' recenti di tutte le challenge, con il voto |
+| Partecipa | Scatta sul momento, guarda l'anteprima, mandi in gara |
+| Feed | Le partecipazioni piu' recenti di tutte le challenge, con la fiamma |
 | Vincitori | Le challenge concluse e chi le ha vinte |
 | Profilo | Partecipazioni, vittorie, premi, e la griglia delle proprie foto |
 | Crea | La struttura di una challenge. L'invio non e' ancora aperto — vedi sotto |
@@ -53,17 +65,27 @@ ogni tanto, non una delle quattro sezioni.
 
 ## Il design
 
-Una sola regola, e tutto il resto ne discende: **bianco, nero, grigi, e un
-rosso**.
+Una sola regola, e tutto il resto ne discende: **bianco, nero, grigi, e il rosso
+del fuoco**.
 
-- `#FF2D1A` e' il rosso di CRASY. Compare in tre posti soltanto: **il premio,
-  l'azione principale, cio' che e' attivo**. Se compare altrove ha gia' smesso
-  di significare qualcosa.
+- `#FC3000` e' il rosso di CRASY, e non e' stato scelto a tavolino: e'
+  **campionato dalle fiamme del logotipo**, la tinta piu' frequente dei quasi
+  centomila pixel di fiamma di `assets/brand/crasy-wordmark.png`. Marchio e
+  interfaccia usano letteralmente lo stesso colore.
+- Compare in tre posti soltanto: **il premio, la fiamma del voto, cio' che e'
+  attivo**. Se compare altrove ha gia' smesso di significare qualcosa.
+- `#E02200` e' lo stesso fuoco piu' in fondo alla fiamma, e serve a un solo
+  scopo: fare da riempimento sotto il testo bianco del bottone principale. Il
+  rosso acceso su bianco sta a 3,8:1, abbastanza per un premio scritto a 64
+  punti ma non per un'etichetta a 14; qui si sale a 4,8:1. Non e' un secondo
+  colore, e' la stessa tinta a una profondita' diversa.
 - Niente card, niente ombre, niente gradienti, niente badge. A separare le cose
   sono lo spazio bianco e, dove serve, un filetto da mezzo pixel.
 - La gerarchia la fa la tipografia: dal 64 del premio all'11 dell'occhiello.
-- Una challenge occupa quasi tutta l'altezza dello schermo, quindi il bottone
-  rosso resta uno solo alla volta.
+- **Le foto compaiono solo se esistono.** Una challenge senza immagine e' premio,
+  titolo e comando — non un rettangolo grigio, che non e' una foto mancante ma
+  una schermata che sembra rotta. Appena qualcuno partecipa, la sua foto diventa
+  la copertina della gara.
 - Tema chiaro e basta, anche su un dispositivo in tema scuro: le foto devono
   cadere sempre sullo stesso fondo.
 
@@ -87,8 +109,12 @@ e votare, e alla chiusura sparisce. Serve a poter aprire il progetto appena
 clonato e vedere cos'e', e a far girare i test senza rete.
 
 Le challenge di esempio hanno un identificativo che comincia per `demo-` e
-**non hanno una foto**: al loro posto si vede un rettangolo grigio. Le foto vere
-arrivano da Storage, che senza Firebase non c'e'.
+**non hanno una foto**: le si vede come premio, titolo e comando, senza immagine.
+Le foto vere arrivano da Storage, che senza Firebase non c'e'.
+
+Un limite della piattaforma da conoscere: su web `image_picker` non puo' imporre
+la fotocamera, e il browser mostra comunque il selettore di file. La regola "si
+scatta sul momento" vale sul telefono, dove l'app vive.
 
 ### Con Firebase
 
@@ -112,8 +138,9 @@ Due scelte da conoscere prima di toccare qualcosa:
 
 - **La partecipazione ha per identificativo l'utente.** E' la regola "una foto a
   testa per challenge" scritta nella forma dei dati invece che in un controllo
-  che prima o poi si dimentica di fare. Rimandare una foto sostituisce la
-  propria, non ne aggiunge una seconda.
+  che prima o poi si dimentica di fare. Il secondo invio viene rifiutato dentro
+  una transazione, e le regole non danno all'autore nessun permesso di
+  aggiornamento: una volta in gara, quella foto non si tocca piu'.
 - **I voti stanno sotto chi li ha dati**, non sotto la foto votata. Cosi' "cosa
   ho gia' votato" e' una lettura sola, e nessuno puo' sapere chi ha votato cosa.
 

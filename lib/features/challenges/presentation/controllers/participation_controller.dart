@@ -33,11 +33,20 @@ class ParticipationController extends AsyncNotifier<void> {
     _challenges = ref.watch(challengeRepositoryProvider);
   }
 
-  /// Apre la fotocamera o la galleria. Torna `null` se l'utente ha rinunciato,
-  /// che non e' un errore e non deve produrre un messaggio.
-  Future<PickedMedia?> pick(ImageSource source) async {
+  /// Apre la fotocamera. Torna `null` se l'utente ha rinunciato, che non e' un
+  /// errore e non deve produrre un messaggio.
+  ///
+  /// **Non c'e' la galleria**, ed e' la regola piu' importante del prodotto:
+  /// una challenge chiede di fare qualcosa *adesso*. Potendo pescare dal
+  /// rullino, si vincerebbe con la foto piu' bella che si ha in archivio invece
+  /// che con quella piu' folle che si e' avuto il coraggio di fare.
+  ///
+  /// Su web questo non si puo' imporre: il browser mostra comunque il selettore
+  /// di file. E' un limite della piattaforma, non una svista — sul telefono,
+  /// dove l'app vive, la fotocamera si apre e basta.
+  Future<PickedMedia?> capture() async {
     final picked = await ImagePicker().pickImage(
-      source: source,
+      source: ImageSource.camera,
       // Ridimensionare qui evita di spedire venti megapixel per una foto che
       // verra' guardata su uno schermo da telefono. Su web `image_picker`
       // ignora questi due valori e il file sale com'e': e' un limite noto della
