@@ -116,11 +116,17 @@ service cloud.firestore {
                       && request.resource.data.userId == request.auth.uid
                       && request.resource.data.mediaUrl is string
                       && request.resource.data.mediaUrl.size() > 0
-                      // Le fiamme partono da zero, e il campo deve esserci: la
-                      // regola qui sotto lo confronta, e su un documento dove
-                      // non esiste la valutazione fallisce — cioe' una foto
-                      // nata senza `votes` non potrebbe riceverne nessuno.
-                      && request.resource.data.votes == 0
+                      // Le fiamme partono da zero.
+                      //
+                      // Si legge con `get` e non direttamente, e la differenza
+                      // e' costata una partecipazione persa: pretendendo il
+                      // campo, ogni telefono con una versione dell'app appena
+                      // precedente si vedeva **rifiutare la propria foto** con
+                      // un "non hai accesso" incomprensibile. Le regole le
+                      // aggiorni in un istante, le app installate no: una
+                      // condizione che i client vecchi non sanno soddisfare e'
+                      // sbagliata anche quando e' piu' pulita.
+                      && request.resource.data.get('votes', 0) == 0
                       // La vittoria non si porta da casa: la scrive il server.
                       && !('isWinner' in request.resource.data)
                       && challengeIsLive();

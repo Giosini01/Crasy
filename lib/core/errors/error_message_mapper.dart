@@ -49,8 +49,13 @@ abstract final class ErrorMessageMapper {
 
   static String _mapFirebaseError(FirebaseException error) {
     switch (error.code) {
+      // Per chi usa l'app, un rifiuto di permessi vuol dire quasi sempre una di
+      // due cose: sta tentando qualcosa che non gli spetta, oppure ha in mano
+      // una versione vecchia che scrive i dati in un modo che il server non
+      // accetta piu'. La seconda la risolve da solo, se glielo si dice.
       case 'permission-denied':
-        return 'Non hai accesso a questa operazione.';
+        return 'Operazione non consentita. Se hai l\'app aperta da un po, '
+            'chiudila e riaprila, poi riprova.';
       case 'unavailable':
         return 'Servizio temporaneamente non disponibile.';
       case 'network-request-failed':
