@@ -1,6 +1,9 @@
 import 'package:crasy/app.dart';
 import 'package:crasy/features/auth/domain/entities/app_user.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
+import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,15 +36,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Senza Firebase configurato l'app gira sulle challenge di esempio: e' il
-    // caso che vede chiunque apra il progetto appena clonato.
-    //
-    // La prima della lista e' quella che scade prima, non quella dal premio
-    // piu' alto: e' l'ordinamento che conta per chi deve decidere se fa in
-    // tempo a partecipare.
-    expect(find.text('€100'), findsOneWidget);
-    expect(find.text('LUNGOMARE'), findsOneWidget);
-    expect(find.text('PARTECIPA'), findsWidgets);
+    // Senza Firebase configurato non c'e' nessuna challenge, e non e' un
+    // errore: l'app nasce vuota e si riempie quando qualcuno ne lancia una.
+    expect(find.text('NESSUNA CHALLENGE APERTA'), findsOneWidget);
 
     // Nessuna traccia della vecchia app di incontri.
     expect(find.text('Match'), findsNothing);
@@ -50,7 +47,7 @@ void main() {
     await tearDownTree(tester);
   });
 
-  testWidgets('il premio e il tempo restano leggibili nella riga di servizio', (
+  testWidgets('una challenge lanciata compare in home con premio e tempo', (
     tester,
   ) async {
     final authRepository = FakeAuthRepository();
@@ -62,20 +59,33 @@ void main() {
       container.dispose();
     });
 
+    final now = DateTime.now();
+    await container
+        .read(sampleChallengeRepositoryProvider)
+        .createChallenge(
+          Challenge(
+            id: '',
+            title: 'Do something crazy',
+            brief: 'Fai la foto piu\' assurda che riesci.',
+            prizeCents: 50000,
+            scope: ChallengeScope.global,
+            createdByUsername: 'crasy',
+            startsAt: now.subtract(const Duration(hours: 1)),
+            endsAt: now.add(const Duration(hours: 4)),
+          ),
+        );
+
     await tester.pumpWidget(
       UncontrolledProviderScope(container: container, child: const CrasyApp()),
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('31 partecipanti'), findsOneWidget);
-    expect(find.text('NAPOLI'), findsOneWidget);
-
-    // Scorrendo si arriva alla challenge dal premio piu' alto.
-    await tester.scrollUntilVisible(find.text('€500'), 400);
-    await tester.pumpAndSettle();
-
+    expect(find.text('€500'), findsOneWidget);
     expect(find.text('DO SOMETHING CRAZY'), findsOneWidget);
-    expect(find.textContaining('243 partecipanti'), findsOneWidget);
+    expect(find.text('GLOBAL'), findsOneWidget);
+    expect(find.textContaining('0 partecipanti'), findsOneWidget);
+    expect(find.text('Lanciata da @crasy'), findsOneWidget);
+    expect(find.text('PARTECIPA'), findsOneWidget);
 
     await tearDownTree(tester);
   });

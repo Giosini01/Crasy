@@ -6,25 +6,25 @@ import 'package:crasy/features/challenges/data/repositories/firestore_challenge_
     show AlreadyParticipatingException;
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
-import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 
-/// Le challenge di esempio, tenute in memoria.
+/// Le challenge tenute in memoria.
 ///
-/// Servono a una cosa sola: **far vedere l'app quando il database e' vuoto**.
-/// Un prodotto che gira attorno alle challenge, aperto su una schermata bianca
-/// con scritto "nessuna challenge", non si capisce — non si capisce nemmeno che
-/// cos'e'.
+/// **Nasce vuoto, e ci resta finche' qualcuno non lancia una challenge.** Non
+/// c'e' nessun dato di esempio: challenge finte in mezzo a quelle vere
+/// confondono e basta, e una volta che il database c'e' non servono piu' a
+/// niente.
 ///
-/// Non e' un finto repository da buttare: partecipare e votare qui funzionano
-/// davvero, restano in memoria per tutta la sessione e spariscono alla
-/// chiusura. Le challenge vere, quando arrivano su Firestore, prendono
-/// silenziosamente il posto di queste — se ne occupa
+/// A cosa serve allora: a far girare l'app **senza Firebase configurato**. Chi
+/// clona il progetto puo' aprirlo, lanciare una challenge, partecipare e votare;
+/// tutto vive in memoria e sparisce alla chiusura. Serve anche ai test, che
+/// cosi' non hanno bisogno ne' di rete ne' di credenziali.
+///
+/// Con Firebase configurato questo repository resta dietro a quello vero, e non
+/// avendo dentro niente non si fa mai vedere — se ne occupa
 /// `DemoFallbackChallengeRepository`.
 class SampleChallengeRepository implements ChallengeRepository {
-  SampleChallengeRepository({DateTime? now}) {
-    _seed(now ?? DateTime.now());
-  }
+  SampleChallengeRepository();
 
   final _challenges = <String, Challenge>{};
   final _entries = <String, List<ChallengeEntry>>{};
@@ -234,161 +234,9 @@ class SampleChallengeRepository implements ChallengeRepository {
     return 'data:$type;base64,${base64Encode(bytes)}';
   }
 
-  /// Le foto delle challenge di esempio.
-  ///
-  /// Sono indirizzi remoti con un seme fisso, quindi la stessa challenge mostra
-  /// sempre la stessa immagine invece di cambiarla a ogni avvio. Senza rete non
-  /// si vedono, e va bene cosi': l'interfaccia in quel caso non lascia un buco
-  /// grigio, semplicemente non mostra la foto.
-  static String _samplePhoto(
-    String seed, {
-    int width = 800,
-    int height = 1000,
-  }) {
-    return 'https://picsum.photos/seed/$seed/$width/$height';
-  }
-
   void _add(Challenge challenge, List<ChallengeEntry> entries) {
     _challenges[challenge.id] = challenge;
-    // La lista si copia: quelle del seme sono `const`, e partecipare a una
-    // challenge che nasce senza foto proverebbe ad aggiungere un elemento a una
-    // lista immutabile.
     _entries[challenge.id] = [...entries];
-  }
-
-  /// Le quattro challenge di esempio.
-  ///
-  /// Sono scelte per mostrare i quattro casi che l'interfaccia deve saper
-  /// reggere: un premio grosso globale, uno nazionale, uno locale, e una
-  /// challenge gia' chiusa con il suo vincitore. Le scadenze sono relative
-  /// all'avvio, cosi' il countdown si muove davvero.
-  void _seed(DateTime now) {
-    _add(
-      Challenge(
-        id: '${Challenge.demoIdPrefix}global-500',
-        title: 'Do something crazy',
-        brief:
-            'Fai la foto piu\' pazza che riesci. Senza Photoshop, senza filtri, '
-            'senza scuse.',
-        rules: const [
-          'Una sola foto a testa.',
-          'Niente fotoritocco: la foto deve uscire cosi\' dalla fotocamera.',
-          'Deve essere tua e scattata durante la challenge.',
-          'Vince la foto con piu\' voti allo scadere del tempo.',
-        ],
-        prizeCents: 50000,
-        scope: ChallengeScope.global,
-        startsAt: now.subtract(const Duration(hours: 18)),
-        endsAt: now.add(const Duration(hours: 5, minutes: 32)),
-        createdByUsername: 'crasy',
-        participantsCount: 243,
-      ),
-      [
-        ChallengeEntry(
-          id: 'demo-user-1',
-          challengeId: '${Challenge.demoIdPrefix}global-500',
-          challengeTitle: 'Do something crazy',
-          userId: 'demo-user-1',
-          authorName: 'martina',
-          mediaUrl: _samplePhoto('crasy-martina'),
-          createdAt: now.subtract(const Duration(hours: 3)),
-          votes: 128,
-        ),
-        ChallengeEntry(
-          id: 'demo-user-2',
-          challengeId: '${Challenge.demoIdPrefix}global-500',
-          challengeTitle: 'Do something crazy',
-          userId: 'demo-user-2',
-          authorName: 'leo',
-          mediaUrl: _samplePhoto('crasy-leo'),
-          createdAt: now.subtract(const Duration(hours: 6)),
-          votes: 91,
-        ),
-      ],
-    );
-
-    _add(
-      Challenge(
-        id: '${Challenge.demoIdPrefix}italia-200',
-        title: 'Cucina creativa',
-        brief:
-            'Realizza la foto piu\' creativa usando un oggetto che hai in '
-            'cucina. Uno solo.',
-        rules: const [
-          'Un solo oggetto, e deve venire dalla tua cucina.',
-          'Una foto a testa.',
-          'Vince la piu\' votata.',
-        ],
-        prizeCents: 20000,
-        scope: ChallengeScope.country,
-        startsAt: now.subtract(const Duration(days: 1)),
-        endsAt: now.add(const Duration(days: 2, hours: 4)),
-        createdByUsername: 'crasy',
-        participantsCount: 87,
-      ),
-      [
-        ChallengeEntry(
-          id: 'demo-user-3',
-          challengeId: '${Challenge.demoIdPrefix}italia-200',
-          challengeTitle: 'Cucina creativa',
-          userId: 'demo-user-3',
-          authorName: 'giulia',
-          mediaUrl: _samplePhoto('crasy-giulia'),
-          createdAt: now.subtract(const Duration(hours: 9)),
-          votes: 44,
-        ),
-      ],
-    );
-
-    _add(
-      Challenge(
-        id: '${Challenge.demoIdPrefix}napoli-100',
-        title: 'Lungomare',
-        brief: 'Scatta la foto piu\' originale sul lungomare di Napoli.',
-        rules: const [
-          'La foto va scattata sul lungomare.',
-          'Una foto a testa.',
-          'Vince la piu\' votata.',
-        ],
-        prizeCents: 10000,
-        scope: ChallengeScope.local,
-        place: 'NAPOLI',
-        startsAt: now.subtract(const Duration(hours: 4)),
-        endsAt: now.add(const Duration(minutes: 47)),
-        createdByUsername: 'crasy',
-        participantsCount: 31,
-      ),
-      const [],
-    );
-
-    final closedId = '${Challenge.demoIdPrefix}global-300-chiusa';
-    _add(
-      Challenge(
-        id: closedId,
-        title: 'Salto nel vuoto',
-        brief: 'La foto piu\' assurda a mezz\'aria.',
-        prizeCents: 30000,
-        scope: ChallengeScope.global,
-        startsAt: now.subtract(const Duration(days: 4)),
-        endsAt: now.subtract(const Duration(days: 1)),
-        createdByUsername: 'crasy',
-        participantsCount: 412,
-        winnerEntryId: 'demo-user-4',
-      ),
-      [
-        ChallengeEntry(
-          id: 'demo-user-4',
-          challengeId: closedId,
-          challengeTitle: 'Salto nel vuoto',
-          userId: 'demo-user-4',
-          authorName: 'sara',
-          mediaUrl: _samplePhoto('crasy-sara'),
-          createdAt: now.subtract(const Duration(days: 2)),
-          votes: 389,
-          isWinner: true,
-        ),
-      ],
-    );
   }
 }
 

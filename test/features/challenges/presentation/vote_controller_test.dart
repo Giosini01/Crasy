@@ -1,5 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,24 +26,38 @@ void main() {
     return container;
   }
 
-  /// Una partecipazione di esempio, presa da una challenge che ne ha.
-  Future<ChallengeEntry> demoEntry(ProviderContainer container) async {
+  /// Una partecipazione di qualcun altro a una challenge locale.
+  ///
+  /// Senza Firebase configurato il repository dell'app **e'** quello in
+  /// memoria, quindi la challenge creata qui e' esattamente quella su cui
+  /// lavora il controller.
+  Future<ChallengeEntry> someoneElsesEntry(ProviderContainer container) async {
     final samples = container.read(sampleChallengeRepositoryProvider);
+    final now = DateTime.now();
 
-    for (final challenge in await samples.watchLiveChallenges().first) {
-      final entries = await samples.watchEntries(challenge.id).first;
+    final challenge = await samples.createChallenge(
+      Challenge(
+        id: '',
+        title: 'Prova',
+        brief: 'Fai qualcosa di assurdo.',
+        prizeCents: 50000,
+        scope: ChallengeScope.global,
+        startsAt: now.subtract(const Duration(hours: 1)),
+        endsAt: now.add(const Duration(days: 1)),
+      ),
+    );
 
-      if (entries.isNotEmpty) {
-        return entries.first;
-      }
-    }
-
-    fail('Nessuna partecipazione di esempio disponibile.');
+    return samples.submitEntry(
+      challengeId: challenge.id,
+      userId: 'altra',
+      authorName: 'altra',
+      bytes: Uint8List.fromList(const [1, 2, 3]),
+    );
   }
 
-  test('un ospite accende la fiamma sulle challenge di esempio', () async {
+  test('un ospite accende la fiamma sulle challenge locali', () async {
     final container = guestContainer();
-    final entry = await demoEntry(container);
+    final entry = await someoneElsesEntry(container);
 
     final outcome = await container
         .read(voteControllerProvider)
@@ -53,10 +71,7 @@ void main() {
         .watchEntries(entry.challengeId)
         .first;
 
-    expect(
-      updated.firstWhere((item) => item.id == entry.id).votes,
-      entry.votes + 1,
-    );
+    expect(updated.firstWhere((item) => item.id == entry.id).votes, 1);
 
     final voted = await container
         .read(sampleChallengeRepositoryProvider)
@@ -68,7 +83,7 @@ void main() {
 
   test('la fiamma si toglie con lo stesso gesto al contrario', () async {
     final container = guestContainer();
-    final entry = await demoEntry(container);
+    final entry = await someoneElsesEntry(container);
     final controller = container.read(voteControllerProvider);
 
     await controller.toggle(entry, voted: true);
@@ -79,10 +94,7 @@ void main() {
         .watchEntries(entry.challengeId)
         .first;
 
-    expect(
-      updated.firstWhere((item) => item.id == entry.id).votes,
-      entry.votes,
-    );
+    expect(updated.firstWhere((item) => item.id == entry.id).votes, 0);
   });
 
   test('su una challenge vera l\'ospite viene mandato a registrarsi', () async {
@@ -106,7 +118,7 @@ void main() {
 
   test('nessuno vota la propria foto', () async {
     final container = guestContainer();
-    final entry = await demoEntry(container);
+    final entry = await someoneElsesEntry(container);
 
     // L'ospite firma con `guestVoterId`: una partecipazione con quel nome e'
     // la sua, e con dei soldi in palio auto-votarsi e' il primo modo in cui si

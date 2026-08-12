@@ -93,6 +93,17 @@ class _Surface extends StatelessWidget {
     return Image.network(
       url,
       fit: BoxFit.cover,
+      // Su web Flutter scarica le immagini con `fetch` e le disegna sulla tela,
+      // e questo richiede che il server mandi le intestazioni CORS. Il bucket
+      // di Firebase Storage non le manda finche' non gliele si configura a
+      // mano, e il risultato e' che **le foto non compaiono e nessuno dice
+      // perche'**: niente errore, solo un riquadro vuoto.
+      //
+      // Con questo, quando il disegno sulla tela fallisce, Flutter ripiega su
+      // un vero elemento `<img>` del browser — che le foto le mostra da sempre
+      // senza chiedere permesso a nessuno. Su telefono la riga non ha alcun
+      // effetto.
+      webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
       // La foto entra con una dissolvenza breve invece di apparire di scatto.
       // E' l'unica animazione dell'immagine, e dura meno di un battito.
       frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {

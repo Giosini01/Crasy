@@ -108,18 +108,27 @@ flutter pub get
 flutter run
 ```
 
-**Senza Firebase configurato l'app funziona lo stesso.** Gira su un set di
-challenge di esempio che vivono in memoria: si puo' navigare tutto, partecipare
-e votare, e alla chiusura sparisce. Serve a poter aprire il progetto appena
-clonato e vedere cos'e', e a far girare i test senza rete.
+**L'app nasce vuota.** Non ci sono challenge di esempio, e non e' una
+dimenticanza: challenge finte in mezzo a quelle vere confondono e basta. La
+prima schermata dice che non c'e' ancora niente, e il **+** in alto la riempie.
 
-Le challenge di esempio hanno un identificativo che comincia per `demo-` e
-**non hanno una foto**: le si vede come premio, titolo e comando, senza immagine.
-Le foto vere arrivano da Storage, che senza Firebase non c'e'.
+**Senza Firebase configurato l'app funziona lo stesso.** Il repository diventa
+quello in memoria: si lancia una challenge, si partecipa, si vota, e alla
+chiusura sparisce tutto. Serve ad aprire il progetto appena clonato e vederlo
+girare, e a far correre i test senza rete ne' credenziali. In quel caso le foto
+non salgono da nessuna parte — restano nell'indirizzo dell'immagine, quindi si
+vedono ma solo su quel dispositivo.
 
-Un limite della piattaforma da conoscere: su web `image_picker` non puo' imporre
-la fotocamera, e il browser mostra comunque il selettore di file. La regola "si
-scatta sul momento" vale sul telefono, dove l'app vive.
+Due limiti della piattaforma web da conoscere:
+
+- `image_picker` non puo' imporre la fotocamera, e il browser mostra comunque il
+  selettore di file. La regola "si scatta sul momento" vale sul telefono, dove
+  l'app vive;
+- Flutter scarica le immagini con `fetch` e le disegna sulla tela, il che
+  richiede le intestazioni CORS che il bucket di Firebase Storage non manda
+  finche' non gliele si configura. `MediaFrame` usa
+  `WebHtmlElementStrategy.fallback`, che in quel caso ripiega su un vero
+  elemento `<img>`. La soluzione pulita resta configurare il CORS del bucket.
 
 ### Con Firebase
 
