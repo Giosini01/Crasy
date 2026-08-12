@@ -1,55 +1,45 @@
-﻿import 'package:app_incontri/features/profile/data/mappers/user_profile_mapper.dart';
-import 'package:app_incontri/features/profile/domain/entities/user_profile.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('UserProfile serializes to Firestore create map', () {
-    final profile = UserProfile(
-      id: 'user-1',
-      name: 'Luca',
-      birthDate: DateTime(1994, 3, 10),
-      gender: GenderIdentity.man,
-      interestedIn: InterestPreference.women,
-      createdAt: null,
-      updatedAt: null,
-      onboardingCompleted: true,
-    );
+  const profile = UserProfile(
+    id: 'user-1',
+    username: 'martina',
+    bio: 'Faccio cose assurde.',
+    city: 'Napoli',
+    createdAt: null,
+    updatedAt: null,
+    onboardingCompleted: true,
+  );
 
-    final map = UserProfileMapper.toCreateMap(profile);
-
-    expect(map['name'], 'Luca');
-    expect(map['gender'], 'man');
-    expect(map['interestedIn'], 'women');
-    expect(map['birthDate'], isA<Timestamp>());
-    expect(map['createdAt'], isA<FieldValue>());
-    expect(map['updatedAt'], isA<FieldValue>());
+  test('le iniziali sono le prime due lettere, in maiuscolo', () {
+    expect(profile.initials, 'MA');
+    expect(profile.copyWith(username: 'a').initials, 'A');
+    expect(profile.copyWith(username: '').initials, '?');
   });
 
-  test('UserProfile deserializes from Firestore map', () {
-    final profile = UserProfileMapper.fromFirestore('user-1', {
-      'name': 'Luca',
-      'birthDate': Timestamp.fromDate(DateTime(1994, 3, 10)),
-      'gender': 'man',
-      'interestedIn': 'women',
-      'createdAt': Timestamp.fromDate(DateTime(2026, 8, 8)),
-      'updatedAt': Timestamp.fromDate(DateTime(2026, 8, 8)),
-      'onboardingCompleted': true,
-    });
+  test('la foto conta solo se c\'e\' davvero un indirizzo', () {
+    expect(profile.hasPhoto, isFalse);
+    expect(profile.copyWith(photoUrl: '').hasPhoto, isFalse);
+    expect(profile.copyWith(photoUrl: 'https://x/y.jpg').hasPhoto, isTrue);
+  });
 
-    expect(
-      profile,
-      UserProfile(
-        id: 'user-1',
-        name: 'Luca',
-        birthDate: DateTime(1994, 3, 10),
-        gender: GenderIdentity.man,
-        interestedIn: InterestPreference.women,
-        createdAt: DateTime(2026, 8, 8),
-        updatedAt: DateTime(2026, 8, 8),
-        onboardingCompleted: true,
-      ),
-    );
+  test('una bio di soli spazi vale come assente', () {
+    expect(profile.hasBio, isTrue);
+    expect(profile.copyWith(bio: '   ').hasBio, isFalse);
+  });
+
+  test('copyWith cambia un campo e lascia stare gli altri', () {
+    final updated = profile.copyWith(city: 'Milano');
+
+    expect(updated.city, 'Milano');
+    expect(updated.username, profile.username);
+    expect(updated.bio, profile.bio);
+  });
+
+  test('due profili con gli stessi campi sono uguali', () {
+    expect(profile.copyWith(), profile);
+    expect(profile.copyWith().hashCode, profile.hashCode);
+    expect(profile.copyWith(username: 'altra'), isNot(profile));
   });
 }
-

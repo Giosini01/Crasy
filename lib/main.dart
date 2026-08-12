@@ -1,4 +1,4 @@
-import 'package:app_incontri/bootstrap.dart';
+import 'package:crasy/bootstrap.dart';
 
 Future<void> main() async {
   await bootstrap();

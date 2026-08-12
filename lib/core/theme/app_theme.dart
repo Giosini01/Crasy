@@ -1,19 +1,20 @@
-import 'package:app_incontri/core/theme/app_palette.dart';
-import 'package:app_incontri/core/theme/app_radius.dart';
-import 'package:app_incontri/core/theme/app_spacing.dart';
-import 'package:app_incontri/core/theme/app_typography.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/app_radius.dart';
+import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/theme/app_typography.dart';
 import 'package:flutter/material.dart';
 
 abstract final class AppTheme {
-  /// L'unico tema dell'app.
+  /// L'unico tema di CRASY.
   ///
-  /// Non esiste una variante scura: l'interfaccia resta chiara anche quando il
-  /// sistema e' in tema scuro, cosi' il viola ha sempre lo stesso peso e le
-  /// foto cadono sempre sullo stesso fondo.
+  /// Non c'e' una variante scura, e non e' una mancanza: le foto delle
+  /// challenge devono cadere sempre sullo stesso fondo, e il rosso deve avere
+  /// sempre lo stesso peso. Un tema scuro darebbe due prodotti diversi.
   ///
-  /// Angoli tondi, ombre basse, nessuna onda di tocco: l'interfaccia deve
-  /// sparire dietro le foto, non farsi guardare.
+  /// Qui dentro si spegne quasi tutto quello che Material accende da solo —
+  /// tinte sulle superfici, ombre, onde al tocco, sfondi delle barre. Ognuna di
+  /// quelle cose, presa singolarmente, e' innocua; tutte insieme fanno l'app
+  /// piena di roba che CRASY non vuole essere.
   static ThemeData light() => _build(AppPalette.light);
 
   static ThemeData _build(AppPalette palette) {
@@ -24,28 +25,28 @@ abstract final class AppTheme {
 
     final colorScheme =
         ColorScheme.fromSeed(
-          seedColor: palette.brand,
+          seedColor: palette.accent,
           brightness: Brightness.light,
         ).copyWith(
-          primary: palette.brand,
-          onPrimary: palette.onBrand,
-          primaryContainer: palette.brandTint,
-          onPrimaryContainer: palette.brand,
-          secondary: palette.brand,
-          onSecondary: palette.onBrand,
-          surface: palette.surface,
+          primary: palette.accent,
+          onPrimary: palette.onAccent,
+          primaryContainer: palette.accentTint,
+          onPrimaryContainer: palette.accent,
+          secondary: palette.textPrimary,
+          onSecondary: palette.background,
+          surface: palette.background,
           onSurface: palette.textPrimary,
           onSurfaceVariant: palette.textSecondary,
           surfaceContainerHighest: palette.surfaceMuted,
-          outline: palette.border,
-          outlineVariant: palette.border,
+          outline: palette.line,
+          outlineVariant: palette.line,
           error: palette.danger,
         );
 
-    // I comandi prendono la pillola: e' la forma piu' morbida che esista, e
-    // su una schermata fatta di foto tonde un rettangolo stona.
+    // Il comando e' un rettangolo appena smussato, a tutta larghezza. Non una
+    // pillola: la pillola e' morbida, e qui sotto c'e' del denaro in palio.
     final buttonShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AppRadius.pill),
+      borderRadius: BorderRadius.circular(AppRadius.md),
     );
 
     return ThemeData(
@@ -56,91 +57,77 @@ abstract final class AppTheme {
       canvasColor: palette.background,
       textTheme: textTheme,
       extensions: [palette],
-      // Su iOS un tocco non produce onde: schiarisce e basta.
+      // Nessuna onda al tocco: e' l'animazione piu' invasiva che Material
+      // faccia, e su una schermata fatta di foto e spazio bianco si nota solo
+      // lei.
       splashFactory: NoSplash.splashFactory,
-      highlightColor: palette.surfaceMuted,
       splashColor: Colors.transparent,
-      cupertinoOverrideTheme: NoDefaultCupertinoThemeData(
-        primaryColor: palette.brand,
-        brightness: Brightness.light,
-      ),
+      highlightColor: palette.surfaceMuted,
       appBarTheme: AppBarTheme(
         backgroundColor: palette.background,
         surfaceTintColor: Colors.transparent,
         foregroundColor: palette.textPrimary,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: true,
+        centerTitle: false,
         titleTextStyle: textTheme.titleLarge,
-      ),
-      cardTheme: CardThemeData(
-        color: palette.surface,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           elevation: 0,
-          backgroundColor: palette.brand,
-          foregroundColor: palette.onBrand,
+          backgroundColor: palette.accent,
+          foregroundColor: palette.onAccent,
           disabledBackgroundColor: palette.surfaceMuted,
-          disabledForegroundColor: palette.textSecondary,
-          minimumSize: const Size.fromHeight(54),
+          disabledForegroundColor: palette.textFaint,
+          minimumSize: const Size.fromHeight(56),
           textStyle: textTheme.labelLarge,
           shape: buttonShape,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: palette.brand,
-          backgroundColor: palette.surfaceMuted,
-          minimumSize: const Size.fromHeight(54),
-          textStyle: textTheme.labelLarge?.copyWith(color: palette.brand),
-          side: BorderSide.none,
+          foregroundColor: palette.textPrimary,
+          minimumSize: const Size.fromHeight(56),
+          textStyle: textTheme.labelLarge,
+          side: BorderSide(color: palette.line),
           shape: buttonShape,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: palette.brand,
-          textStyle: textTheme.bodyLarge?.copyWith(color: palette.brand),
+          foregroundColor: palette.textPrimary,
+          textStyle: textTheme.titleMedium,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
         ),
       ),
+      // I campi non hanno riquadro: solo un filetto sotto, come una riga su cui
+      // scrivere. Un rettangolo grigio attorno a ogni campo e' il modo piu'
+      // veloce di far sembrare un'app un modulo da compilare.
       inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: palette.surfaceMuted,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.sm + 2,
+        filled: false,
+        contentPadding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        labelStyle: textTheme.labelSmall,
+        floatingLabelStyle: textTheme.labelSmall?.copyWith(
+          color: palette.accent,
         ),
-        labelStyle: textTheme.bodyLarge?.copyWith(
-          color: palette.textSecondary,
-        ),
-        floatingLabelStyle: textTheme.bodySmall?.copyWith(color: palette.brand),
-        hintStyle: textTheme.bodyLarge?.copyWith(
-          color: palette.textSecondary,
-        ),
-        prefixIconColor: palette.textSecondary,
-        suffixIconColor: palette.textSecondary,
-        border: _inputBorder(Colors.transparent),
-        enabledBorder: _inputBorder(Colors.transparent),
-        focusedBorder: _inputBorder(palette.brand),
-        errorBorder: _inputBorder(palette.danger),
-        focusedErrorBorder: _inputBorder(palette.danger),
+        hintStyle: textTheme.bodyLarge?.copyWith(color: palette.textFaint),
+        prefixIconColor: palette.textFaint,
+        suffixIconColor: palette.textFaint,
+        border: _underline(palette.line),
+        enabledBorder: _underline(palette.line),
+        focusedBorder: _underline(palette.textPrimary, width: 1.5),
+        errorBorder: _underline(palette.danger),
+        focusedErrorBorder: _underline(palette.danger, width: 1.5),
+        errorStyle: textTheme.bodySmall?.copyWith(color: palette.danger),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
-        color: palette.brand,
+        color: palette.accent,
         linearTrackColor: palette.surfaceMuted,
         circularTrackColor: palette.surfaceMuted,
-        linearMinHeight: 4,
+        linearMinHeight: 2,
       ),
-      // Il separatore di iOS e' una linea sottilissima, non un tratto pieno.
       dividerTheme: DividerThemeData(
-        color: palette.border,
+        color: palette.line,
         thickness: 0.5,
         space: 0.5,
       ),
@@ -153,10 +140,12 @@ abstract final class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
+        elevation: 0,
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: palette.surface,
+        backgroundColor: palette.background,
         surfaceTintColor: Colors.transparent,
+        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
@@ -164,20 +153,20 @@ abstract final class AppTheme {
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: palette.background,
         surfaceTintColor: Colors.transparent,
+        elevation: 0,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(AppRadius.lg),
           ),
         ),
       ),
-      iconTheme: IconThemeData(color: palette.textSecondary),
+      iconTheme: IconThemeData(color: palette.textPrimary, size: 22),
     );
   }
 
-  static OutlineInputBorder _inputBorder(Color color) {
-    return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      borderSide: BorderSide(color: color),
+  static UnderlineInputBorder _underline(Color color, {double width = 1}) {
+    return UnderlineInputBorder(
+      borderSide: BorderSide(color: color, width: width),
     );
   }
 }

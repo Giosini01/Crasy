@@ -1,6 +1,6 @@
-import 'package:app_incontri/core/theme/app_palette.dart';
-import 'package:app_incontri/core/theme/app_radius.dart';
-import 'package:app_incontri/core/theme/app_spacing.dart';
+import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/app_radius.dart';
+import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 
 /// Foglio modale con l'intestazione di iOS: annulla a sinistra, titolo al
@@ -84,14 +84,14 @@ class ModalSheet extends StatelessWidget {
                       child: Text(
                         confirmLabel,
                         style: context.texts.labelLarge?.copyWith(
-                          color: palette.brand,
+                          color: palette.accent,
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-              Divider(color: palette.border, height: 0.5, thickness: 0.5),
+              Divider(color: palette.line, height: 0.5, thickness: 0.5),
               Flexible(child: child),
             ],
           ),

@@ -3,5 +3,5 @@
      schermata di avvio non deve virare al nero sui dispositivi in dark mode. -->
 <resources>
     <color name="brand_background">#FFFFFF</color>
-    <color name="brand_iris">#8A00C4</color>
+    <color name="brand_accent">#FF2D1A</color>
 </resources>

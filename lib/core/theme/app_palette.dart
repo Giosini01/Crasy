@@ -1,89 +1,89 @@
-import 'package:app_incontri/core/theme/app_colors.dart';
+import 'package:crasy/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
-/// Token semantici del tema: le schermate leggono da qui invece di pescare i
-/// colori grezzi, cosi' un cambio di tinta si fa in un posto solo.
+/// Token semantici del tema: le schermate leggono da qui, mai da [AppColors].
 ///
-/// La separazione fra superfici e' affidata alle **ombre**, non ai bordi: su
-/// fondo chiaro una scheda bianca con un'ombra bassa galleggia, la stessa
-/// scheda con una linea attorno sembra un riquadro di un modulo.
+/// Non esistono token per ombre, gradienti o livelli di superficie, e la loro
+/// assenza e' voluta: a separare le cose in CRASY sono lo **spazio vuoto** e,
+/// dove proprio serve, un filetto da mezzo pixel. Una card con l'ombra e' gia'
+/// un'altra app.
 @immutable
 class AppPalette extends ThemeExtension<AppPalette> {
   const AppPalette({
     required this.background,
-    required this.surface,
     required this.surfaceMuted,
-    required this.border,
+    required this.line,
     required this.textPrimary,
     required this.textSecondary,
-    required this.brand,
-    required this.brandTint,
-    required this.onBrand,
-    required this.danger,
+    required this.textFaint,
+    required this.accent,
+    required this.accentTint,
+    required this.onAccent,
   });
 
-  /// Fondo pagina.
+  /// Fondo pagina, ed e' anche il fondo di tutto il resto: non c'e' una
+  /// superficie "sopra" perche' non ci sono schede.
   final Color background;
 
-  /// Card e fogli sopra il fondo. E' **piu' chiaro** di [background]: e' quel
-  /// mezzo punto di differenza, non un contorno, a staccarli.
-  final Color surface;
-
-  /// Riempimenti tenui: input, pillole a riposo, tracce di progresso.
+  /// Riempimenti tenui: il rettangolo che tiene il posto di una foto, i campi
+  /// di testo, le tracce di progresso.
   final Color surfaceMuted;
 
-  final Color border;
+  final Color line;
   final Color textPrimary;
   final Color textSecondary;
+  final Color textFaint;
 
-  /// L'unico viola. Riservato all'azione primaria e agli stati selezionati.
-  final Color brand;
+  /// L'unico colore. Premio, azione primaria, stato attivo. Nient'altro.
+  final Color accent;
 
-  /// Velo dello stesso viola, per il fondo degli elementi attivi.
-  final Color brandTint;
+  /// Velo dello stesso rosso, per il fondo di cio' che e' selezionato.
+  final Color accentTint;
 
-  /// Colore del testo che poggia su [brand].
-  final Color onBrand;
+  /// Il colore del testo che poggia su [accent].
+  final Color onAccent;
 
-  final Color danger;
+  /// Gli errori prendono lo stesso rosso dell'accento.
+  ///
+  /// Non e' pigrizia: un secondo rosso "da errore" accanto al rosso del marchio
+  /// darebbe due rossi leggermente diversi nella stessa schermata, che e'
+  /// esattamente il tipo di sciatteria che si nota senza saper dire perche'.
+  Color get danger => accent;
 
   static const light = AppPalette(
-    background: AppColors.background,
-    surface: AppColors.surface,
-    surfaceMuted: AppColors.surfaceMuted,
-    border: AppColors.border,
-    textPrimary: AppColors.textPrimary,
-    textSecondary: AppColors.textSecondary,
-    brand: AppColors.iris,
-    brandTint: AppColors.irisTint,
-    onBrand: Colors.white,
-    danger: AppColors.danger,
+    background: AppColors.paper,
+    surfaceMuted: AppColors.paperMuted,
+    line: AppColors.line,
+    textPrimary: AppColors.ink,
+    textSecondary: AppColors.inkSoft,
+    textFaint: AppColors.inkFaint,
+    accent: AppColors.crasyRed,
+    accentTint: AppColors.crasyRedTint,
+    onAccent: AppColors.paper,
   );
 
   @override
   AppPalette copyWith({
     Color? background,
-    Color? surface,
     Color? surfaceMuted,
-    Color? border,
+    Color? line,
     Color? textPrimary,
     Color? textSecondary,
-    Color? brand,
-    Color? brandTint,
-    Color? onBrand,
-    Color? danger,
+    Color? textFaint,
+    Color? accent,
+    Color? accentTint,
+    Color? onAccent,
   }) {
     return AppPalette(
       background: background ?? this.background,
-      surface: surface ?? this.surface,
       surfaceMuted: surfaceMuted ?? this.surfaceMuted,
-      border: border ?? this.border,
+      line: line ?? this.line,
       textPrimary: textPrimary ?? this.textPrimary,
       textSecondary: textSecondary ?? this.textSecondary,
-      brand: brand ?? this.brand,
-      brandTint: brandTint ?? this.brandTint,
-      onBrand: onBrand ?? this.onBrand,
-      danger: danger ?? this.danger,
+      textFaint: textFaint ?? this.textFaint,
+      accent: accent ?? this.accent,
+      accentTint: accentTint ?? this.accentTint,
+      onAccent: onAccent ?? this.onAccent,
     );
   }
 
@@ -95,15 +95,14 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
     return AppPalette(
       background: Color.lerp(background, other.background, t)!,
-      surface: Color.lerp(surface, other.surface, t)!,
       surfaceMuted: Color.lerp(surfaceMuted, other.surfaceMuted, t)!,
-      border: Color.lerp(border, other.border, t)!,
+      line: Color.lerp(line, other.line, t)!,
       textPrimary: Color.lerp(textPrimary, other.textPrimary, t)!,
       textSecondary: Color.lerp(textSecondary, other.textSecondary, t)!,
-      brand: Color.lerp(brand, other.brand, t)!,
-      brandTint: Color.lerp(brandTint, other.brandTint, t)!,
-      onBrand: Color.lerp(onBrand, other.onBrand, t)!,
-      danger: Color.lerp(danger, other.danger, t)!,
+      textFaint: Color.lerp(textFaint, other.textFaint, t)!,
+      accent: Color.lerp(accent, other.accent, t)!,
+      accentTint: Color.lerp(accentTint, other.accentTint, t)!,
+      onAccent: Color.lerp(onAccent, other.onAccent, t)!,
     );
   }
 }

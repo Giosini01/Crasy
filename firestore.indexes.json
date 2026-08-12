@@ -1,43 +1,42 @@
 {
   "indexes": [
     {
-      "comment": "Serve alla funzione di recupero: cerca le Daily attive di oggi fra tutti gli utenti, quindi interroga il gruppo di collezioni e non una sola.",
-      "collectionGroup": "dailies",
-      "queryScope": "COLLECTION_GROUP",
+      "comment": "La funzione che chiude le challenge cerca quelle gia' scadute e non ancora proclamate: due campi diversi nella stessa query, quindi indice composto.",
+      "collectionGroup": "challenges",
+      "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "dateKey", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" }
+        { "fieldPath": "winnerEntryId", "order": "ASCENDING" },
+        { "fieldPath": "endsAt", "order": "ASCENDING" }
       ]
     },
     {
-      "comment": "Alla nascita di un match si cerca l'ultima Istantanea attiva delle due persone, per metterne la foto nella riga del match.",
-      "collectionGroup": "dailies",
+      "comment": "La proclamazione ordina le partecipazioni per voti e, a parita', per chi ha mandato prima.",
+      "collectionGroup": "entries",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "capturedAt", "order": "DESCENDING" }
+        { "fieldPath": "votes", "order": "DESCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "comment": "Il profilo mostra le proprie partecipazioni, che stanno sparse sotto challenge diverse: la query e' sul gruppo di collezioni, e un indice cosi' Firestore non lo crea da se'.",
+      "collectionGroup": "entries",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     }
   ],
   "fieldOverrides": [
     {
-      "comment": "La pulizia oraria cerca le Istantanee scadute fra tutti gli utenti. Un indice su un solo campo Firestore lo crea da se', ma non per le interrogazioni sul gruppo di collezioni: quello va chiesto qui.",
-      "collectionGroup": "dailies",
-      "fieldPath": "capturedAt",
+      "comment": "Il feed prende le partecipazioni piu' recenti di qualunque challenge. Un indice su un solo campo Firestore lo crea da se', ma non per le interrogazioni sul gruppo di collezioni: quello va chiesto qui.",
+      "collectionGroup": "entries",
+      "fieldPath": "createdAt",
       "indexes": [
         { "order": "ASCENDING", "queryScope": "COLLECTION" },
         { "order": "DESCENDING", "queryScope": "COLLECTION" },
-        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
-      ]
-    },
-    {
-      "comment": "Stessa cosa per le copie finite nei feed altrui, che vanno tolte insieme alla foto.",
-      "collectionGroup": "feed",
-      "fieldPath": "capturedAtMillis",
-      "indexes": [
-        { "order": "ASCENDING", "queryScope": "COLLECTION" },
-        { "order": "DESCENDING", "queryScope": "COLLECTION" },
-        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+        { "order": "DESCENDING", "queryScope": "COLLECTION_GROUP" }
       ]
     }
   ]

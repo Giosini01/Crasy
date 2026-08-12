@@ -1,89 +1,68 @@
-﻿import 'package:app_incontri/features/onboarding/presentation/utils/onboarding_validators.dart';
-import 'package:app_incontri/features/profile/domain/entities/coordinates.dart';
-import 'package:app_incontri/features/profile/domain/entities/user_profile.dart';
+import 'package:crasy/features/onboarding/presentation/utils/onboarding_validators.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('OnboardingValidators', () {
-    final now = DateTime(2026, 8, 8);
-
-    test('validates name', () {
-      expect(OnboardingValidators.validateName(''), isNotNull);
-      expect(OnboardingValidators.validateName('A'), isNotNull);
-      expect(OnboardingValidators.validateName('Anna'), isNull);
+  group('nome utente', () {
+    test('e\' obbligatorio', () {
+      expect(OnboardingValidators.validateUsername(null), isNotNull);
+      expect(OnboardingValidators.validateUsername('  '), isNotNull);
     });
 
-    test('validates birth date and adult age', () {
-      expect(OnboardingValidators.validateBirthDate(null, now: now), isNotNull);
-      expect(
-        OnboardingValidators.validateBirthDate(DateTime(2026, 8, 9), now: now),
-        isNotNull,
-      );
-      expect(
-        OnboardingValidators.validateBirthDate(DateTime(2010, 8, 9), now: now),
-        isNotNull,
-      );
-      expect(
-        OnboardingValidators.validateBirthDate(DateTime(2000, 1, 1), now: now),
-        isNull,
-      );
+    test('rispetta la lunghezza minima e massima', () {
+      expect(OnboardingValidators.validateUsername('ab'), isNotNull);
+      expect(OnboardingValidators.validateUsername('abc'), isNull);
+      expect(OnboardingValidators.validateUsername('a' * 20), isNull);
+      expect(OnboardingValidators.validateUsername('a' * 21), isNotNull);
     });
 
-    test('validates icebreaker length but allows it to be empty', () {
-      expect(OnboardingValidators.validateIcebreaker(''), isNull);
-      expect(
-        OnboardingValidators.validateIcebreaker('Chiedimi del mio ultimo viaggio'),
-        isNull,
-      );
-      expect(
-        OnboardingValidators.validateIcebreaker(
-          'x' * (OnboardingValidators.icebreakerMaxLength + 1),
-        ),
-        isNotNull,
-      );
+    test('accetta solo minuscole, numeri, punto e trattino basso', () {
+      expect(OnboardingValidators.validateUsername('martina'), isNull);
+      expect(OnboardingValidators.validateUsername('mar.tina_01'), isNull);
+      expect(OnboardingValidators.validateUsername('Martina'), isNotNull);
+      expect(OnboardingValidators.validateUsername('mar tina'), isNotNull);
+      expect(OnboardingValidators.validateUsername('mar-tina'), isNotNull);
     });
+  });
 
-    test('requires a minimum number of interests', () {
-      expect(OnboardingValidators.validateInterests(const []), isNotNull);
+  group('campi facoltativi', () {
+    test('la bio vuota va bene, quella lunga no', () {
+      expect(OnboardingValidators.validateBio(null), isNull);
+      expect(OnboardingValidators.validateBio(''), isNull);
       expect(
-        OnboardingValidators.validateInterests(const ['libri', 'musica']),
-        isNotNull,
-      );
-      expect(
-        OnboardingValidators.validateInterests(
-          const ['libri', 'musica', 'viaggi'],
+        OnboardingValidators.validateBio(
+          'a' * OnboardingValidators.bioMaxLength,
         ),
         isNull,
       );
-    });
-
-    test('checks onboarding completion requirements', () {
       expect(
-        OnboardingValidators.canComplete(
-          name: 'Anna',
-          birthDate: DateTime(1998, 6, 1),
-          gender: GenderIdentity.woman,
-          interestedIn: InterestPreference.men,
-          coordinates: const Coordinates(latitude: 41.9, longitude: 12.5),
-          now: now,
+        OnboardingValidators.validateBio(
+          'a' * (OnboardingValidators.bioMaxLength + 1),
         ),
-        isTrue,
+        isNotNull,
       );
     });
 
-    test('onboarding cannot complete without coordinates', () {
+    test('la citta\' segue la stessa regola', () {
+      expect(OnboardingValidators.validateCity(null), isNull);
+      expect(OnboardingValidators.validateCity('Napoli'), isNull);
       expect(
-        OnboardingValidators.canComplete(
-          name: 'Anna',
-          birthDate: DateTime(1998, 6, 1),
-          gender: GenderIdentity.woman,
-          interestedIn: InterestPreference.men,
-          coordinates: null,
-          now: now,
+        OnboardingValidators.validateCity(
+          'a' * (OnboardingValidators.cityMaxLength + 1),
         ),
-        isFalse,
+        isNotNull,
       );
     });
   });
-}
 
+  test('si puo\' completare con il solo nome utente', () {
+    expect(OnboardingValidators.canComplete(username: 'martina'), isTrue);
+    expect(OnboardingValidators.canComplete(username: 'ab'), isFalse);
+    expect(
+      OnboardingValidators.canComplete(
+        username: 'martina',
+        bio: 'a' * (OnboardingValidators.bioMaxLength + 1),
+      ),
+      isFalse,
+    );
+  });
+}

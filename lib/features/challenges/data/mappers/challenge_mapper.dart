@@ -1,0 +1,99 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
+
+abstract final class ChallengeMapper {
+  static Challenge fromFirestore(String id, Map<String, dynamic> data) {
+    return Challenge(
+      id: id,
+      title: data['title'] as String? ?? '',
+      brief: data['brief'] as String? ?? '',
+      prizeCents: (data['prizeCents'] as num?)?.toInt() ?? 0,
+      scope: ChallengeScope.fromName(data['scope'] as String?),
+      place: data['place'] as String? ?? '',
+      rules: _stringList(data['rules']),
+      coverUrl: data['coverUrl'] as String?,
+      // Le date sono obbligatorie per il prodotto ma non per il documento: un
+      // record scritto a mano male non deve far cadere l'intera schermata.
+      // Senza inizio e fine la challenge risulta chiusa, che e' lo stato piu'
+      // innocuo in cui possa finire.
+      startsAt: _dateOr(data['startsAt'], _epoch),
+      endsAt: _dateOr(data['endsAt'], _epoch),
+      participantsCount: (data['participantsCount'] as num?)?.toInt() ?? 0,
+      winnerEntryId: data['winnerEntryId'] as String?,
+    );
+  }
+
+  static Map<String, dynamic> toCreateMap(Challenge challenge) {
+    return {
+      'title': challenge.title,
+      'brief': challenge.brief,
+      'prizeCents': challenge.prizeCents,
+      'scope': challenge.scope.name,
+      'place': challenge.place,
+      'rules': challenge.rules,
+      'coverUrl': challenge.coverUrl,
+      'startsAt': Timestamp.fromDate(challenge.startsAt),
+      'endsAt': Timestamp.fromDate(challenge.endsAt),
+      'participantsCount': challenge.participantsCount,
+      'winnerEntryId': challenge.winnerEntryId,
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+  }
+
+  static final DateTime _epoch = DateTime.fromMillisecondsSinceEpoch(0);
+
+  static DateTime _dateOr(Object? raw, DateTime fallback) {
+    return raw is Timestamp ? raw.toDate() : fallback;
+  }
+
+  static List<String> _stringList(Object? raw) {
+    if (raw is! List) {
+      return const [];
+    }
+
+    return [
+      for (final entry in raw)
+        if (entry is String) entry,
+    ];
+  }
+}
+
+abstract final class ChallengeEntryMapper {
+  static ChallengeEntry fromFirestore(
+    String id,
+    String challengeId,
+    Map<String, dynamic> data,
+  ) {
+    return ChallengeEntry(
+      id: id,
+      challengeId: challengeId,
+      challengeTitle: data['challengeTitle'] as String? ?? '',
+      userId: data['userId'] as String? ?? '',
+      authorName: data['authorName'] as String? ?? '',
+      mediaUrl: data['mediaUrl'] as String? ?? '',
+      storagePath: data['storagePath'] as String? ?? '',
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+      votes: (data['votes'] as num?)?.toInt() ?? 0,
+      isWinner: data['isWinner'] as bool? ?? false,
+    );
+  }
+
+  /// La mappa con cui nasce una partecipazione.
+  ///
+  /// I voti **non ci sono**: sono scritti solo con `increment`, e includerli
+  /// qui significherebbe azzerarli ogni volta che qualcuno rimanda la propria
+  /// foto per la stessa challenge.
+  static Map<String, dynamic> toCreateMap(ChallengeEntry entry) {
+    return {
+      'challengeId': entry.challengeId,
+      'challengeTitle': entry.challengeTitle,
+      'userId': entry.userId,
+      'authorName': entry.authorName,
+      'mediaUrl': entry.mediaUrl,
+      'storagePath': entry.storagePath,
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+  }
+}

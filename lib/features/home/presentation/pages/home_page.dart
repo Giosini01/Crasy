@@ -1,41 +1,45 @@
-import 'package:app_incontri/core/constants/app_routes.dart';
-import 'package:app_incontri/core/theme/app_palette.dart';
-import 'package:app_incontri/core/theme/app_radius.dart';
-import 'package:app_incontri/core/theme/app_shadows.dart';
-import 'package:app_incontri/core/theme/app_spacing.dart';
-import 'package:app_incontri/features/camera/presentation/pages/camera_page.dart';
-import 'package:app_incontri/features/discover/presentation/pages/discover_page.dart';
-import 'package:app_incontri/features/matches/presentation/pages/matches_page.dart';
-import 'package:app_incontri/features/profile/presentation/pages/profile_page.dart';
+import 'package:crasy/core/constants/app_routes.dart';
+import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/features/challenges/presentation/pages/challenges_page.dart';
+import 'package:crasy/features/challenges/presentation/pages/feed_page.dart';
+import 'package:crasy/features/challenges/presentation/pages/winners_page.dart';
+import 'package:crasy/features/profile/presentation/pages/profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+/// L'impalcatura con le quattro schede.
+///
+/// Quattro e non cinque: creare una challenge sta nell'intestazione della home,
+/// perche' e' una cosa che si fa una volta ogni tanto. Una scheda in fondo e'
+/// per cio' che si fa tutti i giorni — guardare le challenge, guardare le foto
+/// degli altri, vedere chi ha vinto, guardare le proprie.
 class HomePage extends StatelessWidget {
   const HomePage({required this.location, super.key});
 
   final String location;
 
-  static const tabs = <_HomeTab>[
+  static const _tabs = <_HomeTab>[
     _HomeTab(
-      route: AppRoutes.discover,
+      route: AppRoutes.challenges,
+      label: 'Challenge',
+      icon: Icons.bolt_outlined,
+      activeIcon: Icons.bolt,
+      page: ChallengesPage(),
+    ),
+    _HomeTab(
+      route: AppRoutes.feed,
       label: 'Feed',
-      icon: Icons.auto_awesome_outlined,
-      activeIcon: Icons.auto_awesome,
-      page: DiscoverPage(),
+      icon: Icons.grid_view_outlined,
+      activeIcon: Icons.grid_view_rounded,
+      page: FeedPage(),
     ),
     _HomeTab(
-      route: AppRoutes.camera,
-      label: 'Istantanea',
-      icon: Icons.photo_camera_outlined,
-      activeIcon: Icons.photo_camera_rounded,
-      page: CameraPage(),
-    ),
-    _HomeTab(
-      route: AppRoutes.matches,
-      label: 'Match',
-      icon: Icons.favorite_border_rounded,
-      activeIcon: Icons.favorite_rounded,
-      page: MatchesPage(),
+      route: AppRoutes.winners,
+      label: 'Vincitori',
+      icon: Icons.emoji_events_outlined,
+      activeIcon: Icons.emoji_events,
+      page: WinnersPage(),
     ),
     _HomeTab(
       route: AppRoutes.profile,
@@ -48,57 +52,48 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currentIndex = tabs.indexWhere((tab) => tab.route == location);
-    final selectedIndex = currentIndex >= 0 ? currentIndex : 0;
+    final index = _tabs.indexWhere((tab) => tab.route == location);
+    final selected = index >= 0 ? index : 0;
 
     return Scaffold(
-      body: tabs[selectedIndex].page,
-      bottomNavigationBar: _HomeNavBar(
-        selectedIndex: selectedIndex,
-        onSelected: (index) => context.go(tabs[index].route),
-      ),
+      body: _tabs[selected].page,
+      bottomNavigationBar: _NavBar(tabs: _tabs, selected: selected),
     );
   }
 }
 
-/// Barra di navigazione dell'app.
+/// La barra in fondo: un filetto sopra, icone piccole, la scheda attiva in
+/// rosso.
 ///
-/// E' scritta a mano invece di usare `NavigationBar` per restare a tinta
-/// unita: nessuna pillola colorata dietro l'icona, solo il viola sulla voce
-/// attiva e il grigio su tutte le altre.
-class _HomeNavBar extends StatelessWidget {
-  const _HomeNavBar({required this.selectedIndex, required this.onSelected});
+/// Niente fondo colorato e niente pillola attorno all'icona scelta: e' una
+/// barra di navigazione, non un elemento da guardare.
+class _NavBar extends StatelessWidget {
+  const _NavBar({required this.tabs, required this.selected});
 
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
+  final List<_HomeTab> tabs;
+  final int selected;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
 
-    // Bianca sopra il fondo biancastro, con un'ombra invece di una riga: la
-    // barra sta **sopra** le schermate, e una linea la farebbe sembrare
-    // incollata al bordo del contenuto.
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: palette.surface,
-        boxShadow: AppShadows.soft,
+        color: palette.background,
+        border: Border(top: BorderSide(color: palette.line, width: 0.5)),
       ),
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
+        child: SizedBox(
+          height: 56,
           child: Row(
             children: [
-              for (var index = 0; index < HomePage.tabs.length; index++)
+              for (var index = 0; index < tabs.length; index++)
                 Expanded(
                   child: _NavItem(
-                    tab: HomePage.tabs[index],
-                    selected: index == selectedIndex,
-                    onTap: () => onSelected(index),
+                    tab: tabs[index],
+                    active: index == selected,
+                    onTap: () => context.go(tabs[index].route),
                   ),
                 ),
             ],
@@ -112,48 +107,40 @@ class _HomeNavBar extends StatelessWidget {
 class _NavItem extends StatelessWidget {
   const _NavItem({
     required this.tab,
-    required this.selected,
+    required this.active,
     required this.onTap,
   });
 
   final _HomeTab tab;
-  final bool selected;
+  final bool active;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final color = selected ? palette.brand : palette.textSecondary;
+    final color = active ? palette.accent : palette.textFaint;
 
     return Semantics(
-      selected: selected,
+      selected: active,
       button: true,
       label: tab.label,
-      child: InkWell(
+      child: GestureDetector(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                selected ? tab.activeIcon : tab.icon,
-                size: 24,
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(active ? tab.activeIcon : tab.icon, size: 22, color: color),
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              tab.label.toUpperCase(),
+              style: context.texts.labelSmall?.copyWith(
                 color: color,
+                fontSize: 9,
+                letterSpacing: 0.8,
               ),
-              const SizedBox(height: AppSpacing.xxs + 2),
-              Text(
-                tab.label,
-                style: context.texts.labelSmall?.copyWith(
-                  color: color,
-                  letterSpacing: 0.2,
-                  fontSize: 11,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

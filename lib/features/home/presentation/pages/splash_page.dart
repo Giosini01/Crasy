@@ -1,45 +1,35 @@
-import 'package:app_incontri/core/theme/app_palette.dart';
-import 'package:app_incontri/core/theme/app_radius.dart';
-import 'package:app_incontri/core/theme/app_spacing.dart';
-import 'package:app_incontri/core/widgets/app_background.dart';
-import 'package:app_incontri/core/widgets/brand_mark.dart';
+import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/widgets/app_background.dart';
+import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:flutter/material.dart';
 
+/// L'attesa iniziale.
+///
+/// Il logotipo e la tagline, in mezzo al bianco. Nessuna rotellina: dura il
+/// tempo di sapere chi ha aperto l'app, che sono poche centinaia di
+/// millisecondi, e un indicatore di caricamento per quel tempo la' serve solo a
+/// far sembrare lenta una cosa che non lo e'.
 class SplashPage extends StatelessWidget {
   const SplashPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.palette;
-
     return Scaffold(
       body: AppBackground(
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            child: Column(
-              children: [
-                const Spacer(),
-                const BrandWordmark(height: 56),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'Una foto al giorno, e chi c\'e\' oggi.',
-                  textAlign: TextAlign.center,
-                  style: context.texts.bodyLarge?.copyWith(
-                    color: palette.textSecondary,
-                  ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CrasyWordmark(size: 44),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'DO SOMETHING CRAZY.',
+                style: context.texts.labelSmall?.copyWith(
+                  color: context.palette.textFaint,
                 ),
-                const Spacer(),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  child: const SizedBox(
-                    width: 120,
-                    child: LinearProgressIndicator(minHeight: 3),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

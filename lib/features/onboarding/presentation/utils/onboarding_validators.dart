@@ -1,110 +1,79 @@
-import 'package:app_incontri/core/utils/app_date_utils.dart';
-import 'package:app_incontri/features/profile/domain/entities/coordinates.dart';
-import 'package:app_incontri/features/profile/domain/entities/profile_interests.dart';
-import 'package:app_incontri/features/profile/domain/entities/user_profile.dart';
-
 abstract final class OnboardingValidators {
-  static String? validateName(String? value) {
-    final name = value?.trim() ?? '';
-
-    if (name.isEmpty) {
-      return 'Inserisci il tuo nome.';
-    }
-
-    if (name.length < 2) {
-      return 'Il nome deve avere almeno 2 caratteri.';
-    }
-
-    return null;
-  }
-
-  static String? validateBirthDate(DateTime? birthDate, {DateTime? now}) {
-    if (birthDate == null) {
-      return 'Seleziona la tua data di nascita.';
-    }
-
-    final today = now ?? DateTime.now();
-
-    if (birthDate.isAfter(today)) {
-      return 'La data di nascita non puo essere futura.';
-    }
-
-    final age = AppDateUtils.calculateAge(birthDate, now: today);
-
-    if (age < 18) {
-      return 'Devi avere almeno 18 anni per usare Rawsy.';
-    }
-
-    return null;
-  }
-
-  static String? validateGender(GenderIdentity? gender) {
-    if (gender == null) {
-      return 'Seleziona come ti identifichi.';
-    }
-
-    return null;
-  }
-
-  static String? validateInterest(InterestPreference? interest) {
-    if (interest == null) {
-      return 'Seleziona chi vuoi conoscere.';
-    }
-
-    return null;
-  }
-
-  /// Quanto puo' essere lungo l'"Oggi...".
+  /// Il nome utente e' l'unica cosa obbligatoria di tutto l'onboarding.
   ///
-  /// Volutamente cortissimo: non e' una biografia, e' cosa stai facendo
-  /// **oggi**. Se ci sta un paragrafo, la gente ci scrive un paragrafo, e da
-  /// li' a una scheda di presentazione il passo e' breve.
-  static const int icebreakerMaxLength = 80;
+  /// Deve esserlo: e' la firma sotto ogni foto mandata a una challenge, e
+  /// senza di essa il feed sarebbe una fila di scatti di nessuno.
+  static const int usernameMinLength = 3;
+  static const int usernameMaxLength = 20;
 
-  /// Il rompighiaccio e' facoltativo: solo la lunghezza puo' renderlo non
-  /// valido.
-  static String? validateIcebreaker(String? value) {
-    final icebreaker = value?.trim() ?? '';
+  /// Lettere minuscole, cifre, punto e trattino basso.
+  ///
+  /// Niente maiuscole e niente spazi, e non per pignoleria: due nomi che si
+  /// leggono uguali ma si scrivono diversi — `Marta` e `marta` — in una
+  /// classifica con dei soldi in palio sono un problema, non un dettaglio.
+  static final RegExp _usernamePattern = RegExp(r'^[a-z0-9._]+$');
 
-    if (icebreaker.length > icebreakerMaxLength) {
-      return 'Al massimo $icebreakerMaxLength caratteri.';
+  static String? validateUsername(String? value) {
+    final username = value?.trim() ?? '';
+
+    if (username.isEmpty) {
+      return 'Scegli un nome utente.';
+    }
+
+    if (username.length < usernameMinLength) {
+      return 'Almeno $usernameMinLength caratteri.';
+    }
+
+    if (username.length > usernameMaxLength) {
+      return 'Al massimo $usernameMaxLength caratteri.';
+    }
+
+    if (!_usernamePattern.hasMatch(username)) {
+      return 'Solo minuscole, numeri, punto e trattino basso.';
     }
 
     return null;
   }
 
-  /// Gli interessi sono obbligatori: sono la base dell'affinita', e con
-  /// meno del minimo ogni percentuale risulterebbe falsata.
-  static String? validateInterests(List<String> interests) {
-    if (interests.length < ProfileInterests.minChoices) {
-      return 'Scegli almeno ${ProfileInterests.minChoices} interessi.';
+  /// Quanto puo' essere lunga la riga di presentazione.
+  ///
+  /// Cortissima di proposito: se ci sta un paragrafo, la gente ci scrive un
+  /// paragrafo, e il profilo torna a essere il posto in cui ci si racconta
+  /// invece che l'elenco di quello che si e' fatto.
+  static const int bioMaxLength = 80;
+
+  /// La bio e' facoltativa: solo la lunghezza puo' renderla non valida.
+  static String? validateBio(String? value) {
+    final bio = value?.trim() ?? '';
+
+    if (bio.length > bioMaxLength) {
+      return 'Al massimo $bioMaxLength caratteri.';
     }
 
     return null;
   }
 
-  /// Senza coordinate il profilo non entra in nessun feed, quindi la
-  /// posizione e' obbligatoria quanto il nome.
-  static String? validateLocation(Coordinates? coordinates) {
-    if (coordinates == null) {
-      return 'Tocca "Usa la mia posizione" per continuare.';
+  static const int cityMaxLength = 40;
+
+  /// Anche la citta' e' facoltativa: serve a riconoscere le challenge locali,
+  /// non a entrare.
+  static String? validateCity(String? value) {
+    final city = value?.trim() ?? '';
+
+    if (city.length > cityMaxLength) {
+      return 'Al massimo $cityMaxLength caratteri.';
     }
 
     return null;
   }
 
   static bool canComplete({
-    required String name,
-    required DateTime? birthDate,
-    required GenderIdentity? gender,
-    required InterestPreference? interestedIn,
-    required Coordinates? coordinates,
-    DateTime? now,
+    required String username,
+    String bio = '',
+    String city = '',
   }) {
-    return validateName(name) == null &&
-        validateBirthDate(birthDate, now: now) == null &&
-        validateGender(gender) == null &&
-        validateInterest(interestedIn) == null &&
-        validateLocation(coordinates) == null;
+    return validateUsername(username) == null &&
+        validateBio(bio) == null &&
+        validateCity(city) == null;
   }
 }

@@ -1,11 +1,11 @@
 ﻿{
-    "name": "Rawsy",
-    "short_name": "Rawsy",
+    "name": "CRASY",
+    "short_name": "CRASY",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FFFFFF",
-    "theme_color": "#8A00C4",
-    "description": "Una foto al giorno, e chi c'e' oggi.",
+    "theme_color": "#FF2D1A",
+    "description": "Challenge fotografiche con premi in denaro. DO SOMETHING CRAZY.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

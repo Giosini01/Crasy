@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:app_incontri/core/errors/error_message_mapper.dart';
-import 'package:app_incontri/features/auth/data/repositories/firebase_auth_repository.dart';
-import 'package:app_incontri/features/auth/domain/entities/app_user.dart';
-import 'package:app_incontri/features/auth/domain/repositories/auth_repository.dart';
+import 'package:crasy/core/errors/error_message_mapper.dart';
+import 'package:crasy/features/auth/data/repositories/firebase_auth_repository.dart';
+import 'package:crasy/features/auth/domain/entities/app_user.dart';
+import 'package:crasy/features/auth/domain/repositories/auth_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

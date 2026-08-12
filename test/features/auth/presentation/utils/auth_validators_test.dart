@@ -1,4 +1,4 @@
-import 'package:app_incontri/features/auth/presentation/utils/auth_validators.dart';
+import 'package:crasy/features/auth/presentation/utils/auth_validators.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

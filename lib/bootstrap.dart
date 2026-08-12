@@ -1,6 +1,6 @@
-import 'package:app_incontri/app.dart';
-import 'package:app_incontri/services/firebase/firebase_bootstrap.dart';
-import 'package:app_incontri/services/firebase/firebase_bootstrap_result.dart';
+import 'package:crasy/app.dart';
+import 'package:crasy/services/firebase/firebase_bootstrap.dart';
+import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -16,7 +16,7 @@ Future<void> bootstrap() async {
           firebaseBootstrapResult,
         ),
       ],
-      child: const RawsyApp(),
+      child: const CrasyApp(),
     ),
   );
 }

@@ -1,4 +1,4 @@
-import 'package:app_incontri/firebase_options.dart';
+import 'package:crasy/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_bootstrap_result.dart';

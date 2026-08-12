@@ -1,4 +1,4 @@
-import 'package:app_incontri/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/app_palette.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 

@@ -1,5 +1,5 @@
-name: app_incontri
-description: "Daily dating app foundation."
+name: crasy
+description: "CRASY — challenge fotografiche con premi in denaro. DO SOMETHING CRAZY."
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -21,8 +21,6 @@ dependencies:
   image_picker: ^1.2.3
   flutter_localizations:
     sdk: flutter
-  image: ^4.8.0
-  camera: ^0.12.0+2
 
 dev_dependencies:
   flutter_test:
@@ -31,10 +29,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
-  assets:
-    # Il logotipo vero, gia' ritagliato dal file d'origine: quello negli
-    # assets ha attorno un margine trasparente enorme, e messo cosi' com'e'
-    # avrebbe occupato tre volte lo spazio che si vede.
-    - assets/brand/rawsy.png
-    - assets/brand/rawsy-light.png

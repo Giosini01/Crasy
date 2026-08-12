@@ -1,4 +1,4 @@
-import 'package:app_incontri/features/auth/domain/entities/app_user.dart';
+import 'package:crasy/features/auth/domain/entities/app_user.dart';
 
 abstract class AuthRepository {
   Stream<AppUser?> authStateChanges();

@@ -1,5 +1,5 @@
-import 'package:app_incontri/features/auth/domain/repositories/auth_repository.dart';
-import 'package:app_incontri/features/auth/presentation/providers/auth_providers.dart';
+import 'package:crasy/features/auth/domain/repositories/auth_repository.dart';
+import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final authActionControllerProvider =

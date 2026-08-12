@@ -1,0 +1,33 @@
+/// Dove vive una challenge.
+///
+/// Non e' un filtro e non e' una categoria: e' **con chi si compete**. Una
+/// challenge globale mette in gara tutti, una locale solo chi e' in quella
+/// citta' — e siccome il premio e' lo stesso, il campo di gara e' una delle
+/// prime cose che uno vuole sapere.
+enum ChallengeScope {
+  global('GLOBAL'),
+  country('ITALIA'),
+
+  /// Legata a una citta' o a un luogo. L'etichetta vera arriva dalla challenge
+  /// (`NAPOLI`, `MILANO`), questa e' solo la parola di ripiego.
+  local('LOCALE'),
+
+  /// Su invito. Non ancora aperta nell'MVP, ma il valore esiste gia' perche' i
+  /// documenti che lo portano possano essere letti senza rompere nulla.
+  private('PRIVATA');
+
+  const ChallengeScope(this.defaultLabel);
+
+  /// Come si chiama questo ambito quando la challenge non dice altro.
+  final String defaultLabel;
+
+  static ChallengeScope fromName(String? value) {
+    for (final scope in ChallengeScope.values) {
+      if (scope.name == value) {
+        return scope;
+      }
+    }
+
+    return ChallengeScope.global;
+  }
+}

@@ -14,8 +14,7 @@ class LocationException implements Exception {
 /// Messaggi condivisi fra l'implementazione nativa e quella web, cosi' lo
 /// stesso problema si racconta allo stesso modo su tutte le piattaforme.
 abstract final class LocationMessages {
-  static const denied =
-      'Accesso alla posizione negato. Concedilo e riprova.';
+  static const denied = 'Accesso alla posizione negato. Concedilo e riprova.';
 
   static const disabled =
       'I servizi di localizzazione sono spenti. Attivali e riprova.';

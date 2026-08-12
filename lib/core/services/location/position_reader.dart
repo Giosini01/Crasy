@@ -7,7 +7,7 @@
 /// aggancio fresco da restituire.
 library;
 
-export 'package:app_incontri/core/services/location/position_reader_stub.dart'
-    if (dart.library.js_interop) 'package:app_incontri/core/services/location/position_reader_web.dart'
-    if (dart.library.io) 'package:app_incontri/core/services/location/position_reader_io.dart';
-export 'package:app_incontri/core/services/location/position_sample.dart';
+export 'package:crasy/core/services/location/position_reader_stub.dart'
+    if (dart.library.js_interop) 'package:crasy/core/services/location/position_reader_web.dart'
+    if (dart.library.io) 'package:crasy/core/services/location/position_reader_io.dart';
+export 'package:crasy/core/services/location/position_sample.dart';

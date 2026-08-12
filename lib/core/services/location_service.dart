@@ -1,9 +1,9 @@
-import 'package:app_incontri/core/services/location/location_exception.dart';
-import 'package:app_incontri/core/services/location/position_reader.dart';
-import 'package:app_incontri/features/profile/domain/entities/coordinates.dart';
+import 'package:crasy/core/services/location/coordinates.dart';
+import 'package:crasy/core/services/location/location_exception.dart';
+import 'package:crasy/core/services/location/position_reader.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-export 'package:app_incontri/core/services/location/location_exception.dart';
+export 'package:crasy/core/services/location/location_exception.dart';
 
 final locationServiceProvider = Provider<LocationService>(
   (ref) => const LocationService(),

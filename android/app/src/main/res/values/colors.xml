@@ -2,5 +2,5 @@
 <!-- Tenere allineati a lib/core/theme/app_colors.dart -->
 <resources>
     <color name="brand_background">#FFFFFF</color>
-    <color name="brand_iris">#8A00C4</color>
+    <color name="brand_accent">#FF2D1A</color>
 </resources>

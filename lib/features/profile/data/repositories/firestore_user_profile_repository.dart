@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 
-import 'package:app_incontri/features/profile/data/mappers/user_profile_mapper.dart';
-import 'package:app_incontri/features/profile/domain/entities/user_profile.dart';
-import 'package:app_incontri/features/profile/domain/repositories/user_profile_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crasy/features/profile/data/mappers/user_profile_mapper.dart';
+import 'package:crasy/features/profile/domain/entities/user_profile.dart';
+import 'package:crasy/features/profile/domain/repositories/user_profile_repository.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
 class FirestoreUserProfileRepository implements UserProfileRepository {
@@ -12,6 +12,9 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
 
+  CollectionReference<Map<String, dynamic>> get _users =>
+      _firestore.collection('users');
+
   @override
   Future<void> uploadPhoto({
     required String userId,
@@ -19,7 +22,7 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
     String? contentType,
   }) async {
     // Percorso fisso: la foto profilo e' una sola, e sovrascriverla evita di
-    // accumulare i vecchi scatti di ogni cambio.
+    // accumulare tutti i ritratti passati a ogni cambio.
     final storagePath = 'profiles/$userId/photo.jpg';
     final reference = _storage.ref(storagePath);
 
@@ -28,41 +31,33 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
       SettableMetadata(contentType: contentType ?? 'image/jpeg'),
     );
 
-    await _usersCollection.doc(userId).update({
+    await _users.doc(userId).update({
       'photoUrl': await reference.getDownloadURL(),
       'photoStoragePath': storagePath,
-      'photoStatus': PhotoStatus.pending.name,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  CollectionReference<Map<String, dynamic>> get _usersCollection =>
-      _firestore.collection('users');
-
   @override
   Future<void> createUserProfile(UserProfile profile) {
-    return _usersCollection
-        .doc(profile.id)
-        .set(UserProfileMapper.toCreateMap(profile));
+    return _users.doc(profile.id).set(UserProfileMapper.toCreateMap(profile));
   }
 
   @override
   Future<UserProfile?> getCurrentUserProfile(String userId) async {
-    final snapshot = await _usersCollection.doc(userId).get();
-
-    return _mapSnapshot(snapshot);
+    return _mapSnapshot(await _users.doc(userId).get());
   }
 
   @override
   Future<void> updateUserProfile(UserProfile profile) {
-    return _usersCollection
+    return _users
         .doc(profile.id)
         .update(UserProfileMapper.toUpdateMap(profile));
   }
 
   @override
   Stream<UserProfile?> watchCurrentUserProfile(String userId) {
-    return _usersCollection.doc(userId).snapshots().map(_mapSnapshot);
+    return _users.doc(userId).snapshots().map(_mapSnapshot);
   }
 
   UserProfile? _mapSnapshot(DocumentSnapshot<Map<String, dynamic>> snapshot) {

@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:app_incontri/core/services/location/location_exception.dart';
-import 'package:app_incontri/core/services/location/position_sample.dart';
+import 'package:crasy/core/services/location/location_exception.dart';
+import 'package:crasy/core/services/location/position_sample.dart';
 import 'package:geolocator/geolocator.dart';
 
 Future<PositionSample> readCurrentPosition() async {

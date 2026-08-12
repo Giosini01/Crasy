@@ -1,45 +1,51 @@
-﻿import 'dart:async';
-
-import 'package:app_incontri/core/constants/app_routes.dart';
-import 'package:app_incontri/features/auth/domain/entities/app_user.dart';
-import 'package:app_incontri/features/auth/domain/repositories/auth_repository.dart';
-import 'package:app_incontri/features/auth/presentation/providers/auth_providers.dart';
-import 'package:app_incontri/features/profile/domain/entities/user_profile.dart';
-import 'package:app_incontri/features/profile/presentation/providers/user_profile_providers.dart';
-import 'package:app_incontri/routing/app_router.dart';
+import 'package:crasy/core/constants/app_routes.dart';
+import 'package:crasy/features/auth/domain/entities/app_user.dart';
+import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
+import 'package:crasy/features/profile/domain/entities/user_profile.dart';
+import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
+import 'package:crasy/routing/app_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/fake_auth_repository.dart';
+
 void main() {
-  test('unauthenticated users land on auth', () async {
-    final authRepository = _FakeAuthRepository();
-    final container = ProviderContainer(
-      overrides: [authRepositoryProvider.overrideWithValue(authRepository)],
-    );
-    addTearDown(() async {
-      authRepository.dispose();
-      container.dispose();
-    });
+  const user = AppUser(id: 'user-1', email: 'test@example.com');
 
-    await container.pump();
-
-    expect(container.read(sessionLandingRouteProvider), AppRoutes.auth);
-  });
-
-  test('authenticated users without profile land on onboarding', () async {
-    final authRepository = _FakeAuthRepository(
-      currentUser: const AppUser(id: 'user-1', email: 'test@example.com'),
-    );
+  ProviderContainer containerWith(
+    FakeAuthRepository authRepository, {
+    List<Override> overrides = const [],
+  }) {
     final container = ProviderContainer(
       overrides: [
         authRepositoryProvider.overrideWithValue(authRepository),
-        currentUserProfileProvider.overrideWith((ref) => Stream.value(null)),
+        ...overrides,
       ],
     );
-    addTearDown(() async {
+
+    addTearDown(() {
       authRepository.dispose();
       container.dispose();
     });
+
+    return container;
+  }
+
+  test('chi non ha fatto l\'accesso atterra sulle challenge', () async {
+    final container = containerWith(FakeAuthRepository());
+
+    await container.pump();
+
+    expect(container.read(sessionLandingRouteProvider), AppRoutes.challenges);
+  });
+
+  test('senza profilo si passa dall\'onboarding', () async {
+    final container = containerWith(
+      FakeAuthRepository(currentUser: user),
+      overrides: [
+        currentUserProfileProvider.overrideWith((ref) => Stream.value(null)),
+      ],
+    );
 
     await container.read(currentUserProfileProvider.future);
     await container.pump();
@@ -47,80 +53,58 @@ void main() {
     expect(container.read(sessionLandingRouteProvider), AppRoutes.onboarding);
   });
 
-  test('authenticated users with completed onboarding land on home', () async {
-    final authRepository = _FakeAuthRepository(
-      currentUser: const AppUser(id: 'user-1', email: 'test@example.com'),
-    );
-    final container = ProviderContainer(
+  test('un onboarding lasciato a meta\' riporta all\'onboarding', () async {
+    final container = containerWith(
+      FakeAuthRepository(currentUser: user),
       overrides: [
-        authRepositoryProvider.overrideWithValue(authRepository),
         currentUserProfileProvider.overrideWith(
           (ref) => Stream.value(
-            UserProfile(
+            const UserProfile(
               id: 'user-1',
-              name: 'Luca',
-              birthDate: DateTime(1996, 8, 8),
-              gender: GenderIdentity.man,
-              interestedIn: InterestPreference.women,
-              createdAt: DateTime(2026, 8, 8),
-              updatedAt: DateTime(2026, 8, 8),
+              username: 'martina',
+              createdAt: null,
+              updatedAt: null,
+              onboardingCompleted: false,
+            ),
+          ),
+        ),
+      ],
+    );
+
+    await container.read(currentUserProfileProvider.future);
+    await container.pump();
+
+    expect(container.read(sessionLandingRouteProvider), AppRoutes.onboarding);
+  });
+
+  test('con l\'onboarding fatto si atterra sulle challenge', () async {
+    final container = containerWith(
+      FakeAuthRepository(currentUser: user),
+      overrides: [
+        currentUserProfileProvider.overrideWith(
+          (ref) => Stream.value(
+            const UserProfile(
+              id: 'user-1',
+              username: 'martina',
+              createdAt: null,
+              updatedAt: null,
               onboardingCompleted: true,
             ),
           ),
         ),
       ],
     );
-    addTearDown(() async {
-      authRepository.dispose();
-      container.dispose();
-    });
 
     await container.read(currentUserProfileProvider.future);
     await container.pump();
 
-    expect(container.read(sessionLandingRouteProvider), AppRoutes.discover);
+    expect(container.read(sessionLandingRouteProvider), AppRoutes.challenges);
+  });
+
+  test('le sezioni aperte agli ospiti non comprendono il profilo', () {
+    expect(AppRoutes.guestAllowed, contains(AppRoutes.challenges));
+    expect(AppRoutes.guestAllowed, contains(AppRoutes.feed));
+    expect(AppRoutes.guestAllowed, isNot(contains(AppRoutes.profile)));
+    expect(AppRoutes.guestAllowed, isNot(contains(AppRoutes.create)));
   });
 }
-
-class _FakeAuthRepository implements AuthRepository {
-  _FakeAuthRepository({this.currentUser});
-
-  final StreamController<AppUser?> _controller =
-      StreamController<AppUser?>.broadcast();
-
-  @override
-  AppUser? currentUser;
-
-  @override
-  Stream<AppUser?> authStateChanges() async* {
-    yield currentUser;
-    yield* _controller.stream;
-  }
-
-  void dispose() {
-    _controller.close();
-  }
-
-  @override
-  Future<AppUser> signIn({
-    required String email,
-    required String password,
-  }) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> signOut() async {
-    currentUser = null;
-    _controller.add(null);
-  }
-
-  @override
-  Future<AppUser> signUp({
-    required String email,
-    required String password,
-  }) async {
-    throw UnimplementedError();
-  }
-}
-

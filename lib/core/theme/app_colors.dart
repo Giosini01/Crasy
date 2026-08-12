@@ -1,46 +1,47 @@
 import 'package:flutter/material.dart';
 
-/// Colori grezzi dell'app.
+/// I colori grezzi di CRASY.
 ///
-/// C'e' **una sola tinta di viola**: [iris]. Non esistono accenti secondari,
-/// gradienti o ramp. Il viola non decora: dice "questa e' l'azione" oppure
-/// "questo e' selezionato". Tutto il resto e' bianco, biancastro o grigio, e
-/// il colore vero lo mettono le foto.
+/// La regola e' una sola e non si negozia: **bianco, nero, grigi, e un rosso**.
+/// Il rosso non decora niente. Dice tre cose e basta — quanto si vince, cosa
+/// toccare, cosa e' attivo. Se compare altrove ha gia' smesso di significare
+/// qualcosa, ed e' cosi' che una palette da quattro tinte diventa una da otto.
 ///
-/// L'app ha un solo aspetto, chiaro, anche quando il sistema e' in tema scuro.
+/// Il colore vero lo mettono le foto delle challenge. L'interfaccia sta zitta.
 abstract final class AppColors {
-  /// Il viola del marchio. Su bianco ha un contrasto di 7.3:1, quindi regge
-  /// sia come riempimento con testo bianco sopra sia come colore di testo.
-  static const iris = Color(0xFF8A00C4);
+  /// Il rosso di CRASY.
+  ///
+  /// Scelto perche' regge **entrambi** i ruoli: su bianco si legge come testo,
+  /// e riempito con del bianco sopra fa un bottone che si vede da lontano. Un
+  /// accento che funziona solo come riempimento costringe prima o poi a
+  /// inventarne un secondo per il testo, e i colori diventano due.
+  static const crasyRed = Color(0xFFFF2D1A);
 
-  /// [iris] al 10% posato su bianco, precalcolato per restare `const`.
-  static const irisTint = Color(0xFFF3E6F9);
+  /// Il rosso al 6% su bianco, precalcolato per restare `const`. Serve al
+  /// fondo degli stati attivi, dove il rosso pieno griderebbe.
+  static const crasyRedTint = Color(0xFFFFF0EE);
 
   // --- Neutrali -------------------------------------------------------------
 
-  /// Fondo pagina: un bianco appena sporco di viola.
+  /// Fondo pagina: bianco pieno.
   ///
-  /// Non e' bianco pieno di proposito: le schede sono bianche, e su un fondo
-  /// bianco identico sparirebbero. Mezzo punto di differenza basta a farle
-  /// **galleggiare** senza disegnare un bordo attorno a ognuna.
-  static const background = Color(0xFFF7F6F9);
+  /// Non un bianco sporco: le schermate non hanno schede da far galleggiare,
+  /// quindi non serve un fondo diverso dalle superfici. Le foto cadono sul
+  /// bianco e il bianco sparisce.
+  static const paper = Color(0xFFFFFFFF);
 
-  /// Le schede e i fogli: bianco pieno.
-  static const surface = Color(0xFFFFFFFF);
+  /// Riempimenti tenui: il posto di una foto che non c'e' ancora, i campi.
+  static const paperMuted = Color(0xFFF4F4F5);
 
-  /// Riempimenti tenui: campi, pillole a riposo, tracce di progresso.
-  static const surfaceMuted = Color(0xFFF0EFF3);
+  /// I filetti. Sottilissimi, quasi invisibili: separano senza disegnare.
+  static const line = Color(0xFFE8E8EA);
 
-  /// Separatori e contorni, dove servono ancora.
-  static const border = Color(0xFFE6E4EC);
+  /// Nero non assoluto. Sul bianco il nero pieno taglia, questo posa.
+  static const ink = Color(0xFF0A0A0B);
 
-  /// Nero non assoluto: sul bianco il nero pieno taglia, questo posa.
-  static const textPrimary = Color(0xFF0B0B0F);
+  /// Il grigio del testo di servizio: tempo, partecipanti, categorie.
+  static const inkSoft = Color(0xFF6B6B70);
 
-  static const textSecondary = Color(0xFF6E6E78);
-
-  // --- Errori ---------------------------------------------------------------
-
-  /// systemRed.
-  static const danger = Color(0xFFFF3B30);
+  /// Il grigio piu' tenue, per cio' che c'e' ma non va letto per primo.
+  static const inkFaint = Color(0xFFA1A1A6);
 }

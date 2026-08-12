@@ -1,6 +1,5 @@
-import 'package:app_incontri/core/services/location_service.dart';
-import 'package:app_incontri/features/profile/domain/entities/user_profile.dart';
-import 'package:app_incontri/features/profile/presentation/providers/user_profile_providers.dart';
+import 'package:crasy/features/profile/domain/entities/user_profile.dart';
+import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -9,42 +8,23 @@ final profileEditControllerProvider =
       ProfileEditController.new,
     );
 
-/// Modifiche a un profilo gia' esistente.
-///
-/// Serve a chi si e' registrato prima che un campo esistesse: l'onboarding non
-/// si ripresenta piu' una volta completato, quindi senza queste azioni un
-/// vecchio profilo resterebbe per sempre senza posizione, senza bio o senza
-/// foto.
+/// Le modifiche a un profilo gia' esistente.
 class ProfileEditController extends AsyncNotifier<void> {
   @override
   void build() {}
 
-  Future<void> refreshLocation(UserProfile profile) async {
-    state = const AsyncLoading<void>();
-
-    state = await AsyncValue.guard(() async {
-      final coordinates = await ref
-          .read(locationServiceProvider)
-          .currentApproximateLocation();
-
-      await _save(profile.copyWith(coordinates: coordinates));
-    });
-  }
-
-  Future<void> updateInterests(
-    UserProfile profile,
-    List<String> interests,
-  ) async {
+  Future<void> updateDetails(
+    UserProfile profile, {
+    required String bio,
+    required String city,
+  }) async {
     state = const AsyncLoading<void>();
     state = await AsyncValue.guard(
-      () => _save(profile.copyWith(interests: interests)),
-    );
-  }
-
-  Future<void> updateIcebreaker(UserProfile profile, String icebreaker) async {
-    state = const AsyncLoading<void>();
-    state = await AsyncValue.guard(
-      () => _save(profile.copyWith(icebreaker: icebreaker.trim())),
+      () => ref
+          .read(userProfileRepositoryProvider)
+          .updateUserProfile(
+            profile.copyWith(bio: bio.trim(), city: city.trim()),
+          ),
     );
   }
 
@@ -56,11 +36,10 @@ class ProfileEditController extends AsyncNotifier<void> {
   ) async {
     final picked = await ImagePicker().pickImage(
       source: source,
-      preferredCameraDevice: CameraDevice.front,
-      // Ridimensionare qui evita di spedire venti megapixel per una foto che
-      // verra' mostrata in un cerchio da settanta punti.
-      maxWidth: 1080,
-      maxHeight: 1080,
+      // La foto profilo finisce in un cerchio da sessanta punti: ventimila
+      // pixel di lato sarebbero venti megabyte per niente.
+      maxWidth: 720,
+      maxHeight: 720,
       imageQuality: 85,
     );
 
@@ -77,18 +56,10 @@ class ProfileEditController extends AsyncNotifier<void> {
           .uploadPhoto(
             userId: profile.id,
             bytes: bytes,
-            // Sul web `image_picker` restituisce il file **come sta**:
-            // ridimensionamento e qualita' qui sopra non vengono applicati, e
-            // da un iPhone puo' arrivare qualcosa che non e' un JPEG. Il tipo
-            // vero va dichiarato, non indovinato.
             contentType: picked.mimeType,
           ),
     );
 
     return true;
-  }
-
-  Future<void> _save(UserProfile profile) {
-    return ref.read(userProfileRepositoryProvider).updateUserProfile(profile);
   }
 }

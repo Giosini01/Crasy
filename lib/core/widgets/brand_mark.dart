@@ -1,74 +1,75 @@
-import 'package:app_incontri/core/theme/app_palette.dart';
-import 'package:app_incontri/core/theme/app_radius.dart';
+import 'package:crasy/core/theme/app_palette.dart';
 import 'package:flutter/material.dart';
 
-/// Il logotipo "Rawsy".
+/// Il logotipo di CRASY.
 ///
-/// E' il file vero del marchio, non una scritta ricostruita col carattere
-/// dell'app: un logotipo ha lettere disegnate, e riscriverlo col font di
-/// sistema darebbe qualcosa che gli somiglia e basta.
+/// E' composto, non disegnato: cinque lettere del carattere di sistema in nero
+/// pieno, strette fra loro, e un punto rosso. In un'app che ha deciso di non
+/// avere colori, il **punto** e' l'unico posto in cui il rosso compare senza
+/// essere ne' un premio ne' un comando — ed e' esattamente cosi' che un colore
+/// diventa il colore di un marchio.
 ///
-/// Ne esistono **due versioni**, ed e' una necessita', non una scelta di
-/// gusto: nell'originale "Raw" e' bianco, e su un fondo chiaro sparirebbe.
-/// Sul chiaro "Raw" diventa quindi quasi nero; la coda "sy" resta viola in
-/// entrambe, perche' e' quella a portare il marchio.
-class BrandWordmark extends StatelessWidget {
-  const BrandWordmark({this.height = 26, this.onDark = false, super.key});
+/// Il tracking negativo non e' un vezzo: a peso 800 le lettere spaziate
+/// normalmente si leggono come una parola qualunque, serrate diventano un
+/// segno.
+class CrasyWordmark extends StatelessWidget {
+  const CrasyWordmark({this.size = 22, this.onDark = false, super.key});
 
-  /// Altezza del logotipo. La larghezza segue da se': l'immagine e' gia'
-  /// ritagliata sul segno, quindi la sua proporzione e' quella vera.
-  final double height;
+  final double size;
 
-  /// Vero quando il logotipo poggia su una foto o su una superficie scura.
+  /// Vero quando il logotipo poggia su una foto o su un fondo scuro.
   final bool onDark;
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      onDark ? 'assets/brand/rawsy.png' : 'assets/brand/rawsy-light.png',
-      height: height,
-      fit: BoxFit.contain,
-      filterQuality: FilterQuality.medium,
-      semanticLabel: 'Rawsy',
+    final palette = context.palette;
+    final color = onDark ? palette.background : palette.textPrimary;
+
+    return Semantics(
+      label: 'CRASY',
+      child: ExcludeSemantics(
+        child: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: 'CRASY',
+                style: TextStyle(color: color),
+              ),
+              TextSpan(
+                text: '.',
+                style: TextStyle(color: palette.accent),
+              ),
+            ],
+          ),
+          style: TextStyle(
+            fontSize: size,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -1,
+            height: 1,
+          ),
+        ),
+      ),
     );
   }
 }
 
-/// Etichetta di sezione in maiuscoletto spaziato.
+/// L'occhiello: una parola in maiuscolo piccolo e spaziato sopra un blocco.
+///
+/// Fa il lavoro che in un'altra app farebbe un badge colorato — dire di che
+/// categoria e' una cosa — senza aggiungere ne' un fondo ne' un colore.
 class EyebrowLabel extends StatelessWidget {
-  const EyebrowLabel(this.text, {super.key});
+  const EyebrowLabel(this.text, {this.color, super.key});
 
   final String text;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     return Text(
       text.toUpperCase(),
       style: context.texts.labelSmall?.copyWith(
-        color: context.palette.textSecondary,
+        color: color ?? context.palette.textFaint,
       ),
-    );
-  }
-}
-
-/// Riquadro con icona per le sezioni ancora vuote.
-class GlyphTile extends StatelessWidget {
-  const GlyphTile({required this.icon, super.key});
-
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        color: palette.brandTint,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Icon(icon, size: 26, color: palette.brand),
     );
   }
 }

@@ -1,5 +1,5 @@
-import 'package:app_incontri/features/auth/domain/entities/app_user.dart';
-import 'package:app_incontri/features/auth/domain/repositories/auth_repository.dart';
+import 'package:crasy/features/auth/domain/entities/app_user.dart';
+import 'package:crasy/features/auth/domain/repositories/auth_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class FirebaseAuthRepository implements AuthRepository {

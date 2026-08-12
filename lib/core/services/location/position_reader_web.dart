@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:js_interop';
 
-import 'package:app_incontri/core/services/location/location_exception.dart';
-import 'package:app_incontri/core/services/location/position_sample.dart';
+import 'package:crasy/core/services/location/location_exception.dart';
+import 'package:crasy/core/services/location/position_sample.dart';
 import 'package:web/web.dart' as web;
 
 /// Millisecondi entro cui il browser deve rispondere.
@@ -43,9 +43,7 @@ Future<PositionSample> readCurrentPosition() {
       ),
     );
   } on Object {
-    completer.completeError(
-      const LocationException(LocationMessages.unknown),
-    );
+    completer.completeError(const LocationException(LocationMessages.unknown));
   }
 
   return completer.future;

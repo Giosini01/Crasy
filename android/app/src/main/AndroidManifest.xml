@@ -1,14 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Le Daily si scattano solo in-app: serve la fotocamera, non la galleria. -->
+    <!-- Alle challenge si partecipa scattando sul momento oppure scegliendo
+         una foto gia' fatta: servono tutte e due le strade. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
-    <!-- Serve la zona per costruire il feed, non la posizione esatta: le
-         coordinate vengono comunque arrotondate prima di essere salvate. -->
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-
     <application
-        android:label="Vibesy"
+        android:label="CRASY"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
