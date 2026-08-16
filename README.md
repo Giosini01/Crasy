@@ -72,6 +72,66 @@ Due regole tengono onesta la competizione:
 | Vincitori | Le challenge concluse e chi le ha vinte |
 | Profilo | Partecipazioni, vittorie, premi, e la griglia delle proprie foto |
 | Crea | Lancia una challenge: premio, titolo, consegna, dove, per quanto |
+| Accesso | Email e password. Alla registrazione parte il messaggio di conferma |
+| Verifica | Il muro: si sta qui finche' l'indirizzo non e' confermato |
+
+---
+
+## Chi entra, e cosa si puo' chiedere
+
+Quattro porte in fila, e si passano in quest'ordine: **accesso**, **email
+confermata**, **profilo con data di nascita**, poi l'app. Ognuna esiste per un
+motivo che ha a che fare con i soldi in palio.
+
+- **Non si guarda niente da fuori.** Senza sessione completa non si vede una
+  challenge, una foto, un vincitore. Vale anche nelle regole di Firestore, non
+  solo nell'interfaccia.
+- **L'email va confermata.** Senza un indirizzo vero non c'e' modo di far avere
+  a nessuno il premio che ha vinto, ne' di riconoscere chi torna dopo essere
+  stato allontanato.
+- **Si entra da diciotto anni.** Qui girano soldi veri e si chiede alla gente di
+  uscire e fare qualcosa per vincerli: e' esattamente il tipo di spinta che a un
+  ragazzino non va data. Il selettore della data non arriva oltre la soglia, e
+  le regole rifiutano un profilo dichiaratamente minorenne.
+
+  Va detto cosa questo **non** e': una data che uno si scrive da solo non e' una
+  verifica dell'eta'. Ferma chi e' onesto, non chi mente. Una verifica vera vuole
+  un documento, ed e' una decisione da prendere prima di aprire al pubblico.
+
+### Cosa non si puo' chiedere
+
+`lib/core/moderation/content_policy.dart` rifiuta le consegne che chiedono
+autolesionismo, violenza, nudita' o cose che possono finire male davvero — e
+i test in `test/core/content_policy_test.dart` sono l'elenco delle frasi che
+**non devono poter essere pubblicate**.
+
+Il motivo per cui questa e' la parte piu' importante: una challenge non e' un
+post, e' **un incarico con un premio in denaro**. "Tagliati le vene" pubblicato
+qui non e' un contenuto discutibile, e' una persona che si fa male perche'
+gliel'ha chiesto la nostra app, in cambio di soldi nostri.
+
+E' un elenco di parole, quindi ferma il caso esplicito e non chi cerca di
+aggirarlo. E' la prima di tre porte: l'app, poi le regole di Firestore che
+rifiutano i casi piu' espliciti anche a chi scrivesse saltando l'app, poi un
+controllo automatico sul server. **In fondo alla catena serve qualcuno che
+guardi**, e va messo in conto prima di aprire al pubblico.
+
+### Le foto
+
+Nudita' e contenuti sessuali non sono ammessi. Il controllo e' scritto e sta in
+`functions/index.js`: ogni foto appena caricata passa da SafeSearch di Google
+Vision prima che qualcun altro possa vederla, e finche' non e' stata guardata la
+vede **solo chi l'ha mandata**, con scritto "in verifica".
+
+> **Adesso e' spento, e va detto invece che nascosto.** Le Cloud Function
+> richiedono il piano a consumo su Firebase, che non e' attivo: senza, la
+> funzione non gira e una foto in attesa resterebbe in attesa per sempre. Con
+> l'interruttore spento le foto nascono gia' ammesse — cioe' **oggi non c'e'
+> nessun controllo automatico sulle immagini**.
+>
+> Per accenderlo servono tre cose: il piano Blaze, la Vision API abilitata, e
+> il deploy delle funzioni. Poi si compila con
+> `--dart-define=CRASY_PHOTO_MODERATION=true` e nel codice non cambia altro.
 
 ---
 
@@ -80,17 +140,16 @@ Due regole tengono onesta la competizione:
 Una sola regola, e tutto il resto ne discende: **bianco, nero, grigi, e il rosso
 del fuoco**.
 
-- `#FC3000` e' il rosso di CRASY, e non e' stato scelto a tavolino: e'
-  **campionato dalle fiamme del logotipo**, la tinta piu' frequente dei quasi
-  centomila pixel di fiamma di `assets/brand/crasy-wordmark.png`. Marchio e
-  interfaccia usano letteralmente lo stesso colore.
+- `#FA0000` e' il rosso di CRASY, e non e' stato scelto a tavolino: e'
+  **campionato dalla "sy" del logotipo**, la tinta piu' frequente dei suoi pixel
+  rossi. Marchio e interfaccia usano letteralmente lo stesso colore.
 - Compare in tre posti soltanto: **il premio, la fiamma del voto, cio' che e'
   attivo**. Se compare altrove ha gia' smesso di significare qualcosa.
-- `#E02200` e' lo stesso fuoco piu' in fondo alla fiamma, e serve a un solo
-  scopo: fare da riempimento sotto il testo bianco del bottone principale. Il
-  rosso acceso su bianco sta a 3,8:1, abbastanza per un premio scritto a 64
-  punti ma non per un'etichetta a 14; qui si sale a 4,8:1. Non e' un secondo
-  colore, e' la stessa tinta a una profondita' diversa.
+- `#E00000` e' lo stesso rosso piu' scuro, e serve a un solo scopo: fare da
+  riempimento sotto il testo bianco del bottone principale. Il rosso pieno su
+  bianco sta a 4,2:1, abbastanza per un premio scritto a 64 punti ma non per
+  un'etichetta a 14; qui si sale a 5,0:1. Non e' un secondo colore, e' la stessa
+  tinta a una luminosita' diversa.
 - Niente card, niente ombre, niente gradienti, niente badge. A separare le cose
   sono lo spazio bianco e, dove serve, un filetto da mezzo pixel.
 - La gerarchia la fa la tipografia: dal 64 del premio all'11 dell'occhiello.
@@ -169,9 +228,9 @@ Due scelte da conoscere prima di toccare qualcosa:
 - **I voti stanno sotto chi li ha dati**, non sotto la foto votata. Cosi' "cosa
   ho gia' votato" e' una lettura sola, e nessuno puo' sapere chi ha votato cosa.
 
-Challenge ed entries si leggono **senza aver fatto l'accesso**: chi apre CRASY
-per la prima volta deve vedere subito cosa c'e' in palio. Registrarsi serve per
-partecipare, votare e avere un profilo.
+**Niente si legge senza aver fatto l'accesso**, ne' dall'app ne' chiamando il
+database direttamente. Le foto che la gente manda sono di persone vere che si
+mettono in gioco: non stanno in una vetrina aperta a chiunque passi.
 
 > **Il progetto Firebase si chiama ancora `daily-dating-app`**, e l'app Android
 > ancora `com.example.app_incontri`. Sono rimasti apposta: l'identificativo di un

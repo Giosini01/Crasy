@@ -1,6 +1,6 @@
 {
   "name": "crasy-functions",
-  "description": "Chiusura delle challenge e proclamazione dei vincitori di CRASY",
+  "description": "Moderazione delle foto e proclamazione dei vincitori di CRASY",
   "main": "index.js",
   "private": true,
   "engines": {
@@ -12,6 +12,7 @@
     "logs": "firebase functions:log"
   },
   "dependencies": {
+    "@google-cloud/vision": "^4.3.2",
     "firebase-admin": "^13.0.2",
     "firebase-functions": "^6.3.1"
   }

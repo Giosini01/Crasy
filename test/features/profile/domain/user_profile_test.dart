@@ -2,9 +2,10 @@ import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  const profile = UserProfile(
+  final profile = UserProfile(
     id: 'user-1',
     username: 'martina',
+    birthDate: DateTime(2000, 1, 1),
     bio: 'Faccio cose assurde.',
     city: 'Napoli',
     createdAt: null,

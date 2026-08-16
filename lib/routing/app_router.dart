@@ -1,5 +1,6 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/features/auth/presentation/pages/auth_page.dart';
+import 'package:crasy/features/auth/presentation/pages/verify_email_page.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/presentation/pages/challenge_detail_page.dart';
 import 'package:crasy/features/challenges/presentation/pages/create_challenge_page.dart';
@@ -14,10 +15,12 @@ import 'package:go_router/go_router.dart';
 
 /// Dove deve stare la sessione in questo momento.
 ///
-/// Non e' la rotta corrente: e' la rotta **minima** che lo stato della sessione
-/// impone. Chi ha fatto l'accesso ed e' passato dall'onboarding puo' stare dove
-/// vuole, e questo provider risponde [AppRoutes.challenges] per dire
-/// "nessun vincolo, la home e' li'".
+/// Sono quattro porte in fila, e si passano in quest'ordine: **accesso**, poi
+/// **email confermata**, poi **profilo con data di nascita**, poi l'app. Ognuna
+/// esiste per un motivo che ha a che fare con i soldi in palio: senza un
+/// account non si sa chi vince, senza un indirizzo vero non si sa dove
+/// mandarlo, e senza sapere quanti anni ha non si dovrebbe chiedere a nessuno
+/// di uscire a fare qualcosa per vincerlo.
 final sessionLandingRouteProvider = Provider<String>((ref) {
   final authState = ref.watch(authStateProvider);
 
@@ -25,38 +28,42 @@ final sessionLandingRouteProvider = Provider<String>((ref) {
     return AppRoutes.splash;
   }
 
-  // Senza accesso non si viene rimbalzati sulla registrazione: si atterra sulle
-  // challenge. E' la prima cosa che CRASY deve mostrare di se'.
-  if (authState is UnauthenticatedAuthState || authState is ErrorAuthState) {
-    return AppRoutes.challenges;
+  if (authState is! AuthenticatedAuthState) {
+    return AppRoutes.auth;
   }
 
-  if (authState is AuthenticatedAuthState) {
-    final profileState = ref.watch(currentUserProfileProvider);
-
-    return profileState.when(
-      loading: () => AppRoutes.splash,
-      // Un profilo che non si riesce a leggere viene trattato come un profilo
-      // che non c'e': l'onboarding e' l'unica schermata che sa ricrearlo.
-      error: (_, _) => AppRoutes.onboarding,
-      data: (profile) {
-        if (profile == null || !profile.onboardingCompleted) {
-          return AppRoutes.onboarding;
-        }
-
-        return AppRoutes.challenges;
-      },
-    );
+  if (!authState.user.emailVerified) {
+    return AppRoutes.verifyEmail;
   }
 
-  return AppRoutes.splash;
+  final profileState = ref.watch(currentUserProfileProvider);
+
+  return profileState.when(
+    loading: () => AppRoutes.splash,
+    // Un profilo che non si riesce a leggere viene trattato come un profilo
+    // che non c'e': l'onboarding e' l'unica schermata che sa ricrearlo.
+    error: (_, _) => AppRoutes.onboarding,
+    data: (profile) {
+      if (profile == null || !profile.onboardingCompleted) {
+        return AppRoutes.onboarding;
+      }
+
+      // Chi si e' registrato prima che la data di nascita esistesse ripassa
+      // dall'onboarding: l'eta' non e' un campo che si possa lasciare vuoto.
+      if (profile.birthDate == null) {
+        return AppRoutes.onboarding;
+      }
+
+      return AppRoutes.challenges;
+    },
+  );
 });
 
 /// Rotta senza animazione di ingresso.
 ///
-/// Le quattro schede sono rotte distinte, quindi go_router le tratterebbe come
-/// pagine da impilare e le farebbe entrare da destra. Cambiare scheda deve
-/// sembrare cambiare vista, non aprire una pagina nuova.
+/// Le schede sono rotte distinte, quindi go_router le tratterebbe come pagine
+/// da impilare e le farebbe entrare da destra. Cambiare scheda deve sembrare
+/// cambiare vista, non aprire una pagina nuova.
 GoRoute _tabRoute(String path, Widget child) {
   return GoRoute(
     path: path,
@@ -67,13 +74,13 @@ GoRoute _tabRoute(String path, Widget child) {
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final landing = ref.watch(sessionLandingRouteProvider);
-  final signedIn = ref.watch(authStateProvider) is AuthenticatedAuthState;
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
     routes: [
       _tabRoute(AppRoutes.splash, const SplashPage()),
       _tabRoute(AppRoutes.auth, const AuthPage()),
+      _tabRoute(AppRoutes.verifyEmail, const VerifyEmailPage()),
       _tabRoute(AppRoutes.onboarding, const OnboardingPage()),
       for (final tab in AppRoutes.tabs) _tabRoute(tab, HomePage(location: tab)),
       GoRoute(
@@ -96,32 +103,26 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final location = state.matchedLocation;
 
-      // Finche' non si sa chi c'e' dall'altra parte non si mostra niente:
-      // mandare qualcuno sulle challenge per poi rimbalzarlo sull'onboarding un
-      // istante dopo e' peggio di mezzo secondo di attesa.
-      if (landing == AppRoutes.splash) {
-        return location == AppRoutes.splash ? null : AppRoutes.splash;
+      // Finche' una porta non e' passata, quella porta e' l'unico posto in cui
+      // si puo' stare. Il controllo e' scritto una volta sola e vale per tutte:
+      // splash, accesso, conferma dell'email e onboarding si comportano allo
+      // stesso modo, e non c'e' modo di aggirarne una scrivendo un indirizzo a
+      // mano.
+      const gates = {
+        AppRoutes.splash,
+        AppRoutes.auth,
+        AppRoutes.verifyEmail,
+        AppRoutes.onboarding,
+      };
+
+      if (gates.contains(landing)) {
+        return location == landing ? null : landing;
       }
 
-      if (landing == AppRoutes.onboarding) {
-        return location == AppRoutes.onboarding ? null : AppRoutes.onboarding;
-      }
-
-      // Da qui in giu' la sessione e' a posto: lo splash e l'onboarding non
-      // hanno piu' niente da dire, e chi ha gia' fatto l'accesso non deve
-      // ritrovarsi sulla registrazione.
-      if (location == AppRoutes.splash || location == AppRoutes.onboarding) {
+      // Da qui in giu' la sessione e' completa: le schermate d'ingresso non
+      // hanno piu' niente da dire.
+      if (gates.contains(location)) {
         return AppRoutes.challenges;
-      }
-
-      if (location == AppRoutes.auth) {
-        return signedIn ? AppRoutes.challenges : null;
-      }
-
-      // L'ospite guarda, ma non lascia tracce: partecipare, votare e avere un
-      // profilo passano tutti dalla registrazione.
-      if (!signedIn && !AppRoutes.guestAllowed.contains(location)) {
-        return AppRoutes.auth;
       }
 
       return null;

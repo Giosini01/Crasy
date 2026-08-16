@@ -1,3 +1,5 @@
+import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
+
 /// Una partecipazione: la foto che qualcuno ha mandato per una challenge.
 class ChallengeEntry {
   const ChallengeEntry({
@@ -11,6 +13,7 @@ class ChallengeEntry {
     this.createdAt,
     this.votes = 0,
     this.isWinner = false,
+    this.moderation = EntryModeration.approved,
   });
 
   final String id;
@@ -42,6 +45,22 @@ class ChallengeEntry {
   /// Vera per la partecipazione che ha vinto la sua challenge.
   final bool isWinner;
 
+  /// Se la foto ha passato il controllo sui contenuti.
+  final EntryModeration moderation;
+
+  /// Se questa foto la puo' vedere [viewerId].
+  ///
+  /// Una foto in attesa la vede **solo chi l'ha mandata**, e con un'etichetta
+  /// che lo dice: sapere che il proprio scatto e' in coda e' molto meglio che
+  /// vederlo sparire senza spiegazioni. Una rifiutata non la vede nessuno.
+  bool isVisibleTo(String? viewerId) {
+    return switch (moderation) {
+      EntryModeration.approved => true,
+      EntryModeration.pending => viewerId != null && viewerId == userId,
+      EntryModeration.rejected => false,
+    };
+  }
+
   ChallengeEntry copyWith({
     String? id,
     String? challengeId,
@@ -53,6 +72,7 @@ class ChallengeEntry {
     DateTime? createdAt,
     int? votes,
     bool? isWinner,
+    EntryModeration? moderation,
   }) {
     return ChallengeEntry(
       id: id ?? this.id,
@@ -65,6 +85,7 @@ class ChallengeEntry {
       createdAt: createdAt ?? this.createdAt,
       votes: votes ?? this.votes,
       isWinner: isWinner ?? this.isWinner,
+      moderation: moderation ?? this.moderation,
     );
   }
 
@@ -84,7 +105,8 @@ class ChallengeEntry {
         other.storagePath == storagePath &&
         other.createdAt == createdAt &&
         other.votes == votes &&
-        other.isWinner == isWinner;
+        other.isWinner == isWinner &&
+        other.moderation == moderation;
   }
 
   @override
@@ -99,5 +121,6 @@ class ChallengeEntry {
     createdAt,
     votes,
     isWinner,
+    moderation,
   );
 }

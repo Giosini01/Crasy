@@ -5,6 +5,7 @@ import 'package:crasy/features/challenges/data/repositories/firestore_challenge_
 import 'package:crasy/features/challenges/data/repositories/sample_challenge_repository.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -59,23 +60,45 @@ final challengeProvider = StreamProvider.autoDispose.family<Challenge?, String>(
   (ref, id) => ref.watch(challengeRepositoryProvider).watchChallenge(id),
 );
 
+/// Le partecipazioni a una challenge, gia' filtrate dal controllo.
+///
+/// Il filtro sta **qui e non nella query**: una foto in attesa deve continuare a
+/// vedersi a chi l'ha mandata, e Firestore non sa chi sta guardando. Chi carica
+/// vede il proprio scatto con l'etichetta "in verifica"; per tutti gli altri
+/// semplicemente non c'e' ancora.
 final challengeEntriesProvider = StreamProvider.autoDispose
-    .family<List<ChallengeEntry>, String>(
-      (ref, challengeId) =>
-          ref.watch(challengeRepositoryProvider).watchEntries(challengeId),
-    );
+    .family<List<ChallengeEntry>, String>((ref, challengeId) {
+      final viewerId = ref.watch(currentUserIdProvider);
+
+      return ref
+          .watch(challengeRepositoryProvider)
+          .watchEntries(challengeId)
+          .map(
+            (entries) =>
+                entries.where((entry) => entry.isVisibleTo(viewerId)).toList(),
+          );
+    });
 
 /// La foto in testa a una challenge: quella con piu' fiamme.
 ///
 /// E' la vetrina della gara. Le partecipazioni arrivano gia' ordinate per voti,
 /// quindi "la prima che ha una foto" e' esattamente "quella che sta vincendo".
+///
+/// In vetrina vanno **solo le foto gia' ammesse**: la vetrina la vedono tutti,
+/// e una foto ancora in attesa di controllo non e' pronta per stare li'.
 final challengeTopEntryProvider = Provider.autoDispose
     .family<ChallengeEntry?, String>((ref, challengeId) {
       final entries = ref
           .watch(challengeEntriesProvider(challengeId))
           .valueOrNull;
 
-      return entries?.where((entry) => entry.mediaUrl.isNotEmpty).firstOrNull;
+      return entries
+          ?.where(
+            (entry) =>
+                entry.mediaUrl.isNotEmpty &&
+                entry.moderation == EntryModeration.approved,
+          )
+          .firstOrNull;
     });
 
 /// La foto che rappresenta una challenge: **quella con piu' fiamme**.

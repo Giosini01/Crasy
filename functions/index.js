@@ -1,9 +1,11 @@
 'use strict';
 
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
+const vision = require('@google-cloud/vision');
 
 admin.initializeApp();
 
@@ -12,6 +14,98 @@ const db = admin.firestore();
 // Stessa regione del database: una funzione che scrive su Firestore va dove sta
 // il database, altrimenti ogni scrittura fa un giro per mezzo mondo.
 setGlobalOptions({ region: 'europe-west8', maxInstances: 10 });
+
+/**
+ * Guarda ogni foto appena arrivata, e decide se puo' stare in gara.
+ *
+ * **Questo controllo deve girare sul server e non sull'app**, e non e' una
+ * questione di prestazioni: un controllo che gira sul telefono di chi carica e'
+ * un controllo che chi carica puo' togliere. Qui la foto passa da SafeSearch di
+ * Google Vision prima che qualcun altro possa vederla.
+ *
+ * La soglia e' volutamente severa sul sesso e sulla nudita': `LIKELY` non basta
+ * ad assolvere, serve che sia `UNLIKELY` o meno. In un'app che si guardano
+ * anche i minorenni per sbaglio, e in cui le foto le vede tutta la gara, e'
+ * meglio rifiutare per errore una foto innocua che lasciarne passare una
+ * sbagliata: chi si vede rifiutare puo' rimandarne un'altra, il danno opposto
+ * non si ripara.
+ *
+ * Una foto rifiutata resta nel database con il suo stato, e non sparisce: serve
+ * a poterla rivedere se qualcuno contesta, e a capire se il controllo sta
+ * sbagliando troppo spesso.
+ */
+const BLOCKED_LIKELIHOODS = new Set(['LIKELY', 'VERY_LIKELY']);
+
+exports.moderateEntryPhoto = onDocumentCreated(
+  'challenges/{challengeId}/entries/{entryId}',
+  async (event) => {
+    const snapshot = event.data;
+
+    if (!snapshot) {
+      return;
+    }
+
+    const storagePath = snapshot.get('storagePath');
+
+    if (!storagePath) {
+      logger.warn(`Partecipazione ${snapshot.id} senza file: rifiutata.`);
+      await snapshot.ref.update({ moderation: 'rejected' });
+
+      return;
+    }
+
+    const bucket = admin.storage().bucket().name;
+    const client = new vision.ImageAnnotatorClient();
+
+    let safeSearch;
+
+    try {
+      const [result] = await client.safeSearchDetection(
+        `gs://${bucket}/${storagePath}`
+      );
+      safeSearch = result.safeSearchAnnotation;
+    } catch (error) {
+      // Se il controllo non riesce, la foto **resta in attesa**. Non si
+      // approva per comodita': un guasto nostro non puo' diventare il motivo
+      // per cui una foto vietata finisce davanti a tutti.
+      logger.error(`Controllo fallito su ${snapshot.id}`, error);
+
+      return;
+    }
+
+    const reasons = [];
+
+    if (BLOCKED_LIKELIHOODS.has(safeSearch?.adult)) {
+      reasons.push('nudita/sesso');
+    }
+
+    if (BLOCKED_LIKELIHOODS.has(safeSearch?.racy)) {
+      reasons.push('contenuto allusivo');
+    }
+
+    if (BLOCKED_LIKELIHOODS.has(safeSearch?.violence)) {
+      reasons.push('violenza');
+    }
+
+    const rejected = reasons.length > 0;
+
+    await snapshot.ref.update({
+      moderation: rejected ? 'rejected' : 'approved',
+      moderationReasons: reasons,
+      moderatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // Una foto rifiutata non deve contare fra i partecipanti: quel numero dice
+    // quante persone sono in gara, e chi e' stato escluso in gara non c'e'.
+    if (rejected) {
+      await event.data.ref.parent.parent.update({
+        participantsCount: admin.firestore.FieldValue.increment(-1),
+      });
+
+      logger.warn(`Partecipazione ${snapshot.id} rifiutata: ${reasons.join(', ')}`);
+    }
+  }
+);
 
 /**
  * Proclama i vincitori delle challenge scadute.
@@ -71,7 +165,22 @@ async function closeChallenge(challenge) {
   // Piu' fiamme per prima; a parita', chi ha mandato prima. Serve una regola
   // qualunque per il pareggio, ma serve che sia sempre la stessa: con dei soldi
   // in mezzo, un pareggio risolto a caso e' una lite.
-  const ranked = entries.docs.slice().sort((a, b) => {
+  // Fuori dalla gara chi non ha passato il controllo: una foto rifiutata non
+  // puo' vincere dei soldi. Le partecipazioni ancora in attesa restano dentro —
+  // il controllo e' nostro e non e' colpa loro se e' lento — ma se il vincitore
+  // fosse una di quelle andrebbe guardata da una persona prima di pagare.
+  const eligible = entries.docs.filter(
+    (doc) => doc.get('moderation') !== 'rejected'
+  );
+
+  if (eligible.length === 0) {
+    await challenge.ref.update({ winnerEntryId: '' });
+    logger.info(`Challenge ${challenge.id} chiusa: nessuna foto ammessa.`);
+
+    return;
+  }
+
+  const ranked = eligible.slice().sort((a, b) => {
     const byVotes = (b.get('votes') || 0) - (a.get('votes') || 0);
 
     if (byVotes !== 0) {

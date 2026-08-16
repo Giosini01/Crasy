@@ -54,12 +54,64 @@ void main() {
     });
   });
 
-  test('si puo\' completare con il solo nome utente', () {
-    expect(OnboardingValidators.canComplete(username: 'martina'), isTrue);
-    expect(OnboardingValidators.canComplete(username: 'ab'), isFalse);
+  group('eta\'', () {
+    final now = DateTime(2026, 8, 12);
+
+    test('la data di nascita e\' obbligatoria', () {
+      expect(OnboardingValidators.validateBirthDate(null), isNotNull);
+    });
+
+    test('sotto i diciotto non si entra', () {
+      expect(
+        OnboardingValidators.validateBirthDate(DateTime(2015), now: now),
+        isNotNull,
+      );
+      expect(
+        OnboardingValidators.validateBirthDate(DateTime(2000), now: now),
+        isNull,
+      );
+    });
+
+    test('il compleanno conta, non solo l\'anno', () {
+      // Chi compie diciotto anni oggi entra, chi li compie domani no. E' il
+      // confine che si sbaglia contando gli anni per differenza.
+      expect(
+        OnboardingValidators.validateBirthDate(DateTime(2008, 8, 12), now: now),
+        isNull,
+      );
+      expect(
+        OnboardingValidators.validateBirthDate(DateTime(2008, 8, 13), now: now),
+        isNotNull,
+      );
+    });
+
+    test('una data futura non e\' una data di nascita', () {
+      expect(
+        OnboardingValidators.validateBirthDate(DateTime(2030), now: now),
+        isNotNull,
+      );
+    });
+  });
+
+  test('non si passa senza nome utente e data di nascita', () {
+    final adult = DateTime(2000, 1, 1);
+
+    expect(
+      OnboardingValidators.canComplete(username: 'martina', birthDate: adult),
+      isTrue,
+    );
+    expect(
+      OnboardingValidators.canComplete(username: 'ab', birthDate: adult),
+      isFalse,
+    );
+    expect(
+      OnboardingValidators.canComplete(username: 'martina', birthDate: null),
+      isFalse,
+    );
     expect(
       OnboardingValidators.canComplete(
         username: 'martina',
+        birthDate: adult,
         bio: 'a' * (OnboardingValidators.bioMaxLength + 1),
       ),
       isFalse,

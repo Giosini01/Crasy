@@ -31,4 +31,23 @@ class AuthActionController extends AsyncNotifier<void> {
     state = const AsyncLoading<void>();
     state = await AsyncValue.guard(_authRepository.signOut);
   }
+
+  Future<void> resendVerificationEmail() async {
+    state = const AsyncLoading<void>();
+    state = await AsyncValue.guard(_authRepository.sendEmailVerification);
+  }
+
+  /// Richiede lo stato aggiornato dell'utente. Torna `true` se nel frattempo
+  /// l'indirizzo e' stato confermato.
+  Future<bool> refreshVerification() async {
+    final result = await AsyncValue.guard(_authRepository.reload);
+
+    if (result.hasError) {
+      state = AsyncError<void>(result.error!, result.stackTrace!);
+
+      return false;
+    }
+
+    return result.valueOrNull?.emailVerified ?? false;
+  }
 }

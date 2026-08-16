@@ -36,6 +36,17 @@ class FakeAuthRepository implements AuthRepository {
     throw UnimplementedError();
   }
 
+  /// Quante volte e' stato chiesto di rimandare il messaggio di conferma.
+  int verificationEmailsSent = 0;
+
+  @override
+  Future<void> sendEmailVerification() async {
+    verificationEmailsSent += 1;
+  }
+
+  @override
+  Future<AppUser?> reload() async => currentUser;
+
   @override
   Future<void> signOut() async {
     currentUser = null;

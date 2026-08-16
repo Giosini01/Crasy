@@ -6,6 +6,7 @@ abstract final class UserProfileMapper {
     return UserProfile(
       id: id,
       username: data['username'] as String? ?? '',
+      birthDate: (data['birthDate'] as Timestamp?)?.toDate(),
       bio: data['bio'] as String? ?? '',
       city: data['city'] as String? ?? '',
       photoUrl: data['photoUrl'] as String?,
@@ -35,8 +36,11 @@ abstract final class UserProfileMapper {
   /// mano un profilo letto un minuto prima cancellerebbe la foto appena
   /// cambiata.
   static Map<String, dynamic> _commonMap(UserProfile profile) {
+    final birthDate = profile.birthDate;
+
     return {
       'username': profile.username,
+      if (birthDate != null) 'birthDate': Timestamp.fromDate(birthDate),
       'bio': profile.bio,
       'city': profile.city,
       'onboardingCompleted': profile.onboardingCompleted,

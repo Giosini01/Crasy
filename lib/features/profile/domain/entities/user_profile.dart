@@ -12,6 +12,7 @@ class UserProfile {
   const UserProfile({
     required this.id,
     required this.username,
+    required this.birthDate,
     required this.createdAt,
     required this.updatedAt,
     required this.onboardingCompleted,
@@ -26,6 +27,15 @@ class UserProfile {
   /// Il nome con cui si firmano le partecipazioni. Minuscolo, senza spazi:
   /// e' un'identita', non un nome anagrafico.
   final String username;
+
+  /// Quando sei nato.
+  ///
+  /// Serve a una cosa sola: **tenere fuori i minorenni**. Qui girano soldi veri
+  /// e si chiede alla gente di fare cose per vincerli, ed e' esattamente il tipo
+  /// di spinta che a un ragazzino non va data.
+  ///
+  /// E' nullo solo per i profili creati prima che questo campo esistesse.
+  final DateTime? birthDate;
 
   /// Una riga, non una biografia.
   final String bio;
@@ -66,6 +76,7 @@ class UserProfile {
   UserProfile copyWith({
     String? id,
     String? username,
+    DateTime? birthDate,
     String? bio,
     String? city,
     String? photoUrl,
@@ -77,6 +88,7 @@ class UserProfile {
     return UserProfile(
       id: id ?? this.id,
       username: username ?? this.username,
+      birthDate: birthDate ?? this.birthDate,
       bio: bio ?? this.bio,
       city: city ?? this.city,
       photoUrl: photoUrl ?? this.photoUrl,
@@ -96,6 +108,7 @@ class UserProfile {
     return other is UserProfile &&
         other.id == id &&
         other.username == username &&
+        other.birthDate == birthDate &&
         other.bio == bio &&
         other.city == city &&
         other.photoUrl == photoUrl &&
@@ -109,6 +122,7 @@ class UserProfile {
   int get hashCode => Object.hash(
     id,
     username,
+    birthDate,
     bio,
     city,
     photoUrl,

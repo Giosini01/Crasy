@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
+import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
 
 abstract final class ChallengeMapper {
   static Challenge fromFirestore(String id, Map<String, dynamic> data) {
@@ -79,6 +80,7 @@ abstract final class ChallengeEntryMapper {
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       votes: (data['votes'] as num?)?.toInt() ?? 0,
       isWinner: data['isWinner'] as bool? ?? false,
+      moderation: EntryModeration.fromName(data['moderation'] as String?),
     );
   }
 
@@ -99,6 +101,12 @@ abstract final class ChallengeEntryMapper {
       'mediaUrl': entry.mediaUrl,
       'storagePath': entry.storagePath,
       'votes': 0,
+      // Con il controllo acceso la foto nasce in attesa e la vede solo chi
+      // l'ha mandata, finche' il server non l'ha guardata. Spento, nasce
+      // ammessa: un'attesa che nessuno scioglie sarebbe una foto persa.
+      'moderation': photoModerationEnabled
+          ? EntryModeration.pending.name
+          : EntryModeration.approved.name,
       'createdAt': FieldValue.serverTimestamp(),
     };
   }

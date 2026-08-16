@@ -12,6 +12,20 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
     }
 
+    // Le parole che non si possono scrivere in una challenge.
+    //
+    // E' un ultimo sbarramento, non il controllo vero: quello sta nell'app, che
+    // spiega anche il perche' e offre un numero da chiamare. Qui si prendono
+    // solo i casi piu' espliciti, e si prendono **anche se qualcuno scrivesse
+    // sul database saltando l'app**. Con dei soldi in palio, "tagliati le vene"
+    // non e' un contenuto discutibile: e' un incarico retribuito a farsi del
+    // male.
+    function saysSomethingForbidden(text) {
+      return text.lower().matches(
+        '.*(suicid|ammazzat|uccidit|uccidet|tagliati le vene|tagliarsi le vene|fine alla tua vita|farla finita|impiccat|autolesion|kill yourself|nud|spogliat|porno|masturb|accoltell|picchia).*'
+      );
+    }
+
     // Le partecipazioni lette **attraverso tutte le challenge insieme**.
     //
     // Serve una regola a se', e non e' un doppione di quella annidata piu'
@@ -24,7 +38,7 @@ service cloud.firestore {
     // dentro la loro challenge si vedevano benissimo. Nessun errore a schermo:
     // solo sezioni vuote.
     match /{path=**}/entries/{entryId} {
-      allow read: if true;
+      allow read: if signedIn();
     }
 
     // Il profilo.
@@ -33,7 +47,24 @@ service cloud.firestore {
     // di chi ha mandato una foto viaggia copiato dentro la partecipazione, ed
     // e' anche il motivo per cui qui si puo' restare chiusi.
     match /users/{userId} {
-      allow create, update: if signedIn() && request.auth.uid == userId;
+      // **Su CRASY si entra da maggiorenni.**
+      //
+      // Il conto in giorni e' un'approssimazione — le regole di Firestore non
+      // sanno fare i conti sui calendari — ed e' voluta: qui si vuole solo
+      // impedire che un profilo dichiaratamente minorenne finisca nel database.
+      // Il controllo preciso, con i compleanni al posto giusto, lo fa l'app.
+      //
+      // E va detto cosa questo **non** e': una data che uno si scrive da solo
+      // non e' una verifica dell'eta'. Ferma chi e' onesto, non chi mente.
+      function isAdultProfile() {
+        return request.resource.data.birthDate is timestamp
+               && request.resource.data.birthDate
+                  < request.time - duration.value(6570, 'd');
+      }
+
+      allow create, update: if signedIn()
+                            && request.auth.uid == userId
+                            && isAdultProfile();
       allow read: if signedIn() && request.auth.uid == userId;
       allow delete: if false;
 
@@ -59,13 +90,14 @@ service cloud.firestore {
                && challenge().endsAt > request.time;
       }
 
-      // Le challenge si leggono **senza aver fatto l'accesso**.
+      // **Niente si legge senza aver fatto l'accesso.**
       //
-      // E' la regola che tiene in piedi la promessa del prodotto: chi apre
-      // CRASY per la prima volta vede subito cosa c'e' in palio. Una gara con
-      // un premio pubblico non ha niente da nascondere finche' non ci si
-      // partecipa.
-      allow read: if true;
+      // L'app lo impedisce gia' da sola, ma se qui restasse aperto il muro
+      // esisterebbe solo nell'interfaccia: chiunque potrebbe leggere tutto
+      // chiamando il database direttamente. Le foto che la gente manda sono di
+      // persone vere che si mettono in gioco, e non stanno in una vetrina
+      // aperta a chiunque passi.
+      allow read: if signedIn();
 
       // Una challenge la lancia chiunque abbia un account.
       //
@@ -82,6 +114,8 @@ service cloud.firestore {
                     && request.resource.data.createdByUserId == request.auth.uid
                     && request.resource.data.createdByUsername is string
                     && request.resource.data.title is string
+                    && !saysSomethingForbidden(request.resource.data.title)
+                    && !saysSomethingForbidden(request.resource.data.brief)
                     && request.resource.data.title.size() >= 3
                     && request.resource.data.title.size() <= 60
                     && request.resource.data.brief is string
@@ -125,7 +159,7 @@ service cloud.firestore {
           return signedIn() && request.auth.uid == entryId;
         }
 
-        allow read: if true;
+        allow read: if signedIn();
 
         allow create: if isAuthor()
                       && request.resource.data.userId == request.auth.uid
@@ -146,6 +180,14 @@ service cloud.firestore {
                       // condizione che i client vecchi non sanno soddisfare e'
                       // sbagliata anche quando e' piu' pulita.
                       && request.resource.data.get('votes', 0) == 0
+                      // Lo stato del controllo lo puo' scrivere solo cosi': in
+                      // attesa, o ammessa quando il controllo automatico non e'
+                      // acceso. **Rifiutata non la si puo' scrivere da qui**, e
+                      // soprattutto non si puo' scavalcare il controllo — a
+                      // spostare una foto oltre "in attesa" e' il server, che
+                      // con l'SDK di amministrazione non passa da queste regole.
+                      && request.resource.data.get('moderation', 'approved')
+                         in ['pending', 'approved']
                       // La vittoria non si porta da casa: la scrive il server.
                       && !('isWinner' in request.resource.data)
                       && challengeIsLive();

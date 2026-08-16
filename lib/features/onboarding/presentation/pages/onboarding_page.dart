@@ -1,6 +1,8 @@
 import 'package:crasy/core/errors/error_message_mapper.dart';
+import 'package:crasy/core/moderation/age_policy.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/utils/app_date_utils.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
@@ -29,6 +31,9 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   final _username = TextEditingController();
   final _bio = TextEditingController();
   final _city = TextEditingController();
+
+  DateTime? _birthDate;
+  String? _birthDateError;
 
   @override
   void dispose() {
@@ -81,6 +86,12 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                     hintText: 'martina',
                   ),
                 ),
+                const SizedBox(height: AppSpacing.lg),
+                _BirthDateField(
+                  value: _birthDate,
+                  error: _birthDateError,
+                  onPick: _pickBirthDate,
+                ),
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(
                   controller: _bio,
@@ -127,8 +138,41 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     );
   }
 
+  /// Il selettore parte gia' fermo alla soglia dei diciotto anni.
+  ///
+  /// `lastDate` e' l'ultima data che risulta maggiorenne oggi: chi e' minorenne
+  /// **non riesce nemmeno a scegliere** una data che poi verrebbe rifiutata. Un
+  /// limite che si vede prima e' molto meglio di un errore che arriva dopo.
+  Future<void> _pickBirthDate() async {
+    final latest = AgePolicy.latestAdultBirthDate();
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate:
+          _birthDate ?? DateTime(latest.year - 7, latest.month, latest.day),
+      firstDate: DateTime(1920),
+      lastDate: latest,
+      helpText: 'QUANDO SEI NATO',
+    );
+
+    if (picked == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _birthDate = picked;
+      _birthDateError = AgePolicy.validate(picked);
+    });
+  }
+
   Future<void> _submit() async {
-    if (!(_formKey.currentState?.validate() ?? false)) {
+    final ageError = AgePolicy.validate(_birthDate);
+
+    if (ageError != null) {
+      setState(() => _birthDateError = ageError);
+    }
+
+    if (!(_formKey.currentState?.validate() ?? false) || ageError != null) {
       return;
     }
 
@@ -143,6 +187,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
         .completeOnboarding(
           userId: authState.user.id,
           username: _username.text,
+          birthDate: _birthDate!,
           bio: _bio.text,
           city: _city.text,
         );
@@ -157,5 +202,81 @@ class _LowercaseFormatter extends TextInputFormatter {
     TextEditingValue newValue,
   ) {
     return newValue.copyWith(text: newValue.text.toLowerCase());
+  }
+}
+
+/// La data di nascita.
+///
+/// Non e' un campo di testo: una data scritta a mano si sbaglia, e in un
+/// controllo sull'eta' un refuso vuol dire far entrare qualcuno che non doveva.
+/// Si tocca e si sceglie da un calendario che oltre la soglia non arriva.
+class _BirthDateField extends StatelessWidget {
+  const _BirthDateField({
+    required this.value,
+    required this.error,
+    required this.onPick,
+  });
+
+  final DateTime? value;
+  final String? error;
+  final VoidCallback onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'QUANDO SEI NATO',
+          style: texts.labelSmall?.copyWith(color: palette.textFaint),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        GestureDetector(
+          onTap: onPick,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: error == null ? palette.line : palette.danger,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    value == null
+                        ? 'Tocca per scegliere'
+                        : AppDateUtils.formatItalianDate(value!),
+                    style: value == null
+                        ? texts.bodyLarge?.copyWith(color: palette.textFaint)
+                        : texts.bodyLarge,
+                  ),
+                ),
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 18,
+                  color: palette.textFaint,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          error ??
+              'Su CRASY si entra da maggiorenni: girano soldi veri e si chiede '
+                  'di uscire a fare qualcosa per vincerli.',
+          style: texts.bodySmall?.copyWith(
+            color: error == null ? palette.textSecondary : palette.danger,
+          ),
+        ),
+      ],
+    );
   }
 }

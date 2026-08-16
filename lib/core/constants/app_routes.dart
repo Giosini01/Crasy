@@ -1,6 +1,10 @@
 abstract final class AppRoutes {
   static const splash = '/';
   static const auth = '/auth';
+
+  /// Il muro della conferma dell'email: si sta qui finche' non e' confermata.
+  static const verifyEmail = '/verifica-email';
+
   static const onboarding = '/onboarding';
 
   // --- Le tre schede ---------------------------------------------------------
@@ -26,12 +30,14 @@ abstract final class AppRoutes {
   /// Le schede in fondo, nell'ordine in cui compaiono.
   static const tabs = <String>[challenges, winners, profile];
 
-  /// Le sezioni che si possono guardare senza aver fatto l'accesso.
+  /// Le sole schermate raggiungibili senza una sessione completa.
   ///
-  /// Le challenge e i vincitori sono aperti a tutti di proposito: chi apre
-  /// CRASY per la prima volta deve **vedere** cosa c'e' in palio, e che
-  /// qualcuno ha davvero vinto, prima che gli venga chiesto qualcosa. La
-  /// registrazione arriva al primo gesto che lascia una traccia — partecipare,
-  /// votare, avere un profilo.
-  static const guestAllowed = <String>{challenges, winners};
+  /// **Non si guarda niente senza aver fatto l'accesso.** Non e' una scelta di
+  /// prodotto ma una conseguenza di cosa e' CRASY: qui girano soldi veri, si
+  /// vota chi li vince, e si entra da maggiorenni. Nessuna di queste tre cose
+  /// regge se chi guarda non ha un nome e un indirizzo confermato.
+  ///
+  /// Le foto che la gente manda sono di persone vere che si mettono in gioco:
+  /// non stanno in una vetrina aperta a chiunque passi.
+  static const openToEveryone = <String>{splash, auth};
 }

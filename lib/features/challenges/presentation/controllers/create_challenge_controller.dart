@@ -1,3 +1,4 @@
+import 'package:crasy/core/moderation/content_policy.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
@@ -35,7 +36,7 @@ abstract final class ChallengeDraftValidators {
       return 'Al massimo $titleMaxLength caratteri.';
     }
 
-    return null;
+    return ContentPolicy.validate(title);
   }
 
   static String? validateBrief(String? value) {
@@ -49,7 +50,12 @@ abstract final class ChallengeDraftValidators {
       return 'Al massimo $briefMaxLength caratteri.';
     }
 
-    return null;
+    // Qui il controllo pesa piu' che altrove, ed e' bene sapere perche'. Una
+    // challenge non e' un post: e' **un incarico con un premio in denaro**. Una
+    // consegna sbagliata — "tagliati", "sali sul cornicione" — non e' un
+    // contenuto discutibile, e' una persona che si fa male perche' gliel'ha
+    // chiesto la nostra app, in cambio di soldi nostri.
+    return ContentPolicy.validate(brief);
   }
 
   static String? validatePrize(String? value) {

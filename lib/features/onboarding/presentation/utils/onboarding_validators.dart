@@ -1,3 +1,6 @@
+import 'package:crasy/core/moderation/age_policy.dart';
+import 'package:crasy/core/moderation/content_policy.dart';
+
 abstract final class OnboardingValidators {
   /// Il nome utente e' l'unica cosa obbligatoria di tutto l'onboarding.
   ///
@@ -32,7 +35,14 @@ abstract final class OnboardingValidators {
       return 'Solo minuscole, numeri, punto e trattino basso.';
     }
 
-    return null;
+    // Il nome utente sta sotto ogni foto e in cima a ogni classifica: passa
+    // dalla stessa porta di tutto il resto.
+    return ContentPolicy.validate(username);
+  }
+
+  /// La data di nascita: obbligatoria, e almeno diciotto anni.
+  static String? validateBirthDate(DateTime? birthDate, {DateTime? now}) {
+    return AgePolicy.validate(birthDate, now: now);
   }
 
   /// Quanto puo' essere lunga la riga di presentazione.
@@ -50,7 +60,7 @@ abstract final class OnboardingValidators {
       return 'Al massimo $bioMaxLength caratteri.';
     }
 
-    return null;
+    return ContentPolicy.validate(bio);
   }
 
   static const int cityMaxLength = 40;
@@ -69,10 +79,13 @@ abstract final class OnboardingValidators {
 
   static bool canComplete({
     required String username,
+    required DateTime? birthDate,
     String bio = '',
     String city = '',
+    DateTime? now,
   }) {
     return validateUsername(username) == null &&
+        validateBirthDate(birthDate, now: now) == null &&
         validateBio(bio) == null &&
         validateCity(city) == null;
   }

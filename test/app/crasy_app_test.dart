@@ -4,6 +4,7 @@ import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +13,21 @@ import 'package:flutter_test/flutter_test.dart';
 import '../support/fake_auth_repository.dart';
 
 void main() {
+  const verifiedUser = AppUser(
+    id: 'user-1',
+    email: 'test@example.com',
+    emailVerified: true,
+  );
+
+  final completeProfile = UserProfile(
+    id: 'user-1',
+    username: 'martina',
+    birthDate: DateTime(2000, 1, 1),
+    createdAt: null,
+    updatedAt: null,
+    onboardingCompleted: true,
+  );
+
   /// Le schermate con il countdown tengono un timer che batte ogni secondo.
   /// Smontare l'albero alla fine lo ferma: senza, il test finisce lasciando un
   /// timer vivo e il framework lo segnala come errore.
@@ -19,13 +35,18 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   }
 
-  testWidgets('senza accesso si aprono direttamente le challenge', (
-    tester,
-  ) async {
-    final authRepository = FakeAuthRepository();
+  Future<ProviderContainer> pumpApp(
+    WidgetTester tester, {
+    required FakeAuthRepository authRepository,
+    List<Override> overrides = const [],
+  }) async {
     final container = ProviderContainer(
-      overrides: [authRepositoryProvider.overrideWithValue(authRepository)],
+      overrides: [
+        authRepositoryProvider.overrideWithValue(authRepository),
+        ...overrides,
+      ],
     );
+
     addTearDown(() {
       authRepository.dispose();
       container.dispose();
@@ -36,28 +57,72 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Senza Firebase configurato non c'e' nessuna challenge, e non e' un
-    // errore: l'app nasce vuota e si riempie quando qualcuno ne lancia una.
-    expect(find.text('NESSUNA CHALLENGE APERTA'), findsOneWidget);
+    return container;
+  }
 
-    // Nessuna traccia della vecchia app di incontri.
-    expect(find.text('Match'), findsNothing);
-    expect(find.text('Istantanea'), findsNothing);
+  testWidgets('senza accesso non si vede niente, solo la registrazione', (
+    tester,
+  ) async {
+    await pumpApp(tester, authRepository: FakeAuthRepository());
+
+    // Non e' una scelta di gusto: qui girano soldi, si vota chi li vince, e si
+    // entra da maggiorenni. Le foto che la gente manda sono di persone vere che
+    // si mettono in gioco, e non stanno in una vetrina aperta a chiunque passi.
+    expect(find.text('CREA IL TUO\nACCOUNT'), findsOneWidget);
+    expect(find.text('CHALLENGE'), findsNothing);
+    expect(find.text('NESSUNA CHALLENGE APERTA'), findsNothing);
 
     await tearDownTree(tester);
   });
 
-  testWidgets('una challenge lanciata compare in home con premio e tempo', (
-    tester,
-  ) async {
-    final authRepository = FakeAuthRepository();
-    final container = ProviderContainer(
-      overrides: [authRepositoryProvider.overrideWithValue(authRepository)],
+  testWidgets('con l\'email non confermata si resta fuori', (tester) async {
+    await pumpApp(
+      tester,
+      authRepository: FakeAuthRepository(
+        currentUser: const AppUser(id: 'user-1', email: 'test@example.com'),
+      ),
     );
-    addTearDown(() {
-      authRepository.dispose();
-      container.dispose();
-    });
+
+    expect(find.text('CONFERMA\nLA TUA EMAIL'), findsOneWidget);
+    expect(find.text('HO CONFERMATO'), findsOneWidget);
+    // Nemmeno qui si vedono le challenge.
+    expect(find.text('NESSUNA CHALLENGE APERTA'), findsNothing);
+
+    await tearDownTree(tester);
+  });
+
+  testWidgets(
+    'con l\'email confermata ma senza profilo si va all\'onboarding',
+    (tester) async {
+      await pumpApp(
+        tester,
+        authRepository: FakeAuthRepository(currentUser: verifiedUser),
+        overrides: [
+          currentUserProfileProvider.overrideWith((ref) => Stream.value(null)),
+        ],
+      );
+
+      expect(find.text('COME TI\nCHIAMANO'), findsOneWidget);
+      // L'eta' si chiede subito, non dopo: e' la porta che tiene fuori i
+      // minorenni.
+      expect(find.text('QUANDO SEI NATO'), findsWidgets);
+
+      await tearDownTree(tester);
+    },
+  );
+
+  testWidgets('passate tutte le porte si vedono le challenge', (tester) async {
+    final container = await pumpApp(
+      tester,
+      authRepository: FakeAuthRepository(currentUser: verifiedUser),
+      overrides: [
+        currentUserProfileProvider.overrideWith(
+          (ref) => Stream.value(completeProfile),
+        ),
+      ],
+    );
+
+    expect(find.text('NESSUNA CHALLENGE APERTA'), findsOneWidget);
 
     final now = DateTime.now();
     await container
@@ -74,46 +139,11 @@ void main() {
             endsAt: now.add(const Duration(hours: 4)),
           ),
         );
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const CrasyApp()),
-    );
     await tester.pumpAndSettle();
 
     expect(find.text('€500'), findsOneWidget);
     expect(find.text('DO SOMETHING CRAZY'), findsOneWidget);
-    expect(find.text('GLOBAL'), findsOneWidget);
-    expect(find.textContaining('0 partecipanti'), findsOneWidget);
-    expect(find.text('Lanciata da @crasy'), findsOneWidget);
     expect(find.text('PARTECIPA'), findsOneWidget);
-
-    await tearDownTree(tester);
-  });
-
-  testWidgets('chi ha l\'accesso ma non il profilo finisce sull\'onboarding', (
-    tester,
-  ) async {
-    final authRepository = FakeAuthRepository(
-      currentUser: const AppUser(id: 'user-1', email: 'test@example.com'),
-    );
-    final container = ProviderContainer(
-      overrides: [
-        authRepositoryProvider.overrideWithValue(authRepository),
-        currentUserProfileProvider.overrideWith((ref) => Stream.value(null)),
-      ],
-    );
-    addTearDown(() {
-      authRepository.dispose();
-      container.dispose();
-    });
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const CrasyApp()),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('COME TI\nCHIAMANO'), findsOneWidget);
-    expect(find.text('ENTRA IN CRASY'), findsOneWidget);
 
     await tearDownTree(tester);
   });

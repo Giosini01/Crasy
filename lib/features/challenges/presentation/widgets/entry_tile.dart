@@ -4,6 +4,7 @@ import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/utils/app_date_utils.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
@@ -41,7 +42,16 @@ class EntryTile extends ConsumerWidget {
         FireTap(
           voted: voted,
           onFire: () => giveFire(context, ref, entry, voted: true),
-          child: MediaFrame(url: entry.mediaUrl, caption: entry.authorName),
+          child: MediaFrame(
+            url: entry.mediaUrl,
+            caption: entry.authorName,
+            // La propria foto in attesa si vede, con scritto che e' in coda:
+            // sapere che sta per essere controllata e' molto meglio che vederla
+            // sparire senza spiegazioni.
+            overlay: entry.moderation == EntryModeration.pending
+                ? const _PendingOverlay()
+                : null,
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Row(
@@ -182,6 +192,17 @@ class _VoteButtonState extends ConsumerState<VoteButton> {
 
     final voted = _pending ?? confirmed;
 
+    // **Anche il numero si muove subito, non solo il colore.**
+    //
+    // Era la cosa che rendeva il gesto insoddisfacente: la fiamma diventava
+    // rossa e il conteggio restava fermo per un attimo, quindi per una frazione
+    // di secondo lo schermo diceva due cose diverse. Finche' la scrittura e' in
+    // volo il numero che arriva dal server non comprende ancora il mio voto, e
+    // qui glielo si aggiunge a mano.
+    final votes =
+        widget.entry.votes +
+        (_pending == null || _pending == confirmed ? 0 : (_pending! ? 1 : -1));
+
     return Semantics(
       button: true,
       label: voted ? 'Togli la fiamma' : 'Dai la fiamma',
@@ -204,7 +225,7 @@ class _VoteButtonState extends ConsumerState<VoteButton> {
               ),
               const SizedBox(width: 4),
               Text(
-                '${entry.votes}',
+                '$votes',
                 style: context.texts.titleMedium?.copyWith(
                   color: voted ? palette.accent : palette.textSecondary,
                 ),
@@ -226,5 +247,39 @@ class _VoteButtonState extends ConsumerState<VoteButton> {
     if (outcome != VoteOutcome.done && mounted) {
       setState(() => _pending = null);
     }
+  }
+}
+
+/// Il velo su una foto che il controllo non ha ancora guardato.
+///
+/// La vede **solo chi l'ha mandata**: per tutti gli altri quella foto ancora non
+/// esiste. Dirglielo con una parola sopra l'immagine e' l'unico modo perche' non
+/// pensi che l'invio sia fallito.
+class _PendingOverlay extends StatelessWidget {
+  const _PendingOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: const Color(0x59000000),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xxs,
+          ),
+          color: const Color(0xCC000000),
+          child: const Text(
+            'IN VERIFICA',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.6,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

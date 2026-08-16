@@ -22,6 +22,7 @@ class OnboardingController extends AsyncNotifier<void> {
   Future<void> completeOnboarding({
     required String userId,
     required String username,
+    required DateTime birthDate,
     String bio = '',
     String city = '',
   }) async {
@@ -30,6 +31,7 @@ class OnboardingController extends AsyncNotifier<void> {
     final profile = UserProfile(
       id: userId,
       username: username.trim().toLowerCase(),
+      birthDate: birthDate,
       bio: bio.trim(),
       city: city.trim(),
       createdAt: null,
