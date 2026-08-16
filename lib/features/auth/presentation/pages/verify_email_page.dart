@@ -68,10 +68,10 @@ class _VerifyEmailPageState extends ConsumerState<VerifyEmailPage> {
                 style: texts.bodyMedium,
               ),
               const SizedBox(height: AppSpacing.md),
-              Text(
+              const HighlightedText(
                 'Serve un indirizzo vero: e\' l\'unico modo per farti avere i '
                 'premi che vinci.',
-                style: texts.bodySmall,
+                highlight: 'premi che vinci',
               ),
               if (_notice != null) ...[
                 const SizedBox(height: AppSpacing.md),

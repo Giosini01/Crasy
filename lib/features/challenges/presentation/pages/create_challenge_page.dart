@@ -73,10 +73,10 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
             children: [
               const DisplayTitle('LANCIA UNA\nCHALLENGE'),
               const SizedBox(height: AppSpacing.sm),
-              Text(
+              const HighlightedText(
                 'Metti un premio, di\' cosa bisogna fare, e guarda cosa si '
                 'inventa la gente.',
-                style: texts.bodyMedium,
+                highlight: 'Metti un premio',
               ),
               const SizedBox(height: AppSpacing.xl),
               _Field(

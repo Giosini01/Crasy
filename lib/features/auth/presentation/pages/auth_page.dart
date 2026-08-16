@@ -29,6 +29,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   final _password = TextEditingController();
 
   bool _signingUp = true;
+  bool _passwordVisible = false;
 
   @override
   void dispose() {
@@ -62,13 +63,17 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                   _signingUp ? 'CREA IL TUO\nACCOUNT' : 'BENTORNATO',
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                Text(
-                  _signingUp
-                      ? 'Ti serve per partecipare alle challenge e per '
-                            'ricevere i premi che vinci.'
-                      : 'Entra e riprendi da dove avevi lasciato.',
-                  style: texts.bodyMedium,
-                ),
+                if (_signingUp)
+                  const HighlightedText(
+                    'Ti serve per partecipare alle challenge e per ricevere i '
+                    'premi che vinci.',
+                    highlight: 'premi che vinci',
+                  )
+                else
+                  Text(
+                    'Entra e riprendi da dove avevi lasciato.',
+                    style: texts.bodyMedium,
+                  ),
                 const SizedBox(height: AppSpacing.xl),
                 TextFormField(
                   controller: _email,
@@ -84,14 +89,30 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(
                   controller: _password,
-                  obscureText: true,
+                  obscureText: !_passwordVisible,
                   autofillHints: const [AutofillHints.password],
                   textInputAction: TextInputAction.done,
                   validator: AuthValidators.validatePassword,
                   onFieldSubmitted: (_) => _submit(),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'PASSWORD',
                     hintText: 'almeno 8 caratteri',
+                    // Mostrare la password e' quasi obbligatorio su un telefono:
+                    // otto caratteri battuti al buio su una tastiera piccola si
+                    // sbagliano, e chi sbaglia non capisce perche' non entra.
+                    suffixIcon: IconButton(
+                      onPressed: () =>
+                          setState(() => _passwordVisible = !_passwordVisible),
+                      icon: Icon(
+                        _passwordVisible
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        size: 20,
+                      ),
+                      tooltip: _passwordVisible
+                          ? 'Nascondi la password'
+                          : 'Mostra la password',
+                    ),
                   ),
                 ),
                 if (error != null) ...[

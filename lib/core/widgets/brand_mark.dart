@@ -79,6 +79,62 @@ class DisplayTitle extends StatelessWidget {
   }
 }
 
+/// Una frase con dentro una parola in rosso.
+///
+/// Serve a una cosa sola: **far cadere l'occhio sulla parola che conta**. In
+/// una schermata senza colori, una sola parola rossa in mezzo a una riga grigia
+/// si legge prima di tutto il resto — quindi va scelta con attenzione, ed e'
+/// sempre quella che dice cosa ci si guadagna o cosa si rischia.
+///
+/// Se la parola non c'e' nel testo, la frase si mostra intera e senza colore:
+/// una scritta a cui manca l'evidenziazione e' molto meglio di una schermata
+/// che va in errore per una parola cambiata.
+class HighlightedText extends StatelessWidget {
+  const HighlightedText(
+    this.text, {
+    required this.highlight,
+    this.style,
+    super.key,
+  });
+
+  final String text;
+
+  /// La parte da colorare. La prima occorrenza, non tutte: due parole rosse
+  /// nella stessa riga non guidano piu' l'occhio da nessuna parte.
+  final String highlight;
+
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = style ?? context.texts.bodyMedium;
+    final start = text.indexOf(highlight);
+
+    if (start < 0) {
+      return Text(text, style: base);
+    }
+
+    final end = start + highlight.length;
+
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: text.substring(0, start)),
+          TextSpan(
+            text: highlight,
+            style: TextStyle(
+              color: context.palette.accent,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          TextSpan(text: text.substring(end)),
+        ],
+      ),
+      style: base,
+    );
+  }
+}
+
 /// L'occhiello: una parola in maiuscolo piccolo e spaziato sopra un blocco.
 ///
 /// Fa il lavoro che in un'altra app farebbe un badge colorato — dire di che

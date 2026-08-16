@@ -1,6 +1,7 @@
 import 'package:crasy/core/errors/error_message_mapper.dart';
 import 'package:crasy/core/moderation/age_policy.dart';
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/utils/app_date_utils.dart';
 import 'package:crasy/core/widgets/app_background.dart';
@@ -13,6 +14,7 @@ import 'package:crasy/features/onboarding/presentation/utils/onboarding_validato
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 /// L'onboarding: una schermata, un campo obbligatorio.
 ///
@@ -35,6 +37,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
 
   DateTime? _birthDate;
   String? _birthDateError;
+  Uint8List? _photo;
+  String? _photoContentType;
 
   @override
   void dispose() {
@@ -63,12 +67,16 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 AppSpacing.xxl,
               ),
               children: [
+                Center(
+                  child: _PhotoPicker(photo: _photo, onPick: _pickPhoto),
+                ),
+                const SizedBox(height: AppSpacing.xl),
                 const DisplayTitle('COME TI\nCHIAMANO'),
                 const SizedBox(height: AppSpacing.xs),
-                Text(
+                const HighlightedText(
                   'E\' il nome che sta sotto ogni foto che mandi. Minuscolo, '
                   'senza spazi.',
-                  style: texts.bodyMedium,
+                  highlight: 'sotto ogni foto che mandi',
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 TextFormField(
@@ -139,7 +147,42 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     );
   }
 
-  /// Il selettore parte gia' fermo alla soglia dei diciotto anni.
+  /// La foto profilo, scelta subito.
+  ///
+  /// **Dalla galleria si puo'**, a differenza delle challenge: la foto profilo
+  /// non e' una gara, e obbligare a farsi un selfie per registrarsi sarebbe una
+  /// regola senza motivo.
+  ///
+  /// Resta facoltativa. Chi non la mette entra lo stesso con le sue iniziali —
+  /// una foto in piu' fra la registrazione e la prima challenge e' una persona
+  /// in meno che ci arriva.
+  Future<void> _pickPhoto() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      // Finisce in un cerchio da settantasei punti: ventimila pixel di lato
+      // sarebbero venti megabyte per niente.
+      maxWidth: 720,
+      maxHeight: 720,
+      imageQuality: 85,
+    );
+
+    if (picked == null) {
+      return;
+    }
+
+    final bytes = await picked.readAsBytes();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _photo = bytes;
+      _photoContentType = picked.mimeType;
+    });
+  }
+
+  /// Il selettore della data parte gia' fermo alla soglia dei diciotto anni.
   ///
   /// `lastDate` e' l'ultima data che risulta maggiorenne oggi: chi e' minorenne
   /// **non riesce nemmeno a scegliere** una data che poi verrebbe rifiutata. Un
@@ -191,6 +234,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
           birthDate: _birthDate!,
           bio: _bio.text,
           city: _city.text,
+          photo: _photo,
+          photoContentType: _photoContentType,
         );
   }
 }
@@ -278,6 +323,82 @@ class _BirthDateField extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// La foto profilo nell'onboarding: un cerchio che si tocca.
+///
+/// Vuoto mostra una macchina fotografica e la parola "facoltativa", cosi' non
+/// sembra un campo obbligatorio da riempire prima di andare avanti. Pieno mostra
+/// la foto e un segno per cambiarla.
+class _PhotoPicker extends StatelessWidget {
+  const _PhotoPicker({required this.photo, required this.onPick});
+
+  final Uint8List? photo;
+  final VoidCallback onPick;
+
+  static const double _size = 96;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final chosen = photo;
+
+    return GestureDetector(
+      onTap: onPick,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        children: [
+          SizedBox(
+            width: _size,
+            height: _size,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    child: chosen == null
+                        ? ColoredBox(
+                            color: palette.surfaceMuted,
+                            child: Icon(
+                              Icons.photo_camera_outlined,
+                              size: 26,
+                              color: palette.textFaint,
+                            ),
+                          )
+                        : Image.memory(chosen, fit: BoxFit.cover),
+                  ),
+                ),
+                if (chosen != null)
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: palette.background,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: palette.line),
+                      ),
+                      child: Icon(
+                        Icons.edit_outlined,
+                        size: 13,
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            chosen == null ? 'FOTO — FACOLTATIVA' : 'CAMBIA FOTO',
+            style: context.texts.labelSmall?.copyWith(color: palette.textFaint),
+          ),
+        ],
+      ),
     );
   }
 }

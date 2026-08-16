@@ -36,7 +36,15 @@ class WinnersPage extends ConsumerWidget {
               AppSpacing.xxl,
             ),
             children: [
-              const DisplayTitle('VINCITORI'),
+              // Il logotipo al posto del titolo. Questa schermata e' la
+              // vetrina della promessa — qualcuno ha vinto davvero — ed e' il
+              // posto giusto perche' il marchio ci metta la faccia.
+              const CrasyWordmark(size: 30),
+              const SizedBox(height: AppSpacing.lg),
+              const HighlightedText(
+                'Le challenge chiuse, e chi si e\' preso i soldi.',
+                highlight: 'chi si e\' preso i soldi',
+              ),
               const SizedBox(height: AppSpacing.xl),
               challenges.when(
                 loading: () => const SizedBox.shrink(),

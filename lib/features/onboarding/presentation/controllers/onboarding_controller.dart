@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/domain/repositories/user_profile_repository.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
@@ -25,6 +27,8 @@ class OnboardingController extends AsyncNotifier<void> {
     required DateTime birthDate,
     String bio = '',
     String city = '',
+    Uint8List? photo,
+    String? photoContentType,
   }) async {
     state = const AsyncLoading<void>();
 
@@ -39,8 +43,25 @@ class OnboardingController extends AsyncNotifier<void> {
       onboardingCompleted: true,
     );
 
-    state = await AsyncValue.guard(
-      () => _userProfileRepository.createUserProfile(profile),
-    );
+    state = await AsyncValue.guard(() async {
+      await _userProfileRepository.createUserProfile(profile);
+
+      if (photo == null) {
+        return;
+      }
+
+      // La foto sale **dopo** che il profilo esiste, e non prima: caricarla
+      // aggiorna il documento dell'utente, e non si aggiorna un documento che
+      // non c'e' ancora.
+      //
+      // Se il caricamento fallisce, l'errore risale e la schermata lo mostra —
+      // ma il profilo e' gia' salvato, quindi nessuno resta fuori per colpa di
+      // una foto. Basta riprovare dal profilo.
+      await _userProfileRepository.uploadPhoto(
+        userId: userId,
+        bytes: photo,
+        contentType: photoContentType,
+      );
+    });
   }
 }
