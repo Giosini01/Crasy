@@ -52,7 +52,7 @@ class _VerifyEmailPageState extends ConsumerState<VerifyEmailPage> {
             children: [
               const CrasyWordmark(size: 28),
               const SizedBox(height: AppSpacing.xxl),
-              Text('CONFERMA\nLA TUA EMAIL', style: texts.displaySmall),
+              const DisplayTitle('CONFERMA\nLA TUA EMAIL'),
               const SizedBox(height: AppSpacing.sm),
               Text.rich(
                 TextSpan(

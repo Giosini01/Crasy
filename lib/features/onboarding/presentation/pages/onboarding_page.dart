@@ -4,6 +4,7 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/utils/app_date_utils.dart';
 import 'package:crasy/core/widgets/app_background.dart';
+import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
@@ -62,7 +63,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 AppSpacing.xxl,
               ),
               children: [
-                Text('COME TI\nCHIAMANO', style: texts.displaySmall),
+                const DisplayTitle('COME TI\nCHIAMANO'),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   'E\' il nome che sta sotto ogni foto che mandi. Minuscolo, '

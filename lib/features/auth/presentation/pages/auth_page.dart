@@ -1,4 +1,3 @@
-import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/errors/error_message_mapper.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
@@ -10,14 +9,13 @@ import 'package:crasy/features/auth/presentation/controllers/auth_action_control
 import 'package:crasy/features/auth/presentation/utils/auth_validators.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 /// Entrare in CRASY.
 ///
-/// Email e password, e basta. La schermata si apre solo quando serve davvero —
-/// per partecipare, votare o avere un profilo — perche' le challenge si possono
-/// guardare senza registrarsi: chi arriva qui ha gia' visto cosa c'e' in palio,
-/// e sa perche' gli si sta chiedendo un indirizzo.
+/// Email e password, e basta. **E' la prima cosa che si vede aprendo l'app**:
+/// da fuori non si guarda niente, perche' qui girano soldi veri, si vota chi li
+/// vince e si entra da maggiorenni. Nessuna delle tre cose regge se chi guarda
+/// non ha un nome.
 class AuthPage extends ConsumerStatefulWidget {
   const AuthPage({super.key});
 
@@ -41,7 +39,6 @@ class _AuthPageState extends ConsumerState<AuthPage> {
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.palette;
     final texts = context.texts;
     final action = ref.watch(authActionControllerProvider);
     final error = action.error;
@@ -61,9 +58,8 @@ class _AuthPageState extends ConsumerState<AuthPage> {
               children: [
                 const CrasyWordmark(size: 28),
                 const SizedBox(height: AppSpacing.xxl),
-                Text(
+                DisplayTitle(
                   _signingUp ? 'CREA IL TUO\nACCOUNT' : 'BENTORNATO',
-                  style: texts.displaySmall,
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
@@ -115,15 +111,6 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                     _signingUp
                         ? 'Ho gia\' un account'
                         : 'Non ho ancora un account',
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => context.go(AppRoutes.challenges),
-                  child: Text(
-                    'Guarda le challenge',
-                    style: texts.titleMedium?.copyWith(
-                      color: palette.textFaint,
-                    ),
                   ),
                 ),
               ],

@@ -2,6 +2,7 @@ import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
+import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
@@ -35,7 +36,7 @@ class WinnersPage extends ConsumerWidget {
               AppSpacing.xxl,
             ),
             children: [
-              Text('VINCITORI', style: context.texts.displaySmall),
+              const DisplayTitle('VINCITORI'),
               const SizedBox(height: AppSpacing.xl),
               challenges.when(
                 loading: () => const SizedBox.shrink(),

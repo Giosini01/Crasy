@@ -68,7 +68,12 @@ void main() {
     // Non e' una scelta di gusto: qui girano soldi, si vota chi li vince, e si
     // entra da maggiorenni. Le foto che la gente manda sono di persone vere che
     // si mettono in gioco, e non stanno in una vetrina aperta a chiunque passi.
-    expect(find.text('CREA IL TUO\nACCOUNT'), findsOneWidget);
+    // I titoli sono testo composto — parola nera piu' punto rosso — quindi non
+    // sono un `Text` semplice: `findRichText` li cerca per quello che rendono.
+    expect(
+      find.text('CREA IL TUO\nACCOUNT.', findRichText: true),
+      findsOneWidget,
+    );
     expect(find.text('CHALLENGE'), findsNothing);
     expect(find.text('NESSUNA CHALLENGE APERTA'), findsNothing);
 
@@ -83,7 +88,10 @@ void main() {
       ),
     );
 
-    expect(find.text('CONFERMA\nLA TUA EMAIL'), findsOneWidget);
+    expect(
+      find.text('CONFERMA\nLA TUA EMAIL.', findRichText: true),
+      findsOneWidget,
+    );
     expect(find.text('HO CONFERMATO'), findsOneWidget);
     // Nemmeno qui si vedono le challenge.
     expect(find.text('NESSUNA CHALLENGE APERTA'), findsNothing);
@@ -102,7 +110,10 @@ void main() {
         ],
       );
 
-      expect(find.text('COME TI\nCHIAMANO'), findsOneWidget);
+      expect(
+        find.text('COME TI\nCHIAMANO.', findRichText: true),
+        findsOneWidget,
+      );
       // L'eta' si chiede subito, non dopo: e' la porta che tiene fuori i
       // minorenni.
       expect(find.text('QUANDO SEI NATO'), findsWidgets);

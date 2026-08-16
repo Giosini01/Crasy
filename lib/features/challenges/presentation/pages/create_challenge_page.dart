@@ -3,6 +3,7 @@ import 'package:crasy/core/errors/error_message_mapper.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
+import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
@@ -70,7 +71,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               AppSpacing.xxl,
             ),
             children: [
-              Text('LANCIA UNA\nCHALLENGE', style: texts.displaySmall),
+              const DisplayTitle('LANCIA UNA\nCHALLENGE'),
               const SizedBox(height: AppSpacing.sm),
               Text(
                 'Metti un premio, di\' cosa bisogna fare, e guarda cosa si '

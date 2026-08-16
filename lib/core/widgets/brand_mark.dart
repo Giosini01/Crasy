@@ -43,6 +43,42 @@ class CrasyWordmark extends StatelessWidget {
   }
 }
 
+/// Il titolo di una schermata, con il punto rosso in fondo.
+///
+/// Il punto e' lo stesso segno che chiude il logotipo, ed e' l'unico posto in
+/// cui il rosso compare senza essere ne' un premio ne' un comando. Ripeterlo in
+/// cima a ogni schermata fa una cosa sola ma la fa bene: **lega le pagine al
+/// marchio** senza aggiungere un logo su ognuna.
+///
+/// Il punto lo mette il widget, non chi lo chiama: cosi' non si finisce con
+/// meta' delle schermate che ce l'hanno e meta' no.
+class DisplayTitle extends StatelessWidget {
+  const DisplayTitle(this.text, {this.style, super.key});
+
+  final String text;
+
+  /// Per i titoli che vogliono un corpo diverso da quello grande.
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: text.toUpperCase()),
+          TextSpan(
+            text: '.',
+            style: TextStyle(color: palette.accent),
+          ),
+        ],
+      ),
+      style: style ?? context.texts.displaySmall,
+    );
+  }
+}
+
 /// L'occhiello: una parola in maiuscolo piccolo e spaziato sopra un blocco.
 ///
 /// Fa il lavoro che in un'altra app farebbe un badge colorato — dire di che
