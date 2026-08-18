@@ -2,6 +2,7 @@ import 'package:crasy/core/moderation/content_policy.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
+import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -123,6 +124,7 @@ class CreateChallengeController extends AsyncNotifier<void> {
     required String brief,
     required int prizeEuro,
     required ChallengeScope scope,
+    required MediaKind mediaKind,
     required String place,
     required int hours,
   }) async {
@@ -149,6 +151,7 @@ class CreateChallengeController extends AsyncNotifier<void> {
       // numero che ha in mano sono euro o centesimi.
       prizeCents: prizeEuro * 100,
       scope: scope,
+      mediaKind: mediaKind,
       place: scope == ChallengeScope.local ? place.trim().toUpperCase() : '',
       createdByUsername: profile?.username ?? 'anonimo',
       createdByUserId: authState.user.id,

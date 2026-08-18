@@ -68,12 +68,54 @@ Due regole tengono onesta la competizione:
 | --- | --- |
 | Challenge (home) | Le challenge aperte: premio, titolo, consegna, tempo, chi l'ha lanciata, la foto in testa, comando |
 | Dettaglio | Premio, consegna, regole, countdown, partecipazioni gia' inviate |
-| Partecipa | Scatta sul momento, guarda l'anteprima, mandi in gara |
+| Partecipa | Scatti o registri sul momento, guardi l'anteprima, mandi in gara |
+| Amici | Le richieste ricevute e l'elenco di chi hai gia' |
 | Vincitori | Le challenge concluse e chi le ha vinte |
-| Profilo | Partecipazioni, vittorie, premi, e la griglia delle proprie foto |
+| Profilo | Scatti, vittorie, premi, amici, e la griglia delle proprie foto |
+| Profilo altrui | Gli stessi quattro numeri, la sua griglia, e il comando dell'amicizia |
 | Crea | Lancia una challenge: premio, titolo, consegna, dove, per quanto |
 | Accesso | Email e password. Alla registrazione parte il messaggio di conferma |
 | Verifica | Il muro: si sta qui finche' l'indirizzo non e' confermato |
+
+### Foto o video
+
+Chi lancia la challenge sceglie **cosa** deve arrivare: una foto o un video di
+massimo trenta secondi. E' un vincolo, non un suggerimento — una gara in cui
+qualcuno manda una foto e qualcun altro un video non e' una gara, sono due cose
+che non si possono mettere in fila e confrontare, e alla fine si pagherebbe un
+premio scegliendo fra mele e pere.
+
+In tutti e due i casi vale la regola di sempre: **si registra sul momento**. La
+galleria non si apre, ne' per le foto ne' per i video.
+
+### Gli amici
+
+Ogni profilo si puo' aprire, e ci si arriva da dove si e': dal nome sotto una
+foto, dalla riga di chi ha lanciato una challenge, dall'elenco degli amici. **Si
+incontra la gente guardando cosa combina**, non cercandola per nome — per questo
+non c'e' una ricerca.
+
+Un profilo pubblico mostra quattro numeri e la griglia delle sue foto: scatti,
+vittorie, premi vinti, amici. Niente eta', niente elenco di cosa ha votato.
+
+L'amicizia si chiede e si accetta. Sul database e' fatta di due documenti, uno
+per parte:
+
+```
+users/{id}/friends/{amico}           l'amicizia, scritta da tutte e due le parti
+users/{id}/friendRequests/{da}       le richieste ricevute
+```
+
+Sembra una duplicazione ed e' la scelta che tiene in piedi tutto: "chi sono i
+miei amici" diventa la lettura di una cartella sola invece di una ricerca su
+tutto il database. Le due righe nascono insieme, in un lotto: un'amicizia
+scritta da una parte sola e' lo stato che poi nessuno sa piu' come rimettere a
+posto.
+
+Le regole non chiedono "e' casa tua" ma **"esiste la richiesta che lo
+giustifica"**: senza un documento che quella persona ha ricevuto, nessuna delle
+due righe si puo' scrivere. E' quello a rendere impossibile aggiungersi da soli
+fra gli amici di qualcuno.
 
 ---
 
@@ -307,13 +349,14 @@ Detto chiaramente, perche' un README che tace su questo fa perdere tempo:
   e promettere qualunque cifra. Le regole controllano che il documento sia ben
   formato, non che dietro ci siano davvero i soldi — nessuna regola di database
   puo' controllare quello.
-- **Moderazione dei contenuti.** Non c'e' nessun controllo su cosa viene
-  caricato.
+- **Il controllo automatico sulle immagini.** E' scritto ma spento: servono il
+  piano Blaze e il deploy delle funzioni (sopra c'e' come). I testi invece si
+  controllano gia', sia nell'app che nelle regole.
+- **Il video non viene controllato affatto.** SafeSearch guarda le immagini; un
+  video passa senza che nessuno lo apra.
 - **Le challenge geolocalizzate.** L'ambito e' un'etichetta scelta da chi crea la
   challenge. Il servizio di posizione (`lib/core/services/location/`) e' scritto
   e funziona, ma nessuna schermata lo usa ancora.
-- **Profili altrui.** Si vede il nome sotto le foto, non c'e' una pagina da
-  aprire.
 
 ---
 

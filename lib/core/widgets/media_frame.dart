@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
+import 'package:crasy/core/widgets/video_frame.dart';
 import 'package:flutter/material.dart';
 
 /// Il riquadro in cui vive una foto.
@@ -26,10 +27,18 @@ class MediaFrame extends StatelessWidget {
     this.radius = AppRadius.md,
     this.caption,
     this.overlay,
+    this.video = false,
     super.key,
   });
 
   final String? url;
+
+  /// Se il contenuto e' un video invece che una foto.
+  ///
+  /// Lo dice la partecipazione, non l'indirizzo: indovinare dall'estensione del
+  /// file sarebbe fragile — gli indirizzi di Storage finiscono con un gettone,
+  /// non con `.mp4`.
+  final bool video;
   final double aspectRatio;
   final double radius;
 
@@ -57,7 +66,10 @@ class MediaFrame extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            _Surface(url: url!, caption: caption),
+            if (video)
+              VideoFrame(url: url!, caption: caption)
+            else
+              _Surface(url: url!, caption: caption),
             ?overlay,
           ],
         ),

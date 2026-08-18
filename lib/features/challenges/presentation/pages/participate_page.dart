@@ -7,6 +7,7 @@ import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
+import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/presentation/controllers/participation_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:flutter/material.dart';
@@ -93,7 +94,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
               media: _media,
               error: _error,
               submitting: submitting,
-              onCapture: _capture,
+              onCapture: () => _capture(challenge.mediaKind),
               onSubmit: () => _submit(challenge),
               onClear: () => setState(() => _media = null),
             );
@@ -103,13 +104,13 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
     );
   }
 
-  Future<void> _capture() async {
+  Future<void> _capture(MediaKind kind) async {
     setState(() => _error = null);
 
     try {
       final media = await ref
           .read(participationControllerProvider.notifier)
-          .capture();
+          .capture(kind);
 
       // Rinunciare a scattare non e' un errore: se l'utente chiude la
       // fotocamera non deve trovarsi un messaggio rosso in pagina.
@@ -223,12 +224,14 @@ class _Form extends StatelessWidget {
         const SizedBox(height: AppSpacing.xl),
         if (picked == null)
           SecondaryButton(
-            label: 'Scatta ora',
-            icon: Icons.photo_camera_outlined,
+            label: challenge.mediaKind.action,
+            icon: challenge.mediaKind.isVideo
+                ? Icons.videocam_outlined
+                : Icons.photo_camera_outlined,
             onPressed: onCapture,
           )
         else
-          _Preview(media: picked, onRetake: onClear),
+          _Preview(media: picked, kind: challenge.mediaKind, onRetake: onClear),
         if (error != null) ...[
           const SizedBox(height: AppSpacing.md),
           InlineBanner(message: error!),
@@ -241,8 +244,12 @@ class _Form extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'Si scatta sul momento, niente galleria. Una foto sola a testa, e '
-          'una volta mandata non si cambia.',
+          challenge.mediaKind.isVideo
+              ? 'Si registra sul momento, niente galleria. Al massimo '
+                    '${MediaKind.maxVideoDuration.inSeconds} secondi, un video '
+                    'solo a testa, e una volta mandato non si cambia.'
+              : 'Si scatta sul momento, niente galleria. Una foto sola a testa, '
+                    'e una volta mandata non si cambia.',
           style: texts.bodySmall,
         ),
       ],
@@ -251,9 +258,14 @@ class _Form extends StatelessWidget {
 }
 
 class _Preview extends StatelessWidget {
-  const _Preview({required this.media, required this.onRetake});
+  const _Preview({
+    required this.media,
+    required this.kind,
+    required this.onRetake,
+  });
 
   final PickedMedia media;
+  final MediaKind kind;
   final VoidCallback onRetake;
 
   @override
@@ -265,16 +277,58 @@ class _Preview extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: AspectRatio(
             aspectRatio: 4 / 5,
-            // `Image.memory` e non `MediaFrame`: qui la foto non e' ancora
-            // salita da nessuna parte, esiste solo come byte in memoria.
-            child: Image.memory(media.bytes, fit: BoxFit.cover),
+            // `Image.memory` e non `MediaFrame`: qui il contenuto non e' ancora
+            // salito da nessuna parte, esiste solo come byte in memoria.
+            //
+            // Del video non si vede l'anteprima ma una conferma: riprodurre un
+            // file locale vuole strade diverse su telefono e su web, e non vale
+            // la complicazione per i due secondi che sta li'.
+            child: media.isVideo
+                ? const _VideoReady()
+                : Image.memory(media.bytes, fit: BoxFit.cover),
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
         // Rifare lo scatto prima di mandarlo si puo': il patto e' che non si
         // cambia **dopo** l'invio, quando la gara e' gia' cominciata.
-        TextButton(onPressed: onRetake, child: const Text('Scatta di nuovo')),
+        TextButton(
+          onPressed: onRetake,
+          child: Text(kind.isVideo ? 'Registra di nuovo' : 'Scatta di nuovo'),
+        ),
       ],
+    );
+  }
+}
+
+/// Il video registrato, pronto per partire.
+///
+/// Non e' un'anteprima: e' una conferma. Riprodurre un file che sta ancora sul
+/// telefono richiede strade diverse su mobile e su web, e per i due secondi che
+/// passano fra la registrazione e l'invio non vale la complicazione.
+class _VideoReady extends StatelessWidget {
+  const _VideoReady();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return ColoredBox(
+      color: palette.surfaceMuted,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.play_circle_outline_rounded,
+            size: 44,
+            color: palette.textFaint,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'VIDEO PRONTO',
+            style: context.texts.labelSmall?.copyWith(color: palette.textFaint),
+          ),
+        ],
+      ),
     );
   }
 }

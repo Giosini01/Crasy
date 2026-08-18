@@ -8,6 +8,7 @@ import 'package:crasy/features/challenges/presentation/pages/participate_page.da
 import 'package:crasy/features/home/presentation/pages/home_page.dart';
 import 'package:crasy/features/home/presentation/pages/splash_page.dart';
 import 'package:crasy/features/onboarding/presentation/pages/onboarding_page.dart';
+import 'package:crasy/features/profile/presentation/pages/public_profile_page.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -94,6 +95,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 ParticipatePage(challengeId: state.pathParameters['id'] ?? ''),
           ),
         ],
+      ),
+      GoRoute(
+        path: AppRoutes.userProfile,
+        builder: (context, state) =>
+            PublicProfilePage(userId: state.pathParameters['id'] ?? ''),
       ),
       GoRoute(
         path: AppRoutes.create,

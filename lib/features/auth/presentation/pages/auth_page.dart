@@ -57,7 +57,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                 AppSpacing.xxl,
               ),
               children: [
-                const CrasyWordmark(size: 28),
+                const CrasyWordmark(),
                 const SizedBox(height: AppSpacing.xxl),
                 DisplayTitle(
                   _signingUp ? 'CREA IL TUO\nACCOUNT' : 'BENTORNATO',

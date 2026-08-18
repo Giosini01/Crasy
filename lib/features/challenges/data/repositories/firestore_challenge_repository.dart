@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crasy/features/challenges/data/mappers/challenge_mapper.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
@@ -158,6 +159,7 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     required String userId,
     required String authorName,
     required Uint8List bytes,
+    MediaKind mediaKind = MediaKind.photo,
     String? contentType,
   }) async {
     final challengeRef = _challenges.doc(challengeId);
@@ -190,7 +192,10 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     //
     // `doc().id` conia un identificativo nuovo senza scrivere niente.
     final uploadId = _entries(challengeId).doc().id;
-    final storagePath = 'entries/$challengeId/$userId/$uploadId.jpg';
+    // L'estensione segue il contenuto: un video salvato come `.jpg` confonde
+    // chiunque lo guardi dopo, a partire dal controllo automatico.
+    final extension = mediaKind.isVideo ? 'mp4' : 'jpg';
+    final storagePath = 'entries/$challengeId/$userId/$uploadId.$extension';
     final reference = _storage.ref(storagePath);
 
     // Il file sale per primo. Se l'upload fallisce non resta un documento che
@@ -198,7 +203,10 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     // un premio.
     await reference.putData(
       bytes,
-      SettableMetadata(contentType: contentType ?? 'image/jpeg'),
+      SettableMetadata(
+        contentType:
+            contentType ?? (mediaKind.isVideo ? 'video/mp4' : 'image/jpeg'),
+      ),
     );
 
     final entry = ChallengeEntry(
@@ -209,6 +217,7 @@ class FirestoreChallengeRepository implements ChallengeRepository {
       authorName: authorName,
       mediaUrl: await reference.getDownloadURL(),
       storagePath: storagePath,
+      mediaKind: mediaKind,
     );
 
     // **Una foto sola, e non si cambia.** Il controllo sta dentro la

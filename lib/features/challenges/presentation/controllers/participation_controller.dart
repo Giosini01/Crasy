@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
+import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
@@ -13,10 +14,15 @@ import 'package:image_picker/image_picker.dart';
 /// indovinato: da un iPhone puo' arrivare un HEIC, e dichiararlo JPEG
 /// significa consegnare a Storage un file che chi lo rilegge non sa aprire.
 class PickedMedia {
-  const PickedMedia({required this.bytes, this.contentType});
+  const PickedMedia({
+    required this.bytes,
+    this.contentType,
+    this.isVideo = false,
+  });
 
   final Uint8List bytes;
   final String? contentType;
+  final bool isVideo;
 }
 
 final participationControllerProvider =
@@ -44,7 +50,11 @@ class ParticipationController extends AsyncNotifier<void> {
   /// Su web questo non si puo' imporre: il browser mostra comunque il selettore
   /// di file. E' un limite della piattaforma, non una svista — sul telefono,
   /// dove l'app vive, la fotocamera si apre e basta.
-  Future<PickedMedia?> capture() async {
+  Future<PickedMedia?> capture(MediaKind kind) async {
+    if (kind.isVideo) {
+      return _captureVideo();
+    }
+
     final picked = await ImagePicker().pickImage(
       source: ImageSource.camera,
       // Ridimensionare qui evita di spedire venti megapixel per una foto che
@@ -63,6 +73,28 @@ class ParticipationController extends AsyncNotifier<void> {
     return PickedMedia(
       bytes: await picked.readAsBytes(),
       contentType: picked.mimeType,
+    );
+  }
+
+  /// Il video, registrato sul momento.
+  ///
+  /// La durata massima la impone il selettore stesso, non un controllo dopo:
+  /// far registrare due minuti per poi dire "troppo lungo, rifallo" e' il modo
+  /// piu' sicuro di far perdere una partecipazione.
+  Future<PickedMedia?> _captureVideo() async {
+    final picked = await ImagePicker().pickVideo(
+      source: ImageSource.camera,
+      maxDuration: MediaKind.maxVideoDuration,
+    );
+
+    if (picked == null) {
+      return null;
+    }
+
+    return PickedMedia(
+      bytes: await picked.readAsBytes(),
+      contentType: picked.mimeType ?? 'video/mp4',
+      isVideo: true,
     );
   }
 
@@ -89,6 +121,7 @@ class ParticipationController extends AsyncNotifier<void> {
     final result = await AsyncValue.guard(
       () => _challenges.submitEntry(
         challengeId: challengeId,
+        mediaKind: media.isVideo ? MediaKind.video : MediaKind.photo,
         userId: authState.user.id,
         // Il nome viaggia insieme alla partecipazione. Il feed mostra foto di
         // persone diverse: senza questo campo ogni riga costringerebbe a

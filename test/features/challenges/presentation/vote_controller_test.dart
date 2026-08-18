@@ -137,4 +137,38 @@ void main() {
 
     expect(updated.firstWhere((item) => item.id == entry.id).votes, 1);
   });
+
+  group('la memoria condivisa della fiamma', () {
+    test('il doppio tocco e la fiamma sotto sono lo stesso gesto', () async {
+      final container = guestContainer();
+      final entry = await someoneElsesEntry(container);
+
+      // Il doppio tocco sulla foto scrive qui. E' l'unico posto in cui lo
+      // scrive: prima il contatore sotto teneva una copia sua, e chi faceva
+      // tutti e due i gesti vedeva il numero salire di due.
+      container.read(pendingVoteProvider(entry.id).notifier).state = true;
+
+      expect(container.read(entryVotedProvider(entry.id)), isTrue);
+      expect(container.read(entryVoteDeltaProvider(entry.id)), 1);
+    });
+
+    test('a scrittura confermata la correzione locale sparisce', () async {
+      final container = guestContainer();
+      final entry = await someoneElsesEntry(container);
+
+      container.read(pendingVoteProvider(entry.id).notifier).state = true;
+      await container.read(voteControllerProvider).toggle(entry, voted: true);
+
+      // Lo stream va ascoltato perche' emetta: senza, `valueOrNull` resta a
+      // null e la correzione locale sembrerebbe ancora necessaria.
+      final subscription = container.listen(votedEntryIdsProvider, (_, _) {});
+      addTearDown(subscription.close);
+      await container.read(votedEntryIdsProvider.future);
+
+      // Il server ora dice la stessa cosa dell'utente: aggiungere ancora uno
+      // al contatore lo farebbe vedere a due.
+      expect(container.read(entryVotedProvider(entry.id)), isTrue);
+      expect(container.read(entryVoteDeltaProvider(entry.id)), 0);
+    });
+  });
 }

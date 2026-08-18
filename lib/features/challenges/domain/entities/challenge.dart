@@ -1,5 +1,6 @@
 import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
+import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 
 /// Una challenge: una consegna, una scadenza, dei soldi in palio.
 ///
@@ -19,6 +20,7 @@ class Challenge {
     required this.endsAt,
     this.place = '',
     this.rules = const [],
+    this.mediaKind = MediaKind.photo,
     this.createdByUsername = '',
     this.createdByUserId = '',
     this.participantsCount = 0,
@@ -46,6 +48,13 @@ class Challenge {
 
   /// Le regole, una per riga. Poche e secche.
   final List<String> rules;
+
+  /// Cosa bisogna mandare: una foto o un video.
+  ///
+  /// Lo decide chi lancia la challenge, e vale per tutti: una gara in cui
+  /// arrivano foto e video insieme non e' confrontabile, e alla fine si
+  /// pagherebbe un premio scegliendo fra mele e pere.
+  final MediaKind mediaKind;
 
   /// Il nome di chi ha lanciato la challenge.
   ///
@@ -110,6 +119,7 @@ class Challenge {
     ChallengeScope? scope,
     String? place,
     List<String>? rules,
+    MediaKind? mediaKind,
     String? createdByUsername,
     String? createdByUserId,
     DateTime? startsAt,
@@ -125,6 +135,7 @@ class Challenge {
       scope: scope ?? this.scope,
       place: place ?? this.place,
       rules: rules ?? this.rules,
+      mediaKind: mediaKind ?? this.mediaKind,
       createdByUsername: createdByUsername ?? this.createdByUsername,
       createdByUserId: createdByUserId ?? this.createdByUserId,
       startsAt: startsAt ?? this.startsAt,
@@ -147,6 +158,7 @@ class Challenge {
         other.prizeCents == prizeCents &&
         other.scope == scope &&
         other.place == place &&
+        other.mediaKind == mediaKind &&
         other.createdByUsername == createdByUsername &&
         other.createdByUserId == createdByUserId &&
         other.startsAt == startsAt &&
@@ -163,6 +175,7 @@ class Challenge {
     prizeCents,
     scope,
     place,
+    mediaKind,
     createdByUsername,
     createdByUserId,
     startsAt,

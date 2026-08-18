@@ -6,6 +6,7 @@ import 'package:crasy/features/challenges/data/repositories/firestore_challenge_
     show AlreadyParticipatingException;
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 
 /// Le challenge tenute in memoria.
@@ -135,6 +136,7 @@ class SampleChallengeRepository implements ChallengeRepository {
     required String userId,
     required String authorName,
     required Uint8List bytes,
+    MediaKind mediaKind = MediaKind.photo,
     String? contentType,
   }) async {
     final challenge = _challenges[challengeId];
@@ -163,6 +165,7 @@ class SampleChallengeRepository implements ChallengeRepository {
       // il giro completo — scatto, invio, la mia foto in gara — con un
       // repository che vive in memoria.
       mediaUrl: _dataUri(bytes, contentType),
+      mediaKind: mediaKind,
       createdAt: DateTime.now(),
     );
 
@@ -215,7 +218,9 @@ class SampleChallengeRepository implements ChallengeRepository {
 
   /// I byte di una foto trasformati in un indirizzo che li contiene.
   static String _dataUri(Uint8List bytes, String? contentType) {
-    final type = (contentType ?? '').startsWith('image/')
+    final type =
+        (contentType ?? '').startsWith('image/') ||
+            (contentType ?? '').startsWith('video/')
         ? contentType!
         : 'image/jpeg';
 

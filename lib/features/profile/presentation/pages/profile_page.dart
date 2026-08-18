@@ -11,6 +11,7 @@ import 'package:crasy/core/widgets/modal_sheet.dart';
 import 'package:crasy/features/auth/presentation/controllers/auth_action_controller.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/onboarding/presentation/utils/onboarding_validators.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/controllers/profile_edit_controller.dart';
@@ -72,6 +73,8 @@ class ProfilePage extends ConsumerWidget {
                     entries: entries.length,
                     wins: wins.length,
                     prizeCents: prizeCents,
+                    friends:
+                        ref.watch(myFriendsProvider).valueOrNull?.length ?? 0,
                   ),
                   const SizedBox(height: AppSpacing.xl),
                   if (entries.isEmpty)
@@ -127,7 +130,7 @@ class _Identity extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: AppSpacing.md),
-        const CrasyWordmark(size: 26),
+        const CrasyWordmark(),
         const SizedBox(height: AppSpacing.lg),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -333,7 +336,7 @@ class _Initials extends StatelessWidget {
 
 /// I tre numeri, fra due filetti.
 ///
-/// Sono tre e non otto: scatti, vinte, vinti. Tutto il resto —
+/// Sono quattro e non otto: scatti, vinte, vinti, amici. Tutto il resto —
 /// visualizzazioni, fiamme ricevute, giorni di fila — sarebbe roba da far
 /// salire per il gusto di farla salire.
 class _Stats extends StatelessWidget {
@@ -341,11 +344,13 @@ class _Stats extends StatelessWidget {
     required this.entries,
     required this.wins,
     required this.prizeCents,
+    required this.friends,
   });
 
   final int entries;
   final int wins;
   final int prizeCents;
+  final int friends;
 
   @override
   Widget build(BuildContext context) {
@@ -373,6 +378,8 @@ class _Stats extends StatelessWidget {
                 // "€0" acceso sarebbe una promessa mancata scritta a colori.
                 color: prizeCents > 0 ? palette.accent : null,
               ),
+              _Divider(color: palette.line),
+              _Stat(label: 'AMICI', value: '$friends'),
             ],
           ),
         ),

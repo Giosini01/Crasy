@@ -7,6 +7,7 @@ import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
+import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/presentation/controllers/create_challenge_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -40,6 +41,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
   final _hours = TextEditingController(text: '24');
 
   ChallengeScope _scope = ChallengeScope.global;
+  MediaKind _mediaKind = MediaKind.photo;
   String? _error;
 
   @override
@@ -103,6 +105,28 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                 validator: ChallengeDraftValidators.validateBrief,
               ),
               const SizedBox(height: AppSpacing.sm),
+              _SectionLabel('Cosa devono mandare'),
+              Wrap(
+                spacing: AppSpacing.xs,
+                children: [
+                  for (final kind in MediaKind.values)
+                    _Choice(
+                      label: kind.label,
+                      selected: _mediaKind == kind,
+                      onTap: () => setState(() => _mediaKind = kind),
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                _mediaKind.isVideo
+                    ? 'Tutti mandano un video, registrato sul momento, al '
+                          'massimo ${MediaKind.maxVideoDuration.inSeconds} '
+                          'secondi.'
+                    : 'Tutti mandano una foto, scattata sul momento.',
+                style: texts.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.lg),
               _SectionLabel('Dove'),
               Wrap(
                 spacing: AppSpacing.xs,
@@ -194,6 +218,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
           brief: _brief.text,
           prizeEuro: int.parse(_prize.text.trim()),
           scope: _scope,
+          mediaKind: _mediaKind,
           place: _place.text,
           hours: int.parse(_hours.text.trim()),
         );

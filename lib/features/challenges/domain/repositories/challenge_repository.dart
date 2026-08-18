@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 
 /// L'unico punto da cui l'app prende e scrive le challenge.
 ///
@@ -39,6 +40,7 @@ abstract class ChallengeRepository {
     required String userId,
     required String authorName,
     required Uint8List bytes,
+    MediaKind mediaKind = MediaKind.photo,
     String? contentType,
   });
 

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:crasy/features/challenges/data/repositories/sample_challenge_repository.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 
 /// Firestore davanti, le challenge di esempio dietro.
@@ -86,6 +87,7 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
     required String userId,
     required String authorName,
     required Uint8List bytes,
+    MediaKind mediaKind = MediaKind.photo,
     String? contentType,
   }) {
     return _forChallenge(challengeId).submitEntry(
@@ -93,6 +95,7 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
       userId: userId,
       authorName: authorName,
       bytes: bytes,
+      mediaKind: mediaKind,
       contentType: contentType,
     );
   }

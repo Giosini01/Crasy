@@ -13,10 +13,17 @@ import 'package:flutter/material.dart';
 /// campionato da questo file.
 class CrasyWordmark extends StatelessWidget {
   const CrasyWordmark({
-    this.size = 22,
+    this.size = header,
     this.alignment = Alignment.centerLeft,
     super.key,
   });
+
+  /// La misura del marchio in cima a una schermata.
+  ///
+  /// E' una costante e non un numero scritto ogni volta: bastava un 26 al posto
+  /// di un 30 e il logotipo cambiava taglia passando da una scheda all'altra —
+  /// una di quelle cose che non si sanno dire ma si vedono.
+  static const double header = 28;
 
   /// Altezza del logotipo. La larghezza segue da se': il file e' gia' ritagliato
   /// sul segno, quindi la sua proporzione e' quella vera.

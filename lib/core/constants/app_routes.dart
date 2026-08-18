@@ -12,6 +12,9 @@ abstract final class AppRoutes {
   /// La home: le challenge aperte.
   static const challenges = '/challenges';
 
+  /// Gli amici: le richieste da decidere e chi hai gia'.
+  static const friends = '/amici';
+
   /// I vincitori delle challenge concluse.
   static const winners = '/winners';
 
@@ -20,15 +23,18 @@ abstract final class AppRoutes {
   // --- Le pagine che si aprono sopra le schede ------------------------------
 
   static const challengeDetail = '/challenge/:id';
+  static const userProfile = '/utente/:id';
   static const participate = '/challenge/:id/partecipa';
   static const create = '/crea';
 
   static String challengeDetailOf(String id) => '/challenge/$id';
 
+  static String userProfileOf(String id) => '/utente/$id';
+
   static String participateOf(String id) => '/challenge/$id/partecipa';
 
   /// Le schede in fondo, nell'ordine in cui compaiono.
-  static const tabs = <String>[challenges, winners, profile];
+  static const tabs = <String>[challenges, friends, winners, profile];
 
   /// Le sole schermate raggiungibili senza una sessione completa.
   ///

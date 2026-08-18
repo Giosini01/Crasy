@@ -1,4 +1,5 @@
 import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
+import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 
 /// Una partecipazione: la foto che qualcuno ha mandato per una challenge.
 class ChallengeEntry {
@@ -14,6 +15,7 @@ class ChallengeEntry {
     this.votes = 0,
     this.isWinner = false,
     this.moderation = EntryModeration.approved,
+    this.mediaKind = MediaKind.photo,
   });
 
   final String id;
@@ -45,6 +47,11 @@ class ChallengeEntry {
   /// Vera per la partecipazione che ha vinto la sua challenge.
   final bool isWinner;
 
+  /// Se e' una foto o un video. Lo decide la challenge, non chi partecipa.
+  final MediaKind mediaKind;
+
+  bool get isVideo => mediaKind.isVideo;
+
   /// Se la foto ha passato il controllo sui contenuti.
   final EntryModeration moderation;
 
@@ -73,6 +80,7 @@ class ChallengeEntry {
     int? votes,
     bool? isWinner,
     EntryModeration? moderation,
+    MediaKind? mediaKind,
   }) {
     return ChallengeEntry(
       id: id ?? this.id,
@@ -86,6 +94,7 @@ class ChallengeEntry {
       votes: votes ?? this.votes,
       isWinner: isWinner ?? this.isWinner,
       moderation: moderation ?? this.moderation,
+      mediaKind: mediaKind ?? this.mediaKind,
     );
   }
 
@@ -106,7 +115,8 @@ class ChallengeEntry {
         other.createdAt == createdAt &&
         other.votes == votes &&
         other.isWinner == isWinner &&
-        other.moderation == moderation;
+        other.moderation == moderation &&
+        other.mediaKind == mediaKind;
   }
 
   @override
@@ -122,5 +132,6 @@ class ChallengeEntry {
     votes,
     isWinner,
     moderation,
+    mediaKind,
   );
 }

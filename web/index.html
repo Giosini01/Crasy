@@ -1,12 +1,12 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="CRASY: challenge fotografiche con premi in denaro. DO SOMETHING CRAZY.">
-  <meta name="theme-color" content="#F7F6F9">
+  <meta name="description" content="CRASY: challenge con foto e video e premi in denaro. DO SOMETHING CRAZY.">
+  <meta name="theme-color" content="#FFFFFF">
 
   <!-- Su iPhone la pagina va a tutto schermo se aggiunta alla schermata home;
        la barra di stato resta chiara come il resto dell'app. -->
@@ -28,8 +28,25 @@
     html, body {
       margin: 0;
       padding: 0;
-      background-color: #F7F6F9;
+      background-color: #FFFFFF;
       color-scheme: light;
+    }
+
+    /* Il browser mette un occhio suo sui campi password, e su Flutter non fa
+       niente: il testo lo disegna la tela, non l'input nascosto sotto. Ne
+       restavano due, e uno era finto. Qui si toglie quello del browser e resta
+       il nostro, che funziona. */
+    input::-ms-reveal,
+    input::-ms-clear {
+      display: none;
+    }
+
+    input::-webkit-credentials-auto-fill-button,
+    input::-webkit-strong-password-auto-fill-button,
+    input::-webkit-textfield-decoration-container {
+      visibility: hidden;
+      display: none !important;
+      pointer-events: none;
     }
   </style>
 </head>

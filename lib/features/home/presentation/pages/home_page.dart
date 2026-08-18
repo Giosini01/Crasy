@@ -3,16 +3,17 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/features/challenges/presentation/pages/challenges_page.dart';
 import 'package:crasy/features/challenges/presentation/pages/winners_page.dart';
+import 'package:crasy/features/friends/presentation/pages/friends_page.dart';
 import 'package:crasy/features/profile/presentation/pages/profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 /// L'impalcatura con le quattro schede.
 ///
-/// Tre, e ognuna risponde a una domanda diversa: **cosa c'e' in palio**, **chi
-/// ha vinto**, **come stanno andando le mie**. Creare una challenge sta
-/// nell'intestazione della home, perche' e' una cosa che si fa una volta ogni
-/// tanto.
+/// Quattro, e ognuna risponde a una domanda diversa: **cosa c'e' in palio**,
+/// **chi conosco**, **chi ha vinto**, **come stanno andando le mie**. Creare
+/// una challenge sta nell'intestazione della home, perche' e' una cosa che si
+/// fa una volta ogni tanto.
 ///
 /// Non c'e' un feed di tutti, e non e' una mancanza: le foto degli altri stanno
 /// dentro la loro challenge, che e' il posto in cui hanno un senso — li' si
@@ -30,6 +31,13 @@ class HomePage extends StatelessWidget {
       icon: Icons.local_fire_department_outlined,
       activeIcon: Icons.local_fire_department,
       page: ChallengesPage(),
+    ),
+    _HomeTab(
+      route: AppRoutes.friends,
+      label: 'Amici',
+      icon: Icons.people_outline_rounded,
+      activeIcon: Icons.people_rounded,
+      page: FriendsPage(),
     ),
     _HomeTab(
       route: AppRoutes.winners,

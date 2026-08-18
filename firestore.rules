@@ -43,9 +43,17 @@ service cloud.firestore {
 
     // Il profilo.
     //
-    // Lo legge solo il diretto interessato. Il feed non ne ha bisogno: il nome
-    // di chi ha mandato una foto viaggia copiato dentro la partecipazione, ed
-    // e' anche il motivo per cui qui si puo' restare chiusi.
+    // **Lo legge chiunque abbia fatto l'accesso, lo scrive solo il diretto
+    // interessato.** I profili sono pubblici da quando esistono gli amici: si
+    // arriva a una persona dalla foto che ha mandato, e li' si vede cosa ha
+    // fatto — scatti, vittorie, premi, amici.
+    //
+    // Va detto cosa questo comporta: nel documento c'e' anche la data di
+    // nascita, e chi legge il database direttamente puo' vederla. E' il prezzo
+    // di tenere il profilo in un documento solo; il giorno in cui pesera'
+    // davvero, la data va spostata in un documento privato accanto a questo,
+    // non nascosta con una regola — **le regole non filtrano i campi, filtrano
+    // i documenti**.
     match /users/{userId} {
       // **Su CRASY si entra da maggiorenni.**
       //
@@ -65,7 +73,7 @@ service cloud.firestore {
       allow create, update: if signedIn()
                             && request.auth.uid == userId
                             && isAdultProfile();
-      allow read: if signedIn() && request.auth.uid == userId;
+      allow read: if signedIn();
       allow delete: if false;
 
       // Cosa ho votato.
@@ -75,6 +83,72 @@ service cloud.firestore {
       // puo' sapere chi ha votato cosa.
       match /votes/{entryId} {
         allow read, create, delete: if signedIn() && request.auth.uid == userId;
+        allow update: if false;
+      }
+
+      // Le richieste di amicizia **ricevute**.
+      //
+      // Stanno sotto chi le riceve, con l'identificativo di chi le manda come
+      // nome del documento: due volte la stessa richiesta e' due volte lo
+      // stesso documento, quindi non esiste il caso di venti richieste dalla
+      // stessa persona.
+      //
+      // Le legge chi le riceve, e le rilegge chi le ha mandate: quel secondo
+      // permesso e' quello che fa scrivere "richiesta mandata" sul bottone
+      // invece di riproporre "aggiungi" all'infinito.
+      match /friendRequests/{fromUserId} {
+        allow read: if signedIn()
+                    && (request.auth.uid == userId
+                        || request.auth.uid == fromUserId);
+
+        allow create: if signedIn()
+                      && request.auth.uid == fromUserId
+                      && fromUserId != userId
+                      && request.resource.data.fromUsername is string;
+
+        // La cancella chi l'ha mandata (ci ha ripensato) e chi l'ha ricevuta
+        // (accetta o rifiuta). Sono gli stessi due permessi visti da due parti.
+        allow delete: if signedIn()
+                      && (request.auth.uid == userId
+                          || request.auth.uid == fromUserId);
+
+        allow update: if false;
+      }
+
+      // Gli amici.
+      //
+      // Un'amicizia sono due documenti, uno per parte, e nascono insieme quando
+      // si accetta una richiesta. **Ognuno dei due deve poter scrivere nella
+      // cartella dell'altro**, altrimenti l'amicizia resterebbe scritta da un
+      // lato solo: per questo la condizione non e' "e' casa mia", ma "esiste la
+      // richiesta che la giustifica".
+      //
+      // E' quella richiesta a rendere impossibile aggiungersi da soli fra gli
+      // amici di qualcuno: senza un documento che quella persona ha ricevuto,
+      // nessuna delle due righe si puo' scrivere.
+      match /friends/{friendId} {
+        function pendingRequest(to, from) {
+          return exists(
+            /databases/$(database)/documents/users/$(to)/friendRequests/$(from)
+          );
+        }
+
+        // Quanti amici ha una persona e' un numero pubblico: sta scritto sul
+        // suo profilo, che chiunque puo' aprire.
+        allow read: if signedIn();
+
+        allow create: if signedIn()
+                      && ((request.auth.uid == userId
+                           && pendingRequest(userId, friendId))
+                          || (request.auth.uid == friendId
+                              && pendingRequest(friendId, userId)));
+
+        // Toglie l'amicizia chi dei due vuole: sparisce da tutte e due le
+        // parti, perche' un'amicizia a senso unico non esiste.
+        allow delete: if signedIn()
+                      && (request.auth.uid == userId
+                          || request.auth.uid == friendId);
+
         allow update: if false;
       }
     }
@@ -125,6 +199,11 @@ service cloud.firestore {
                     && request.resource.data.scope in
                        ['global', 'country', 'local', 'private']
                     && request.resource.data.rules is list
+                    // Foto o video: il vincolo lo sceglie chi lancia. Si legge
+                    // con `get` perche' le challenge nate prima che il vincolo
+                    // esistesse sono tutte di foto, e devono restare valide.
+                    && request.resource.data.get('mediaKind', 'photo')
+                       in ['photo', 'video']
                     && request.resource.data.prizeCents is int
                     && request.resource.data.prizeCents > 0
                     && request.resource.data.prizeCents <= 100000000
@@ -169,6 +248,13 @@ service cloud.firestore {
                       && challenge().createdByUserId != request.auth.uid
                       && request.resource.data.mediaUrl is string
                       && request.resource.data.mediaUrl.size() > 0
+                      // Il vincolo si rispetta: a una challenge di video non si
+                      // manda una foto. L'app non lo permette gia' — la
+                      // fotocamera si apre nel modo giusto e basta — ma il
+                      // vincolo e' meta' della gara, e una gara non si difende
+                      // solo nell'interfaccia.
+                      && request.resource.data.get('mediaKind', 'photo')
+                         == challenge().get('mediaKind', 'photo')
                       // Le fiamme partono da zero.
                       //
                       // Si legge con `get` e non direttamente, e la differenza

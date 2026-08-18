@@ -1,3 +1,4 @@
+import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/countdown_text.dart';
@@ -8,6 +9,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 /// Una challenge nella home.
 ///
@@ -202,9 +204,13 @@ class ChallengeShowcase extends StatelessWidget {
 /// di cortesia: cambia la fiducia con cui uno decide di partecipare. Le
 /// challenge di CRASY portano il nome di CRASY, quelle di una persona il suo.
 ///
-/// C'e' solo il nome e non una foto: i profili altrui non sono leggibili — le
-/// regole permettono a ognuno di leggere il proprio e basta — quindi si mostra
-/// quello che si ha davvero, invece di un cerchio grigio che finge un ritratto.
+/// C'e' solo l'iniziale e non la foto: la riga sta dentro un elenco lungo, e
+/// leggere una foto profilo per ogni challenge sarebbe un costo pagato ogni
+/// volta per un dettaglio che non cambia la decisione di partecipare.
+///
+/// Il nome si tocca e porta al profilo di chi ha lanciato la challenge — chi
+/// mette in palio dei soldi e' proprio la persona su cui uno vuole poter dare
+/// un'occhiata prima di uscire di casa a fare una cosa folle.
 class ChallengeAuthor extends StatelessWidget {
   const ChallengeAuthor({required this.challenge, super.key});
 
@@ -216,6 +222,23 @@ class ChallengeAuthor extends StatelessWidget {
     final texts = context.texts;
     final official = challenge.createdByUserId.isEmpty;
 
+    return GestureDetector(
+      onTap: official
+          ? null
+          : () => context.push(
+              AppRoutes.userProfileOf(challenge.createdByUserId),
+            ),
+      behavior: HitTestBehavior.opaque,
+      child: _row(context, palette, texts, official: official),
+    );
+  }
+
+  Widget _row(
+    BuildContext context,
+    AppPalette palette,
+    TextTheme texts, {
+    required bool official,
+  }) {
     return Row(
       children: [
         Container(

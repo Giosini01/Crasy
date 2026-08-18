@@ -1,5 +1,9 @@
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
+import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Doppio tocco sulla foto: fiamma.
 ///
@@ -8,37 +12,27 @@ import 'package:flutter/material.dart';
 /// il dubbio di non aver premuto abbastanza forte. Da qui la fiamma che sboccia
 /// al centro e sparisce in poco piu' di mezzo secondo.
 ///
-/// L'animazione parte solo quando il tocco **accende** la fiamma. Al doppio
-/// tocco su una foto gia' votata non succede niente di visibile e il voto resta:
-/// e' l'unico comportamento sensato, perche' nessuno fa due volte lo stesso
-/// gesto per disfare quello che ha appena fatto.
-///
-/// Il tocco singolo resta libero: lo usa chi apre la foto o la challenge.
-class FireTap extends StatefulWidget {
+/// Passa dalla stessa memoria del contatore qui sotto — `pendingVoteProvider` —
+/// quindi doppio tocco e tocco sulla fiamma **sono lo stesso gesto**: prima
+/// erano due comandi separati, e usati insieme contavano due volte.
+class FireTap extends ConsumerStatefulWidget {
   const FireTap({
+    required this.entry,
     required this.child,
-    required this.voted,
-    required this.onFire,
     this.onTap,
     super.key,
   });
 
+  final ChallengeEntry entry;
   final Widget child;
-
-  /// Se la fiamma e' gia' accesa. Serve a decidere se animare.
-  final bool voted;
-
-  /// Chiamata al doppio tocco, sempre — anche a fiamma gia' accesa, dove non
-  /// deve cambiare niente.
-  final VoidCallback onFire;
-
   final VoidCallback? onTap;
 
   @override
-  State<FireTap> createState() => _FireTapState();
+  ConsumerState<FireTap> createState() => _FireTapState();
 }
 
-class _FireTapState extends State<FireTap> with SingleTickerProviderStateMixin {
+class _FireTapState extends ConsumerState<FireTap>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 650),
@@ -50,14 +44,15 @@ class _FireTapState extends State<FireTap> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
-  void _handleDoubleTap() {
-    final wasVoted = widget.voted;
-
-    widget.onFire();
-
-    if (!wasVoted) {
-      _controller.forward(from: 0);
+  Future<void> _handleDoubleTap() async {
+    // A fiamma gia' accesa il doppio tocco non fa niente e il voto resta:
+    // nessuno ripete lo stesso gesto per disfare quello che ha appena fatto.
+    if (ref.read(entryVotedProvider(widget.entry.id))) {
+      return;
     }
+
+    _controller.forward(from: 0);
+    await giveFire(context, ref, widget.entry, voted: true);
   }
 
   @override

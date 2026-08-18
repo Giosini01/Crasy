@@ -274,18 +274,14 @@ class _EntryGridTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final voted =
-        ref.watch(votedEntryIdsProvider).valueOrNull?.contains(entry.id) ??
-        false;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         FireTap(
-          voted: voted,
-          onFire: () => giveFire(context, ref, entry, voted: true),
+          entry: entry,
           child: MediaFrame(
             url: entry.mediaUrl,
+            video: entry.isVideo,
             aspectRatio: 1,
             caption: entry.authorName,
           ),
@@ -294,10 +290,17 @@ class _EntryGridTile extends ConsumerWidget {
         Row(
           children: [
             Expanded(
-              child: Text(
-                '@${entry.authorName}',
-                style: context.texts.labelMedium,
-                overflow: TextOverflow.ellipsis,
+              // Anche qui il nome apre il profilo: chi vede una foto che gli
+              // piace deve poter arrivare a chi l'ha fatta da dove si trova,
+              // senza tornare indietro a cercarla altrove.
+              child: GestureDetector(
+                onTap: () =>
+                    context.push(AppRoutes.userProfileOf(entry.userId)),
+                child: Text(
+                  '@${entry.authorName}',
+                  style: context.texts.labelMedium,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
             VoteButton(entry: entry),

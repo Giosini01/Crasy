@@ -3,6 +3,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
+import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 
 abstract final class ChallengeMapper {
   static Challenge fromFirestore(String id, Map<String, dynamic> data) {
@@ -14,6 +15,7 @@ abstract final class ChallengeMapper {
       scope: ChallengeScope.fromName(data['scope'] as String?),
       place: data['place'] as String? ?? '',
       rules: _stringList(data['rules']),
+      mediaKind: MediaKind.fromName(data['mediaKind'] as String?),
       createdByUsername: data['createdByUsername'] as String? ?? '',
       createdByUserId: data['createdByUserId'] as String? ?? '',
       // Le date sono obbligatorie per il prodotto ma non per il documento: un
@@ -35,6 +37,7 @@ abstract final class ChallengeMapper {
       'scope': challenge.scope.name,
       'place': challenge.place,
       'rules': challenge.rules,
+      'mediaKind': challenge.mediaKind.name,
       'createdByUsername': challenge.createdByUsername,
       'createdByUserId': challenge.createdByUserId,
       'startsAt': Timestamp.fromDate(challenge.startsAt),
@@ -81,6 +84,7 @@ abstract final class ChallengeEntryMapper {
       votes: (data['votes'] as num?)?.toInt() ?? 0,
       isWinner: data['isWinner'] as bool? ?? false,
       moderation: EntryModeration.fromName(data['moderation'] as String?),
+      mediaKind: MediaKind.fromName(data['mediaKind'] as String?),
     );
   }
 
@@ -100,6 +104,7 @@ abstract final class ChallengeEntryMapper {
       'authorName': entry.authorName,
       'mediaUrl': entry.mediaUrl,
       'storagePath': entry.storagePath,
+      'mediaKind': entry.mediaKind.name,
       'votes': 0,
       // Con il controllo acceso la foto nasce in attesa e la vede solo chi
       // l'ha mandata, finche' il server non l'ha guardata. Spento, nasce
