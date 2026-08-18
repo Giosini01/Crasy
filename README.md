@@ -213,6 +213,39 @@ L'app e' in italiano. Restano in inglese il nome e la tagline, che sono marchio.
 
 ---
 
+## Dov'e'
+
+**https://crasy.web.app**
+
+Sta su Firebase Hosting, che e' gratis sul piano che il progetto ha gia'. Prima
+girava su un tunnel temporaneo, e l'indirizzo cambiava a ogni riavvio: per una
+app in cui le gare durano ventiquattro ore, un indirizzo che puo' morire nel
+mezzo non e' un dettaglio.
+
+Il dominio e' fra quelli autorizzati per l'accesso: senza, i link di conferma
+dell'email arriverebbero e non funzionerebbero.
+
+### Installarla sul telefono
+
+Non c'e' negozio, e per adesso non serve: e' una **PWA**, cioe' si installa
+dalla pagina.
+
+- **iPhone**: aprire l'indirizzo con Safari (non Chrome — su iOS solo Safari sa
+  installare), poi *Condividi → Aggiungi alla schermata Home*.
+- **Android**: Chrome propone *Installa app* da solo; altrimenti *menu →
+  Aggiungi alla schermata Home*.
+
+Da li' in poi e' un'icona come le altre: si apre a tutto schermo, senza barra
+del browser. La fotocamera funziona, l'accesso resta salvato.
+
+Quello che una PWA **non** fa e' arrivare con una notifica quando l'app e'
+chiusa — su iOS le notifiche web hanno ancora dei limiti — ed e' il motivo per
+cui prima o poi servira' l'app vera. Per l'App Store servono un Mac e un account
+sviluppatore Apple; per il Play Store basta questo computer con l'SDK Android
+installato.
+
+---
+
 ## Farla partire
 
 ```bash

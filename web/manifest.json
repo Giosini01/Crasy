@@ -1,10 +1,10 @@
-﻿{
+{
     "name": "CRASY",
     "short_name": "CRASY",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FFFFFF",
-    "theme_color": "#FF2D1A",
+    "theme_color": "#FA0000",
     "description": "Challenge con foto e video e premi in denaro. DO SOMETHING CRAZY.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,

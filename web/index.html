@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="CRASY">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 
   <link rel="icon" type="image/png" href="favicon.png"/>
 
@@ -51,27 +51,16 @@
   </style>
 </head>
 <body>
-  <script>
-    // Le build di prova si compilano di continuo: un service worker rimasto
-    // registrato da una visita precedente continuerebbe a servire la versione
-    // vecchia anche quando il server manda quella nuova. Qui lo si disiscrive
-    // e si svuota la sua cache, cosi' il problema si risolve da solo.
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function (registrations) {
-        registrations.forEach(function (registration) {
-          registration.unregister();
-        });
-      });
-    }
+  <!-- Il service worker di Flutter resta acceso, e prima non lo era.
+       Durante le prove sul tunnel veniva disiscritto a ogni caricamento: le
+       build si susseguivano di continuo e la copia in cache serviva la versione
+       di mezz'ora prima. Su un indirizzo stabile il conto si rovescia — e' cio'
+       che rende CRASY installabile sul telefono e ne fa un'app che si apre
+       subito invece di una pagina che si scarica ogni volta.
 
-    if (window.caches) {
-      caches.keys().then(function (keys) {
-        keys.forEach(function (key) {
-          caches.delete(key);
-        });
-      });
-    }
-  </script>
+       Il prezzo e' che dopo un aggiornamento la prima apertura mostra ancora la
+       versione precedente e la seconda quella nuova. E' il funzionamento
+       normale di una app installata, non un difetto da correggere. -->
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
