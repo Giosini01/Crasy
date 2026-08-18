@@ -4,6 +4,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
+import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 
 abstract final class ChallengeMapper {
   static Challenge fromFirestore(String id, Map<String, dynamic> data) {
@@ -26,6 +27,7 @@ abstract final class ChallengeMapper {
       endsAt: _dateOr(data['endsAt'], _epoch),
       participantsCount: (data['participantsCount'] as num?)?.toInt() ?? 0,
       winnerEntryId: data['winnerEntryId'] as String?,
+      prizeStatus: PrizeStatus.fromName(data['prizeStatus'] as String?),
     );
   }
 
@@ -44,6 +46,14 @@ abstract final class ChallengeMapper {
       'endsAt': Timestamp.fromDate(challenge.endsAt),
       'participantsCount': challenge.participantsCount,
       'winnerEntryId': challenge.winnerEntryId,
+      // **Nasce sempre non pagata, qualunque cosa dica chi la crea.**
+      //
+      // Non si scrive `challenge.prizeStatus` di proposito: se il valore
+      // arrivasse da chi chiama, pubblicare una challenge senza pagarla
+      // sarebbe questione di una riga. A muoverlo e' solo il server, quando
+      // Stripe conferma che i soldi sono arrivati. Le regole di Firestore
+      // impongono la stessa cosa dall'altra parte.
+      'prizeStatus': PrizeStatus.unpaid.name,
       'createdAt': FieldValue.serverTimestamp(),
     };
   }

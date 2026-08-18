@@ -323,6 +323,116 @@ per primo: serve una regola qualunque, ma serve che sia sempre la stessa.
 
 ---
 
+## I soldi
+
+Il problema che questo pezzo risolve e' uno solo, ed e' quello che ucciderebbe
+l'app: **le missioni finte**. Uno promette cinquecento euro, dieci persone
+escono di casa e fanno qualcosa di assurdo, e lui non paga. Alla seconda volta
+la voce gira, e l'unica cosa che CRASY promette — che i soldi ci siano davvero —
+non vale piu' niente.
+
+La risposta e' che **i soldi si pagano prima**, e li tiene CRASY:
+
+1. Si crea la challenge. Nasce `prizeStatus: unpaid` e **non si vede da nessuna
+   parte**, nemmeno a chi l'ha scritta. Non e' una bozza: e' una challenge che
+   non esiste.
+2. Si paga su una pagina di Stripe. I numeri di carta non passano mai da CRASY —
+   e' la differenza fra dover rispettare lo standard PCI e non doverlo fare.
+3. Stripe ci richiama, la challenge passa a `held` e **il cronometro riparte da
+   quel momento**: chi ha impiegato dieci minuti a trovare la carta non deve
+   trovarsi una gara di ventiquattro ore che ne dura ventitre e cinquanta.
+4. Alla chiusura il server proclama il vincitore e fa partire il premio meno la
+   percentuale. Se non ha partecipato nessuno, il premio **torna indietro
+   intero**, commissioni comprese: sono pochi euro, e sono la differenza fra
+   "non e' andata" e "mi hanno tenuto dei soldi per niente".
+5. Il vincitore incassa. La prima volta deve registrarsi con nome, documento e
+   IBAN: e' la legge sull'antiriciclaggio, vale per chiunque riceva denaro, e
+   nessuna app la puo' saltare.
+
+### I conti
+
+Su un premio di 500 euro:
+
+| Voce | Quanto |
+| --- | --- |
+| Paga chi lancia | 507,87 |
+| Va al vincitore | 450,00 |
+| Trattiene CRASY | 50,00 (10%) |
+| Trattiene Stripe | 7,87 (1,5% + 25 cent) |
+
+Le commissioni le paga **chi lancia, in aggiunta**, e non si scalano dal premio.
+La ragione non e' contabile: cosi' il numero grande scritto in home e' vero.
+Scalandole, una challenge da 500 ne pagherebbe 442, e sarebbe di nuovo un premio
+annunciato diverso da quello che arriva — la cosa che l'escrow serve a togliere.
+
+Il conto e' meno ovvio di quanto sembri, perche' Stripe prende la sua
+percentuale **sull'importo addebitato**, che contiene la commissione stessa:
+aggiungere l'1,5% del premio lascerebbe scoperto l'1,5% dell'1,5%. Si risolve al
+contrario, cercando l'addebito il cui netto e' esattamente il premio. Sta scritto
+in [`prize_ledger.dart`](lib/features/payments/domain/prize_ledger.dart), con le
+prove che il montepremi arriva intero su ogni cifra da 5 euro a un milione.
+
+Gli stessi conti sono scritti una seconda volta in `functions/payments.js`, in
+JavaScript. **Non e' una svista**: il telefono deve poter dire "paghi 507,87"
+senza chiamare il server a ogni tasto, e il server non deve fidarsi di quello che
+dice il telefono. Qui si calcola per mostrare, li' per addebitare.
+
+### Perche' Stripe Connect e non dei bonifici
+
+Tenere i soldi di altre persone in attesa di darli a terzi e' un'attivita'
+regolamentata. Con Connect **l'istituto di pagamento e' Stripe**, non noi: CRASY
+resta una piattaforma che incassa una commissione. Facendolo a mano, con un
+conto corrente e dei bonifici, servirebbe una licenza.
+
+### Adesso e' spento
+
+Come il controllo sulle foto, e per motivi che si sommano:
+
+- le Cloud Function richiedono il **piano Blaze** su Firebase;
+- Stripe richiede un **account** e una **partita IVA**;
+- e va deciso il nodo legale, vedi sotto.
+
+Con l'interruttore spento CRASY si comporta come si e' sempre comportata: il
+premio e' un patto fra chi lo mette e chi partecipa, e la schermata di creazione
+lo dice apertamente invece di far finta di niente. Accendendolo **prima** che
+Stripe esista, ogni challenge diventerebbe invisibile: nascono tutte non pagate,
+e non ci sarebbe niente in grado di pagarle.
+
+Per accenderlo:
+
+```sh
+# 1. Le chiavi, in Secret Manager e non nel codice
+firebase functions:secrets:set STRIPE_SECRET_KEY
+firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
+
+# 2. Le funzioni (serve il piano Blaze)
+firebase deploy --only functions
+
+# 3. Su Stripe: un webhook verso l'indirizzo di `stripeWebhook`, con gli eventi
+#    checkout.session.completed, charge.refunded, account.updated
+
+# 4. Togliere dal commento la riga marcata in firestore.rules, che impedisce di
+#    partecipare a una challenge non pagata
+firebase deploy --only firestore:rules
+
+# 5. L'app
+flutter build web --release --dart-define=CRASY_PAYMENTS=true
+```
+
+### Il nodo legale, detto prima e non dopo
+
+In Italia un premio in denaro assegnato **per voto del pubblico** rischia di
+rientrare nei concorsi a premi (DPR 430/2001), che richiedono regolamento
+depositato, cauzione e un funzionario che verifica l'assegnazione. L'esenzione
+esiste quando il premio remunera una prestazione d'opera valutata sul merito, ed
+e' discutibile che delle fiamme siano una valutazione di merito.
+
+**Vale mezz'ora di un avvocato prima di incassare il primo euro, non dopo.** Il
+codice e' scritto e funziona; questa e' l'unica cosa che il codice non puo'
+risolvere.
+
+---
+
 ## Test
 
 ```bash
@@ -341,10 +451,12 @@ fino alla prima challenge sullo schermo.
 
 Detto chiaramente, perche' un README che tace su questo fa perdere tempo:
 
-- **Il pagamento dei premi.** Il vincitore viene proclamato; il bonifico no.
-  Chi lancia una challenge paga di tasca propria e CRASY non fa da garante: la
-  schermata di creazione lo dice, ma resta un patto sulla fiducia. E' il buco
-  piu' grosso che il prodotto ha adesso.
+- **Il pagamento dei premi e' scritto ma spento.** Il giro completo — incasso,
+  soldi trattenuti, accredito al vincitore, rimborso se non partecipa nessuno —
+  c'e' tutto (vedi *I soldi*), e gli mancano tre cose che il codice non puo'
+  darsi da solo: il piano Blaze, un account Stripe con partita IVA, e una
+  risposta al nodo legale dei concorsi a premi. Finche' e' spento, chi lancia
+  una challenge paga di tasca propria e CRASY non fa da garante.
 - **Moderazione delle challenge.** Chiunque abbia un account puo' lanciarne una
   e promettere qualunque cifra. Le regole controllano che il documento sia ben
   formato, non che dietro ci siano davvero i soldi — nessuna regola di database

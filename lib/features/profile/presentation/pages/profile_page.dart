@@ -13,6 +13,8 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/onboarding/presentation/utils/onboarding_validators.dart';
+import 'package:crasy/features/payments/presentation/providers/payments_providers.dart';
+import 'package:crasy/features/payments/presentation/widgets/prize_to_claim.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/controllers/profile_edit_controller.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
@@ -59,6 +61,8 @@ class ProfilePage extends ConsumerWidget {
                 return const SizedBox.shrink();
               }
 
+              final toClaim = ref.watch(unclaimedPrizesProvider);
+
               return ListView(
                 padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
                 children: [
@@ -68,7 +72,23 @@ class ProfilePage extends ConsumerWidget {
                     ),
                     child: _Identity(profile: profile),
                   ),
-                  const SizedBox(height: AppSpacing.xl),
+                  const SizedBox(height: AppSpacing.lg),
+                  // I premi da incassare stanno **prima** dei numeri: sono
+                  // l'unica cosa di questa schermata che costa qualcosa a chi
+                  // la ignora.
+                  if (toClaim.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.page,
+                      ),
+                      child: Column(
+                        children: [
+                          for (final challenge in toClaim)
+                            PrizeToClaim(challenge: challenge),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: AppSpacing.md),
                   _Stats(
                     entries: entries.length,
                     wins: wins.length,

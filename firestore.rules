@@ -225,6 +225,21 @@ service cloud.firestore {
                     // il tempo, il vincitore lo proclama il server.
                     && request.resource.data.participantsCount == 0
                     && request.resource.data.winnerEntryId == null
+                    // **E nasce non pagata.**
+                    //
+                    // E' la riga che regge l'intero impianto dei soldi. Il
+                    // premio diventa `held` solo quando Stripe conferma
+                    // l'incasso, e quella conferma arriva a una funzione sul
+                    // server che scrive con l'SDK di amministrazione — che
+                    // queste regole non le attraversa nemmeno.
+                    //
+                    // Senza questa riga, pubblicare una challenge da mille euro
+                    // senza tirare fuori un centesimo sarebbe una parola
+                    // cambiata in una scrittura sul database. Con questa riga,
+                    // e' impossibile: non esiste nessun percorso che porti un
+                    // telefono a scrivere `held`.
+                    && request.resource.data.get('prizeStatus', 'unpaid')
+                       == 'unpaid'
                     && request.resource.data.startsAt is timestamp
                     && request.resource.data.endsAt is timestamp
                     && request.resource.data.endsAt > request.resource.data.startsAt
@@ -237,6 +252,10 @@ service cloud.firestore {
       // L'unica cosa che il client puo' toccare e' il contatore dei
       // partecipanti, e solo per farlo salire di uno: e' la transazione con cui
       // nasce una partecipazione.
+      //
+      // In particolare **non puo' toccare `prizeStatus`**, ed e' il `changedOnly`
+      // qui sotto a impedirlo: qualunque scrittura che sfiori un secondo campo
+      // viene rifiutata, senza bisogno di elencare uno per uno i campi vietati.
       allow update: if signedIn()
                     && changedOnly(['participantsCount'])
                     && request.resource.data.participantsCount
@@ -290,6 +309,19 @@ service cloud.firestore {
                          in ['pending', 'approved']
                       // La vittoria non si porta da casa: la scrive il server.
                       && !('isWinner' in request.resource.data)
+                      // IL GIORNO IN CUI I PAGAMENTI SI ACCENDONO, questa riga
+                      // va tolta dal commento:
+                      //
+                      //   && challenge().get('prizeStatus', 'unpaid') == 'held'
+                      //
+                      // Impedisce di partecipare a una challenge il cui premio
+                      // non e' stato incassato. Oggi rifiuterebbe **tutte** le
+                      // partecipazioni — nessuna challenge e' mai stata pagata,
+                      // perche' non esiste ancora niente che possa pagarla — e
+                      // l'app smetterebbe di funzionare in silenzio.
+                      //
+                      // Sta scritta qui, e non in un appunto altrove, perche'
+                      // e' qui che qualcuno la cerchera'.
                       && challengeIsLive();
 
         // **Una foto sola, e non si cambia.** L'autore non ha nessun permesso

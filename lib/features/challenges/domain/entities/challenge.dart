@@ -1,6 +1,7 @@
 import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
+import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 
 /// Una challenge: una consegna, una scadenza, dei soldi in palio.
 ///
@@ -25,6 +26,7 @@ class Challenge {
     this.createdByUserId = '',
     this.participantsCount = 0,
     this.winnerEntryId,
+    this.prizeStatus = PrizeStatus.unpaid,
   });
 
   final String id;
@@ -79,6 +81,21 @@ class Challenge {
   /// e' stato proclamato. Nulla prima.
   final String? winnerEntryId;
 
+  /// Dove sono i soldi del premio.
+  ///
+  /// Lo scrive il server e nessun altro. E' il campo che separa una challenge
+  /// vera da una promessa: [PrizeStatus.held] vuol dire che quei soldi sono
+  /// gia' stati tolti a qualcuno e stanno fermi fino alla fine della gara.
+  final PrizeStatus prizeStatus;
+
+  /// Se questa challenge si puo' mostrare.
+  ///
+  /// A pagamenti spenti si mostra tutto, perche' non esiste ancora niente che
+  /// possa pagare una challenge e nasconderle tutte vorrebbe dire un'app vuota.
+  /// Acceso l'interruttore, una challenge non pagata non compare da nessuna
+  /// parte — nemmeno a chi l'ha scritta, che la ritrova solo pagando.
+  bool get isPayable => !paymentsEnabled || prizeStatus.isVisible;
+
   /// Il premio gia' scritto: `€500`.
   String get prizeLabel => AppMoney.format(prizeCents);
 
@@ -126,6 +143,7 @@ class Challenge {
     DateTime? endsAt,
     int? participantsCount,
     String? winnerEntryId,
+    PrizeStatus? prizeStatus,
   }) {
     return Challenge(
       id: id ?? this.id,
@@ -142,6 +160,7 @@ class Challenge {
       endsAt: endsAt ?? this.endsAt,
       participantsCount: participantsCount ?? this.participantsCount,
       winnerEntryId: winnerEntryId ?? this.winnerEntryId,
+      prizeStatus: prizeStatus ?? this.prizeStatus,
     );
   }
 
@@ -164,7 +183,8 @@ class Challenge {
         other.startsAt == startsAt &&
         other.endsAt == endsAt &&
         other.participantsCount == participantsCount &&
-        other.winnerEntryId == winnerEntryId;
+        other.winnerEntryId == winnerEntryId &&
+        other.prizeStatus == prizeStatus;
   }
 
   @override
@@ -182,5 +202,6 @@ class Challenge {
     endsAt,
     participantsCount,
     winnerEntryId,
+    prizeStatus,
   );
 }

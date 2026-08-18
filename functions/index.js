@@ -11,6 +11,15 @@ admin.initializeApp();
 
 const db = admin.firestore();
 
+// I soldi stanno in un file a parte, e le sue funzioni si esportano da qui:
+// tutto quello che tocca denaro si legge in un posto solo.
+const payments = require('./payments');
+
+exports.startChallengePayment = payments.startChallengePayment;
+exports.stripeWebhook = payments.stripeWebhook;
+exports.createPayoutOnboarding = payments.createPayoutOnboarding;
+exports.claimPrize = payments.claimPrize;
+
 // Stessa regione del database: una funzione che scrive su Firestore va dove sta
 // il database, altrimenti ogni scrittura fa un giro per mezzo mondo.
 setGlobalOptions({ region: 'europe-west8', maxInstances: 10 });
@@ -157,6 +166,10 @@ async function closeChallenge(challenge) {
     // Nessuno ha partecipato. Si marca lo stesso, con la stringa vuota, per non
     // riprovare a chiuderla ogni cinque minuti da qui all'eternita'.
     await challenge.ref.update({ winnerEntryId: '' });
+
+    // E il premio torna a chi l'aveva messo. Non c'e' nessuno a cui darlo, e
+    // tenerlo sarebbe rubare.
+    await payments.refundChallenge(challenge.id);
     logger.info(`Challenge ${challenge.id} chiusa senza partecipanti.`);
 
     return;
@@ -175,6 +188,7 @@ async function closeChallenge(challenge) {
 
   if (eligible.length === 0) {
     await challenge.ref.update({ winnerEntryId: '' });
+    await payments.refundChallenge(challenge.id);
     logger.info(`Challenge ${challenge.id} chiusa: nessuna foto ammessa.`);
 
     return;
@@ -198,8 +212,15 @@ async function closeChallenge(challenge) {
   // Le due scritture vanno insieme: una challenge che indica un vincitore che
   // non si sa di essere stato proclamato, o viceversa, e' il tipo di stato che
   // poi nessuno sa piu' come rimettere a posto.
+  // `winnerUserId` accanto a `winnerEntryId` sembra un doppione e non lo e':
+  // e' il campo su cui il pagamento cerca chi deve incassare. Ricavarlo ogni
+  // volta dalla partecipazione vorrebbe dire, per pagare qualcuno, leggere un
+  // documento dentro una sottocollezione partendo dal nulla.
   const batch = db.batch();
-  batch.update(challenge.ref, { winnerEntryId: winner.id });
+  batch.update(challenge.ref, {
+    winnerEntryId: winner.id,
+    winnerUserId: winner.get('userId') || null,
+  });
   batch.update(winner.ref, { isWinner: true });
   await batch.commit();
 
@@ -207,4 +228,14 @@ async function closeChallenge(challenge) {
     `Challenge ${challenge.id}: vince ${winner.id} con ` +
       `${winner.get('votes') || 0} voti.`
   );
+
+  // Il premio parte subito. Nella maggior parte dei casi non arrivera' — il
+  // vincitore non ha ancora un conto su cui riceverlo — e va benissimo: la
+  // funzione lo dice e non fa danni, e i soldi ripartono da soli appena si
+  // registra.
+  try {
+    await payments.payWinner(challenge.id);
+  } catch (error) {
+    logger.error(`Challenge ${challenge.id}: premio non pagato.`, error);
+  }
 }

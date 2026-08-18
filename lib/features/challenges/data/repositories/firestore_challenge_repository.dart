@@ -55,9 +55,18 @@ class FirestoreChallengeRepository implements ChallengeRepository {
         .map((snapshot) {
           final now = DateTime.now();
 
-          return _challengesFrom(
-            snapshot,
-          ).where((challenge) => !challenge.isUpcomingAt(now)).toList();
+          // Il filtro sul pagamento si fa qui e non nella query, e non e' una
+          // pigrizia: una `where` su `prizeStatus` **salterebbe i documenti che
+          // quel campo non ce l'hanno**, cioe' tutte le challenge scritte prima
+          // che i pagamenti esistessero. A pagamenti spenti sparirebbero tutte
+          // insieme, e la home resterebbe vuota senza un errore da nessuna
+          // parte. `isPayable` sa gia' cosa fare in tutti e due i casi.
+          return _challengesFrom(snapshot)
+              .where(
+                (challenge) =>
+                    !challenge.isUpcomingAt(now) && challenge.isPayable,
+              )
+              .toList();
         });
   }
 
@@ -68,7 +77,11 @@ class FirestoreChallengeRepository implements ChallengeRepository {
         .orderBy('endsAt', descending: true)
         .limit(50)
         .snapshots()
-        .map(_challengesFrom);
+        .map(
+          (snapshot) => _challengesFrom(
+            snapshot,
+          ).where((challenge) => challenge.isPayable).toList(),
+        );
   }
 
   @override
