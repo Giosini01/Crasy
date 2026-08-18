@@ -50,6 +50,41 @@ class CrasyWordmark extends StatelessWidget {
   }
 }
 
+/// L'intestazione di una scheda: il marchio a sinistra, un comando a destra.
+///
+/// **Esiste per una ragione sola: tenere il logotipo nello stesso punto in
+/// tutte e quattro le schede.** Sembra scontato e non lo era: nella home il
+/// marchio stava in una riga insieme al bottone "+", e un `IconButton` occupa
+/// quarantotto punti di altezza. La riga cresceva, il logotipo si centrava
+/// dentro di essa e finiva **dieci punti piu' in basso** che nelle altre
+/// schermate — impossibile da spiegare guardando il codice di una pagina sola,
+/// evidentissimo passando da una scheda all'altra.
+///
+/// Ora l'altezza e' fissa e la decide questo widget, non il bottone che ci
+/// finisce dentro: con o senza comando a destra, il segno si posa sempre alla
+/// stessa quota.
+class CrasyHeader extends StatelessWidget {
+  const CrasyHeader({this.action, super.key});
+
+  /// Il comando a destra, se la scheda ne ha uno. Solo la home ce l'ha.
+  final Widget? action;
+
+  /// Quanto e' alta la riga.
+  ///
+  /// Piu' del logotipo, e non per gusto: quarantaquattro punti sono la misura
+  /// minima di una cosa che si tocca con un dito. Il marchio ci sta in mezzo,
+  /// il bottone ci sta comodo, e nessuna delle due cose muove l'altra.
+  static const double height = 44;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      child: Row(children: [const CrasyWordmark(), const Spacer(), ?action]),
+    );
+  }
+}
+
 /// Il titolo di una schermata, con il punto rosso in fondo.
 ///
 /// Il punto e' lo stesso segno che chiude il logotipo, ed e' l'unico posto in

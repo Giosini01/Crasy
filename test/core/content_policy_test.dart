@@ -110,4 +110,84 @@ void main() {
       isNull,
     );
   });
+
+  group('non si aggira travestendo le parole', () {
+    test('i numeri al posto delle lettere non salvano', () {
+      expect(
+        ContentPolicy.check('ucc1d1t1 per 500 euro'),
+        ContentPolicy.selfHarm,
+      );
+      expect(ContentPolicy.check('sp0gl14t1 in strada'), ContentPolicy.sexual);
+    });
+
+    test('le lettere ripetute nemmeno', () {
+      expect(
+        ContentPolicy.check('Spogliaaaati e scatta'),
+        ContentPolicy.sexual,
+      );
+      expect(ContentPolicy.check('Ucciiiiditi'), ContentPolicy.selfHarm);
+    });
+
+    test('le lettere spaziate nemmeno, sulle cose piu\' gravi', () {
+      expect(
+        ContentPolicy.check('t a g l i a t i  l e  v e n e'),
+        ContentPolicy.selfHarm,
+      );
+      expect(ContentPolicy.check('u.c.c.i.d.i.t.i'), ContentPolicy.selfHarm);
+    });
+
+    test('ma le doppie restano doppie', () {
+      // Schiacciare le ripetizioni a una sola lettera avrebbe reso "ucciditi"
+      // un "uciditi" che nessun elenco riconosce piu': si schiacciano a due.
+      expect(ContentPolicy.check('Ucciditi'), ContentPolicy.selfHarm);
+    });
+  });
+
+  group('le categorie nuove', () {
+    test('i reati', () {
+      expect(
+        ContentPolicy.check('Ruba qualcosa dal negozio'),
+        ContentPolicy.crime,
+      );
+      expect(ContentPolicy.check('Vendi droga in piazza'), ContentPolicy.crime);
+    });
+
+    test('gli insulti', () {
+      expect(
+        ContentPolicy.check('Sei un ritardato, fotografati'),
+        ContentPolicy.hate,
+      );
+    });
+
+    test('il sesso detto in altri modi', () {
+      expect(ContentPolicy.check('Foto in mutande'), ContentPolicy.sexual);
+      expect(ContentPolicy.check('Una foto sexy'), ContentPolicy.sexual);
+      expect(ContentPolicy.check('Mandaci un topless'), ContentPolicy.sexual);
+    });
+
+    test('la violenza sugli animali', () {
+      expect(
+        ContentPolicy.check('Dai calci al cane del vicino'),
+        ContentPolicy.violence,
+      );
+    });
+  });
+
+  group('e continua a non essere isterico', () {
+    const allowed = [
+      'Fotografa il tramonto piu\' bello della citta\'',
+      'Il piatto piu\' assurdo che sai cucinare',
+      'Scatta con uno sconosciuto per strada',
+      'La maglietta piu\' brutta che hai nell\'armadio',
+      'Fai ridere qualcuno e riprendilo',
+      'Il palazzo piu\' alto che vedi dal tuo balcone',
+      'Vestiti come negli anni ottanta',
+    ];
+
+    for (final text in allowed) {
+      test('lascia passare: "$text"', () {
+        expect(ContentPolicy.check(text), isNull);
+      });
+    }
+  });
 }

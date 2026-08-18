@@ -8,12 +8,26 @@
 ///
 /// ## Cosa fa e cosa non fa
 ///
-/// E' un elenco di parole. Ferma **il caso esplicito**, che e' anche il piu'
-/// probabile: qualcuno che scrive una cosa del genere per gioco o per provocare.
-/// Non ferma chi cerca di aggirarlo, e non capisce il contesto — "questo film mi
-/// ha ucciso" e' innocuo, e questa funzione non lo sa.
+/// E' un elenco di parole, e va detto subito cosa **non** e': non capisce il
+/// contesto. "Questo film mi ha ucciso" e' innocuo e questa funzione non lo sa.
+/// Ferma il caso esplicito — che e' anche il piu' probabile — e i modi piu'
+/// ovvi di travestirlo.
 ///
-/// Quindi **non e' la moderazione**: e' la prima delle tre porte.
+/// Contro chi prova ad aggirarla fa tre cose, e sono l'aggiunta che conta piu'
+/// dell'elenco stesso:
+///
+/// - **legge i numeri come lettere**: `ucc1d1t1` e' `ucciditi`;
+/// - **schiaccia le lettere ripetute**: `spogliaaaati` e' `spogliati`;
+/// - **rilegge tutto senza spazi**: `t a g l i a t i   l e   v e n e` diventa
+///   una parola sola, e le espressioni piu' gravi si riconoscono anche cosi'.
+///
+/// L'ultimo passaggio si applica solo a un elenco scelto a mano e non a tutte
+/// le parole, ed e' voluto: togliendo gli spazi "che **la metta** in posa"
+/// diventa "chelamettainposa", e un elenco che contenesse `lametta` boccerebbe
+/// una challenge innocua. **Un filtro che si arrabbia con chi non ha fatto
+/// niente perde la fiducia di tutti, e finisce disattivato.**
+///
+/// Resta la prima delle tre porte:
 ///
 /// 1. qui, subito, prima ancora di scrivere sul database;
 /// 2. le regole di Firestore, che rifiutano i casi piu' espliciti anche se
@@ -57,28 +71,43 @@ abstract final class ContentPolicy {
     'Niente insulti o attacchi a una persona o a un gruppo.',
   );
 
-  /// Le espressioni che fanno scattare ogni categoria.
+  static const crime = ContentViolation._(
+    'reato',
+    'Questa challenge chiede di commettere un reato. Non si puo\'.',
+  );
+
+  /// I frammenti che fanno scattare ogni categoria.
   ///
-  /// Sono scritte come frammenti perche' l'italiano coniuga: `ammazzat` prende
-  /// "ammazzati" e "ammazzatevi". Il prezzo sono i falsi positivi — una parola
-  /// dentro un'altra parola — che si paga volentieri: rifiutare per sbaglio una
+  /// Sono frammenti e non parole intere perche' l'italiano coniuga: `ammazzat`
+  /// prende "ammazzati" e "ammazzatevi", `spogliat` prende "spogliati" e
+  /// "spogliatevi". Il prezzo sono i falsi positivi — un frammento dentro
+  /// un'altra parola — e si paga volentieri: rifiutare per sbaglio una
   /// challenge innocua costa a chi la scrive trenta secondi, lasciar passare
   /// "tagliati le vene" costa molto di piu'.
-  static const Map<ContentViolation, List<String>> _patterns = {
+  static const Map<ContentViolation, List<String>> _fragments = {
     selfHarm: [
       'suicid',
-      'suicidi',
+      'suicide',
       'ammazzat',
       'uccidit',
       'uccidet',
+      'uccidersi',
       'tagliati le vene',
       'tagliarsi le vene',
       'tagliati i polsi',
+      'tagliati le braccia',
+      'taglia le vene',
+      'incidersi',
+      'inciditi',
       'fine alla tua vita',
       'fine alla vita',
       'farla finita',
+      'togliti la vita',
+      'togliersi la vita',
       'impiccat',
       'impiccar',
+      'strangolati',
+      'soffocati',
       'autolesion',
       'fatti del male',
       'farti del male',
@@ -87,76 +116,175 @@ abstract final class ContentPolicy {
       'ferisciti',
       'feritevi',
       'bruciati',
+      'bruciarsi',
+      'ustionat',
       'affogat',
+      'annegat',
       'buttati di sotto',
       'buttarsi di sotto',
+      'buttati giu dal',
       'lanciati dal',
       'salta dal balcone',
       'salta dalla finestra',
+      'salta dal ponte',
+      'sotto il treno',
+      'davanti al treno',
       'overdose',
       'bevi la candeggina',
-      'ingoia',
+      'bevi la varechina',
+      'bevi il detersivo',
+      'ingoia le pillole',
+      'digiuna per',
+      'non mangiare per',
+      'vomita dopo',
       'kill yourself',
       'kys',
       'self harm',
-      'suicide',
       'cut yourself',
     ],
     violence: [
       'picchia',
+      'picchiare',
       'menare qualcuno',
+      'prendi a pugni',
+      'prendere a pugni',
+      'prendi a calci',
+      'dai uno schiaffo',
+      'schiaffeggia',
       'accoltell',
+      'coltello a qualcuno',
       'spara a',
+      'sparare a',
       'aggredisci',
       'aggredire qualcuno',
       'ammazza il',
       'ammazza la',
+      'ammazza un',
       'uccidi ',
+      'uccidere un',
+      'uccidere il',
+      'ucciso un',
       'torturare',
       'tortura ',
       'sfregia',
       'maltratta',
+      'seviz',
       'investi con l',
+      'investi qualcuno',
       'dai fuoco a',
+      'da fuoco a',
+      'incendia',
+      'stupr',
+      'violenta qualcuno',
+      'molesta',
+      'calci al cane',
+      'calci al gatto',
+      'fai male a un animale',
+      'uccidi un animale',
       'beat someone',
-      'stab',
+      'stab someone',
       'shoot someone',
+      'punch someone',
     ],
     sexual: [
       'nud',
-      'nuda',
-      'nudo',
       'spogliat',
       'spogliar',
       'senza vestiti',
-      'mutande',
+      'senza mutande',
+      'senza reggiseno',
+      'in mutande',
       'intimo addosso',
+      'biancheria intima',
+      'reggiseno',
+      'perizoma',
+      'topless',
       'seno scoperto',
       'genital',
       'porno',
+      'pornograf',
       'masturb',
       'atto sessuale',
       'rapporto sessuale',
-      'nude',
+      'sessual',
+      'erotic',
+      'a luci rosse',
+      'hard core',
+      'hardcore',
+      'onlyfans',
+      'escort',
+      'prostitu',
+      'lap dance',
+      'pole dance in mutande',
+      'orgasm',
+      'sexy',
+      'sotto la doccia',
+      'in doccia',
+      'nella vasca senza',
       'naked',
       'nsfw',
-      'strip',
+      'strip tease',
+      'striptease',
     ],
     danger: [
       'guida ubriac',
       'guidare ubriac',
+      'guida bendato',
       'contromano',
       'attraversa i binari',
       'sui binari',
       'sul cornicione',
+      'sul cornicion',
       'sul tetto del treno',
+      'sul tetto del palazzo',
       'appeso fuori dal',
+      'fuori dal finestrino',
       'in mezzo alla strada',
+      'in mezzo all autostrada',
+      'davanti alle auto',
+      'sui cavi dell alta tensione',
       'pastiglie',
       'farmaci a caso',
+      'mischia i farmaci',
       'benzina addosso',
+      'fuoco addosso',
+      'mangia fuoco',
+      'bevi tutto d un fiato',
+      'un litro di vodka',
+      'bottiglia di superalcolico',
       'gioco del soffocamento',
       'trattieni il respiro finche',
+      'sotto il ghiaccio',
+      'con la corrente',
+      'senza casco a',
+      'sul cofano in corsa',
+      'aggrappati al bus',
+      'aggrappati al tram',
+    ],
+    crime: [
+      'ruba ',
+      'rubare qualcosa',
+      'rubare in negozio',
+      'taccheggio',
+      'scippa',
+      'borseggia',
+      'entra in casa di',
+      'spacca il vetro',
+      'spacca la vetrina',
+      'vandalizza',
+      'incendia il',
+      'vendi droga',
+      'spaccia',
+      'cocain',
+      'eroina',
+      'metanfetamin',
+      'compra la droga',
+      'guida senza patente',
+      'clona la carta',
+      'foto di un documento altrui',
+      'foto della carta di credito',
+      'pedofil',
+      'shoplift',
     ],
     hate: [
       'sei un ritardat',
@@ -166,25 +294,134 @@ abstract final class ContentPolicy {
       'zingar',
       'terron',
       'handicappat',
+      'mongoloid',
       'ebrei di merda',
+      'musulmani di merda',
+      'tornatene al tuo paese',
+      'razza inferiore',
     ],
+  };
+
+  /// Le parole che valgono **solo se sono parole intere**.
+  ///
+  /// Alcune sono troppo corte o troppo dentro ad altre per essere cercate come
+  /// frammento: `pene` sta dentro "penetrare", `sesso` dentro "professo",
+  /// `strip` dentro "striptease". Cercarle intere le prende dove contano senza
+  /// bocciare mezzo dizionario.
+  static const Map<ContentViolation, List<String>> _words = {
+    sexual: [
+      'sesso',
+      'pene',
+      'vagina',
+      'tette',
+      'culo',
+      'strip',
+      'nude',
+      'sex',
+      'porn',
+    ],
+    violence: ['stab', 'uccidi', 'ammazza', 'spara', 'sgozza'],
+    selfHarm: ['vene', 'polsi'],
+    crime: ['droga', 'ruba', 'rubare'],
+  };
+
+  /// Le espressioni riconosciute **anche senza spazi**.
+  ///
+  /// Servono contro il trucco piu' banale che esista: scrivere
+  /// `t a g l i a t i  l e  v e n e`, oppure `uccidi.ti`. Sono poche e scelte a
+  /// mano, perche' cercare tutto l'elenco senza spazi produce disastri —
+  /// "che **la metta** in posa" diventa "chelamettainposa" e conterrebbe
+  /// "lametta".
+  ///
+  /// Qui ci stanno solo espressioni che, attaccate, non capitano per caso
+  /// dentro una frase italiana.
+  static const Map<ContentViolation, List<String>> _evasions = {
+    selfHarm: [
+      'suicidati',
+      'suicidio',
+      'ucciditi',
+      'ammazzati',
+      'impiccati',
+      'tagliatilevene',
+      'tagliatiipolsi',
+      'killyourself',
+      'autolesionismo',
+    ],
+    violence: ['accoltella', 'stupra', 'ammazzalo', 'uccidilo', 'torturalo'],
+    sexual: [
+      'spogliati',
+      'masturbati',
+      'pornografia',
+      'nudointegrale',
+      'attosessuale',
+    ],
+    crime: ['pedofilia', 'spacciare'],
+  };
+
+  /// Gli stessi frammenti, con le lettere ripetute schiacciate a una.
+  ///
+  /// Si calcolano una volta sola all'avvio invece che a ogni controllo: e'
+  /// un'operazione su qualche centinaio di parole, e la si farebbe a ogni
+  /// tentativo di salvataggio.
+  static final Map<ContentViolation, List<String>> _collapsedFragments = {
+    for (final entry in _fragments.entries)
+      entry.key: [for (final fragment in entry.value) _collapse(fragment)],
   };
 
   /// La prima violazione trovata in [text], oppure `null` se e' pulito.
   ///
-  /// Il confronto e' su testo minuscolo e senza accenti: chi scrive "UCCIDITI"
-  /// o "uccìditi" sta scrivendo la stessa cosa, e una lista che si fa aggirare
-  /// da un tasto maiuscolo non serve a niente.
+  /// L'ordine dei controlli conta poco per il risultato ma molto per il costo:
+  /// prima i frammenti, che prendono quasi tutto, poi le parole intere, e solo
+  /// alla fine la rilettura senza spazi.
   static ContentViolation? check(String? text) {
     final normalized = _normalize(text ?? '');
 
-    if (normalized.isEmpty) {
+    if (normalized.trim().isEmpty) {
       return null;
     }
 
-    for (final entry in _patterns.entries) {
-      for (final pattern in entry.value) {
-        if (normalized.contains(pattern)) {
+    for (final entry in _fragments.entries) {
+      for (final fragment in entry.value) {
+        if (normalized.contains(fragment)) {
+          return entry.key;
+        }
+      }
+    }
+
+    // Le parole intere si cercano con uno spazio davanti e uno dietro. Il testo
+    // e' gia' stato ripulito: ogni segno di punteggiatura e' diventato uno
+    // spazio, quindi "sesso." e "(sesso)" arrivano qui come parole isolate.
+    final padded = ' ${normalized.trim()} ';
+
+    for (final entry in _words.entries) {
+      for (final word in entry.value) {
+        if (padded.contains(' $word ')) {
+          return entry.key;
+        }
+      }
+    }
+
+    // Terza lettura: le lettere ripetute schiacciate **a una sola**, da tutte
+    // e due le parti. "spogliaaaati" diventa "spogliati", e siccome anche i
+    // frammenti vengono schiacciati allo stesso modo, "spogliat" continua a
+    // riconoscerlo. Si fa in fondo e non all'inizio perche' e' la lettura che
+    // deforma di piu': "nonna" diventa "nona", e va usata solo dopo che le
+    // altre due non hanno trovato niente.
+    final collapsed = _collapse(normalized);
+
+    for (final entry in _collapsedFragments.entries) {
+      for (final fragment in entry.value) {
+        if (collapsed.contains(fragment)) {
+          return entry.key;
+        }
+      }
+    }
+
+    final squeezed = collapsed.replaceAll(' ', '');
+
+    for (final entry in _evasions.entries) {
+      for (final evasion in entry.value) {
+        if (squeezed.contains(evasion)) {
           return entry.key;
         }
       }
@@ -210,6 +447,24 @@ abstract final class ContentPolicy {
     return null;
   }
 
+  /// Le sostituzioni con cui si prova ad aggirare un elenco di parole.
+  ///
+  /// Sono quelle di sempre, e valgono ancora perche' costano niente da fare e
+  /// quasi niente da disfare.
+  static const _lookalikes = {
+    '0': 'o',
+    '1': 'i',
+    '3': 'e',
+    '4': 'a',
+    '5': 's',
+    '7': 't',
+    '8': 'b',
+    '@': 'a',
+    r'$': 's',
+    '!': 'i',
+    'ß': 'b',
+  };
+
   static const _accents = {
     'à': 'a',
     'á': 'a',
@@ -231,13 +486,66 @@ abstract final class ContentPolicy {
     'ú': 'u',
     'û': 'u',
     'ü': 'u',
+    'ç': 'c',
+    'ñ': 'n',
   };
+
+  /// Porta un testo nella forma in cui si puo' confrontare.
+  ///
+  /// Minuscolo, senza accenti, con i numeri riletti come lettere, tutto quello
+  /// che non e' una lettera trasformato in spazio, e le ripetizioni schiacciate
+  /// a due — due e non una, perche' l'italiano le doppie ce le ha davvero e
+  /// `ucciditi` non deve diventare `uciditi`.
+  static final RegExp _letter = RegExp('[a-z]');
+  static final RegExp _spaces = RegExp(' +');
 
   static String _normalize(String text) {
     final buffer = StringBuffer();
 
     for (final char in text.toLowerCase().split('')) {
-      buffer.write(_accents[char] ?? char);
+      final letter = _accents[char] ?? _lookalikes[char] ?? char;
+
+      buffer.write(_letter.hasMatch(letter) ? letter : ' ');
+    }
+
+    return _squashRepeats(buffer.toString()).replaceAll(_spaces, ' ');
+  }
+
+  /// Schiaccia ogni ripetizione a una sola lettera: `spogliaaaati` diventa
+  /// `spogliati`, e anche `spogliati` resta `spogliati`.
+  static String _collapse(String text) {
+    final buffer = StringBuffer();
+    String? previous;
+
+    for (final char in text.split('')) {
+      if (char != previous) {
+        buffer.write(char);
+      }
+
+      previous = char;
+    }
+
+    return buffer.toString();
+  }
+
+  static String _squashRepeats(String text) {
+    final buffer = StringBuffer();
+    var previous = '';
+    var run = 0;
+
+    for (final char in text.split('')) {
+      if (char == previous) {
+        run++;
+
+        if (run >= 2) {
+          continue;
+        }
+      } else {
+        run = 0;
+        previous = char;
+      }
+
+      buffer.write(char);
     }
 
     return buffer.toString();

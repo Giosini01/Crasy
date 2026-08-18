@@ -4,8 +4,10 @@ import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/features/challenges/presentation/pages/challenges_page.dart';
 import 'package:crasy/features/challenges/presentation/pages/winners_page.dart';
 import 'package:crasy/features/friends/presentation/pages/friends_page.dart';
+import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/profile/presentation/pages/profile_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 /// L'impalcatura con le quattro schede.
@@ -109,7 +111,7 @@ class _NavBar extends StatelessWidget {
   }
 }
 
-class _NavItem extends StatelessWidget {
+class _NavItem extends ConsumerWidget {
   const _NavItem({
     required this.tab,
     required this.active,
@@ -121,21 +123,36 @@ class _NavItem extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
     final color = active ? palette.accent : palette.textFaint;
+
+    // Il numero sopra l'icona esiste per una sola scheda, ed e' quella degli
+    // amici: una richiesta di amicizia e' l'unica cosa dell'app che **aspetta
+    // una risposta da te**. Le challenge nuove non lo fanno — ci sono e basta —
+    // e se anche loro avessero un pallino rosso non ne avrebbe piu' nessuno.
+    final pending = tab.route == AppRoutes.friends
+        ? (ref.watch(incomingRequestsProvider).valueOrNull?.length ?? 0)
+        : 0;
 
     return Semantics(
       selected: active,
       button: true,
-      label: tab.label,
+      label: pending > 0 ? '${tab.label}, $pending richieste' : tab.label,
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(active ? tab.activeIcon : tab.icon, size: 22, color: color),
+            _IconWithCount(
+              icon: Icon(
+                active ? tab.activeIcon : tab.icon,
+                size: 22,
+                color: color,
+              ),
+              count: pending,
+            ),
             const SizedBox(height: AppSpacing.xxs),
             Text(
               tab.label.toUpperCase(),
@@ -148,6 +165,65 @@ class _NavItem extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// L'icona con il pallino rosso, quando c'e' qualcosa da guardare.
+///
+/// Il pallino sborda dall'icona invece di stare dentro il suo quadrato: se
+/// stesse dentro, per farci stare il numero l'icona dovrebbe rimpicciolirsi, e
+/// la scheda degli amici avrebbe un'icona piu' piccola delle altre tre solo
+/// perche' qualcuno ti ha chiesto l'amicizia.
+class _IconWithCount extends StatelessWidget {
+  const _IconWithCount({required this.icon, required this.count});
+
+  final Widget icon;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    if (count <= 0) {
+      return icon;
+    }
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        icon,
+        Positioned(
+          top: -5,
+          right: -8,
+          child: Container(
+            constraints: const BoxConstraints(minWidth: 15),
+            height: 15,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: palette.accent,
+              shape: BoxShape.rectangle,
+              borderRadius: BorderRadius.circular(8),
+              // Il filetto del colore del fondo stacca il pallino dall'icona
+              // anche quando ci finisce sopra: senza, rosso e nero si toccano e
+              // sembrano una macchia sola.
+              border: Border.all(color: palette.background, width: 1.5),
+            ),
+            child: Text(
+              // Oltre il nove il numero preciso non serve a decidere niente, e
+              // un pallino largo mezza icona si', a dare fastidio.
+              count > 9 ? '9+' : '$count',
+              style: context.texts.labelSmall?.copyWith(
+                color: palette.background,
+                fontSize: 9,
+                height: 1,
+                letterSpacing: 0,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

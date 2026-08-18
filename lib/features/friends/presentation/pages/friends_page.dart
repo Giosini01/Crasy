@@ -1,12 +1,12 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
-import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
+import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -43,7 +43,7 @@ class FriendsPage extends ConsumerWidget {
               AppSpacing.xxl,
             ),
             children: [
-              const CrasyWordmark(),
+              const CrasyHeader(),
               const SizedBox(height: AppSpacing.lg),
               const HighlightedText(
                 'Le persone che conosci, e cosa stanno combinando.',
@@ -117,7 +117,10 @@ class _RequestRow extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Row(
         children: [
-          _Initials(username: request.fromUsername),
+          FriendAvatar(
+            userId: request.fromUserId,
+            username: request.fromUsername,
+          ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: GestureDetector(
@@ -166,7 +169,7 @@ class _FriendRow extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: Row(
           children: [
-            _Initials(username: friend.username),
+            FriendAvatar(userId: friend.userId, username: friend.username),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
@@ -181,42 +184,6 @@ class _FriendRow extends StatelessWidget {
               color: context.palette.textFaint,
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Il cerchio con l'iniziale.
-///
-/// Non si legge la foto profilo di ogni amico: sarebbero trenta letture per
-/// aprire un elenco, e il nome basta a riconoscere qualcuno che si conosce
-/// gia'. La faccia si vede aprendo il profilo.
-class _Initials extends StatelessWidget {
-  const _Initials({required this.username});
-
-  final String username;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-    final initials = username.isEmpty
-        ? '?'
-        : (username.length <= 2 ? username : username.substring(0, 2))
-              .toUpperCase();
-
-    return Container(
-      width: 40,
-      height: 40,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: palette.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Text(
-        initials,
-        style: context.texts.labelMedium?.copyWith(
-          color: palette.textSecondary,
         ),
       ),
     );

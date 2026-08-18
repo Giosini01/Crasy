@@ -256,7 +256,13 @@ class ChallengeAuthor extends StatelessWidget {
                   color: palette.accent,
                 )
               : Text(
-                  challenge.createdByUsername.substring(0, 1).toUpperCase(),
+                  // Il nome puo' arrivare vuoto da una challenge scritta male:
+                  // `substring` su una stringa vuota fa saltare l'intera lista.
+                  challenge.createdByUsername.isEmpty
+                      ? '?'
+                      : challenge.createdByUsername
+                            .substring(0, 1)
+                            .toUpperCase(),
                   style: texts.labelSmall?.copyWith(
                     color: palette.textSecondary,
                     letterSpacing: 0,

@@ -73,12 +73,18 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               AppSpacing.xxl,
             ),
             children: [
-              const DisplayTitle('LANCIA UNA\nCHALLENGE'),
+              const DisplayTitle('DAI UN ORDINE\nAL MONDO'),
               const SizedBox(height: AppSpacing.sm),
+              // Chi apre questa schermata deve capire in tre secondi che qui
+              // non si racconta una cosa propria: **si dice agli altri cosa
+              // fare**. E' il rovescio esatto della home, dove uno riceve un
+              // ordine e decide se eseguirlo. Se le due schermate si
+              // somigliassero, nessuno capirebbe di essere passato dall'altra
+              // parte del tavolo.
               const HighlightedText(
-                'Metti un premio, di\' cosa bisogna fare, e guarda cosa si '
-                'inventa la gente.',
-                highlight: 'Metti un premio',
+                'Metti un premio e decidi tu cosa deve fare la gente. Chi lo '
+                'fa meglio si prende i soldi.',
+                highlight: 'decidi tu cosa deve fare la gente',
               ),
               const SizedBox(height: AppSpacing.xl),
               _Field(
@@ -97,9 +103,11 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                 validator: ChallengeDraftValidators.validateTitle,
               ),
               _Field(
-                label: 'La consegna',
+                label: 'Cosa devono fare',
                 controller: _brief,
-                hint: 'Scatta la foto piu\' assurda che riesci a fare oggi.',
+                hint:
+                    'Fermate uno sconosciuto per strada e fatevi fotografare '
+                    'insieme.',
                 maxLines: 3,
                 maxLength: ChallengeDraftValidators.briefMaxLength,
                 validator: ChallengeDraftValidators.validateBrief,

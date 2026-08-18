@@ -74,22 +74,15 @@ class _Header extends StatelessWidget {
         AppSpacing.xl,
       ),
       sliver: SliverToBoxAdapter(
-        child: Row(
-          children: [
-            // Il logotipo prende la sua larghezza vera e lo spazio lo mangia lo
-            // `Spacer`: dentro un `Expanded` l'immagine si allargherebbe e si
-            // centrerebbe da sola.
-            const CrasyWordmark(),
-            const Spacer(),
-            // Creare una challenge sta qui e non in una scheda in fondo: e'
-            // una cosa che si fa una volta ogni tanto, non una delle quattro
-            // sezioni dell'app.
-            IconButton(
-              onPressed: () => context.push(AppRoutes.create),
-              icon: const Icon(Icons.add_rounded),
-              tooltip: 'Crea una challenge',
-            ),
-          ],
+        child: CrasyHeader(
+          // Creare una challenge sta qui e non in una scheda in fondo: e' una
+          // cosa che si fa una volta ogni tanto, non una delle quattro sezioni
+          // dell'app.
+          action: IconButton(
+            onPressed: () => context.push(AppRoutes.create),
+            icon: const Icon(Icons.add_rounded),
+            tooltip: 'Crea una challenge',
+          ),
         ),
       ),
     );

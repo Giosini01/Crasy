@@ -14,15 +14,29 @@ service cloud.firestore {
 
     // Le parole che non si possono scrivere in una challenge.
     //
-    // E' un ultimo sbarramento, non il controllo vero: quello sta nell'app, che
-    // spiega anche il perche' e offre un numero da chiamare. Qui si prendono
-    // solo i casi piu' espliciti, e si prendono **anche se qualcuno scrivesse
-    // sul database saltando l'app**. Con dei soldi in palio, "tagliati le vene"
-    // non e' un contenuto discutibile: e' un incarico retribuito a farsi del
-    // male.
+    // E' un ultimo sbarramento, non il controllo vero: quello sta nell'app
+    // (`lib/core/moderation/content_policy.dart`), che sa leggere anche i
+    // travestimenti — i numeri al posto delle lettere, le lettere spaziate —
+    // e che spiega alla persona **perche'**, offrendo un numero da chiamare nel
+    // caso piu' delicato.
+    //
+    // Qui si prendono i casi espliciti, e si prendono **anche se qualcuno
+    // scrivesse sul database saltando l'app**. Con dei soldi in palio,
+    // "tagliati le vene" non e' un contenuto discutibile: e' un incarico
+    // retribuito a farsi del male.
+    //
+    // Sono quattro espressioni e non una: le regole di Firestore hanno un
+    // limite di lunghezza sulle espressioni regolari, e una sola lunga il
+    // triplo smetterebbe di compilare senza dire chiaramente perche'.
     function saysSomethingForbidden(text) {
       return text.lower().matches(
-        '.*(suicid|ammazzat|uccidit|uccidet|tagliati le vene|tagliarsi le vene|fine alla tua vita|farla finita|impiccat|autolesion|kill yourself|nud|spogliat|porno|masturb|accoltell|picchia).*'
+        '.*(suicid|ammazzat|uccidit|uccidet|uccidersi|tagliati le vene|tagliarsi le vene|tagliati i polsi|fine alla tua vita|farla finita|togliti la vita|impiccat|autolesion|fatti del male|farti del male|ferisciti|buttati di sotto|salta dal balcone|salta dalla finestra|overdose|candeggina|kill yourself|self harm|cut yourself).*'
+      ) || text.lower().matches(
+        '.*(picchia|accoltell|aggredisci|torturar|sfregia|maltratta|seviz|stupr|violenta qualcuno|dai fuoco a|molesta|beat someone|stab someone|shoot someone).*'
+      ) || text.lower().matches(
+        '.*(nud|spogliat|spogliar|senza vestiti|senza mutande|in mutande|reggiseno|perizoma|topless|genital|porno|masturb|sessual|erotic|luci rosse|onlyfans|escort|prostitu|orgasm|sexy|naked|nsfw|striptease).*'
+      ) || text.lower().matches(
+        '.*(guida ubriac|guidare ubriac|contromano|attraversa i binari|sui binari|cornicion|tetto del treno|benzina addosso|soffocamento|pedofil|spaccia|cocain|eroina|taccheggio).*'
       );
     }
 

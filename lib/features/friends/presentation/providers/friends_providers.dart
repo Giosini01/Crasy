@@ -47,14 +47,21 @@ final friendsOfProvider = StreamProvider.autoDispose
     });
 
 /// I miei amici.
+///
+/// Ascolta il repository direttamente invece di appoggiarsi a
+/// `friendsOfProvider(mioId)`: passando dal `future` di quello, l'elenco si
+/// sarebbe fermato al primo valore — un amico accettato mentre la schermata e'
+/// aperta non sarebbe mai comparso, e non ci sarebbe stato modo di accorgersene
+/// se non riaprendo l'app.
 final myFriendsProvider = StreamProvider<List<Friend>>((ref) {
+  final repository = ref.watch(friendsRepositoryProvider);
   final userId = ref.watch(currentUserIdProvider);
 
-  if (userId == null) {
+  if (repository == null || userId == null) {
     return Stream.value(const <Friend>[]);
   }
 
-  return ref.watch(friendsOfProvider(userId).future).asStream();
+  return repository.watchFriends(userId);
 });
 
 /// Le richieste che ho ricevuto e non ho ancora deciso.
