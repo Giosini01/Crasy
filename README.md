@@ -382,6 +382,27 @@ La risposta e' che **i soldi si pagano prima**, e li tiene CRASY:
    IBAN: e' la legge sull'antiriciclaggio, vale per chiunque riceva denaro, e
    nessuna app la puo' saltare.
 
+### Il portafoglio
+
+I premi vinti **non partono subito verso la banca**: si fermano nel portafoglio,
+in cima al profilo. E' una scelta che conviene a chi vince. Bonificando
+all'istante servirebbe che il vincitore fosse gia' registrato con documento e
+IBAN nel momento esatto in cui la gara si chiude — cioe' quasi mai — e il premio
+resterebbe fermo in attesa di lui.
+
+Cosi' invece i soldi sono suoi appena vince, si sommano a quelli delle volte
+prima, e la registrazione la fa il giorno che decide di prelevare: una volta
+sola, quando ne vale la pena. Il minimo per prelevare e' dieci euro.
+
+Sotto il saldo c'e' scritto **dove sono quei soldi** — su CRASY, finche' non li
+preleva — e non e' una nota legale: un portafoglio che mostra un numero senza
+dire dove sta e' la cosa piu' vicina a una truffa che si possa costruire in
+buona fede.
+
+Il saldo e' un campo che **nessun telefono puo' scrivere**. A muoverlo e' solo
+il server, e le regole di Firestore lo impongono: senza quella riga, regalarsi
+mille euro sarebbe cambiare un numero.
+
 ### I conti
 
 Su un premio di 500 euro:
@@ -477,6 +498,29 @@ I test coprono le regole del dominio (stato nel tempo di una challenge, formato
 del premio, validazione del nome utente), il comportamento del repository di
 esempio (una foto a testa, voto che non si conta due volte) e l'avvio dell'app
 fino alla prima challenge sullo schermo.
+
+---
+
+## La campanella e i link
+
+Due cose che tengono in piedi il giro, e nessuna delle due richiede un server
+acceso.
+
+**La campanella** in cima alla home dice cosa hanno fatto gli altri: chi ha
+partecipato alle tue challenge, chi ha acceso una fiamma sulle tue foto, chi ti
+ha chiesto l'amicizia, e quando hai vinto. Le prime due **le scrive chi le
+provoca** — senza Cloud Function nessun altro puo' accorgersene — e il nome del
+documento e' sempre lo stesso per la stessa coppia persona-foto: chi toglie e
+rimette una fiamma venti volte manda una notifica sola. Le altre due non stanno
+sul database affatto: si ricavano da dati che esistono gia', perche' una copia
+puo' andare fuori sincrono con la cosa che racconta.
+
+**Il link a una foto** e' la porta d'ingresso dell'app. Da una foto a schermo
+intero si condivide un indirizzo che porta *a quella foto*, non alla home. Chi
+lo riceve la vede, e per accendere la fiamma deve registrarsi — e finita la
+registrazione **torna esattamente li'**, non sulla home. Chi e' in gara ha un
+motivo vero per portare gente dentro: non lo fa per farci un favore, lo fa
+perche' vuole vincere.
 
 ---
 

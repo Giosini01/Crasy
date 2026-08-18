@@ -77,6 +77,9 @@ abstract final class ChallengeMapper {
 }
 
 abstract final class ChallengeEntryMapper {
+  /// Le fiamme non vanno sotto zero, qualunque cosa dica il documento.
+  static int _atLeastZero(int value) => value < 0 ? 0 : value;
+
   static ChallengeEntry fromFirestore(
     String id,
     String challengeId,
@@ -91,7 +94,14 @@ abstract final class ChallengeEntryMapper {
       mediaUrl: data['mediaUrl'] as String? ?? '',
       storagePath: data['storagePath'] as String? ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
-      votes: (data['votes'] as num?)?.toInt() ?? 0,
+      // Mai sotto zero, qualunque cosa dica il documento.
+      //
+      // Una fiamma negativa non vuol dire niente — nessuno puo' togliere un
+      // voto che non ha dato — quindi se sul database ce n'e' una, e' un dato
+      // rotto. Rotto o no, a schermo non ci finisce: si legge zero e la gara
+      // continua. Un "-1" sotto la foto di qualcuno e' il tipo di dettaglio che
+      // fa perdere fiducia a tutta l'app, non solo a quel numero.
+      votes: _atLeastZero((data['votes'] as num?)?.toInt() ?? 0),
       isWinner: data['isWinner'] as bool? ?? false,
       moderation: EntryModeration.fromName(data['moderation'] as String?),
       mediaKind: MediaKind.fromName(data['mediaKind'] as String?),

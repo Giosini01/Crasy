@@ -1,7 +1,13 @@
+import 'dart:async';
+
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/notifications/data/repositories/firestore_notifications_repository.dart';
+import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
+import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
+import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final voteControllerProvider = Provider<VoteController>(VoteController.new);
@@ -66,11 +72,42 @@ final entryVoteDeltaProvider = Provider.family<int, String>((ref, entryId) {
 /// schermo arriva dallo stream, che si aggiorna da solo appena la scrittura e'
 /// andata a segno.
 class VoteController {
-  const VoteController(this._ref);
+  VoteController(this._ref);
 
   final Ref _ref;
 
-  Future<VoteOutcome> toggle(
+  /// L'ultima scrittura ancora in volo per ogni partecipazione.
+  ///
+  /// Serve a metterle **in fila**. Senza, due tocchi rapidi sulla stessa foto
+  /// aprono due transazioni contemporanee, e ognuna delle due legge il database
+  /// prima che l'altra abbia scritto: partono tutte e due dallo stesso stato di
+  /// partenza e la seconda decide in base a un mondo che non esiste piu'. Il
+  /// risultato era il contatore che rimaneva indietro, o il cuore acceso su un
+  /// voto che sul database non c'era.
+  ///
+  /// In fila, invece, ogni scrittura vede il risultato di quella prima e
+  /// l'ultimo tocco vince — che e' esattamente quello che si aspetta chi tocca.
+  final Map<String, Future<void>> _inFlight = {};
+
+  Future<VoteOutcome> toggle(ChallengeEntry entry, {required bool voted}) {
+    final previous = _inFlight[entry.id] ?? Future<void>.value();
+    final next = previous
+        .then((_) => _write(entry, voted: voted))
+        // La coda non si deve interrompere per un errore: se una scrittura
+        // fallisce, il tocco successivo deve poter riprovare invece di restare
+        // agganciato a una catena morta.
+        .catchError((Object error) {
+          _inFlight.remove(entry.id);
+
+          throw error;
+        });
+
+    _inFlight[entry.id] = next.then((_) {}, onError: (Object _) {});
+
+    return next;
+  }
+
+  Future<VoteOutcome> _write(
     ChallengeEntry entry, {
     required bool voted,
   }) async {
@@ -102,6 +139,46 @@ class VoteController {
           voted: voted,
         );
 
+    if (voted && signedIn) {
+      // L'avviso parte **dopo** che la fiamma e' stata scritta, e non aspetta:
+      // se la notifica fallisse, la fiamma resterebbe comunque data. E' un
+      // dettaglio di contorno, non deve poter rompere il gesto principale
+      // dell'app.
+      //
+      // Non si avvisa quando la fiamma si toglie: nessuno vuole leggere che
+      // qualcuno ci ha ripensato.
+      unawaited(_notifyAuthor(entry, actorId: userId));
+    }
+
     return VoteOutcome.done;
+  }
+
+  Future<void> _notifyAuthor(
+    ChallengeEntry entry, {
+    required String actorId,
+  }) async {
+    final notifications = _ref.read(notificationsRepositoryProvider);
+
+    if (notifications == null || entry.userId == actorId) {
+      return;
+    }
+
+    final me = _ref.read(currentUserProfileProvider).valueOrNull;
+
+    await notifications.push(
+      toUserId: entry.userId,
+      // Lo stesso nome ogni volta: chi toglie e rimette la fiamma venti volte
+      // non manda venti notifiche, manda venti volte la stessa — e le regole
+      // ne accettano solo la prima.
+      id: FirestoreNotificationsRepository.fireId(
+        entryId: entry.id,
+        actorId: actorId,
+      ),
+      kind: NotificationKind.fire,
+      actorId: actorId,
+      actorUsername: me?.username ?? '',
+      challengeId: entry.challengeId,
+      challengeTitle: entry.challengeTitle,
+    );
   }
 }

@@ -23,6 +23,9 @@ abstract final class AppRoutes {
   // --- Le pagine che si aprono sopra le schede ------------------------------
 
   static const challengeDetail = '/challenge/:id';
+
+  /// La campanella: cosa hanno fatto gli altri.
+  static const notifications = '/notifiche';
   static const userProfile = '/utente/:id';
   static const participate = '/challenge/:id/partecipa';
   static const create = '/crea';

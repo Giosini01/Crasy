@@ -84,9 +84,33 @@ service cloud.firestore {
                   < request.time - duration.value(6570, 'd');
       }
 
-      allow create, update: if signedIn()
-                            && request.auth.uid == userId
-                            && isAdultProfile();
+      // **Il saldo del portafoglio non lo tocca nessun telefono.**
+      //
+      // E' la riga piu' importante di questo file dopo quella sul premio: se
+      // `walletCents` fosse scrivibile dal client, regalarsi mille euro
+      // sarebbe cambiare un numero. A muoverlo e' solo il server — accredita
+      // quando una gara si chiude, azzera quando qualcuno preleva — e il server
+      // scrive con l'SDK di amministrazione, che queste regole non le
+      // attraversa nemmeno.
+      //
+      // Alla creazione il saldo non c'e' proprio: nasce quando arriva il primo
+      // premio.
+      function doesNotTouchTheWallet() {
+        return !('walletCents' in request.resource.data.diff(resource.data).affectedKeys())
+               && !('withdrawingCents' in request.resource.data.diff(resource.data).affectedKeys())
+               && !('stripeAccountId' in request.resource.data.diff(resource.data).affectedKeys())
+               && !('payoutReady' in request.resource.data.diff(resource.data).affectedKeys());
+      }
+
+      allow create: if signedIn()
+                    && request.auth.uid == userId
+                    && isAdultProfile()
+                    && !('walletCents' in request.resource.data);
+
+      allow update: if signedIn()
+                    && request.auth.uid == userId
+                    && isAdultProfile()
+                    && doesNotTouchTheWallet();
       allow read: if signedIn();
       allow delete: if false;
 
@@ -97,6 +121,48 @@ service cloud.firestore {
       // puo' sapere chi ha votato cosa.
       match /votes/{entryId} {
         allow read, create, delete: if signedIn() && request.auth.uid == userId;
+        allow update: if false;
+      }
+
+      // La campanella.
+      //
+      // **Le scrive chi le provoca**, dentro le notifiche di chi le riceve. E'
+      // il rovescio di come dovrebbe funzionare, e c'e' una ragione: senza un
+      // server acceso — le Cloud Function richiedono il piano a pagamento —
+      // nessun altro puo' accorgersi che qualcuno ha dato una fiamma. Chi la
+      // da' e' l'unico che lo sa nel momento in cui succede.
+      //
+      // Quello che si puo' difendere qui, si difende: si scrive solo
+      // dichiarando **il proprio** identificativo come autore, non si scrive a
+      // se' stessi, e **non si tocca una notifica gia' scritta**. Quest'ultima
+      // e' la piu' importante: insieme al nome del documento — che per una
+      // fiamma e' sempre `fiamma_{foto}_{chiVota}` — rende impossibile mandare
+      // la stessa notifica due volte. Chi toglie e rimette una fiamma venti
+      // volte trova venti rifiuti, e chi la riceve una riga sola.
+      //
+      // Resta possibile scrivere una notifica per una fiamma mai data. E' una
+      // bugia che costa una riga in una campanella e non sposta ne' voti ne'
+      // soldi: il conto delle fiamme sta altrove, ed e' quello a decidere chi
+      // vince.
+      // Il portafoglio, riga per riga.
+      //
+      // Si legge e basta, e lo legge solo il diretto interessato: da dove
+      // vengono i soldi di una persona non e' affare di nessun altro.
+      match /wallet/{movementId} {
+        allow read: if signedIn() && request.auth.uid == userId;
+        allow write: if false;
+      }
+
+      match /notifications/{notificationId} {
+        allow read, delete: if signedIn() && request.auth.uid == userId;
+
+        allow create: if signedIn()
+                      && request.resource.data.actorId == request.auth.uid
+                      && request.auth.uid != userId
+                      && request.resource.data.kind
+                         in ['participation', 'fire']
+                      && request.resource.data.actorUsername is string;
+
         allow update: if false;
       }
 

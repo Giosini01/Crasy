@@ -7,6 +7,7 @@ import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
+import 'package:crasy/features/notifications/presentation/widgets/notification_bell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -75,13 +76,19 @@ class _Header extends StatelessWidget {
       ),
       sliver: SliverToBoxAdapter(
         child: CrasyHeader(
-          // Creare una challenge sta qui e non in una scheda in fondo: e' una
-          // cosa che si fa una volta ogni tanto, non una delle quattro sezioni
-          // dell'app.
-          action: IconButton(
-            onPressed: () => context.push(AppRoutes.create),
-            icon: const Icon(Icons.add_rounded),
-            tooltip: 'Crea una challenge',
+          action: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // La campanella prima del piu': si guarda cosa e' successo molte
+              // volte al giorno, si lancia una challenge una volta ogni tanto.
+              // L'ordine delle due icone e' l'ordine in cui si usano.
+              const NotificationBell(),
+              IconButton(
+                onPressed: () => context.push(AppRoutes.create),
+                icon: const Icon(Icons.add_rounded),
+                tooltip: 'Crea una challenge',
+              ),
+            ],
           ),
         ),
       ),

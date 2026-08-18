@@ -7,6 +7,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
+import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,9 +18,20 @@ import 'package:go_router/go_router.dart';
 /// sotto di essa. Il contenuto e' la cosa folle; l'interfaccia attorno deve
 /// essere cosi' silenziosa da non farsi notare.
 class EntryTile extends ConsumerWidget {
-  const EntryTile({required this.entry, this.showChallenge = true, super.key});
+  const EntryTile({
+    required this.entry,
+    this.showChallenge = true,
+    this.siblings,
+    super.key,
+  });
 
   final ChallengeEntry entry;
+
+  /// Le altre partecipazioni della stessa gara, se ce ne sono.
+  ///
+  /// Servono solo per scorrere a schermo intero: senza, la foto si apre lo
+  /// stesso e resta da sola.
+  final List<ChallengeEntry>? siblings;
 
   /// Il titolo della challenge si mostra dove le foto arrivano da challenge
   /// diverse. Dentro una challenge sola sarebbe la stessa riga ripetuta sotto
@@ -37,6 +49,11 @@ class EntryTile extends ConsumerWidget {
       children: [
         FireTap(
           entry: entry,
+          onTap: () => FullscreenMedia.open(
+            context,
+            entries: siblings ?? [entry],
+            entry: entry,
+          ),
           child: MediaFrame(
             url: entry.mediaUrl,
             video: entry.isVideo,
@@ -159,7 +176,21 @@ class VoteButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
     final voted = ref.watch(entryVotedProvider(entry.id));
-    final votes = entry.votes + ref.watch(entryVoteDeltaProvider(entry.id));
+
+    // **Il numero non scende mai sotto zero, ed e' qui che andava messo il
+    // freno.**
+    //
+    // Il conto mostrato e' quello del server piu' una correzione locale, che
+    // vale finche' la scrittura e' in volo. Nel mezzo di un mi piace tolto in
+    // fretta i due pezzi possono disallinearsi per una frazione di secondo — il
+    // contatore e' gia' sceso a zero, l'elenco dei voti dati dice ancora di si'
+    // — e la somma dava **-1**. Sul database non c'e' mai stato niente di
+    // negativo: era solo il numero disegnato a schermo.
+    //
+    // Una fiamma negativa non vuol dire niente: nessuno puo' togliere un voto
+    // che non ha dato.
+    final counted = entry.votes + ref.watch(entryVoteDeltaProvider(entry.id));
+    final votes = counted < 0 ? 0 : counted;
 
     return Semantics(
       button: true,

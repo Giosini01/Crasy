@@ -42,13 +42,21 @@ class PaymentsService {
     return _open(result.data['url']);
   }
 
-  /// "Ho vinto, dammi i soldi." Torna vero se sono partiti davvero.
-  Future<bool> claimPrize(String challengeId) async {
+  /// Preleva tutto quello che c'e' nel portafoglio.
+  ///
+  /// Torna il motivo per cui **non** e' partito, oppure `null` se e' partito.
+  /// Non lancia per il caso piu' comune — l'account che non c'e' ancora — che
+  /// non e' un errore ma il primo passo: chi chiama apre la registrazione.
+  Future<String?> withdraw() async {
     final result = await _functions
-        .httpsCallable('claimPrize')
-        .call<Map<Object?, Object?>>({'challengeId': challengeId});
+        .httpsCallable('withdrawWallet')
+        .call<Map<Object?, Object?>>();
 
-    return result.data['paid'] == true;
+    if (result.data['paid'] == true) {
+      return null;
+    }
+
+    return result.data['reason'] as String? ?? 'sconosciuto';
   }
 
   Future<bool> _open(Object? url) async {

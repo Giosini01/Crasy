@@ -7,6 +7,7 @@ import 'package:crasy/features/challenges/presentation/pages/create_challenge_pa
 import 'package:crasy/features/challenges/presentation/pages/participate_page.dart';
 import 'package:crasy/features/home/presentation/pages/home_page.dart';
 import 'package:crasy/features/home/presentation/pages/splash_page.dart';
+import 'package:crasy/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:crasy/features/onboarding/presentation/pages/onboarding_page.dart';
 import 'package:crasy/features/profile/presentation/pages/public_profile_page.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
@@ -73,6 +74,18 @@ GoRoute _tabRoute(String path, Widget child) {
   );
 }
 
+/// Dove stava andando chi e' stato fermato all'ingresso.
+///
+/// **E' il pezzo che fa funzionare i link condivisi.** Qualcuno riceve il link
+/// di una foto, lo apre, non ha un account: senza questo, dopo essersi
+/// registrato atterrerebbe sulla home e la foto per cui e' venuto sarebbe da
+/// ritrovare. Con questo, finita la registrazione si apre esattamente quella.
+///
+/// Sta in una variabile e non in un provider perche' il reindirizzamento di
+/// go_router non e' il posto in cui si aggiorna lo stato dell'app: qui si
+/// annota una cosa e la si consuma subito dopo.
+String? _destinationBeforeLogin;
+
 final goRouterProvider = Provider<GoRouter>((ref) {
   final landing = ref.watch(sessionLandingRouteProvider);
 
@@ -95,6 +108,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 ParticipatePage(challengeId: state.pathParameters['id'] ?? ''),
           ),
         ],
+      ),
+      GoRoute(
+        path: AppRoutes.notifications,
+        builder: (context, state) => const NotificationsPage(),
       ),
       GoRoute(
         path: AppRoutes.userProfile,
@@ -122,13 +139,22 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       };
 
       if (gates.contains(landing)) {
+        // Si annota dove stava andando, con tutto quello che si porta dietro:
+        // `?foto=` e' proprio la parte che conta, ed e' nella query.
+        if (!gates.contains(location)) {
+          _destinationBeforeLogin = state.uri.toString();
+        }
+
         return location == landing ? null : landing;
       }
 
       // Da qui in giu' la sessione e' completa: le schermate d'ingresso non
       // hanno piu' niente da dire.
       if (gates.contains(location)) {
-        return AppRoutes.challenges;
+        final wanted = _destinationBeforeLogin;
+        _destinationBeforeLogin = null;
+
+        return wanted ?? AppRoutes.challenges;
       }
 
       return null;

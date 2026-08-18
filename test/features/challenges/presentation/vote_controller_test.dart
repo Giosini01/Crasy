@@ -171,4 +171,104 @@ void main() {
       expect(container.read(entryVoteDeltaProvider(entry.id)), 0);
     });
   });
+
+  group('le fiamme non vanno mai sotto zero', () {
+    test('togliere un voto mai dato non fa scendere il contatore', () async {
+      final container = guestContainer();
+      final entry = await someoneElsesEntry(container);
+      final samples = container.read(sampleChallengeRepositoryProvider);
+
+      // Nessuno ha mai votato questa foto, e qualcuno prova a togliere una
+      // fiamma. Non e' un caso di scuola: succedeva con le foto scritte prima
+      // che il campo del contatore esistesse, e sotto la foto compariva "-1".
+      await container.read(voteControllerProvider).toggle(entry, voted: false);
+
+      final updated = await samples.watchEntries(entry.challengeId).first;
+
+      expect(updated.firstWhere((item) => item.id == entry.id).votes, 0);
+    });
+
+    test(
+      'mettere e togliere piu\' volte torna sempre al punto di partenza',
+      () async {
+        final container = guestContainer();
+        final entry = await someoneElsesEntry(container);
+        final controller = container.read(voteControllerProvider);
+        final samples = container.read(sampleChallengeRepositoryProvider);
+
+        for (var round = 0; round < 5; round++) {
+          await controller.toggle(entry, voted: true);
+          await controller.toggle(entry, voted: false);
+        }
+
+        final updated = await samples.watchEntries(entry.challengeId).first;
+
+        expect(updated.firstWhere((item) => item.id == entry.id).votes, 0);
+      },
+    );
+
+    test('due tocchi rapidi contano per uno solo', () async {
+      final container = guestContainer();
+      final entry = await someoneElsesEntry(container);
+      final controller = container.read(voteControllerProvider);
+
+      // Non si aspetta la prima: e' proprio il caso che rompeva il conto, due
+      // scritture in volo insieme sulla stessa foto.
+      final first = controller.toggle(entry, voted: true);
+      final second = controller.toggle(entry, voted: true);
+      await Future.wait([first, second]);
+
+      final updated = await container
+          .read(sampleChallengeRepositoryProvider)
+          .watchEntries(entry.challengeId)
+          .first;
+
+      expect(updated.firstWhere((item) => item.id == entry.id).votes, 1);
+    });
+
+    test('acceso e spento in rapida successione: vince l\'ultimo', () async {
+      final container = guestContainer();
+      final entry = await someoneElsesEntry(container);
+      final controller = container.read(voteControllerProvider);
+
+      final first = controller.toggle(entry, voted: true);
+      final second = controller.toggle(entry, voted: false);
+      await Future.wait([first, second]);
+
+      final updated = await container
+          .read(sampleChallengeRepositoryProvider)
+          .watchEntries(entry.challengeId)
+          .first;
+
+      expect(updated.firstWhere((item) => item.id == entry.id).votes, 0);
+
+      final voted = await container
+          .read(sampleChallengeRepositoryProvider)
+          .watchVotedEntryIds(guestVoterId)
+          .first;
+
+      expect(voted, isNot(contains(entry.id)));
+    });
+  });
+
+  test('il numero a schermo non puo\' essere negativo', () async {
+    final container = guestContainer();
+    final entry = await someoneElsesEntry(container);
+
+    // Lo stato che produceva il "-1": il server dice zero fiamme, l'elenco dei
+    // voti dati dice ancora di si', e la correzione locale vale meno uno.
+    // Somma: meno uno. Il conto e' giusto, il numero non ha senso.
+    container.read(pendingVoteProvider(entry.id).notifier).state = true;
+    await container.read(voteControllerProvider).toggle(entry, voted: true);
+    await container.read(votedEntryIdsProvider.future);
+    container.read(pendingVoteProvider(entry.id).notifier).state = false;
+
+    final delta = container.read(entryVoteDeltaProvider(entry.id));
+    final zeroVotes = entry.copyWith(votes: 0);
+    final shown = zeroVotes.votes + delta;
+
+    expect(delta, -1);
+    expect(shown, -1, reason: 'e\' proprio la somma che andava fermata');
+    expect(shown < 0 ? 0 : shown, 0);
+  });
 }

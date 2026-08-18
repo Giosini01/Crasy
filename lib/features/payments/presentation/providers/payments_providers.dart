@@ -1,41 +1,40 @@
 import 'package:crasy/core/services/firebase/firebase_providers.dart';
-import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/payments/data/payments_service.dart';
-import 'package:crasy/features/payments/domain/entities/prize_status.dart';
+import 'package:crasy/features/payments/data/wallet_repository.dart';
+import 'package:crasy/features/payments/domain/entities/wallet.dart';
+import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final paymentsServiceProvider = Provider<PaymentsService>(
   (ref) => PaymentsService(ref.watch(firebaseFunctionsProvider)),
 );
 
-/// I premi che ho vinto e che non ho ancora incassato.
-///
-/// Sono le challenge chiuse in cui ho vinto e i cui soldi sono **ancora fermi
-/// su CRASY**: quasi sempre perche' non mi sono ancora registrato per
-/// riceverli. Finche' questa lista non e' vuota, il profilo ha qualcosa di
-/// importante da dire.
-final unclaimedPrizesProvider = Provider<List<Challenge>>((ref) {
-  if (!paymentsEnabled) {
-    return const [];
+final walletRepositoryProvider = Provider<WalletRepository?>((ref) {
+  if (!ref.watch(firebaseBootstrapResultProvider).isConfigured) {
+    return null;
   }
 
-  final myEntries = ref.watch(myEntriesProvider).valueOrNull ?? const [];
-  final wonChallengeIds = {
-    for (final entry in myEntries)
-      if (entry.isWinner) entry.challengeId,
-  };
+  return WalletRepository(ref.watch(firebaseFirestoreProvider));
+});
 
-  if (wonChallengeIds.isEmpty) {
-    return const [];
+/// Il mio portafoglio: quanto c'e' dentro e da dove viene.
+final walletProvider = StreamProvider<Wallet>((ref) {
+  final repository = ref.watch(walletRepositoryProvider);
+  final userId = ref.watch(currentUserIdProvider);
+
+  if (repository == null || userId == null) {
+    return Stream.value(const Wallet());
   }
 
-  final ended = ref.watch(endedChallengesProvider).valueOrNull ?? const [];
-
-  return [
-    for (final challenge in ended)
-      if (wonChallengeIds.contains(challenge.id) &&
-          challenge.prizeStatus.isEscrowed)
-        challenge,
-  ];
+  // Saldo e movimenti arrivano da due documenti diversi e vanno guardati
+  // insieme: un saldo che cambia senza la riga che lo spiega, anche solo per
+  // mezzo secondo, e' un numero che compare dal nulla.
+  return repository.watchBalance(userId).asyncExpand((balance) {
+    return repository
+        .watchMovements(userId)
+        .map(
+          (movements) => Wallet(balanceCents: balance, movements: movements),
+        );
+  });
 });

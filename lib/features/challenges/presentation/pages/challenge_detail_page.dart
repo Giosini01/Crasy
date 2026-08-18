@@ -12,6 +12,7 @@ import 'package:crasy/features/challenges/presentation/providers/challenge_provi
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
+import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -220,14 +221,68 @@ class _TimeBlock extends StatelessWidget {
   }
 }
 
-class _Entries extends StatelessWidget {
+/// Le partecipazioni, e la foto che qualcuno e' venuto a vedere.
+///
+/// Se l'indirizzo porta con se' `?foto=`, quella foto si apre grande da sola,
+/// una volta sola. E' il link che gira fuori da CRASY: chi lo riceve deve
+/// trovarsi davanti **la cosa di cui gli hanno parlato**, non una pagina in cui
+/// cercarla. La gara resta sotto, a un tocco di distanza.
+class _Entries extends StatefulWidget {
   const _Entries({required this.challenge, required this.entries});
 
   final Challenge challenge;
   final List<ChallengeEntry> entries;
 
   @override
+  State<_Entries> createState() => _EntriesState();
+}
+
+class _EntriesState extends State<_Entries> {
+  bool _opened = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _openSharedEntry();
+  }
+
+  /// Apre la foto indicata dall'indirizzo.
+  ///
+  /// Una volta sola, e il segno di averlo fatto e' un campo di stato: le
+  /// partecipazioni arrivano da uno stream e questo widget si ricostruisce a
+  /// ogni fiamma che qualcuno accende. Senza il segno, la foto si riaprirebbe
+  /// da sola sopra a quella che si sta guardando.
+  void _openSharedEntry() {
+    if (_opened) {
+      return;
+    }
+
+    final wanted = GoRouterState.of(context).uri.queryParameters['foto'];
+
+    if (wanted == null || wanted.isEmpty || widget.entries.isEmpty) {
+      return;
+    }
+
+    final entry = widget.entries.where((item) => item.id == wanted).firstOrNull;
+
+    if (entry == null) {
+      return;
+    }
+
+    _opened = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        FullscreenMedia.open(context, entries: widget.entries, entry: entry);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final challenge = widget.challenge;
+    final entries = widget.entries;
+
     if (entries.isEmpty) {
       return Text(
         'Ancora nessuno. Puoi essere il primo.',
@@ -262,15 +317,20 @@ class _Entries extends StatelessWidget {
         mainAxisExtent: 210,
       ),
       itemCount: entries.length,
-      itemBuilder: (context, index) => _EntryGridTile(entry: entries[index]),
+      itemBuilder: (context, index) =>
+          _EntryGridTile(entry: entries[index], entries: entries),
     );
   }
 }
 
 class _EntryGridTile extends ConsumerWidget {
-  const _EntryGridTile({required this.entry});
+  const _EntryGridTile({required this.entry, required this.entries});
 
   final ChallengeEntry entry;
+
+  /// Tutte le partecipazioni della gara, per poter scorrere da questa alle
+  /// altre una volta aperta a schermo intero.
+  final List<ChallengeEntry> entries;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -279,6 +339,11 @@ class _EntryGridTile extends ConsumerWidget {
       children: [
         FireTap(
           entry: entry,
+          // Un tocco solo apre la foto grande; il doppio tocco resta la
+          // fiamma. Nel quadrato di due dita della griglia non si vede niente:
+          // e' un indice, non il contenuto.
+          onTap: () =>
+              FullscreenMedia.open(context, entries: entries, entry: entry),
           child: MediaFrame(
             url: entry.mediaUrl,
             video: entry.isVideo,

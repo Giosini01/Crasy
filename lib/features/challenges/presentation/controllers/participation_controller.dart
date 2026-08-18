@@ -1,9 +1,13 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/notifications/data/repositories/firestore_notifications_repository.dart';
+import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
+import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -136,6 +140,47 @@ class ParticipationController extends AsyncNotifier<void> {
         ? AsyncError<void>(result.error!, result.stackTrace!)
         : const AsyncData<void>(null);
 
+    if (!result.hasError) {
+      // Chi ha lanciato la challenge deve sapere che qualcuno l'ha raccolta.
+      // E' la notizia piu' importante che l'app abbia da dare: ha messo dei
+      // soldi e qualcuno e' uscito di casa per prenderli.
+      unawaited(
+        _notifyOwner(
+          challengeId: challengeId,
+          actorId: authState.user.id,
+          actorUsername: profile?.username ?? '',
+        ),
+      );
+    }
+
     return !result.hasError;
+  }
+
+  Future<void> _notifyOwner({
+    required String challengeId,
+    required String actorId,
+    required String actorUsername,
+  }) async {
+    final notifications = ref.read(notificationsRepositoryProvider);
+    final challenge = ref.read(challengeProvider(challengeId)).valueOrNull;
+
+    if (notifications == null || challenge == null) {
+      return;
+    }
+
+    await notifications.push(
+      toUserId: challenge.createdByUserId,
+      // Una partecipazione a testa, quindi una notifica a testa: il nome del
+      // documento lo garantisce senza bisogno di controllare niente.
+      id: FirestoreNotificationsRepository.participationId(
+        challengeId: challengeId,
+        actorId: actorId,
+      ),
+      kind: NotificationKind.participation,
+      actorId: actorId,
+      actorUsername: actorUsername,
+      challengeId: challengeId,
+      challengeTitle: challenge.title,
+    );
   }
 }

@@ -18,7 +18,7 @@ const payments = require('./payments');
 exports.startChallengePayment = payments.startChallengePayment;
 exports.stripeWebhook = payments.stripeWebhook;
 exports.createPayoutOnboarding = payments.createPayoutOnboarding;
-exports.claimPrize = payments.claimPrize;
+exports.withdrawWallet = payments.withdrawWallet;
 
 // Stessa regione del database: una funzione che scrive su Firestore va dove sta
 // il database, altrimenti ogni scrittura fa un giro per mezzo mondo.

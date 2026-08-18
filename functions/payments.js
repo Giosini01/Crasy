@@ -362,16 +362,9 @@ async function onAccountUpdated(account) {
     return;
   }
 
-  const waiting = await db
-    .collection('challenges')
-    .where('winnerUserId', '==', userId)
-    .where('prizeStatus', '==', 'held')
-    .limit(20)
-    .get();
-
-  for (const challenge of waiting.docs) {
-    await payWinner(challenge.id);
-  }
+  // Non c'e' nient'altro da fare: i premi sono gia' nel portafoglio da quando
+  // la gara si e' chiusa. Questa registrazione serve solo a poterli prelevare,
+  // ed e' il prelievo che la usa.
 }
 
 // ---------------------------------------------------------------------------
@@ -428,47 +421,30 @@ exports.createPayoutOnboarding = onCall(
 );
 
 /**
- * "Ho vinto, dammi i soldi."
+ * Il premio finisce nel portafoglio del vincitore.
  *
- * Esiste anche se il pagamento parte da solo alla chiusura della challenge,
- * perche' il caso normale e' che al momento della chiusura il vincitore non
- * abbia ancora un conto su cui ricevere. Questo e' il bottone che preme quando
- * torna, dopo essersi registrato.
- */
-exports.claimPrize = onCall(
-  { secrets: [STRIPE_SECRET_KEY] },
-  async (request) => {
-    const userId = request.auth && request.auth.uid;
-
-    if (!userId) {
-      throw new HttpsError('unauthenticated', 'Serve un account.');
-    }
-
-    const challengeId = request.data && request.data.challengeId;
-    const snapshot = await db.collection('challenges').doc(challengeId).get();
-
-    if (!snapshot.exists || snapshot.get('winnerUserId') !== userId) {
-      throw new HttpsError('permission-denied', 'Non hai vinto questa.');
-    }
-
-    return payWinner(challengeId);
-  }
-);
-
-/**
- * Manda il premio al vincitore.
+ * **Non parte un bonifico**, e la differenza e' tutta a favore di chi vince.
+ * Bonificando subito servirebbe che il vincitore fosse gia' registrato con
+ * documento e IBAN nel momento esatto in cui la gara si chiude — cioe' quasi
+ * mai — e il premio resterebbe fermo in attesa di lui, con la challenge in uno
+ * stato a meta'. Accreditandolo, **i soldi sono suoi dall'istante in cui
+ * vince**: li vede nel profilo, e la registrazione la fa il giorno che decide
+ * di prelevare.
  *
- * Le due protezioni contro il doppio pagamento sono diverse e servono
- * entrambe. La transazione su Firestore impedisce a due chiamate simultanee di
- * partire insieme; la chiave di idempotenza impedisce a Stripe di eseguire due
- * volte lo stesso bonifico se la prima risposta si perde per strada. **Un
- * premio pagato due volte non si recupera**: quei soldi sono usciti.
+ * I soldi restano fisicamente su CRASY finche' non li preleva, ed e' scritto
+ * chiaramente nel profilo: un portafoglio che non dice dove sono i soldi e' la
+ * cosa piu' vicina a una truffa che si possa costruire in buona fede.
+ *
+ * Le due protezioni contro il doppio accredito sono diverse e servono entrambe:
+ * la transazione impedisce a due chiamate simultanee di partire insieme, e il
+ * cambio di stato della challenge — che avviene **dentro** la stessa
+ * transazione dell'accredito — fa si' che la seconda non trovi piu' niente da
+ * pagare. Un premio accreditato due volte e' denaro creato dal nulla.
  */
 async function payWinner(challengeId) {
-  const stripe = stripeClient();
   const ref = db.collection('challenges').doc(challengeId);
 
-  const plan = await db.runTransaction(async (transaction) => {
+  const paid = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
 
     if (!snapshot.exists || snapshot.get('prizeStatus') !== 'held') {
@@ -481,60 +457,149 @@ async function payWinner(challengeId) {
       return null;
     }
 
-    // Il segno che il pagamento e' partito si scrive **prima** di pagare. Al
-    // contrario — pago e poi segno — una funzione che muore in mezzo lascia dei
-    // soldi usciti senza traccia, e la volta dopo li fa uscire di nuovo.
-    transaction.update(ref, {
-      payoutStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+    const amount = payoutCents(snapshot.get('prizeCents') || 0);
+
+    if (amount <= 0) {
+      return null;
+    }
+
+    const userRef = db.collection('users').doc(winnerUserId);
+    const movementRef = userRef.collection('wallet').doc(`premio_${challengeId}`);
+
+    transaction.set(
+      userRef,
+      { walletCents: admin.firestore.FieldValue.increment(amount) },
+      { merge: true }
+    );
+
+    // Il movimento accanto al saldo, sempre. Un numero che cambia senza una
+    // riga che dica da dove viene e' un numero di cui non ci si fida.
+    transaction.set(movementRef, {
+      kind: 'prize',
+      amountCents: amount,
+      challengeId,
+      challengeTitle: snapshot.get('title') || '',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    return {
-      winnerUserId,
-      amount: payoutCents(snapshot.get('prizeCents') || 0),
-    };
+    transaction.update(ref, {
+      prizeStatus: 'paidOut',
+      paidOutAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return { winnerUserId, amount };
   });
 
-  if (!plan) {
+  if (!paid) {
     return { paid: false, reason: 'non-pagabile' };
   }
 
-  const winner = await db.collection('users').doc(plan.winnerUserId).get();
-  const accountId = winner.get('stripeAccountId');
-
-  if (!accountId || winner.get('payoutReady') !== true) {
-    // Non e' un errore ed e' anzi il caso piu' comune: il vincitore non si e'
-    // ancora registrato. I soldi restano fermi dove sono, che e' esattamente
-    // dove devono stare.
-    await ref.update({ payoutBlocked: 'account-mancante' });
-
-    return { paid: false, reason: 'account-mancante' };
-  }
-
-  const transfer = await stripe.transfers.create(
-    {
-      amount: plan.amount,
-      currency: 'eur',
-      destination: accountId,
-      description: `Premio CRASY — challenge ${challengeId}`,
-      metadata: { challengeId, userId: plan.winnerUserId },
-    },
-    { idempotencyKey: `challenge-payout-${challengeId}` }
-  );
-
-  await ref.update({
-    prizeStatus: 'paidOut',
-    stripeTransferId: transfer.id,
-    paidOutAt: admin.firestore.FieldValue.serverTimestamp(),
-    payoutBlocked: admin.firestore.FieldValue.delete(),
-  });
-
   logger.info(
-    `Challenge ${challengeId}: pagati ${plan.amount} centesimi a ` +
-      `${plan.winnerUserId}.`
+    `Challenge ${challengeId}: ${paid.amount} centesimi nel portafoglio di ` +
+      `${paid.winnerUserId}.`
   );
 
-  return { paid: true, amountCents: plan.amount };
+  return { paid: true, amountCents: paid.amount };
 }
+
+/** Sotto questa cifra non si preleva: dieci euro. */
+const MIN_WITHDRAWAL_CENTS = 1000;
+
+/**
+ * Prelevare quello che si ha nel portafoglio.
+ *
+ * L'ordine delle operazioni e' l'unica cosa che conta qui, ed e' questo: prima
+ * si **sposta** il saldo in una casella "in uscita", poi si bonifica, poi si
+ * chiude. Non e' pignoleria contabile — se si bonificasse prima di segnare, una
+ * funzione che muore in mezzo lascerebbe dei soldi usciti e un saldo intatto, e
+ * il prelievo successivo li farebbe uscire di nuovo.
+ *
+ * Se il bonifico fallisce, il saldo torna dov'era. Il caso peggiore e' un
+ * prelievo che non funziona e va rifatto; quello che non puo' succedere e' che
+ * spariscano dei soldi.
+ */
+exports.withdrawWallet = onCall(
+  { secrets: [STRIPE_SECRET_KEY] },
+  async (request) => {
+    const userId = request.auth && request.auth.uid;
+
+    if (!userId) {
+      throw new HttpsError('unauthenticated', 'Serve un account.');
+    }
+
+    const stripe = stripeClient();
+    const userRef = db.collection('users').doc(userId);
+    const user = await userRef.get();
+    const balance = user.get('walletCents') || 0;
+
+    if (balance < MIN_WITHDRAWAL_CENTS) {
+      return { paid: false, reason: 'saldo-basso', minimumCents: MIN_WITHDRAWAL_CENTS };
+    }
+
+    const accountId = user.get('stripeAccountId');
+
+    if (!accountId || user.get('payoutReady') !== true) {
+      // Non e' un errore: e' la prima volta. Chi chiama apre la registrazione.
+      return { paid: false, reason: 'account-mancante' };
+    }
+
+    const movementRef = userRef.collection('wallet').doc();
+
+    const amount = await db.runTransaction(async (transaction) => {
+      const fresh = await transaction.get(userRef);
+      const current = fresh.get('walletCents') || 0;
+
+      if (current < MIN_WITHDRAWAL_CENTS) {
+        return 0;
+      }
+
+      transaction.update(userRef, {
+        walletCents: 0,
+        withdrawingCents: current,
+      });
+
+      return current;
+    });
+
+    if (amount <= 0) {
+      return { paid: false, reason: 'saldo-basso' };
+    }
+
+    try {
+      await stripe.transfers.create(
+        {
+          amount,
+          currency: 'eur',
+          destination: accountId,
+          description: 'Prelievo CRASY',
+          metadata: { userId, movementId: movementRef.id },
+        },
+        { idempotencyKey: `wallet-withdrawal-${movementRef.id}` }
+      );
+    } catch (error) {
+      // Il saldo torna dov'era: i soldi non sono usciti.
+      await userRef.update({
+        walletCents: admin.firestore.FieldValue.increment(amount),
+        withdrawingCents: 0,
+      });
+
+      logger.error(`Prelievo di ${userId} fallito: saldo ripristinato.`, error);
+
+      throw new HttpsError('unavailable', 'Prelievo non riuscito.');
+    }
+
+    await userRef.update({ withdrawingCents: 0 });
+    await movementRef.set({
+      kind: 'withdrawal',
+      amountCents: -amount,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    logger.info(`${userId} ha prelevato ${amount} centesimi.`);
+
+    return { paid: true, amountCents: amount };
+  }
+);
 
 /**
  * Nessuno ha partecipato: i soldi tornano indietro interi.

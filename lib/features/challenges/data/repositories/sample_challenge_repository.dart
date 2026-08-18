@@ -203,7 +203,13 @@ class SampleChallengeRepository implements ChallengeRepository {
 
     if (entries != null && index >= 0) {
       final entry = entries[index];
-      entries[index] = entry.copyWith(votes: entry.votes + (voted ? 1 : -1));
+      final next = entry.votes + (voted ? 1 : -1);
+
+      // Stessa regola delle challenge vere: le fiamme non vanno sotto zero.
+      // Qui e' quasi impossibile arrivarci, ma le due strade devono comportarsi
+      // allo stesso modo — altrimenti la prova in memoria assolve un codice che
+      // sul database sbaglia.
+      entries[index] = entry.copyWith(votes: next < 0 ? 0 : next);
     }
 
     _emit();

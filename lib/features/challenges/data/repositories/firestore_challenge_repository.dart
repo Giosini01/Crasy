@@ -269,12 +269,31 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     await _firestore.runTransaction((transaction) async {
       final existing = await transaction.get(voteRef);
 
-      // Se il voto e' gia' come lo si vuole non si scrive niente. Senza questo
-      // controllo un doppio tocco, o due schermate aperte sulla stessa foto,
-      // farebbero salire il contatore due volte per un voto solo.
+      // **Il documento del voto e' la verita', il contatore e' solo una copia.**
+      //
+      // Se il voto e' gia' come lo si vuole non si scrive niente: due tocchi
+      // rapidi, due schermate aperte sulla stessa foto, o la stessa azione
+      // rifatta dopo un errore di rete non possono contare due volte.
       if (existing.exists == voted) {
         return;
       }
+
+      // Il contatore si legge **dentro la transazione** e si riscrive per
+      // intero, invece di usare `FieldValue.increment`.
+      //
+      // E' la correzione di un bug che si vedeva a schermo: `increment(-1)` su
+      // una partecipazione **senza il campo `votes`** non lo porta a zero, lo
+      // crea a **meno uno**. Bastava una foto scritta da una versione dell'app
+      // che quel campo non lo salvava ancora, un mi piace tolto, e sotto quella
+      // foto compariva "-1" — un numero che non vuol dire niente, perche'
+      // nessuno puo' togliere un voto che non ha dato.
+      //
+      // Leggendo e riscrivendo il valore, il conto non puo' scendere sotto lo
+      // zero nemmeno partendo da un documento rotto: si aggiusta da solo alla
+      // prima fiamma.
+      final entry = await transaction.get(entryRef);
+      final current = (entry.data()?['votes'] as num?)?.toInt() ?? 0;
+      final next = _clampVotes(voted ? current + 1 : current - 1);
 
       if (voted) {
         transaction.set(voteRef, {
@@ -286,11 +305,18 @@ class FirestoreChallengeRepository implements ChallengeRepository {
         transaction.delete(voteRef);
       }
 
-      transaction.update(entryRef, {
-        'votes': FieldValue.increment(voted ? 1 : -1),
-      });
+      // A zero, togliere una fiamma non tocca il contatore: resta zero. La
+      // scrittura si salta del tutto invece di riscrivere lo stesso numero —
+      // le regole accettano solo variazioni di uno, e una scrittura che non
+      // cambia niente verrebbe rifiutata.
+      if (next != current) {
+        transaction.update(entryRef, {'votes': next});
+      }
     });
   }
+
+  /// Le fiamme non scendono sotto zero, mai.
+  static int _clampVotes(int value) => value < 0 ? 0 : value;
 
   @override
   Stream<Set<String>> watchVotedEntryIds(String userId) {
