@@ -56,7 +56,7 @@ class FriendsPage extends ConsumerWidget {
                     Text(
                       'TI HANNO CHIESTO',
                       style: context.texts.labelSmall?.copyWith(
-                        color: palette.textFaint,
+                        color: palette.accent,
                       ),
                     ),
                     const SizedBox(width: AppSpacing.xs),
@@ -74,13 +74,31 @@ class FriendsPage extends ConsumerWidget {
                 Divider(color: palette.line),
                 const SizedBox(height: AppSpacing.lg),
               ],
-              Text(
-                'I TUOI AMICI',
-                style: context.texts.labelSmall?.copyWith(
-                  color: palette.textFaint,
-                ),
+              // Il titolo della sezione e' grande e rosso, non una scritta
+              // grigia in punta di piedi. E' la schermata delle persone che
+              // uno conosce: senza il rosso e' un elenco di nomi, con il rosso
+              // e' la parte di CRASY che gli appartiene.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    'I TUOI AMICI',
+                    style: context.texts.headlineSmall?.copyWith(
+                      color: palette.accent,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  if (friends.isNotEmpty)
+                    Text(
+                      '${friends.length}',
+                      style: context.texts.titleMedium?.copyWith(
+                        color: palette.textFaint,
+                      ),
+                    ),
+                ],
               ),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.md),
               if (friends.isEmpty)
                 const EmptyState(
                   title: 'Ancora nessun amico',
@@ -126,10 +144,18 @@ class _RequestRow extends ConsumerWidget {
             child: GestureDetector(
               onTap: () =>
                   context.push(AppRoutes.userProfileOf(request.fromUserId)),
-              child: Text(
-                '@${request.fromUsername}',
-                style: context.texts.titleMedium,
+              child: RichText(
                 overflow: TextOverflow.ellipsis,
+                text: TextSpan(
+                  style: context.texts.titleMedium,
+                  children: [
+                    TextSpan(
+                      text: '@',
+                      style: TextStyle(color: palette.accent),
+                    ),
+                    TextSpan(text: request.fromUsername),
+                  ],
+                ),
               ),
             ),
           ),
@@ -172,10 +198,21 @@ class _FriendRow extends StatelessWidget {
             FriendAvatar(userId: friend.userId, username: friend.username),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
-              child: Text(
-                '@${friend.username}',
-                style: context.texts.titleMedium,
+              // La chiocciola in rosso e il nome in nero: e' un segno piccolo
+              // ripetuto molte volte, e sono i segni piccoli ripetuti a dare a
+              // un elenco l'aria di appartenere a qualcosa.
+              child: RichText(
                 overflow: TextOverflow.ellipsis,
+                text: TextSpan(
+                  style: context.texts.titleMedium,
+                  children: [
+                    TextSpan(
+                      text: '@',
+                      style: TextStyle(color: context.palette.accent),
+                    ),
+                    TextSpan(text: friend.username),
+                  ],
+                ),
               ),
             ),
             Icon(

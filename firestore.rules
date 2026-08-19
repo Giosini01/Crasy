@@ -327,6 +327,29 @@ service cloud.firestore {
                     && request.resource.data.participantsCount
                        == resource.data.participantsCount + 1;
 
+      // **Chiudere una gara scaduta. Strada temporanea, e si spegne da sola.**
+      //
+      // A proclamare il vincitore dovrebbe essere il server, e il codice c'e'
+      // gia': una funzione che gira ogni cinque minuti, e che richiede il piano
+      // a pagamento di Firebase. Finche' quel piano non e' attivo **nessuna
+      // challenge si chiude**: scadono e restano li' per sempre, e il giro del
+      // prodotto non si vede mai finire.
+      //
+      // Il permesso e' legato a `prizeStatus == 'unpaid'`, ed e' la parte che
+      // conta: vale solo dove **CRASY non ha in cassa un centesimo**. Il giorno
+      // in cui i pagamenti si accendono, ogni gara visibile e' pagata e da qui
+      // non si proclama piu' niente — senza che nessuno debba ricordarsi di
+      // cancellare questa regola.
+      //
+      // Va detto cosa questo permette, oggi: chiunque puo' scrivere il nome di
+      // un vincitore diverso da quello vero. Non ci sono soldi di mezzo, e il
+      // costo di non chiudere mai una gara e' piu' alto.
+      allow update: if signedIn()
+                    && changedOnly(['winnerEntryId', 'winnerUserId'])
+                    && resource.data.endsAt <= request.time
+                    && resource.data.get('prizeStatus', 'unpaid') == 'unpaid'
+                    && resource.data.get('winnerEntryId', null) == null;
+
       match /entries/{entryId} {
 
         // L'identificativo della partecipazione **e'** l'identificativo di chi
@@ -408,6 +431,14 @@ service cloud.firestore {
         // Il valore di partenza si legge con `get('votes', 0)` invece che
         // direttamente: le partecipazioni scritte prima che il campo esistesse
         // altrimenti resterebbero per sempre senza poter ricevere una fiamma.
+        // La vittoria, scritta insieme alla proclamazione qui sopra. Stesse
+        // due condizioni: gara finita, e nessun soldo in cassa.
+        allow update: if signedIn()
+                      && changedOnly(['isWinner'])
+                      && request.resource.data.isWinner == true
+                      && challenge().endsAt <= request.time
+                      && challenge().get('prizeStatus', 'unpaid') == 'unpaid';
+
         allow update: if signedIn()
                       && changedOnly(['votes'])
                       && (request.resource.data.votes

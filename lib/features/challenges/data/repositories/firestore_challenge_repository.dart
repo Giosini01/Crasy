@@ -319,6 +319,28 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     });
   }
 
+  @override
+  Future<void> proclaimWinner({
+    required String challengeId,
+    required String winnerEntryId,
+    required String winnerUserId,
+  }) async {
+    final challengeRef = _challenges.doc(challengeId);
+    final batch = _firestore.batch()
+      ..update(challengeRef, {
+        'winnerEntryId': winnerEntryId,
+        'winnerUserId': winnerUserId,
+      });
+
+    if (winnerEntryId.isNotEmpty) {
+      batch.update(_entries(challengeId).doc(winnerEntryId), {
+        'isWinner': true,
+      });
+    }
+
+    await batch.commit();
+  }
+
   /// L'estensione che corrisponde a un tipo di file.
   ///
   /// Serve solo a rendere leggibile il nome dentro Storage: a decidere come si

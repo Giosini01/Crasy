@@ -72,21 +72,24 @@ void main() {
   });
 
   group('durata', () {
-    test('e\' obbligatoria e sta fra un\'ora e un giorno', () {
-      expect(ChallengeDraftValidators.validateHours(null), isNotNull);
-      expect(ChallengeDraftValidators.validateHours(''), isNotNull);
-      expect(ChallengeDraftValidators.validateHours('0'), isNotNull);
-      expect(ChallengeDraftValidators.validateHours('1'), isNull);
-      expect(ChallengeDraftValidators.validateHours('7'), isNull);
-      expect(ChallengeDraftValidators.validateHours('24'), isNull);
+    test('e\' obbligatoria e sta fra un minuto e un giorno', () {
+      expect(ChallengeDraftValidators.validateMinutes(null), isNotNull);
+      expect(ChallengeDraftValidators.validateMinutes(''), isNotNull);
+      expect(ChallengeDraftValidators.validateMinutes('0'), isNotNull);
+      // Un minuto e' li' per provare: e' l'unico modo di vedere il giro intero
+      // — si crea, si partecipa, si vota, si chiude — senza restare seduti ad
+      // aspettare un'ora.
+      expect(ChallengeDraftValidators.validateMinutes('1'), isNull);
+      expect(ChallengeDraftValidators.validateMinutes('60'), isNull);
+      expect(ChallengeDraftValidators.validateMinutes('1440'), isNull);
     });
 
     test('oltre le ventiquattro ore non si va', () {
       // Non e' un limite tecnico: una gara che dura una settimana non ha
       // nessuna urgenza, e l'urgenza e' meta' del motivo per cui uno esce di
       // casa a fare una foto assurda.
-      expect(ChallengeDraftValidators.validateHours('25'), isNotNull);
-      expect(ChallengeDraftValidators.validateHours('99'), isNotNull);
+      expect(ChallengeDraftValidators.validateMinutes('1441'), isNotNull);
+      expect(ChallengeDraftValidators.validateMinutes('9999'), isNotNull);
     });
   });
 

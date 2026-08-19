@@ -116,6 +116,19 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
   }
 
   @override
+  Future<void> proclaimWinner({
+    required String challengeId,
+    required String winnerEntryId,
+    required String winnerUserId,
+  }) {
+    return _forChallenge(challengeId).proclaimWinner(
+      challengeId: challengeId,
+      winnerEntryId: winnerEntryId,
+      winnerUserId: winnerUserId,
+    );
+  }
+
+  @override
   Stream<Set<String>> watchVotedEntryIds(String userId) {
     // I voti dati alle challenge vere e a quelle di esempio convivono: sono
     // insiemi di identificativi che non si sovrappongono mai, e all'interfaccia

@@ -8,6 +8,7 @@ import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/presentation/controllers/challenge_closer.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
@@ -227,23 +228,41 @@ class _TimeBlock extends StatelessWidget {
 /// una volta sola. E' il link che gira fuori da CRASY: chi lo riceve deve
 /// trovarsi davanti **la cosa di cui gli hanno parlato**, non una pagina in cui
 /// cercarla. La gara resta sotto, a un tocco di distanza.
-class _Entries extends StatefulWidget {
+class _Entries extends ConsumerStatefulWidget {
   const _Entries({required this.challenge, required this.entries});
 
   final Challenge challenge;
   final List<ChallengeEntry> entries;
 
   @override
-  State<_Entries> createState() => _EntriesState();
+  ConsumerState<_Entries> createState() => _EntriesState();
 }
 
-class _EntriesState extends State<_Entries> {
+class _EntriesState extends ConsumerState<_Entries> {
   bool _opened = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _openSharedEntry();
+    _closeIfOver();
+  }
+
+  /// Chiude la gara se e' scaduta e nessuno l'ha ancora proclamata.
+  ///
+  /// Lo dovrebbe fare il server ogni cinque minuti, e il codice c'e' gia': gli
+  /// manca il piano a pagamento. Finche' non c'e', a chiudere e' il primo che
+  /// apre la gara dopo la scadenza — vedi `ChallengeCloser`, che spiega perche'
+  /// questa strada si spegne da sola il giorno in cui girano dei soldi veri.
+  void _closeIfOver() {
+    final challenge = widget.challenge;
+    final entries = widget.entries;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(challengeCloserProvider).closeIfNeeded(challenge, entries);
+      }
+    });
   }
 
   /// Apre la foto indicata dall'indirizzo.

@@ -6,7 +6,10 @@ import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/presentation/controllers/challenge_closer.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -89,16 +92,20 @@ class _WinnerBlock extends ConsumerWidget {
     final palette = context.palette;
     final texts = context.texts;
     final winnerId = challenge.winnerEntryId;
+    final entries =
+        ref.watch(challengeEntriesProvider(challenge.id)).valueOrNull ??
+        const <ChallengeEntry>[];
 
-    // Le partecipazioni si leggono solo se un vincitore c'e' davvero: una
-    // challenge chiusa senza proclamazione non deve costare una query.
-    final winner = winnerId == null
+    // Se la gara e' scaduta e nessuno l'ha proclamata, la si chiude adesso.
+    // Dovrebbe farlo il server; finche' non puo', lo fa la prima schermata che
+    // ci passa sopra — vedi `ChallengeCloser`.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(challengeCloserProvider).closeIfNeeded(challenge, entries);
+    });
+
+    final winner = winnerId == null || winnerId.isEmpty
         ? null
-        : ref
-              .watch(challengeEntriesProvider(challenge.id))
-              .valueOrNull
-              ?.where((entry) => entry.id == winnerId)
-              .firstOrNull;
+        : entries.where((entry) => entry.id == winnerId).firstOrNull;
 
     return GestureDetector(
       onTap: () => context.push(AppRoutes.challengeDetailOf(challenge.id)),
@@ -123,13 +130,29 @@ class _WinnerBlock extends ConsumerWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(challenge.title.toUpperCase(), style: texts.headlineMedium),
           const SizedBox(height: AppSpacing.md),
-          if (winner == null)
+          if (winnerId != null && winnerId.isEmpty)
+            Text(
+              'Non ha partecipato nessuno. Il premio torna a chi l\'ha messo.',
+              style: texts.bodyMedium,
+            )
+          else if (winner == null)
             Text('Vincitore in arrivo.', style: texts.bodyMedium)
           else ...[
-            MediaFrame(
-              url: winner.mediaUrl,
-              aspectRatio: 1,
-              caption: winner.authorName,
+            // **Solo la foto del vincitore.** Le altre stanno dentro la gara,
+            // per chi vuole andarle a rivedere; qui si racconta come e' finita,
+            // e come e' finita e' una foto sola.
+            GestureDetector(
+              onTap: () => FullscreenMedia.open(
+                context,
+                entries: [winner],
+                entry: winner,
+              ),
+              child: MediaFrame(
+                url: winner.mediaUrl,
+                video: winner.isVideo,
+                aspectRatio: 1,
+                caption: winner.authorName,
+              ),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text.rich(

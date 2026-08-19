@@ -229,13 +229,62 @@ async function closeChallenge(challenge) {
       `${winner.get('votes') || 0} voti.`
   );
 
-  // Il premio parte subito. Nella maggior parte dei casi non arrivera' — il
-  // vincitore non ha ancora un conto su cui riceverlo — e va benissimo: la
-  // funzione lo dice e non fa danni, e i soldi ripartono da soli appena si
-  // registra.
+  // Il premio finisce nel portafoglio del vincitore. Non parte nessun
+  // bonifico: i soldi sono suoi da adesso e li preleva quando vuole.
   try {
     await payments.payWinner(challenge.id);
   } catch (error) {
-    logger.error(`Challenge ${challenge.id}: premio non pagato.`, error);
+    logger.error(`Challenge ${challenge.id}: premio non accreditato.`, error);
   }
+
+  await dropLosingMedia(challenge, ranked.slice(1));
+}
+
+/**
+ * Cancella i file delle partecipazioni che non hanno vinto.
+ *
+ * Una foto pesa qualche decimo di megabyte dopo essere stata rimpicciolita, un
+ * video decine di volte tanto. Moltiplicato per venti partecipanti a gara e per
+ * qualche gara al giorno, lo spazio diventa il costo piu' alto dell'app —
+ * piu' dei premi — per tenere dei file che, passata la gara, non guarda piu'
+ * nessuno.
+ *
+ * **Il documento resta.** Sparisce l'immagine, non la partecipazione: chi ha
+ * partecipato, quante fiamme ha preso, chi ha vinto restano scritti per sempre.
+ * Nel profilo, al posto della foto, compare il riquadro con il nome — la stessa
+ * cosa che succede alle foto piu' vecchie di sei mesi, che il bucket cancella
+ * da solo.
+ *
+ * **Questo lo puo' fare solo il server.** Dare a un telefono il permesso di
+ * cancellare i file di altre persone e' una porta che non si richiude piu': qui
+ * gira con l'SDK di amministrazione, che le regole non le attraversa, e agisce
+ * su una gara che e' gia' finita e gia' proclamata.
+ */
+async function dropLosingMedia(challenge, losers) {
+  if (losers.length === 0) {
+    return;
+  }
+
+  const bucket = admin.storage().bucket();
+  let removed = 0;
+
+  for (const entry of losers) {
+    const path = entry.get('storagePath');
+
+    if (!path) {
+      continue;
+    }
+
+    try {
+      await bucket.file(path).delete({ ignoreNotFound: true });
+      // Il documento resta, ma senza indirizzo: cosi' chi lo legge sa che la
+      // foto non c'e' piu' invece di provare a scaricarla e trovare un errore.
+      await entry.ref.update({ mediaUrl: '', mediaRemovedAt: admin.firestore.FieldValue.serverTimestamp() });
+      removed++;
+    } catch (error) {
+      logger.warn(`Non ho potuto cancellare ${path}.`, error);
+    }
+  }
+
+  logger.info(`Challenge ${challenge.id}: liberati ${removed} file.`);
 }

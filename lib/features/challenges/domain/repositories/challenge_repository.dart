@@ -58,4 +58,27 @@ abstract class ChallengeRepository {
   /// Arriva come insieme e non come elenco di documenti perche' l'unica cosa
   /// che l'interfaccia deve sapere e' se il cuore di quella foto e' pieno.
   Stream<Set<String>> watchVotedEntryIds(String userId);
+
+  /// Proclama chi ha vinto una gara gia' scaduta.
+  ///
+  /// **Questo lo dovrebbe fare il server, e lo fara'.** La funzione che gira
+  /// ogni cinque minuti e chiude le gare scadute e' scritta
+  /// (`functions/index.js`), e richiede il piano a pagamento di Firebase. Fino
+  /// ad allora nessuna challenge si chiuderebbe mai: scadono e restano li',
+  /// senza vincitore, e il giro del prodotto non si vede finire.
+  ///
+  /// Cosi' lo chiude il primo che apre la gara dopo la scadenza. Il permesso e'
+  /// legato a una condizione che si spegne da sola: **vale solo se il premio
+  /// non e' stato incassato da CRASY**. Il giorno in cui i pagamenti si
+  /// accendono, ogni gara visibile ha i soldi in cassa e nessun telefono puo'
+  /// piu' proclamare niente — senza che qualcuno debba ricordarsi di togliere
+  /// questa strada.
+  ///
+  /// [winnerEntryId] vuoto vuol dire "nessuno ha partecipato": si scrive lo
+  /// stesso, per non ricontrollare la stessa gara per sempre.
+  Future<void> proclaimWinner({
+    required String challengeId,
+    required String winnerEntryId,
+    required String winnerUserId,
+  });
 }

@@ -73,24 +73,29 @@ abstract final class ChallengeDraftValidators {
     return null;
   }
 
-  /// Quanto puo' durare una challenge, in ore.
+  /// Quanto puo' durare una challenge, **in minuti**.
   ///
-  /// Il tetto e' **un giorno**, e non e' un limite tecnico: e' il prodotto. Una
+  /// Il tetto e' un giorno, e non e' un limite tecnico: e' il prodotto. Una
   /// gara che dura una settimana non ha nessuna urgenza, e l'urgenza e' meta'
-  /// del motivo per cui uno esce di casa a fare una foto assurda. Il minimo e'
-  /// un'ora perche' sotto non ci sta nemmeno il tempo di parteciparvi.
-  static const int hoursMin = 1;
-  static const int hoursMax = 24;
+  /// del motivo per cui uno esce di casa a fare una foto assurda.
+  ///
+  /// Il minimo e' **un minuto**, ed e' li' per provare. Una gara di sessanta
+  /// secondi non e' una gara — non ci sta il tempo di uscire di casa — ma e'
+  /// l'unico modo di vedere il giro intero (si crea, si partecipa, si vota, si
+  /// chiude, si proclama) senza restare seduti ad aspettare un'ora. Quando
+  /// l'app sara' in mano a delle persone vere, il minimo torna a un'ora.
+  static const int minutesMin = 1;
+  static const int minutesMax = 24 * 60;
 
-  static String? validateHours(String? value) {
-    final hours = int.tryParse(value?.trim() ?? '');
+  static String? validateMinutes(String? value) {
+    final minutes = int.tryParse(value?.trim() ?? '');
 
-    if (hours == null) {
-      return 'Inserisci quante ore dura.';
+    if (minutes == null) {
+      return 'Inserisci quanti minuti dura.';
     }
 
-    if (hours < hoursMin || hours > hoursMax) {
-      return 'Da $hoursMin a $hoursMax ore.';
+    if (minutes < minutesMin || minutes > minutesMax) {
+      return 'Da $minutesMin a $minutesMax minuti.';
     }
 
     return null;
@@ -126,7 +131,7 @@ class CreateChallengeController extends AsyncNotifier<void> {
     required ChallengeScope scope,
     required MediaKind mediaKind,
     required String place,
-    required int hours,
+    required int minutes,
   }) async {
     final authState = ref.read(authStateProvider);
 
@@ -156,7 +161,7 @@ class CreateChallengeController extends AsyncNotifier<void> {
       createdByUsername: profile?.username ?? 'anonimo',
       createdByUserId: authState.user.id,
       startsAt: now,
-      endsAt: now.add(Duration(hours: hours)),
+      endsAt: now.add(Duration(minutes: minutes)),
     );
 
     state = const AsyncLoading<void>();

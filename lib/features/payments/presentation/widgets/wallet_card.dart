@@ -93,6 +93,7 @@ class _WalletCardState extends ConsumerState<WalletCard> {
     final palette = context.palette;
     final texts = context.texts;
     final wallet = ref.watch(walletProvider).valueOrNull ?? const Wallet();
+    final balance = ref.watch(walletBalanceProvider);
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -113,7 +114,7 @@ class _WalletCardState extends ConsumerState<WalletCard> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                AppMoney.format(wallet.balanceCents),
+                AppMoney.format(balance),
                 style: texts.displaySmall?.copyWith(color: palette.accent),
               ),
               const Spacer(),
@@ -150,8 +151,10 @@ class _WalletCardState extends ConsumerState<WalletCard> {
   /// nessuna delle tre e' un ornamento.
   String _note(Wallet wallet) {
     if (!paymentsEnabled) {
-      return 'Qui finiranno i premi che vinci. I pagamenti non sono ancora '
-          'attivi: per ora il premio se lo passano le persone fra loro.';
+      return 'Quanto hai vinto finora. I pagamenti non sono ancora attivi, '
+          'quindi questi soldi te li deve chi ha lanciato la challenge: CRASY '
+          'non li ha in cassa e non fa da garante. Quando i pagamenti saranno '
+          'accesi, li troverai qui e li potrai prelevare.';
     }
 
     if (wallet.balanceCents <= 0) {

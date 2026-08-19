@@ -220,6 +220,30 @@ class SampleChallengeRepository implements ChallengeRepository {
   }
 
   @override
+  Future<void> proclaimWinner({
+    required String challengeId,
+    required String winnerEntryId,
+    required String winnerUserId,
+  }) async {
+    final challenge = _challenges[challengeId];
+
+    if (challenge == null) {
+      return;
+    }
+
+    _challenges[challengeId] = challenge.copyWith(winnerEntryId: winnerEntryId);
+
+    final entries = _entries[challengeId];
+    final index = entries?.indexWhere((entry) => entry.id == winnerEntryId);
+
+    if (entries != null && index != null && index >= 0) {
+      entries[index] = entries[index].copyWith(isWinner: true);
+    }
+
+    _emit();
+  }
+
+  @override
   Stream<Set<String>> watchVotedEntryIds(String userId) {
     return _watch(() => {...?_votes[userId]});
   }

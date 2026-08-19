@@ -220,7 +220,13 @@ grande da reggere l'ingrandimento a due dita. Su telefono `image_picker` faceva
 gia' il grosso; **su web ignora quei parametri**, ed e' da li' che arrivava
 tutto, perche' e' li' che CRASY vive oggi.
 
-**Dopo sei mesi**, il file sparisce da solo. E' una regola sul bucket, non
+**Appena la gara finisce**, i file di chi non ha vinto vengono cancellati: alla
+proclamazione resta solo la foto del vincitore. Il documento resta — chi ha
+partecipato, quante fiamme ha preso — sparisce l'immagine. Lo fa il server, ed
+e' l'unico che lo puo' fare: dare a un telefono il permesso di cancellare i file
+di altre persone e' una porta che non si richiude piu'.
+
+**Dopo sei mesi**, anche la foto del vincitore sparisce. E' una regola sul bucket, non
 codice: i file sotto `entries/` piu' vecchi di centottanta giorni vengono
 cancellati da Google. La partecipazione **resta scritta** — chi ha vinto, quante
 fiamme, quanto ha preso — sparisce solo l'immagine, e al suo posto compare il
@@ -418,6 +424,27 @@ poi diventa `499,99999`.
 
 `scope` vale `global`, `country`, `local` o `private`. Con `local`, `place` e' la
 citta' che si vede sulla scheda (`NAPOLI`).
+
+### Un minuto, per provare
+
+La durata si sceglie in **minuti**, da uno a millequattrocentoquaranta. Un
+minuto non e' una gara — non ci sta il tempo di uscire di casa — ed e' li' per
+una ragione sola: e' l'unico modo di vedere il giro intero senza restare seduti
+ad aspettare. Si lancia, si partecipa, si vota, si chiude, si proclama, e il
+premio compare nel portafoglio. Quando l'app sara' in mano a delle persone vere,
+il minimo torna a un'ora.
+
+E siccome la funzione che chiude le gare **non gira** senza il piano a
+pagamento, a chiudere e' il primo che apre una gara scaduta — dal dettaglio o
+dalla schermata dei vincitori. La classifica la calcola con le stesse regole del
+server: piu' fiamme per prima, a parita' chi ha mandato prima, fuori chi non ha
+passato il controllo.
+
+Il permesso, nelle regole, e' legato a una condizione che **si spegne da sola**:
+vale solo dove `prizeStatus` e' `unpaid`, cioe' dove CRASY non ha in cassa un
+centesimo. Il giorno in cui i pagamenti si accendono, ogni gara visibile e'
+pagata e da un telefono non si proclama piu' niente — senza che nessuno debba
+ricordarsi di togliere la regola.
 
 ### La chiusura delle challenge
 

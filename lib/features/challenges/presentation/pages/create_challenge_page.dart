@@ -42,7 +42,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
   final _brief = TextEditingController();
   final _prize = TextEditingController();
   final _place = TextEditingController();
-  final _hours = TextEditingController(text: '24');
+  final _minutes = TextEditingController(text: '1440');
 
   ChallengeScope _scope = ChallengeScope.global;
   MediaKind _mediaKind = MediaKind.photo;
@@ -54,7 +54,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     _brief.dispose();
     _prize.dispose();
     _place.dispose();
-    _hours.dispose();
+    _minutes.dispose();
     super.dispose();
   }
 
@@ -100,9 +100,12 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                 validator: ChallengeDraftValidators.validatePrize,
               ),
               _Field(
-                label: 'Titolo',
+                label: 'Come si chiama',
                 controller: _title,
-                hint: 'Do something crazy',
+                // Il suggerimento e' nella stessa lingua e nello stesso tono
+                // della consegna qui sotto: due esempi che si leggono di fila
+                // devono sembrare scritti dalla stessa persona.
+                hint: 'Foto con uno sconosciuto',
                 maxLength: ChallengeDraftValidators.titleMaxLength,
                 validator: ChallengeDraftValidators.validateTitle,
               ),
@@ -164,15 +167,15 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               ],
               const SizedBox(height: AppSpacing.lg),
               _Field(
-                label: 'Quanto dura — ore (max 24)',
-                controller: _hours,
-                hint: '24',
+                label: 'Quanto dura — minuti (max 1440)',
+                controller: _minutes,
+                hint: '1440',
                 keyboardType: TextInputType.number,
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(2),
+                  LengthLimitingTextInputFormatter(4),
                 ],
-                validator: ChallengeDraftValidators.validateHours,
+                validator: ChallengeDraftValidators.validateMinutes,
               ),
               // Le scorciatoie riempiono il campo invece di sostituirlo: il
               // valore resta uno solo e sempre visibile, e chi vuole 7 ore le
@@ -180,12 +183,20 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               Wrap(
                 spacing: AppSpacing.xs,
                 children: [
-                  for (final hours in const [1, 3, 6, 12, 24])
+                  // Il primo e' li' per provare: un minuto e' il tempo che ci
+                  // vuole a vedere il giro intero senza aspettare.
+                  for (final choice in const [
+                    (1, '1 MIN'),
+                    (5, '5 MIN'),
+                    (60, '1H'),
+                    (360, '6H'),
+                    (1440, '24H'),
+                  ])
                     _Choice(
-                      label: '${hours}H',
-                      selected: _hours.text == '$hours',
+                      label: choice.$2,
+                      selected: _minutes.text == '${choice.$1}',
                       onTap: () => setState(() {
-                        _hours.text = '$hours';
+                        _minutes.text = '${choice.$1}';
                       }),
                     ),
                 ],
@@ -247,7 +258,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
           scope: _scope,
           mediaKind: _mediaKind,
           place: _place.text,
-          hours: int.parse(_hours.text.trim()),
+          minutes: int.parse(_minutes.text.trim()),
         );
 
     if (!mounted) {
