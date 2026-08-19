@@ -1,14 +1,21 @@
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
 /// Un video di una partecipazione.
 ///
-/// Parte da solo, in silenzio, e va in ciclo. Sono tre scelte insieme e sono la
-/// stessa scelta: si scorre una gara guardando venti contenuti di fila, e un
-/// video che chiede di premere play prima di mostrarsi viene saltato. Il suono
-/// parte spento perche' nessuno vuole che il telefono cominci a parlare in
-/// mezzo alla gente — si accende con un tocco, e il tocco e' l'unico comando.
+/// Prova a partire da solo, in silenzio, e va in ciclo: si scorre una gara
+/// guardando venti contenuti di fila, e un video che chiede di premere play
+/// prima di mostrarsi viene saltato.
+///
+/// **Ma se non parte, resta comunque il primo fotogramma con un play sopra**, e
+/// questa e' la correzione di un difetto che si vedeva come "i video non si
+/// vedono". I browser dei telefoni rifiutano di far partire un video senza che
+/// nessuno abbia toccato lo schermo, e il rifiuto arriva come un errore: prima
+/// quell'errore veniva scambiato per "video rotto" e si buttava via un video
+/// che funzionava benissimo. Adesso il rifiuto e' un caso previsto — si mostra
+/// il fotogramma e si aspetta un dito.
 ///
 /// Il ciclo serve alla gara: trenta secondi che ripartono lasciano il tempo di
 /// decidere se quella cosa merita una fiamma.
@@ -51,13 +58,10 @@ class _VideoFrameState extends State<VideoFrame> {
 
     try {
       await controller.initialize();
-      await controller.setLooping(true);
-      await controller.setVolume(0);
-      await controller.play();
     } on Object {
-      // Un video che non si apre non deve far cadere la schermata che lo
-      // contiene: resta un riquadro con scritto che non si e' potuto caricare,
-      // e tutto il resto della gara continua a funzionare.
+      // **Solo questo e' un video rotto**: il file non si apre, il formato non
+      // si sa leggere. Tutto il resto — non parte, non fa rumore — e' un video
+      // che c'e'.
       await controller.dispose();
 
       if (mounted) {
@@ -74,6 +78,21 @@ class _VideoFrameState extends State<VideoFrame> {
     }
 
     setState(() => _controller = controller);
+
+    // Da qui in poi ogni errore si ignora: il video e' gia' a schermo, fermo
+    // sul primo fotogramma, e non parte da solo. E' esattamente quello che i
+    // browser dei telefoni si aspettano.
+    try {
+      await controller.setLooping(true);
+      await controller.setVolume(0);
+      await controller.play();
+    } on Object {
+      // Silenzio voluto: c'e' il play in mezzo allo schermo.
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
@@ -82,16 +101,28 @@ class _VideoFrameState extends State<VideoFrame> {
     super.dispose();
   }
 
-  void _toggleSound() {
+  /// Un tocco fa la cosa che serve in quel momento.
+  ///
+  /// Fermo: parte, e **con l'audio** — chi tocca un video fermo lo vuole
+  /// guardare davvero. Gia' in corso: accende o spegne il suono, perche' nessuno
+  /// vuole che il telefono cominci a parlare in mezzo alla gente.
+  Future<void> _tap() async {
     final controller = _controller;
 
     if (controller == null) {
       return;
     }
 
-    setState(() {
-      controller.setVolume(controller.value.volume > 0 ? 0 : 1);
-    });
+    if (!controller.value.isPlaying) {
+      await controller.setVolume(1);
+      await controller.play();
+    } else {
+      await controller.setVolume(controller.value.volume > 0 ? 0 : 1);
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
@@ -100,12 +131,20 @@ class _VideoFrameState extends State<VideoFrame> {
     final controller = _controller;
 
     if (_failed) {
+      // Anche qui si offre una via d'uscita invece di un vicolo cieco: il file
+      // c'e', e il browser da solo — fuori dall'app — quasi sempre lo apre.
       return ColoredBox(
         color: palette.surfaceMuted,
         child: Center(
-          child: Text(
-            'VIDEO NON DISPONIBILE',
-            style: context.texts.labelSmall?.copyWith(color: palette.textFaint),
+          child: TextButton(
+            onPressed: () => launchUrl(
+              Uri.parse(widget.url),
+              mode: LaunchMode.externalApplication,
+            ),
+            child: Text(
+              'APRI IL VIDEO',
+              style: context.texts.labelSmall?.copyWith(color: palette.accent),
+            ),
           ),
         ),
       );
@@ -115,8 +154,11 @@ class _VideoFrameState extends State<VideoFrame> {
       return ColoredBox(color: palette.surfaceMuted);
     }
 
+    final playing = controller.value.isPlaying;
+    final muted = controller.value.volume == 0;
+
     return GestureDetector(
-      onTap: _toggleSound,
+      onTap: _tap,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -132,6 +174,17 @@ class _VideoFrameState extends State<VideoFrame> {
               child: VideoPlayer(controller),
             ),
           ),
+          // Il play grande al centro c'e' **solo** quando il video e' fermo: e'
+          // un invito, non una decorazione, e sopra un video che sta gia'
+          // andando coprirebbe la cosa che si e' venuti a vedere.
+          if (!playing)
+            const Center(
+              child: Icon(
+                Icons.play_circle_fill_rounded,
+                size: 56,
+                color: Colors.white,
+              ),
+            ),
           Positioned(
             right: 8,
             bottom: 8,
@@ -143,10 +196,8 @@ class _VideoFrameState extends State<VideoFrame> {
               child: Padding(
                 padding: const EdgeInsets.all(6),
                 child: Icon(
-                  controller.value.volume > 0
-                      ? Icons.volume_up_rounded
-                      : Icons.volume_off_rounded,
-                  size: 16,
+                  muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                  size: 14,
                   color: Colors.white,
                 ),
               ),

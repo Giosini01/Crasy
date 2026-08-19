@@ -40,11 +40,24 @@ class ChallengeCloser {
 
   /// Chiude [challenge] se e' ora. Non fa niente e non lancia in tutti gli
   /// altri casi: chi la chiama e' una schermata che si sta disegnando.
+  ///
+  /// [entriesLoaded] dice se l'elenco delle partecipazioni **e' davvero
+  /// arrivato**, e non e' un dettaglio: e' il bug che ha proclamato "non ha
+  /// partecipato nessuno" su una gara che aveva un partecipante con due
+  /// fiamme. La schermata si disegna prima che lo stream emetta, e in quel
+  /// primo istante l'elenco e' vuoto — non perche' non ci sia nessuno, ma
+  /// perche' non e' ancora arrivato niente. Chiudere li' vuol dire scrivere
+  /// "nessun vincitore" per sempre, su una gara che un vincitore ce l'aveva.
+  ///
+  /// Una lista vuota **caricata** e una lista vuota **non ancora caricata** si
+  /// somigliano al punto da essere lo stesso oggetto, e qui la differenza vale
+  /// un premio.
   Future<void> closeIfNeeded(
     Challenge challenge,
-    List<ChallengeEntry> entries,
-  ) async {
-    if (!_shouldClose(challenge)) {
+    List<ChallengeEntry> entries, {
+    required bool entriesLoaded,
+  }) async {
+    if (!entriesLoaded || !_shouldClose(challenge)) {
       return;
     }
 
@@ -70,7 +83,11 @@ class ChallengeCloser {
   }
 
   bool _shouldClose(Challenge challenge) {
-    if (challenge.isDemo || _done.contains(challenge.id)) {
+    // Le challenge di esempio non hanno bisogno di un'eccezione: vivono in
+    // memoria, e il repository che le ospita risponde a `proclaimWinner` come
+    // farebbe quello vero. Una gara di prova che si chiude e proclama e' anzi
+    // il modo piu' onesto di far vedere come funziona.
+    if (_done.contains(challenge.id)) {
       return false;
     }
 

@@ -260,7 +260,11 @@ class _EntriesState extends ConsumerState<_Entries> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        ref.read(challengeCloserProvider).closeIfNeeded(challenge, entries);
+        // Qui l'elenco arriva dal ramo `data` dello stream, quindi e' per
+        // definizione caricato.
+        ref
+            .read(challengeCloserProvider)
+            .closeIfNeeded(challenge, entries, entriesLoaded: true);
       }
     });
   }

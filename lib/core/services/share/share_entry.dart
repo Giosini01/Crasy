@@ -1,6 +1,7 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 /// Mandare una foto fuori da CRASY.
@@ -37,35 +38,76 @@ abstract final class ShareEntry {
         '?foto=$entryId';
   }
 
-  /// Apre il pannello di condivisione del telefono.
+  /// Il messaggio gia' scritto, con il link in fondo.
   ///
-  /// Il testo che accompagna il link e' una **richiesta**, non una descrizione:
-  /// "guarda la mia foto" non fa fare niente a nessuno, "dammi una fiamma" si'.
-  /// Chi condivide sta chiedendo un voto, e la frase deve dire quello.
+  /// E' una **richiesta**, non una descrizione: "guarda la mia foto" non fa
+  /// fare niente a nessuno, "dammi una fiamma" si'. Chi condivide sta chiedendo
+  /// un voto, e la frase deve dire quello.
+  static String messageFor({
+    required String challengeId,
+    required String entryId,
+    required String challengeTitle,
+  }) {
+    final title = challengeTitle.isEmpty
+        ? 'una challenge'
+        : '"${challengeTitle.toUpperCase()}"';
+
+    return 'Sono in gara su CRASY con $title. Aprila e dammi una fiamma: '
+        'vince chi ne prende di piu\'.\n\n'
+        '${linkTo(challengeId: challengeId, entryId: entryId)}';
+  }
+
+  /// Apre il pannello di condivisione, e **se non c'e' copia il link**.
+  ///
+  /// Il pannello del sistema non esiste dappertutto: su un browser da computer
+  /// spesso non c'e', e dove c'e' puo' rifiutarsi di aprirsi. Prima il tasto in
+  /// quei casi non faceva niente — nessun pannello, nessun messaggio, nessun
+  /// modo di capire se era rotto o se era stato premuto male.
+  ///
+  /// Adesso il caso peggiore e' il messaggio negli appunti e una riga che lo
+  /// dice: da li' si incolla dove si vuole, ed e' esattamente cio' che il
+  /// pannello avrebbe fatto con un passaggio in meno.
   static Future<void> send(
     BuildContext context, {
     required String challengeId,
     required String entryId,
     required String challengeTitle,
   }) async {
-    final link = linkTo(challengeId: challengeId, entryId: entryId);
-    final title = challengeTitle.isEmpty
-        ? 'una challenge'
-        : '"${challengeTitle.toUpperCase()}"';
+    final message = messageFor(
+      challengeId: challengeId,
+      entryId: entryId,
+      challengeTitle: challengeTitle,
+    );
 
+    final messenger = ScaffoldMessenger.maybeOf(context);
     final box = context.findRenderObject() as RenderBox?;
 
-    await SharePlus.instance.share(
-      ShareParams(
-        text:
-            'Sono in gara su CRASY con $title. Aprila e dammi una fiamma: '
-            'vince chi ne prende di piu\'.\n\n$link',
-        subject: 'La mia foto su CRASY',
-        // Su iPad il pannello si aggancia a un punto dello schermo, e senza
-        // saperlo il sistema non lo apre affatto.
-        sharePositionOrigin: box == null
-            ? null
-            : box.localToGlobal(Offset.zero) & box.size,
+    try {
+      final result = await SharePlus.instance.share(
+        ShareParams(
+          text: message,
+          subject: 'La mia foto su CRASY',
+          // Su iPad il pannello si aggancia a un punto dello schermo, e senza
+          // saperlo il sistema non lo apre affatto.
+          sharePositionOrigin: box == null
+              ? null
+              : box.localToGlobal(Offset.zero) & box.size,
+        ),
+      );
+
+      if (result.status != ShareResultStatus.unavailable) {
+        return;
+      }
+    } on Object {
+      // Si passa agli appunti.
+    }
+
+    await Clipboard.setData(ClipboardData(text: message));
+
+    messenger?.showSnackBar(
+      const SnackBar(
+        content: Text('Messaggio copiato: incollalo dove vuoi.'),
+        duration: Duration(seconds: 3),
       ),
     );
   }

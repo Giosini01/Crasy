@@ -82,10 +82,19 @@ class FriendsPage extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Text(
-                    'I TUOI AMICI',
-                    style: context.texts.headlineSmall?.copyWith(
-                      color: palette.accent,
+                  // Due parole, due pesi: "I TUOI" e' la premessa, "AMICI" e'
+                  // la cosa. Il rosso sta sulla seconda, come il punto rosso in
+                  // fondo ai titoli dell'app — un accento, non una vernice.
+                  Text.rich(
+                    TextSpan(
+                      style: context.texts.headlineSmall,
+                      children: [
+                        const TextSpan(text: 'I TUOI '),
+                        TextSpan(
+                          text: 'AMICI',
+                          style: TextStyle(color: palette.accent),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: AppSpacing.xs),
@@ -144,18 +153,10 @@ class _RequestRow extends ConsumerWidget {
             child: GestureDetector(
               onTap: () =>
                   context.push(AppRoutes.userProfileOf(request.fromUserId)),
-              child: RichText(
+              child: Text(
+                '@${request.fromUsername}',
+                style: context.texts.titleMedium,
                 overflow: TextOverflow.ellipsis,
-                text: TextSpan(
-                  style: context.texts.titleMedium,
-                  children: [
-                    TextSpan(
-                      text: '@',
-                      style: TextStyle(color: palette.accent),
-                    ),
-                    TextSpan(text: request.fromUsername),
-                  ],
-                ),
               ),
             ),
           ),
@@ -198,21 +199,10 @@ class _FriendRow extends StatelessWidget {
             FriendAvatar(userId: friend.userId, username: friend.username),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
-              // La chiocciola in rosso e il nome in nero: e' un segno piccolo
-              // ripetuto molte volte, e sono i segni piccoli ripetuti a dare a
-              // un elenco l'aria di appartenere a qualcosa.
-              child: RichText(
+              child: Text(
+                '@${friend.username}',
+                style: context.texts.titleMedium,
                 overflow: TextOverflow.ellipsis,
-                text: TextSpan(
-                  style: context.texts.titleMedium,
-                  children: [
-                    TextSpan(
-                      text: '@',
-                      style: TextStyle(color: context.palette.accent),
-                    ),
-                    TextSpan(text: friend.username),
-                  ],
-                ),
               ),
             ),
             Icon(

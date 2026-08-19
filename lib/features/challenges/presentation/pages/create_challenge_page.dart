@@ -36,13 +36,30 @@ class CreateChallengePage extends ConsumerStatefulWidget {
       _CreateChallengePageState();
 }
 
+/// Le durate che si possono scegliere, in minuti.
+///
+/// Le prime due sono per provare e spariranno; le altre sono il prodotto. Il
+/// tetto e' **un giorno**, e non e' un limite tecnico: una gara che dura una
+/// settimana non ha nessuna urgenza, e l'urgenza e' meta' del motivo per cui
+/// uno esce di casa a fare una foto assurda.
+const _durations = <(int, String)>[
+  (1, '1 MIN'),
+  (5, '5 MIN'),
+  (60, '1 ORA'),
+  (120, '2 ORE'),
+  (180, '3 ORE'),
+  (300, '5 ORE'),
+  (600, '10 ORE'),
+  (1440, '24 ORE'),
+];
+
 class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
   final _formKey = GlobalKey<FormState>();
   final _title = TextEditingController();
   final _brief = TextEditingController();
   final _prize = TextEditingController();
   final _place = TextEditingController();
-  final _minutes = TextEditingController(text: '1440');
+  int _minutes = 1440;
 
   ChallengeScope _scope = ChallengeScope.global;
   MediaKind _mediaKind = MediaKind.photo;
@@ -54,7 +71,6 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     _brief.dispose();
     _prize.dispose();
     _place.dispose();
-    _minutes.dispose();
     super.dispose();
   }
 
@@ -166,41 +182,31 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                 ),
               ],
               const SizedBox(height: AppSpacing.lg),
-              _Field(
-                label: 'Quanto dura — minuti (max 1440)',
-                controller: _minutes,
-                hint: '1440',
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(4),
-                ],
-                validator: ChallengeDraftValidators.validateMinutes,
-              ),
-              // Le scorciatoie riempiono il campo invece di sostituirlo: il
-              // valore resta uno solo e sempre visibile, e chi vuole 7 ore le
-              // scrive senza cercare una voce che non c'e'.
+              _SectionLabel('Quanto dura'),
+              // **Solo caselle, niente campo da riempire.**
+              //
+              // La durata non e' un numero qualunque: e' una delle tre cose che
+              // decidono se una gara funziona. Un campo libero fa scrivere 37
+              // minuti — che non e' sbagliato, e' solo una scelta che nessuno
+              // aveva motivo di fare — e costringe a battere dei numeri su una
+              // tastiera per una cosa che si sceglie in un colpo d'occhio.
+              //
+              // Le prime due sono per provare: un minuto e' il tempo che ci
+              // vuole a vedere il giro intero — si lancia, si partecipa, si
+              // vota, si chiude — senza restare seduti ad aspettare.
               Wrap(
                 spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
                 children: [
-                  // Il primo e' li' per provare: un minuto e' il tempo che ci
-                  // vuole a vedere il giro intero senza aspettare.
-                  for (final choice in const [
-                    (1, '1 MIN'),
-                    (5, '5 MIN'),
-                    (60, '1H'),
-                    (360, '6H'),
-                    (1440, '24H'),
-                  ])
+                  for (final choice in _durations)
                     _Choice(
                       label: choice.$2,
-                      selected: _minutes.text == '${choice.$1}',
-                      onTap: () => setState(() {
-                        _minutes.text = '${choice.$1}';
-                      }),
+                      selected: _minutes == choice.$1,
+                      onTap: () => setState(() => _minutes = choice.$1),
                     ),
                 ],
               ),
+              const SizedBox(height: AppSpacing.md),
               if (_error != null) ...[
                 const SizedBox(height: AppSpacing.md),
                 InlineBanner(message: _error!),
@@ -258,7 +264,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
           scope: _scope,
           mediaKind: _mediaKind,
           place: _place.text,
-          minutes: int.parse(_minutes.text.trim()),
+          minutes: _minutes,
         );
 
     if (!mounted) {

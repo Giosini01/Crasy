@@ -92,15 +92,23 @@ class _WinnerBlock extends ConsumerWidget {
     final palette = context.palette;
     final texts = context.texts;
     final winnerId = challenge.winnerEntryId;
-    final entries =
-        ref.watch(challengeEntriesProvider(challenge.id)).valueOrNull ??
-        const <ChallengeEntry>[];
+    final entriesState = ref.watch(challengeEntriesProvider(challenge.id));
+    final entries = entriesState.valueOrNull ?? const <ChallengeEntry>[];
 
     // Se la gara e' scaduta e nessuno l'ha proclamata, la si chiude adesso.
     // Dovrebbe farlo il server; finche' non puo', lo fa la prima schermata che
     // ci passa sopra — vedi `ChallengeCloser`.
+    //
+    // `hasValue` e' la parte che conta: senza, la prima frame — quando lo
+    // stream non ha ancora emesso — proclamava "nessun partecipante".
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(challengeCloserProvider).closeIfNeeded(challenge, entries);
+      ref
+          .read(challengeCloserProvider)
+          .closeIfNeeded(
+            challenge,
+            entries,
+            entriesLoaded: entriesState.hasValue,
+          );
     });
 
     final winner = winnerId == null || winnerId.isEmpty
