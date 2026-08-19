@@ -28,7 +28,14 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   final _email = TextEditingController();
   final _password = TextEditingController();
 
-  bool _signingUp = true;
+  /// **Si parte dall'accesso, non dalla registrazione.**
+  ///
+  /// Chi apre CRASY, quasi sempre, un account ce l'ha gia': aprire sul modulo
+  /// di registrazione vuol dire far leggere "crea il tuo account" a qualcuno
+  /// che voleva solo rientrare, e fargli cercare dove si entra. Chi invece e'
+  /// nuovo lo e' una volta sola in tutta la sua vita d'uso dell'app, e per lui
+  /// c'e' un bottone rosso che non si puo' non vedere.
+  bool _signingUp = false;
   bool _passwordVisible = false;
 
   @override
@@ -40,6 +47,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     final texts = context.texts;
     final action = ref.watch(authActionControllerProvider);
     final error = action.error;
@@ -125,14 +133,38 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                   loading: action.isLoading,
                   onPressed: _submit,
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                TextButton(
+                const SizedBox(height: AppSpacing.lg),
+                // La seconda porta.
+                //
+                // Non e' un bottone uguale a quello sopra: sopra c'e' il
+                // comando pieno, qui il contorno. Due bottoni pieni uno sopra
+                // l'altro chiedono di scegliere fra due cose che sembrano
+                // ugualmente importanti, e per chi arriva qui la scelta giusta
+                // e' quasi sempre quella sopra. Il rosso pero' resta: chi e'
+                // nuovo lo e' una volta sola, e in quell'unica volta non deve
+                // mettersi a cercare.
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: palette.line)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                      ),
+                      child: Text(
+                        _signingUp ? 'HAI GIA\' UN ACCOUNT?' : 'PRIMA VOLTA?',
+                        style: texts.labelSmall?.copyWith(
+                          color: palette.textFaint,
+                        ),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: palette.line)),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                SecondaryButton(
+                  label: _signingUp ? 'Entra' : 'Registrati',
+                  accent: true,
                   onPressed: () => setState(() => _signingUp = !_signingUp),
-                  child: Text(
-                    _signingUp
-                        ? 'Ho gia\' un account'
-                        : 'Non ho ancora un account',
-                  ),
                 ),
               ],
             ),

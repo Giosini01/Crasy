@@ -31,8 +31,11 @@ enum VoteOutcome {
 ///
 /// Ora la memoria e' una sola, per partecipazione, e qualunque gesto la
 /// aggiorna: due gesti sulla stessa foto sono lo stesso gesto.
+/// Chiave: `ChallengeEntry.voteKey`, non l'identificativo della partecipazione.
+/// Due gare diverse sono due voti diversi anche se la foto e' della stessa
+/// persona — vedi `voteKey` per il perche'.
 final pendingVoteProvider = StateProvider.family<bool?, String>(
-  (ref, entryId) => null,
+  (ref, voteKey) => null,
 );
 
 /// Se la fiamma di questa foto e' accesa **per come la vede l'utente**.
@@ -40,11 +43,11 @@ final pendingVoteProvider = StateProvider.family<bool?, String>(
 /// Quello che ha appena chiesto vince su quello che dice il server: fra il tocco
 /// e la risposta di Firestore passa qualche decimo di secondo, e in quel momento
 /// deve vedere il gesto fatto, non lo stato di prima.
-final entryVotedProvider = Provider.family<bool, String>((ref, entryId) {
+final entryVotedProvider = Provider.family<bool, String>((ref, voteKey) {
   final confirmed =
-      ref.watch(votedEntryIdsProvider).valueOrNull?.contains(entryId) ?? false;
+      ref.watch(votedEntryIdsProvider).valueOrNull?.contains(voteKey) ?? false;
 
-  return ref.watch(pendingVoteProvider(entryId)) ?? confirmed;
+  return ref.watch(pendingVoteProvider(voteKey)) ?? confirmed;
 });
 
 /// Di quanto va corretto il contatore che arriva dal server.
@@ -52,10 +55,10 @@ final entryVotedProvider = Provider.family<bool, String>((ref, entryId) {
 /// Zero quando il server e' gia' allineato. Vale uno solo nell'attimo in cui la
 /// scrittura e' in volo: il numero che abbiamo in mano non comprende ancora il
 /// nostro voto, e glielo aggiungiamo noi.
-final entryVoteDeltaProvider = Provider.family<int, String>((ref, entryId) {
+final entryVoteDeltaProvider = Provider.family<int, String>((ref, voteKey) {
   final confirmed =
-      ref.watch(votedEntryIdsProvider).valueOrNull?.contains(entryId) ?? false;
-  final pending = ref.watch(pendingVoteProvider(entryId));
+      ref.watch(votedEntryIdsProvider).valueOrNull?.contains(voteKey) ?? false;
+  final pending = ref.watch(pendingVoteProvider(voteKey));
 
   if (pending == null || pending == confirmed) {
     return 0;
@@ -171,7 +174,7 @@ class VoteController {
       // non manda venti notifiche, manda venti volte la stessa — e le regole
       // ne accettano solo la prima.
       id: FirestoreNotificationsRepository.fireId(
-        entryId: entry.id,
+        voteKey: entry.voteKey,
         actorId: actorId,
       ),
       kind: NotificationKind.fire,

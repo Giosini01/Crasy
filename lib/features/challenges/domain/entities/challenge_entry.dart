@@ -44,6 +44,23 @@ class ChallengeEntry {
 
   final int votes;
 
+  /// Come si chiama questo voto, per chi lo da'.
+  ///
+  /// **Non basta l'identificativo della partecipazione**, ed e' costato caro:
+  /// una partecipazione si chiama come chi l'ha mandata — una foto a testa per
+  /// challenge, e il nome del documento e' la regola scritta nella forma dei
+  /// dati. Ma la stessa persona partecipa a **piu'** challenge, e in tutte la
+  /// sua foto si chiama allo stesso modo.
+  ///
+  /// I voti stavano sotto quel nome soltanto. Conseguenza: bastava votare la
+  /// foto di qualcuno in una gara perche' la sua foto in **un'altra** gara
+  /// risultasse gia' votata — fiamma rossa senza averla toccata. E toccandola
+  /// li', il conto di quella seconda gara scendeva di uno senza essere mai
+  /// salito. Con dei soldi in palio, e' un voto spostato da una foto a un'altra.
+  ///
+  /// La gara fa parte del nome del voto. Due gare, due voti distinti.
+  String get voteKey => '${challengeId}__$id';
+
   /// Vera per la partecipazione che ha vinto la sua challenge.
   final bool isWinner;
 

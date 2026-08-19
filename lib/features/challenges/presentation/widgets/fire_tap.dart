@@ -47,7 +47,7 @@ class _FireTapState extends ConsumerState<FireTap>
   Future<void> _handleDoubleTap() async {
     // A fiamma gia' accesa il doppio tocco non fa niente e il voto resta:
     // nessuno ripete lo stesso gesto per disfare quello che ha appena fatto.
-    if (ref.read(entryVotedProvider(widget.entry.id))) {
+    if (ref.read(entryVotedProvider(widget.entry.voteKey))) {
       return;
     }
 

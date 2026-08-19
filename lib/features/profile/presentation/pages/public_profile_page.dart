@@ -2,7 +2,6 @@ import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
-import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
@@ -10,6 +9,7 @@ import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
+import 'package:crasy/features/payments/presentation/widgets/wallet_card.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -108,13 +108,25 @@ class _Body extends ConsumerWidget {
             ],
           ),
         ),
-        const SizedBox(height: AppSpacing.xl),
-        _Stats(
-          entries: entries.length,
-          wins: wins,
-          prizeCents: prizeCents,
-          friends: friends.length,
+        const SizedBox(height: AppSpacing.lg),
+        // Quanto ha vinto, in grande e per chiunque.
+        //
+        // **E' il numero che rende credibile tutta l'app.** Chi arriva da un
+        // link e non ha mai sentito nominare CRASY non ha nessun motivo di
+        // credere che qui si vincano dei soldi veri; vedere che una persona
+        // vera ne ha presi e' l'unica prova che si possa mostrare. Per questo
+        // sta sul profilo di tutti e non solo sul proprio.
+        //
+        // E' il **totale vinto**, non quello che ha ancora da parte: quanti
+        // soldi uno tenga sul conto adesso non e' affare di nessuno, e
+        // scenderebbe ogni volta che preleva — cioe' proprio quando la
+        // promessa e' stata mantenuta meglio.
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+          child: PrizeTotalCard(prizeCents: prizeCents),
         ),
+        const SizedBox(height: AppSpacing.lg),
+        _Stats(entries: entries.length, wins: wins, friends: friends.length),
         const SizedBox(height: AppSpacing.xl),
         if (entries.isEmpty)
           const Padding(
@@ -248,18 +260,18 @@ class _Initials extends StatelessWidget {
   }
 }
 
-/// I quattro numeri di un profilo pubblico.
+/// I tre numeri di un profilo pubblico. I soldi stanno sopra, in grande, e non
+/// si ripetono qui: lo stesso numero scritto due volte nella stessa schermata
+/// non e' un rinforzo, e' il dubbio che siano due numeri diversi.
 class _Stats extends StatelessWidget {
   const _Stats({
     required this.entries,
     required this.wins,
-    required this.prizeCents,
     required this.friends,
   });
 
   final int entries;
   final int wins;
-  final int prizeCents;
   final int friends;
 
   @override
@@ -280,12 +292,6 @@ class _Stats extends StatelessWidget {
               _Stat(label: 'SCATTI', value: '$entries'),
               _Divider(color: palette.line),
               _Stat(label: 'VINTE', value: '$wins'),
-              _Divider(color: palette.line),
-              _Stat(
-                label: 'VINTI',
-                value: AppMoney.format(prizeCents),
-                color: prizeCents > 0 ? palette.accent : null,
-              ),
               _Divider(color: palette.line),
               _Stat(label: 'AMICI', value: '$friends'),
             ],
@@ -309,11 +315,10 @@ class _Divider extends StatelessWidget {
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value, this.color});
+  const _Stat({required this.label, required this.value});
 
   final String label;
   final String value;
-  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -325,7 +330,7 @@ class _Stat extends StatelessWidget {
         children: [
           Text(
             value,
-            style: texts.headlineSmall?.copyWith(color: color),
+            style: texts.headlineSmall,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

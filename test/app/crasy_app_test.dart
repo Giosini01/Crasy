@@ -70,10 +70,11 @@ void main() {
     // si mettono in gioco, e non stanno in una vetrina aperta a chiunque passi.
     // I titoli sono testo composto — parola nera piu' punto rosso — quindi non
     // sono un `Text` semplice: `findRichText` li cerca per quello che rendono.
-    expect(
-      find.text('CREA IL TUO\nACCOUNT.', findRichText: true),
-      findsOneWidget,
-    );
+    //
+    // Si apre sull'accesso: chi torna e' la maggioranza schiacciante, e chi e'
+    // nuovo ha il suo bottone rosso subito sotto.
+    expect(find.text('BENTORNATO.', findRichText: true), findsOneWidget);
+    expect(find.text('REGISTRATI'), findsOneWidget);
     expect(find.text('CHALLENGE'), findsNothing);
     expect(find.text('NESSUNA CHALLENGE APERTA'), findsNothing);
 

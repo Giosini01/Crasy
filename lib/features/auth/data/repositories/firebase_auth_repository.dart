@@ -52,15 +52,31 @@ class FirebaseAuthRepository implements AuthRepository {
     // Il messaggio parte subito, senza che nessuno debba chiederlo: chi si e'
     // appena registrato ha l'app in mano e la casella aperta, ed e' l'unico
     // momento in cui confermare costa zero.
-    await credential.user?.sendEmailVerification();
+    await credential.user?.sendEmailVerification(_backToCrasy);
 
     return _mapFirebaseUser(credential.user);
   }
 
   @override
   Future<void> sendEmailVerification() async {
-    await _firebaseAuth.currentUser?.sendEmailVerification();
+    await _firebaseAuth.currentUser?.sendEmailVerification(_backToCrasy);
   }
+
+  /// Dove si finisce dopo aver confermato l'indirizzo.
+  ///
+  /// Senza, l'ultima cosa che vede chi si registra e' una pagina bianca di
+  /// Firebase con scritto "indirizzo verificato" e nessuna via d'uscita: ha
+  /// appena fatto tutto giusto e si ritrova fuori dall'app, su un indirizzo che
+  /// non ha mai sentito nominare. Con questo, sulla stessa pagina compare un
+  /// collegamento che riporta dentro CRASY.
+  ///
+  /// **Non cambia il dominio del link** — quello e' l'indirizzo del gestore di
+  /// Firebase e si sposta solo dalla Console. Cambia dove si atterra dopo, che
+  /// e' la meta' del problema che si puo' risolvere da qui.
+  static final ActionCodeSettings _backToCrasy = ActionCodeSettings(
+    url: 'https://crasy.web.app/',
+    handleCodeInApp: false,
+  );
 
   @override
   Future<AppUser?> reload() async {

@@ -2,7 +2,6 @@ import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
-import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
@@ -40,7 +39,6 @@ class ProfilePage extends ConsumerWidget {
     final profileState = ref.watch(currentUserProfileProvider);
     final entries = ref.watch(myEntriesProvider).valueOrNull ?? const [];
     final wins = ref.watch(myWinsProvider);
-    final prizeCents = ref.watch(myPrizeCentsProvider);
 
     return Scaffold(
       body: AppBackground(
@@ -80,7 +78,6 @@ class ProfilePage extends ConsumerWidget {
                   _Stats(
                     entries: entries.length,
                     wins: wins.length,
-                    prizeCents: prizeCents,
                     friends:
                         ref.watch(myFriendsProvider).valueOrNull?.length ?? 0,
                   ),
@@ -344,20 +341,23 @@ class _Initials extends StatelessWidget {
 
 /// I tre numeri, fra due filetti.
 ///
-/// Sono quattro e non otto: scatti, vinte, vinti, amici. Tutto il resto —
-/// visualizzazioni, fiamme ricevute, giorni di fila — sarebbe roba da far
-/// salire per il gusto di farla salire.
+/// Sono tre: scatti, vinte, amici. Tutto il resto — visualizzazioni, fiamme
+/// ricevute, giorni di fila — sarebbe roba da far salire per il gusto di farla
+/// salire.
+///
+/// **I soldi non stanno qui**, e prima ci stavano due volte: una nel
+/// portafoglio, in cima e in grande, e una in questa riga come "VINTI". Lo
+/// stesso numero scritto due volte nella stessa schermata non e' un rinforzo,
+/// e' il dubbio che siano due numeri diversi.
 class _Stats extends StatelessWidget {
   const _Stats({
     required this.entries,
     required this.wins,
-    required this.prizeCents,
     required this.friends,
   });
 
   final int entries;
   final int wins;
-  final int prizeCents;
   final int friends;
 
   @override
@@ -378,14 +378,6 @@ class _Stats extends StatelessWidget {
               _Stat(label: 'SCATTI', value: '$entries'),
               _Divider(color: palette.line),
               _Stat(label: 'VINTE', value: '$wins'),
-              _Divider(color: palette.line),
-              _Stat(
-                label: 'VINTI',
-                value: AppMoney.format(prizeCents),
-                // Il denaro prende il rosso solo quando ce n'e' davvero: un
-                // "€0" acceso sarebbe una promessa mancata scritta a colori.
-                color: prizeCents > 0 ? palette.accent : null,
-              ),
               _Divider(color: palette.line),
               _Stat(label: 'AMICI', value: '$friends'),
             ],
@@ -409,11 +401,10 @@ class _Divider extends StatelessWidget {
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value, this.color});
+  const _Stat({required this.label, required this.value});
 
   final String label;
   final String value;
-  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -425,7 +416,7 @@ class _Stat extends StatelessWidget {
         children: [
           Text(
             value,
-            style: texts.headlineMedium?.copyWith(color: color),
+            style: texts.headlineMedium,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

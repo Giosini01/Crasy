@@ -190,7 +190,7 @@ class _Slide extends ConsumerWidget {
       // Il doppio tocco vale anche qui, e a fiamma gia' accesa non la spegne:
       // nessuno ripete lo stesso gesto per disfare quello che ha appena fatto.
       onDoubleTap: () {
-        if (!ref.read(entryVotedProvider(entry.id))) {
+        if (!ref.read(entryVotedProvider(entry.voteKey))) {
           giveFire(context, ref, entry, voted: true);
         }
       },
@@ -242,8 +242,9 @@ class _BottomBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final voted = ref.watch(entryVotedProvider(entry.id));
-    final counted = entry.votes + ref.watch(entryVoteDeltaProvider(entry.id));
+    final voted = ref.watch(entryVotedProvider(entry.voteKey));
+    final counted =
+        entry.votes + ref.watch(entryVoteDeltaProvider(entry.voteKey));
     final votes = counted < 0 ? 0 : counted;
 
     return Container(

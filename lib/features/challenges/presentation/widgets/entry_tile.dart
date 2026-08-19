@@ -6,6 +6,7 @@ import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
+import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:flutter/material.dart';
@@ -136,7 +137,7 @@ Future<VoteOutcome> giveFire(
   ChallengeEntry entry, {
   required bool voted,
 }) async {
-  final pending = ref.read(pendingVoteProvider(entry.id).notifier);
+  final pending = ref.read(pendingVoteProvider(entry.voteKey).notifier);
 
   pending.state = voted;
 
@@ -168,7 +169,24 @@ Future<VoteOutcome> giveFire(
   // aver finito di scrivere, quindi quando si arriva qui lo stream ha gia'
   // detto la verita' e non c'e' nessuno sfarfallio.
   if (outcome == VoteOutcome.done) {
-    pending.state = null;
+    // **La correzione locale si spegne solo quando il server dice la stessa
+    // cosa.**
+    //
+    // Spegnerla subito sembrava piu' pulito e produceva il difetto peggiore di
+    // tutti: fra la fine della scrittura e l'arrivo dello stream c'e' un
+    // istante in cui il server "non sa" ancora del voto, e in quell'istante la
+    // fiamma si spegneva e il numero scendeva. Chi lo vedeva toccava di nuovo —
+    // e quel secondo tocco era un voto vero, nella direzione sbagliata.
+    //
+    // Finche' non combaciano, la correzione resta e il conto e' giusto; quando
+    // combaciano non corregge piu' niente, e toglierla non si vede.
+    final confirmed =
+        ref.read(votedEntryIdsProvider).valueOrNull?.contains(entry.voteKey) ??
+        false;
+
+    if (confirmed == voted) {
+      pending.state = null;
+    }
 
     return outcome;
   }
@@ -200,7 +218,7 @@ class VoteButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
-    final voted = ref.watch(entryVotedProvider(entry.id));
+    final voted = ref.watch(entryVotedProvider(entry.voteKey));
 
     // **Il numero non scende mai sotto zero, ed e' qui che andava messo il
     // freno.**
@@ -214,7 +232,8 @@ class VoteButton extends ConsumerWidget {
     //
     // Una fiamma negativa non vuol dire niente: nessuno puo' togliere un voto
     // che non ha dato.
-    final counted = entry.votes + ref.watch(entryVoteDeltaProvider(entry.id));
+    final counted =
+        entry.votes + ref.watch(entryVoteDeltaProvider(entry.voteKey));
     final votes = counted < 0 ? 0 : counted;
 
     return Semantics(

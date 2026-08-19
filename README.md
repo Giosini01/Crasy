@@ -62,6 +62,33 @@ Due regole tengono onesta la competizione:
 - **la propria foto si puo' votare**. Sembra un buco e non lo e': possono farlo
   tutti, quindi e' un voto in piu' per ciascuno e non sposta la classifica.
 
+### Il conto delle fiamme
+
+Un voto si chiama `{challenge}__{partecipazione}`, e quel doppio trattino ha una
+storia. Una partecipazione si chiama come chi l'ha mandata — una foto a testa
+per challenge, e il nome del documento **e'** la regola scritta nella forma dei
+dati. Ma la stessa persona partecipa a piu' gare, e in tutte la sua foto si
+chiama allo stesso modo.
+
+I voti stavano sotto quel nome soltanto. Conseguenza: bastava votare la foto di
+qualcuno in una gara perche' la sua foto in **un'altra** risultasse gia' votata,
+fiamma rossa senza averla toccata — e toccandola li', il conto di quella seconda
+gara scendeva di uno senza essere mai salito. Con dei soldi in palio non e' un
+difetto grafico: e' un voto spostato da una foto a un'altra.
+
+Attorno al contatore ci sono altre tre difese, tutte imparate sul campo:
+
+- il contatore si **rilegge dentro la transazione** e si riscrive per intero.
+  `FieldValue.increment(-1)` su una foto senza quel campo non lo porta a zero,
+  lo crea a **meno uno**;
+- i tocchi sulla stessa foto si mettono **in fila**. Due scritture in volo
+  insieme leggono tutte e due il mondo di prima, e la seconda decide su uno
+  stato che non esiste piu';
+- la correzione ottimistica si spegne **solo quando il server dice la stessa
+  cosa**. Spegnerla appena finita la scrittura lasciava un istante in cui la
+  fiamma si spegneva da sola: chi lo vedeva toccava di nuovo, e quel secondo
+  tocco era un voto vero nella direzione sbagliata.
+
 ### Le schermate
 
 | Schermata | Cosa fa |
@@ -174,6 +201,34 @@ vede **solo chi l'ha mandata**, con scritto "in verifica".
 > Per accenderlo servono tre cose: il piano Blaze, la Vision API abilitata, e
 > il deploy delle funzioni. Poi si compila con
 > `--dart-define=CRASY_PHOTO_MODERATION=true` e nel codice non cambia altro.
+
+---
+
+## Lo spazio che occupano le foto
+
+Una foto appena uscita da un telefono pesa fra i tre e gli otto megabyte. Mille
+partecipazioni sono cinque gigabyte, e a quel punto lo spazio comincia a
+costare piu' dei premi.
+
+Si interviene in due punti, e il primo vale dieci volte il secondo.
+
+**Prima di partire**, ogni foto viene portata a milleseicento punti sul lato
+lungo e salvata all'ottantadue per cento: da quattro megabyte a tre decimi. Su
+uno schermo da telefono non si vede nessuna differenza — quella foto verra'
+guardata dentro un riquadro largo quattrocento punti — e resta abbastanza
+grande da reggere l'ingrandimento a due dita. Su telefono `image_picker` faceva
+gia' il grosso; **su web ignora quei parametri**, ed e' da li' che arrivava
+tutto, perche' e' li' che CRASY vive oggi.
+
+**Dopo sei mesi**, il file sparisce da solo. E' una regola sul bucket, non
+codice: i file sotto `entries/` piu' vecchi di centottanta giorni vengono
+cancellati da Google. La partecipazione **resta scritta** — chi ha vinto, quante
+fiamme, quanto ha preso — sparisce solo l'immagine, e al suo posto compare il
+riquadro grigio con il nome di chi l'aveva mandata.
+
+Sei mesi sono una scelta, non un vincolo: si cambia con una riga sulla
+configurazione del bucket. I video non si possono rimpicciolire dal telefono, e
+per quelli valgono i due limiti a monte: mezzo minuto e quaranta megabyte.
 
 ---
 
@@ -307,14 +362,30 @@ Due scelte da conoscere prima di toccare qualcosa:
 database direttamente. Le foto che la gente manda sono di persone vere che si
 mettono in gioco: non stanno in una vetrina aperta a chiunque passi.
 
-> **Il progetto Firebase si chiama ancora `daily-dating-app`**, e l'app Android
-> ancora `com.example.app_incontri`. Sono rimasti apposta: l'identificativo di un
-> progetto Firebase non si puo' rinominare, e cambiare il nome del pacchetto
-> Android scollegherebbe `google-services.json` — accesso e database
-> smetterebbero di funzionare finche' non si registra la nuova app dalla console.
-> Sono nomi che non si vedono da nessuna parte nel prodotto. Per cambiarli
-> davvero serve creare un progetto Firebase nuovo e rigenerare
-> `firebase_options.dart` con `flutterfire configure`.
+> **Il progetto Firebase si chiama ancora `daily-dating-app`.** L'identificativo
+> di un progetto Google non si rinomina — mai, in nessun modo. Il nome
+> visualizzato e' gia' CRASY, il dominio e' `crasy.web.app`, e dentro il
+> prodotto quel nome non compare da nessuna parte. Restano due punti in cui
+> esce, e vanno detti:
+>
+> - **il link dentro l'email di conferma** punta a
+>   `daily-dating-app.firebaseapp.com/__/auth/action`. Si cambia, ma **solo
+>   dalla Console** — l'API risponde `EMAIL_TEMPLATE_UPDATE_NOT_ALLOWED` a
+>   qualunque tentativo. Console → Authentication → Templates → la matita
+>   accanto a "Verifica dell'indirizzo email" → *Personalizza URL azione* →
+>   `https://crasy.web.app/__/auth/action`. Il dominio e' gia' autorizzato e la
+>   pagina risponde: e' scelta da un elenco, non da scrivere;
+> - **il mittente** e' `noreply@daily-dating-app.firebaseapp.com`. Per cambiarlo
+>   serve un dominio proprio verificato o un server SMTP nostro — e' la stessa
+>   cosa che serve per non finire nello spam, quindi si fanno insieme.
+>
+> Nel frattempo, chi conferma l'indirizzo **torna su `crasy.web.app`**: la
+> pagina di Firebase mostra un collegamento di ritorno, che prima non c'era.
+>
+> L'app Android si chiama ancora `com.example.app_incontri`: cambiarla
+> scollegherebbe `google-services.json`. Per rifare tutto da capo con un nome
+> pulito serve un progetto Firebase nuovo, esportando utenti (`firebase
+> auth:export`, le password si migrano), documenti e file.
 
 ### Creare una challenge
 

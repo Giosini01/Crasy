@@ -264,7 +264,10 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     required String userId,
     required bool voted,
   }) async {
-    final voteRef = _votes(userId).doc(entryId);
+    // Il nome del voto porta dentro la gara. Vedi `ChallengeEntry.voteKey`: le
+    // partecipazioni si chiamano come il loro autore, quindi lo stesso nome
+    // ricompare in ogni challenge a cui quella persona partecipa.
+    final voteRef = _votes(userId).doc('${challengeId}__$entryId');
     final entryRef = _entries(challengeId).doc(entryId);
 
     await _firestore.runTransaction((transaction) async {
@@ -337,9 +340,27 @@ class FirestoreChallengeRepository implements ChallengeRepository {
 
   @override
   Stream<Set<String>> watchVotedEntryIds(String userId) {
-    return _votes(
-      userId,
-    ).snapshots().map((snapshot) => {for (final doc in snapshot.docs) doc.id});
+    return _votes(userId).snapshots().map((snapshot) {
+      return {for (final document in snapshot.docs) _voteKeyOf(document)};
+    });
+  }
+
+  /// Il nome del voto, ricavato dal contenuto e non dal nome del documento.
+  ///
+  /// I voti dati prima che la gara entrasse nel nome si chiamano ancora con il
+  /// solo identificativo della partecipazione. Ricostruire la chiave dai campi
+  /// — che quei documenti ce l'hanno gia' — li rende validi come i nuovi, senza
+  /// doverli riscrivere e senza che nessuno perda un voto dato.
+  static String _voteKeyOf(QueryDocumentSnapshot<Map<String, dynamic>> vote) {
+    final data = vote.data();
+    final challengeId = data['challengeId'] as String?;
+    final entryId = data['entryId'] as String?;
+
+    if (challengeId == null || entryId == null) {
+      return vote.id;
+    }
+
+    return '${challengeId}__$entryId';
   }
 
   List<Challenge> _challengesFrom(

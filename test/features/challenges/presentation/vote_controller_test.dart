@@ -78,7 +78,7 @@ void main() {
         .watchVotedEntryIds(guestVoterId)
         .first;
 
-    expect(voted, contains(entry.id));
+    expect(voted, contains(entry.voteKey));
   });
 
   test('la fiamma si toglie con lo stesso gesto al contrario', () async {
@@ -146,17 +146,17 @@ void main() {
       // Il doppio tocco sulla foto scrive qui. E' l'unico posto in cui lo
       // scrive: prima il contatore sotto teneva una copia sua, e chi faceva
       // tutti e due i gesti vedeva il numero salire di due.
-      container.read(pendingVoteProvider(entry.id).notifier).state = true;
+      container.read(pendingVoteProvider(entry.voteKey).notifier).state = true;
 
-      expect(container.read(entryVotedProvider(entry.id)), isTrue);
-      expect(container.read(entryVoteDeltaProvider(entry.id)), 1);
+      expect(container.read(entryVotedProvider(entry.voteKey)), isTrue);
+      expect(container.read(entryVoteDeltaProvider(entry.voteKey)), 1);
     });
 
     test('a scrittura confermata la correzione locale sparisce', () async {
       final container = guestContainer();
       final entry = await someoneElsesEntry(container);
 
-      container.read(pendingVoteProvider(entry.id).notifier).state = true;
+      container.read(pendingVoteProvider(entry.voteKey).notifier).state = true;
       await container.read(voteControllerProvider).toggle(entry, voted: true);
 
       // Lo stream va ascoltato perche' emetta: senza, `valueOrNull` resta a
@@ -167,8 +167,8 @@ void main() {
 
       // Il server ora dice la stessa cosa dell'utente: aggiungere ancora uno
       // al contatore lo farebbe vedere a due.
-      expect(container.read(entryVotedProvider(entry.id)), isTrue);
-      expect(container.read(entryVoteDeltaProvider(entry.id)), 0);
+      expect(container.read(entryVotedProvider(entry.voteKey)), isTrue);
+      expect(container.read(entryVoteDeltaProvider(entry.voteKey)), 0);
     });
   });
 
@@ -247,7 +247,7 @@ void main() {
           .watchVotedEntryIds(guestVoterId)
           .first;
 
-      expect(voted, isNot(contains(entry.id)));
+      expect(voted, isNot(contains(entry.voteKey)));
     });
   });
 
@@ -258,12 +258,12 @@ void main() {
     // Lo stato che produceva il "-1": il server dice zero fiamme, l'elenco dei
     // voti dati dice ancora di si', e la correzione locale vale meno uno.
     // Somma: meno uno. Il conto e' giusto, il numero non ha senso.
-    container.read(pendingVoteProvider(entry.id).notifier).state = true;
+    container.read(pendingVoteProvider(entry.voteKey).notifier).state = true;
     await container.read(voteControllerProvider).toggle(entry, voted: true);
     await container.read(votedEntryIdsProvider.future);
-    container.read(pendingVoteProvider(entry.id).notifier).state = false;
+    container.read(pendingVoteProvider(entry.voteKey).notifier).state = false;
 
-    final delta = container.read(entryVoteDeltaProvider(entry.id));
+    final delta = container.read(entryVoteDeltaProvider(entry.voteKey));
     final zeroVotes = entry.copyWith(votes: 0);
     final shown = zeroVotes.votes + delta;
 
@@ -280,15 +280,100 @@ void main() {
     // accesa dopo, il numero mostrato resta appeso al valore letto prima del
     // voto e non si muove piu': era il difetto che si vedeva guardando una foto
     // a schermo intero.
-    container.read(pendingVoteProvider(entry.id).notifier).state = true;
+    container.read(pendingVoteProvider(entry.voteKey).notifier).state = true;
     await container.read(voteControllerProvider).toggle(entry, voted: true);
-    container.read(pendingVoteProvider(entry.id).notifier).state = null;
+    container.read(pendingVoteProvider(entry.voteKey).notifier).state = null;
 
     final subscription = container.listen(votedEntryIdsProvider, (_, _) {});
     addTearDown(subscription.close);
     await container.read(votedEntryIdsProvider.future);
 
-    expect(container.read(entryVotedProvider(entry.id)), isTrue);
-    expect(container.read(entryVoteDeltaProvider(entry.id)), 0);
+    expect(container.read(entryVotedProvider(entry.voteKey)), isTrue);
+    expect(container.read(entryVoteDeltaProvider(entry.voteKey)), 0);
+  });
+
+  group('due gare, due voti distinti', () {
+    /// La stessa persona in due challenge diverse.
+    ///
+    /// E' il caso che rompeva tutto: una partecipazione si chiama come chi
+    /// l'ha mandata, quindi la sua foto ha lo **stesso** identificativo in ogni
+    /// gara a cui partecipa.
+    Future<List<ChallengeEntry>> sameAuthorTwice(
+      ProviderContainer container,
+    ) async {
+      final samples = container.read(sampleChallengeRepositoryProvider);
+      final now = DateTime.now();
+      final entries = <ChallengeEntry>[];
+
+      for (var index = 0; index < 2; index++) {
+        final challenge = await samples.createChallenge(
+          Challenge(
+            id: '',
+            title: 'Gara $index',
+            brief: 'Fai qualcosa di assurdo.',
+            prizeCents: 50000,
+            scope: ChallengeScope.global,
+            startsAt: now.subtract(const Duration(hours: 1)),
+            endsAt: now.add(const Duration(days: 1)),
+          ),
+        );
+
+        entries.add(
+          await samples.submitEntry(
+            challengeId: challenge.id,
+            userId: 'stessa-persona',
+            authorName: 'stessa',
+            bytes: Uint8List.fromList(const [1, 2, 3]),
+          ),
+        );
+      }
+
+      return entries;
+    }
+
+    test('votare in una gara non accende la fiamma nell\'altra', () async {
+      final container = guestContainer();
+      final entries = await sameAuthorTwice(container);
+
+      expect(
+        entries[0].id,
+        entries[1].id,
+        reason: 'lo stesso nome, di proposito',
+      );
+      expect(entries[0].voteKey, isNot(entries[1].voteKey));
+
+      await container
+          .read(voteControllerProvider)
+          .toggle(entries[0], voted: true);
+
+      final subscription = container.listen(votedEntryIdsProvider, (_, _) {});
+      addTearDown(subscription.close);
+      await container.read(votedEntryIdsProvider.future);
+
+      expect(container.read(entryVotedProvider(entries[0].voteKey)), isTrue);
+      expect(
+        container.read(entryVotedProvider(entries[1].voteKey)),
+        isFalse,
+        reason: 'la foto nell\'altra gara non e\' stata votata da nessuno',
+      );
+    });
+
+    test('e non fa scendere il conto dell\'altra', () async {
+      final container = guestContainer();
+      final entries = await sameAuthorTwice(container);
+      final controller = container.read(voteControllerProvider);
+      final samples = container.read(sampleChallengeRepositoryProvider);
+
+      await controller.toggle(entries[0], voted: true);
+      // Il gesto che spostava un voto da una foto all'altra: togliere una
+      // fiamma nella seconda gara, dove non era mai stata data.
+      await controller.toggle(entries[1], voted: false);
+
+      final first = await samples.watchEntries(entries[0].challengeId).first;
+      final second = await samples.watchEntries(entries[1].challengeId).first;
+
+      expect(first.single.votes, 1);
+      expect(second.single.votes, 0);
+    });
   });
 }

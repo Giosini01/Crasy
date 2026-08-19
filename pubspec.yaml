@@ -25,6 +25,7 @@ dependencies:
   cloud_functions: ^6.3.6
   url_launcher: ^6.3.2
   share_plus: ^13.3.0
+  image: ^4.9.2
 
 dev_dependencies:
   flutter_test:

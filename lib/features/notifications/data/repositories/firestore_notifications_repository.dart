@@ -132,8 +132,8 @@ class FirestoreNotificationsRepository {
 
   /// Il nome del documento di una fiamma. Stessa persona, stessa foto, stesso
   /// nome: la notifica esiste una volta sola.
-  static String fireId({required String entryId, required String actorId}) =>
-      'fiamma_${entryId}_$actorId';
+  static String fireId({required String voteKey, required String actorId}) =>
+      'fiamma_${voteKey}_$actorId';
 
   /// Il nome del documento di una partecipazione.
   static String participationId({

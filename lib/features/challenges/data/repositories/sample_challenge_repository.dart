@@ -187,15 +187,19 @@ class SampleChallengeRepository implements ChallengeRepository {
     required bool voted,
   }) async {
     final votedIds = _votes.putIfAbsent(userId, () => <String>{});
+    // La gara fa parte del nome del voto, come sulle challenge vere: le due
+    // strade devono comportarsi allo stesso modo, altrimenti la prova in
+    // memoria assolve un codice che sul database sbaglia.
+    final voteKey = '${challengeId}__$entryId';
 
-    if (votedIds.contains(entryId) == voted) {
+    if (votedIds.contains(voteKey) == voted) {
       return;
     }
 
     if (voted) {
-      votedIds.add(entryId);
+      votedIds.add(voteKey);
     } else {
-      votedIds.remove(entryId);
+      votedIds.remove(voteKey);
     }
 
     final entries = _entries[challengeId];

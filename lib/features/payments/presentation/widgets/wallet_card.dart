@@ -216,3 +216,52 @@ class _MovementRow extends StatelessWidget {
     );
   }
 }
+
+/// Quanto ha vinto una persona, sul suo profilo pubblico.
+///
+/// Ha la stessa faccia del portafoglio e dice una cosa diversa: quello e' il
+/// saldo di adesso, questo e' **il totale di sempre**. Il primo scende quando
+/// uno preleva — cioe' proprio nel momento in cui CRASY ha mantenuto la
+/// promessa meglio — e sarebbe assurdo che il profilo di chi ha vinto e
+/// incassato mille euro dicesse zero.
+class PrizeTotalCard extends StatelessWidget {
+  const PrizeTotalCard({required this.prizeCents, super.key});
+
+  final int prizeCents;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+    final won = prizeCents > 0;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        // Senza vittorie il riquadro resta grigio: il rosso e' il colore dei
+        // soldi, e acceso su uno zero sarebbe una promessa mancata scritta a
+        // colori.
+        color: won ? palette.accentTint : palette.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'HA VINTO',
+            style: texts.labelSmall?.copyWith(
+              color: won ? palette.accent : palette.textFaint,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            AppMoney.format(prizeCents),
+            style: texts.displaySmall?.copyWith(
+              color: won ? palette.accent : palette.textFaint,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

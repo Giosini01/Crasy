@@ -199,7 +199,10 @@ void main() {
     );
 
     expect(await votesOf(), 1);
-    expect(await repository.watchVotedEntryIds('me').first, contains(entry.id));
+    expect(
+      await repository.watchVotedEntryIds('me').first,
+      contains(entry.voteKey),
+    );
 
     await repository.setVote(
       challengeId: challenge.id,
@@ -211,7 +214,7 @@ void main() {
     expect(await votesOf(), 0);
     expect(
       await repository.watchVotedEntryIds('me').first,
-      isNot(contains(entry.id)),
+      isNot(contains(entry.voteKey)),
     );
   });
 

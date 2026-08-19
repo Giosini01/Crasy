@@ -49,6 +49,7 @@ class SecondaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.icon,
+    this.accent = false,
     super.key,
   });
 
@@ -56,12 +57,26 @@ class SecondaryButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final IconData? icon;
 
+  /// Il contorno rosso invece che grigio.
+  ///
+  /// Per il comando che non e' il principale ma **non deve poter passare
+  /// inosservato**: registrarsi, quando la schermata apre sull'accesso. Chi e'
+  /// nuovo lo e' una volta sola, e in quell'unica volta non deve cercare.
+  final bool accent;
+
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     final content = Text(label.toUpperCase());
 
     return OutlinedButton(
       onPressed: onPressed,
+      style: accent
+          ? OutlinedButton.styleFrom(
+              foregroundColor: palette.accent,
+              side: BorderSide(color: palette.accent),
+            )
+          : null,
       child: icon == null
           ? content
           : Row(

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:crasy/core/services/media/photo_compressor.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
@@ -74,9 +75,23 @@ class ParticipationController extends AsyncNotifier<void> {
       return null;
     }
 
+    final original = await picked.readAsBytes();
+    // Si stringe **qui**, prima ancora dell'anteprima: cosi' quello che si vede
+    // e' esattamente quello che partira', e non si scopre a cose fatte che il
+    // file mandato e' diverso da quello guardato.
+    //
+    // Su telefono `image_picker` ha gia' fatto il grosso; su web ignora i
+    // parametri di ridimensionamento, e senza questo passaggio ogni foto
+    // saliva com'era uscita dalla fotocamera — diversi megabyte l'una.
+    final shrunk = PhotoCompressor.shrink(original);
+
     return PickedMedia(
-      bytes: await picked.readAsBytes(),
-      contentType: picked.mimeType,
+      bytes: shrunk,
+      // Il tipo segue quello che si sta davvero mandando: rimpicciolita, la
+      // foto e' un JPEG, qualunque cosa fosse prima.
+      contentType: shrunk.length == original.length
+          ? picked.mimeType
+          : 'image/jpeg',
     );
   }
 
