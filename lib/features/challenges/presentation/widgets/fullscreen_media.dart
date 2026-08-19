@@ -5,6 +5,7 @@ import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/video_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
+import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,7 +13,7 @@ import 'package:go_router/go_router.dart';
 
 /// Una partecipazione a schermo intero.
 ///
-/// **La foto e' il contenuto, e dentro la griglia della gara ne vede un
+/// **La foto e' il contenuto, e dentro la griglia della gara se ne vede un
 /// quadrato di due dita.** Qui prende tutto lo schermo su fondo nero, che e'
 /// l'unico posto di CRASY in cui il nero fa da fondo: e' la sala buia in cui si
 /// guarda una cosa sola.
@@ -20,17 +21,25 @@ import 'package:go_router/go_router.dart';
 /// Si scorre da una partecipazione all'altra con il dito, senza tornare
 /// indietro: guardare le foto di una gara e' un gesto continuo, e chiudere e
 /// riaprire venti volte lo spezzerebbe. Il doppio tocco accende la fiamma come
-/// ovunque nell'app — chi sta guardando una foto a schermo intero e' esattamente
-/// chi ha piu' voglia di votarla.
+/// ovunque nell'app — chi sta guardando una foto a schermo intero e'
+/// esattamente chi ha piu' voglia di votarla.
 class FullscreenMedia extends ConsumerStatefulWidget {
   const FullscreenMedia({
-    required this.entries,
-    required this.initialIndex,
+    required this.challengeId,
+    required this.entryId,
+    required this.initialEntries,
     super.key,
   });
 
-  final List<ChallengeEntry> entries;
-  final int initialIndex;
+  final String challengeId;
+  final String entryId;
+
+  /// Le partecipazioni cosi' com'erano al momento dell'apertura.
+  ///
+  /// Servono a mostrare qualcosa subito e a fissare **l'ordine**. I numeri
+  /// aggiornati arrivano dallo stream; l'ordine no, e il perche' e' spiegato
+  /// sotto.
+  final List<ChallengeEntry> initialEntries;
 
   /// Apre la vista. E' un `Navigator.push` e non una rotta del router: e' una
   /// finestra sopra la schermata, non un posto in cui si atterra da un
@@ -41,8 +50,6 @@ class FullscreenMedia extends ConsumerStatefulWidget {
     required List<ChallengeEntry> entries,
     required ChallengeEntry entry,
   }) {
-    final index = entries.indexWhere((item) => item.id == entry.id);
-
     return Navigator.of(context).push(
       PageRouteBuilder<void>(
         opaque: false,
@@ -51,8 +58,9 @@ class FullscreenMedia extends ConsumerStatefulWidget {
         pageBuilder: (context, animation, secondaryAnimation) => FadeTransition(
           opacity: animation,
           child: FullscreenMedia(
-            entries: entries,
-            initialIndex: index < 0 ? 0 : index,
+            challengeId: entry.challengeId,
+            entryId: entry.id,
+            initialEntries: entries.isEmpty ? [entry] : entries,
           ),
         ),
       ),
@@ -64,10 +72,22 @@ class FullscreenMedia extends ConsumerStatefulWidget {
 }
 
 class _FullscreenMediaState extends ConsumerState<FullscreenMedia> {
+  /// L'ordine in cui si scorre, deciso all'apertura e **mai piu' toccato**.
+  ///
+  /// La gara e' ordinata per fiamme, quindi accendendone una la classifica si
+  /// riordina sotto le dita: la foto che si sta guardando scivolerebbe avanti e
+  /// lo schermo salterebbe su un'altra, come punizione per aver votato. Qui
+  /// l'ordine resta quello di quando si e' aperto; i numeri, quelli si', si
+  /// aggiornano.
+  late final List<String> _order = [
+    for (final entry in widget.initialEntries) entry.id,
+  ];
+
   late final PageController _pages = PageController(
-    initialPage: widget.initialIndex,
+    initialPage: _order.indexOf(widget.entryId).clamp(0, _order.length - 1),
   );
-  late int _index = widget.initialIndex;
+
+  late int _index = _pages.initialPage;
 
   @override
   void dispose() {
@@ -75,9 +95,30 @@ class _FullscreenMediaState extends ConsumerState<FullscreenMedia> {
     super.dispose();
   }
 
+  /// Le partecipazioni con i numeri di adesso, nell'ordine di prima.
+  ///
+  /// **Senza questo, il conto delle fiamme si fermava.** La vista riceveva la
+  /// lista com'era all'apertura e non la rileggeva mai: accendendo una fiamma
+  /// il numero saliva finche' la scrittura era in volo e poi tornava giu', al
+  /// valore vecchio, con la fiamma rimasta rossa. Sembrava un voto che non
+  /// veniva contato, e invece era la lista a non essere piu' quella vera.
+  List<ChallengeEntry> _entries() {
+    final live = ref.watch(challengeEntriesProvider(widget.challengeId));
+    final byId = {
+      for (final entry in widget.initialEntries) entry.id: entry,
+      for (final entry in live.valueOrNull ?? const <ChallengeEntry>[])
+        entry.id: entry,
+    };
+
+    return [
+      for (final id in _order)
+        if (byId[id] != null) byId[id]!,
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
-    final entries = widget.entries;
+    final entries = _entries();
 
     if (entries.isEmpty) {
       return const SizedBox.shrink();
@@ -117,7 +158,8 @@ class _FullscreenMediaState extends ConsumerState<FullscreenMedia> {
 ///
 /// La foto si puo' ingrandire con due dita. Non e' un vezzo: le challenge si
 /// vincono con i dettagli — cosa c'e' scritto sul cartello, che faccia ha fatto
-/// lo sconosciuto — e su un telefono quei dettagli si vedono solo avvicinandosi.
+/// lo sconosciuto — e su un telefono quei dettagli si vedono solo
+/// avvicinandosi.
 class _Slide extends ConsumerWidget {
   const _Slide({required this.entry});
 
@@ -188,11 +230,11 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-/// Chi l'ha mandata e quante fiamme ha preso.
+/// Chi l'ha mandata, il tasto per condividerla, e le fiamme.
 ///
-/// Sono le uniche due cose che servono qui: il resto della gara sta nella
-/// schermata sotto, e riproporlo su fondo nero vorrebbe dire coprire la foto
-/// con quello che si e' appena chiuso per vederla.
+/// Sono le sole cose che servono qui: il resto della gara sta nella schermata
+/// sotto, e riproporlo su fondo nero vorrebbe dire coprire la foto con quello
+/// che si e' appena chiuso per vederla.
 class _BottomBar extends ConsumerWidget {
   const _BottomBar({required this.entry});
 
@@ -229,9 +271,9 @@ class _BottomBar extends ConsumerWidget {
               ),
             ),
           ),
-          // Condividere sta accanto alla fiamma, non nascosto in un menu: e'
-          // il gesto con cui chi e' in gara si porta dentro i voti, ed e' anche
-          // il modo in cui CRASY incontra gente che non la conosce.
+          // Condividere sta accanto alla fiamma, non nascosto in un menu: e' il
+          // gesto con cui chi e' in gara si porta dentro i voti, ed e' anche il
+          // modo in cui CRASY incontra gente che non la conosce.
           IconButton(
             onPressed: () => ShareEntry.send(
               context,

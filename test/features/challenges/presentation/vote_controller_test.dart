@@ -271,4 +271,24 @@ void main() {
     expect(shown, -1, reason: 'e\' proprio la somma che andava fermata');
     expect(shown < 0 ? 0 : shown, 0);
   });
+
+  test('a scrittura riuscita la correzione locale si spegne', () async {
+    final container = guestContainer();
+    final entry = await someoneElsesEntry(container);
+
+    // La correzione locale vale solo mentre la scrittura e' in volo. Restando
+    // accesa dopo, il numero mostrato resta appeso al valore letto prima del
+    // voto e non si muove piu': era il difetto che si vedeva guardando una foto
+    // a schermo intero.
+    container.read(pendingVoteProvider(entry.id).notifier).state = true;
+    await container.read(voteControllerProvider).toggle(entry, voted: true);
+    container.read(pendingVoteProvider(entry.id).notifier).state = null;
+
+    final subscription = container.listen(votedEntryIdsProvider, (_, _) {});
+    addTearDown(subscription.close);
+    await container.read(votedEntryIdsProvider.future);
+
+    expect(container.read(entryVotedProvider(entry.id)), isTrue);
+    expect(container.read(entryVoteDeltaProvider(entry.id)), 0);
+  });
 }

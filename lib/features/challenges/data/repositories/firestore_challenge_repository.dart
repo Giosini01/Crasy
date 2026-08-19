@@ -205,22 +205,23 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     //
     // `doc().id` conia un identificativo nuovo senza scrivere niente.
     final uploadId = _entries(challengeId).doc().id;
-    // L'estensione segue il contenuto: un video salvato come `.jpg` confonde
-    // chiunque lo guardi dopo, a partire dal controllo automatico.
-    final extension = mediaKind.isVideo ? 'mp4' : 'jpg';
-    final storagePath = 'entries/$challengeId/$userId/$uploadId.$extension';
+    // Il tipo dichiarato e' quello vero, e l'estensione lo segue.
+    //
+    // Un iPhone registra in **QuickTime**, non in mp4. Salvarlo come `.mp4`
+    // dichiarando `video/mp4` non lo converte: lo traveste, e il browser che
+    // poi prova ad aprirlo trova un file che non e' quello che c'e' scritto
+    // sopra e non lo riproduce. Meglio dire la verita' e lasciare che sia chi
+    // guarda a decidere se sa aprirlo.
+    final type =
+        contentType ?? (mediaKind.isVideo ? 'video/mp4' : 'image/jpeg');
+    final storagePath =
+        'entries/$challengeId/$userId/$uploadId.${_extensionFor(type)}';
     final reference = _storage.ref(storagePath);
 
     // Il file sale per primo. Se l'upload fallisce non resta un documento che
     // punta a una foto inesistente, cioe' una partecipazione vuota in gara per
     // un premio.
-    await reference.putData(
-      bytes,
-      SettableMetadata(
-        contentType:
-            contentType ?? (mediaKind.isVideo ? 'video/mp4' : 'image/jpeg'),
-      ),
-    );
+    await reference.putData(bytes, SettableMetadata(contentType: type));
 
     final entry = ChallengeEntry(
       id: userId,
@@ -313,6 +314,22 @@ class FirestoreChallengeRepository implements ChallengeRepository {
         transaction.update(entryRef, {'votes': next});
       }
     });
+  }
+
+  /// L'estensione che corrisponde a un tipo di file.
+  ///
+  /// Serve solo a rendere leggibile il nome dentro Storage: a decidere come si
+  /// apre un file e' il tipo dichiarato, non come finisce il suo nome.
+  static String _extensionFor(String contentType) {
+    return switch (contentType) {
+      'video/quicktime' => 'mov',
+      'video/webm' => 'webm',
+      'video/mp4' => 'mp4',
+      'image/png' => 'png',
+      'image/webp' => 'webp',
+      'image/heic' || 'image/heif' => 'heic',
+      _ => contentType.startsWith('video/') ? 'mp4' : 'jpg',
+    };
   }
 
   /// Le fiamme non scendono sotto zero, mai.

@@ -62,6 +62,51 @@
        versione precedente e la seconda quella nuova. E' il funzionamento
        normale di una app installata, non un difetto da correggere. -->
   <script src="flutter_bootstrap.js" async></script>
+
+  <script>
+    // **L'app si aggiorna da sola.**
+    //
+    // Senza questo, dopo ogni pubblicazione la prima apertura mostra ancora la
+    // versione precedente e solo la seconda quella nuova: e' il funzionamento
+    // normale di una app installata, e va benissimo per un'app ferma. Per una
+    // che cambia tutti i giorni e' il modo migliore di far dire "e' ancora
+    // rotto" a chi sta guardando una correzione che c'e' gia'.
+    //
+    // Il momento giusto e' quando il nuovo service worker ha finito di
+    // installarsi **e ce n'era gia' uno che controllava la pagina**: quel
+    // secondo controllo distingue un aggiornamento da una prima installazione,
+    // che non ha niente da ricaricare.
+    //
+    // Il flag e' l'unica difesa contro il ciclo infinito, e basta: dopo il
+    // ricaricamento e' il nuovo service worker a controllare la pagina, quindi
+    // non c'e' piu' niente da installare.
+    (function () {
+      if (!('serviceWorker' in navigator)) {
+        return;
+      }
+
+      var reloading = false;
+
+      navigator.serviceWorker.ready.then(function (registration) {
+        registration.addEventListener('updatefound', function () {
+          var incoming = registration.installing;
+
+          if (!incoming) {
+            return;
+          }
+
+          incoming.addEventListener('statechange', function () {
+            var ready = incoming.state === 'installed' || incoming.state === 'activated';
+
+            if (ready && navigator.serviceWorker.controller && !reloading) {
+              reloading = true;
+              window.location.reload();
+            }
+          });
+        });
+      });
+    })();
+  </script>
 </body>
 </html>
 

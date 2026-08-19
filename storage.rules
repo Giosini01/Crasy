@@ -28,11 +28,26 @@ service firebase.storage {
     //
     // Con un nome casuale ogni tentativo scrive un oggetto nuovo: i ritentativi
     // funzionano sempre, e ogni singolo oggetto resta immutabile come prima.
+    // **Anche i video.** Erano vietati da questa riga, e il divieto non si
+    // vedeva da nessuna parte: una challenge poteva chiedere un video, l'app
+    // apriva la videocamera, si registrava — e il caricamento veniva rifiutato
+    // qui, con un errore che parlava di permessi. Il vincolo esisteva nel
+    // prodotto e non nelle regole, ed e' il tipo di disallineamento che si paga
+    // caro perche' l'errore che produce non nomina la causa.
+    //
+    // La misura massima e' diversa per i due: **quaranta megabyte per un
+    // video** contro dodici per una foto. Mezzo minuto ripreso da un telefono
+    // recente sta comodamente sopra i dodici, e con il limite di prima sarebbe
+    // stato rifiutato anche dopo aver tolto il divieto sul tipo.
     match /entries/{challengeId}/{userId}/{fileName} {
       allow create: if request.auth != null
                     && request.auth.uid == userId
-                    && request.resource.size < 12 * 1024 * 1024
-                    && request.resource.contentType.matches('image/.*');
+                    && (
+                      (request.resource.contentType.matches('image/.*')
+                       && request.resource.size < 12 * 1024 * 1024)
+                      || (request.resource.contentType.matches('video/.*')
+                          && request.resource.size < 40 * 1024 * 1024)
+                    );
 
       allow update, delete: if false;
     }

@@ -140,18 +140,43 @@ Future<VoteOutcome> giveFire(
 
   pending.state = voted;
 
-  final outcome = await ref
-      .read(voteControllerProvider)
-      .toggle(entry, voted: voted);
+  final VoteOutcome outcome;
 
-  if (outcome != VoteOutcome.done) {
-    // Non e' andata: la fiamma torna com'era invece di restare accesa su una
-    // promessa non mantenuta.
+  try {
+    outcome = await ref
+        .read(voteControllerProvider)
+        .toggle(entry, voted: voted);
+  } catch (_) {
+    // **Se la scrittura fallisce, la fiamma torna com'era.**
+    //
+    // Prima l'eccezione usciva da qui e lo stato ottimistico restava acceso per
+    // sempre: la fiamma rossa, il numero salito, e sul database niente. Uno
+    // credeva di aver votato, riapriva l'app e il voto non c'era — senza che
+    // niente, in nessun momento, avesse detto che non era andata.
     pending.state = null;
 
-    if (outcome == VoteOutcome.needsAccount && context.mounted) {
-      context.push(AppRoutes.auth);
-    }
+    rethrow;
+  }
+
+  // **A scrittura riuscita lo stato ottimistico si spegne.**
+  //
+  // Non e' una pulizia: e' quello che fa combaciare il numero con la realta'.
+  // La correzione locale vale finche' il server non risponde; tenendola accesa
+  // dopo, il conto resta appeso a un valore letto prima del voto e non si
+  // muove piu' — che e' esattamente il difetto che si vedeva guardando una foto
+  // a schermo intero. Firestore aggiorna la sua copia locale prima ancora di
+  // aver finito di scrivere, quindi quando si arriva qui lo stream ha gia'
+  // detto la verita' e non c'e' nessuno sfarfallio.
+  if (outcome == VoteOutcome.done) {
+    pending.state = null;
+
+    return outcome;
+  }
+
+  pending.state = null;
+
+  if (outcome == VoteOutcome.needsAccount && context.mounted) {
+    context.push(AppRoutes.auth);
   }
 
   return outcome;
