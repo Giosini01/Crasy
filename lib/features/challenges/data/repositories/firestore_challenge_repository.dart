@@ -205,15 +205,21 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     //
     // `doc().id` conia un identificativo nuovo senza scrivere niente.
     final uploadId = _entries(challengeId).doc().id;
-    // Il tipo dichiarato e' quello vero, e l'estensione lo segue.
+    // **Un video si dichiara sempre `video/mp4`, anche quando arriva da un
+    // iPhone che lo chiama QuickTime.**
     //
-    // Un iPhone registra in **QuickTime**, non in mp4. Salvarlo come `.mp4`
-    // dichiarando `video/mp4` non lo converte: lo traveste, e il browser che
-    // poi prova ad aprirlo trova un file che non e' quello che c'e' scritto
-    // sopra e non lo riproduce. Meglio dire la verita' e lasciare che sia chi
-    // guarda a decidere se sa aprirlo.
-    final type =
-        contentType ?? (mediaKind.isVideo ? 'video/mp4' : 'image/jpeg');
+    // Sembra una bugia e non lo e'. Dentro un `.mov` di iPhone ci sono H.264 e
+    // AAC: le stesse identiche cose che stanno dentro un mp4, impacchettate
+    // nello stesso modo. Cambia l'etichetta sulla scatola, non la roba dentro —
+    // ed e' l'etichetta a far rifiutare il file a mezzo mondo. Chrome, davanti
+    // a `video/quicktime`, non prova nemmeno ad aprirlo.
+    //
+    // Il rischio, se un giorno arrivasse davvero un formato che il browser non
+    // sa leggere: fallirebbe comunque, etichetta o no. Non si perde niente, e
+    // si guadagna che i video girati con un iPhone si vedono anche su Android.
+    final type = mediaKind.isVideo
+        ? 'video/mp4'
+        : (contentType ?? 'image/jpeg');
     final storagePath =
         'entries/$challengeId/$userId/$uploadId.${_extensionFor(type)}';
     final reference = _storage.ref(storagePath);
@@ -347,7 +353,6 @@ class FirestoreChallengeRepository implements ChallengeRepository {
   /// apre un file e' il tipo dichiarato, non come finisce il suo nome.
   static String _extensionFor(String contentType) {
     return switch (contentType) {
-      'video/quicktime' => 'mov',
       'video/webm' => 'webm',
       'video/mp4' => 'mp4',
       'image/png' => 'png',

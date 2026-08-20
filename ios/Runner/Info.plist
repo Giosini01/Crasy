@@ -8,6 +8,14 @@
 	<string>Serve solo per proporti le challenge della tua zona. Salviamo una zona approssimata, mai la posizione esatta.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Serve per scegliere dalla galleria la foto con cui partecipi a una challenge, o la tua foto profilo.</string>
+	<!-- **Senza questa riga l'app si chiude di colpo** nel momento in cui
+	     qualcuno prova a registrare un video: iOS non chiede il permesso, non
+	     mostra un errore, termina il processo. Ed e' il tipo di guasto che
+	     sembra un difetto dell'app e invece e' una riga di configurazione
+	     mancante. Il microfono serve perche' un video ha l'audio: senza, non e'
+	     un video, e' una sequenza di immagini. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Serve il microfono per registrare l'audio del video con cui partecipi a una challenge.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Serve la fotocamera per scattare al volo la foto con cui partecipi a una challenge.</string>
 	<key>CFBundleDevelopmentRegion</key>

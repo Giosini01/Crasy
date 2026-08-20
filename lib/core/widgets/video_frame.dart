@@ -1,4 +1,7 @@
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/widgets/video/html_video_stub.dart'
+    if (dart.library.js_interop) 'package:crasy/core/widgets/video/html_video_web.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
@@ -38,7 +41,11 @@ class _VideoFrameState extends State<VideoFrame> {
   @override
   void initState() {
     super.initState();
-    _open();
+
+    // Sul web non si apre nessun lettore: ci pensa l'elemento del browser.
+    if (!kIsWeb) {
+      _open();
+    }
   }
 
   @override
@@ -128,6 +135,22 @@ class _VideoFrameState extends State<VideoFrame> {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+
+    // **Sul web il video lo disegna il browser, non Flutter.**
+    //
+    // Il lettore di Flutter aspetta che il browser dichiari il video "pronto",
+    // e iPhone quel momento non lo raggiunge mai finche' qualcuno non tocca
+    // play: restava un rettangolo grigio, per sempre, senza nemmeno un errore.
+    // Con l'elemento vero decidiamo noi quanto caricare e chi disegna i
+    // comandi. Vedi `html_video_web.dart`.
+    if (kIsWeb) {
+      final video = buildHtmlVideo(widget.url);
+
+      if (video != null) {
+        return video;
+      }
+    }
+
     final controller = _controller;
 
     if (_failed) {
