@@ -116,8 +116,16 @@ exports.moderateEntryPhoto = onDocumentCreated(
   }
 );
 
+/** Quante ore ha chi ha lanciato la gara per assegnare il premio da solo.
+ *
+ * Deve restare uguale a `Challenge.decisionWindow` nell'app: se qui fosse piu'
+ * corto, il server strapperebbe di mano il verdetto a chi l'app dice che ha
+ * ancora tempo per decidere.
+ */
+const DECISION_WINDOW_HOURS = 24;
+
 /**
- * Proclama i vincitori delle challenge scadute.
+ * Assegna il premio alle challenge a cui nessuno l'ha assegnato in tempo.
  *
  * E' l'unica cosa che il client non puo' fare e che nessuno puo' fare a mano:
  * chiudere una gara con dei soldi in palio. La regola e' quella scritta nelle
@@ -128,14 +136,22 @@ exports.moderateEntryPhoto = onDocumentCreated(
  * un'ora fa e non ha ancora un vincitore e' una challenge che sembra rotta.
  */
 exports.closeExpiredChallenges = onSchedule('every 5 minutes', async () => {
-  const now = admin.firestore.Timestamp.now();
+  // **Non si chiude allo scadere della gara, ma allo scadere della scelta.**
+  //
+  // A decidere chi vince e' chi ha lanciato la challenge, e ha ventiquattro ore
+  // per farlo: qui si arriva solo quando quelle ore passano senza che nessuno
+  // abbia deciso, e a quel punto il premio va a chi ha preso piu' fiamme.
+  // Chiudere prima vorrebbe dire togliergli il verdetto di mano.
+  const deadline = admin.firestore.Timestamp.fromMillis(
+    Date.now() - DECISION_WINDOW_HOURS * 60 * 60 * 1000,
+  );
 
-  // Le candidate sono le challenge gia' scadute a cui non e' ancora stato
-  // assegnato un vincitore. `winnerEntryId` nullo e' il segno che la
-  // proclamazione non e' stata fatta.
+  // Le candidate sono le challenge il cui tempo per scegliere e' finito e a cui
+  // non e' stato assegnato nessun vincitore. `winnerEntryId` nullo e' il segno
+  // che la proclamazione non e' stata fatta.
   const expired = await db
     .collection('challenges')
-    .where('endsAt', '<=', now)
+    .where('endsAt', '<=', deadline)
     .where('winnerEntryId', '==', null)
     .limit(50)
     .get();
@@ -149,6 +165,80 @@ exports.closeExpiredChallenges = onSchedule('every 5 minutes', async () => {
   }
 
   logger.info(`Chiuse ${expired.size} challenge.`);
+});
+
+/**
+ * Svuota le gare vecchie: documenti, partecipazioni, file.
+ *
+ * **Una gara chiusa smette di servire a qualcuno molto prima di smettere di
+ * occupare spazio.** Chi voleva sapere chi ha vinto lo ha saputo il giorno
+ * stesso; da li' in poi restano soltanto documenti da leggere in ogni query e
+ * megabyte da pagare ogni mese. Dopo due giorni si buttano.
+ *
+ * Le due ore devono essere le stesse dei due giorni scritti nell'app —
+ * `Challenge.winnersWindow` — e per un motivo preciso: se qui fosse piu' corto,
+ * la schermata dei vincitori mostrerebbe gare i cui file sono gia' spariti,
+ * cioe' rettangoli grigi al posto delle foto di chi ha vinto.
+ *
+ * **Non si tocca una gara con i soldi ancora fermi in cassa.** `held` vuol dire
+ * che qualcuno ha pagato e nessuno ha ancora incassato: cancellarla vorrebbe
+ * dire perdere le tracce di soldi veri. Restano li' finche' la chiusura non le
+ * ha sistemate, e a quel punto il giro dopo se le prende.
+ */
+const PURGE_AFTER_HOURS = 48;
+
+exports.purgeOldChallenges = onSchedule('every 60 minutes', async () => {
+  const cutoff = admin.firestore.Timestamp.fromMillis(
+    Date.now() - PURGE_AFTER_HOURS * 60 * 60 * 1000,
+  );
+
+  // Poche per volta: cancellare e' l'unica cosa che non si puo' disfare, e un
+  // giro che ne prende venti ogni ora sta comodamente dietro a qualunque
+  // quantita' di gare che questa app possa ragionevolmente produrre.
+  const old = await db
+    .collection('challenges')
+    .where('endsAt', '<=', cutoff)
+    .limit(20)
+    .get();
+
+  if (old.empty) {
+    return;
+  }
+
+  const bucket = admin.storage().bucket();
+  let challenges = 0;
+  let files = 0;
+
+  for (const challenge of old.docs) {
+    if (challenge.get('prizeStatus') === 'held') {
+      logger.warn(
+        `Challenge ${challenge.id} scaduta con i soldi ancora in cassa: non la cancello.`,
+      );
+      continue;
+    }
+
+    const entries = await challenge.ref.collection('entries').limit(500).get();
+
+    for (const entry of entries.docs) {
+      const path = entry.get('storagePath');
+
+      if (path) {
+        try {
+          await bucket.file(path).delete({ ignoreNotFound: true });
+          files++;
+        } catch (error) {
+          logger.warn(`Non ho potuto cancellare ${path}.`, error);
+        }
+      }
+
+      await entry.ref.delete();
+    }
+
+    await challenge.ref.delete();
+    challenges++;
+  }
+
+  logger.info(`Cancellate ${challenges} challenge vecchie e ${files} file.`);
 });
 
 /**

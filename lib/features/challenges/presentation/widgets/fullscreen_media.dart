@@ -6,7 +6,6 @@ import 'package:crasy/core/widgets/video_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
-import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -174,7 +173,7 @@ class _Slide extends ConsumerWidget {
     }
 
     final media = entry.isVideo
-        ? VideoFrame(url: url)
+        ? VideoFrame(url: url, immersive: true)
         : InteractiveViewer(
             minScale: 1,
             maxScale: 4,
@@ -187,13 +186,13 @@ class _Slide extends ConsumerWidget {
           );
 
     return GestureDetector(
-      // Il doppio tocco vale anche qui, e a fiamma gia' accesa non la spegne:
+      // Il doppio tocco vale anche qui, e a fiamma gia' accesa non fa niente:
       // nessuno ripete lo stesso gesto per disfare quello che ha appena fatto.
-      onDoubleTap: () {
-        if (!ref.read(entryVotedProvider(entry.voteKey))) {
-          giveFire(context, ref, entry, voted: true);
-        }
-      },
+      // A fermarlo e' `giveFire`, che ignora la richiesta di accendere una
+      // fiamma gia' accesa — la regola sta in un posto solo.
+      onDoubleTap: () => giveFire(context, ref, entry, voted: true),
+      // `giveFire` sa gia' che a gara finita non si vota, e sa anche che una
+      // fiamma gia' accesa non si riaccende: la regola sta in un posto solo.
       child: Center(child: media),
     );
   }
@@ -243,9 +242,8 @@ class _BottomBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final voted = ref.watch(entryVotedProvider(entry.voteKey));
-    final counted =
-        entry.votes + ref.watch(entryVoteDeltaProvider(entry.voteKey));
-    final votes = counted < 0 ? 0 : counted;
+    final votes = visibleVotes(ref, entry);
+    final live = ref.watch(challengeIsLiveProvider(entry.challengeId));
 
     return Container(
       padding: const EdgeInsets.fromLTRB(
@@ -255,63 +253,103 @@ class _BottomBar extends ConsumerWidget {
         AppSpacing.lg,
       ),
       color: AppColors.ink.withValues(alpha: 0.55),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: GestureDetector(
+          // **Da qui si torna alla gara.** Alla foto grande adesso ci si arriva
+          // anche dalla griglia di un profilo, dove prima il tocco portava
+          // dritto alla challenge: senza questa riga, quella strada sparirebbe
+          // e una foto resterebbe una foto senza sapere per cosa era in gara.
+          if (entry.challengeTitle.isNotEmpty)
+            GestureDetector(
               onTap: () {
                 Navigator.of(context).pop();
-                context.push(AppRoutes.userProfileOf(entry.userId));
+                context.push(AppRoutes.challengeDetailOf(entry.challengeId));
               },
-              child: Text(
-                '@${entry.authorName}',
-                style: Theme.of(
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Text(
+                  entry.challengeTitle.toUpperCase(),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.paper.withValues(alpha: 0.7),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    context.push(AppRoutes.userProfileOf(entry.userId));
+                  },
+                  child: Text(
+                    '@${entry.authorName}',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleMedium?.copyWith(color: AppColors.paper),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              // Condividere sta accanto alla fiamma, non nascosto in un menu: e' il
+              // gesto con cui chi e' in gara si porta dentro i voti, ed e' anche il
+              // modo in cui CRASY incontra gente che non la conosce.
+              IconButton(
+                onPressed: () => ShareEntry.send(
                   context,
-                ).textTheme.titleMedium?.copyWith(color: AppColors.paper),
-                overflow: TextOverflow.ellipsis,
+                  challengeId: entry.challengeId,
+                  entryId: entry.id,
+                  challengeTitle: entry.challengeTitle,
+                  ended: !live,
+                ),
+                tooltip: 'Condividi',
+                icon: const Icon(
+                  Icons.ios_share_rounded,
+                  color: AppColors.paper,
+                ),
               ),
-            ),
-          ),
-          // Condividere sta accanto alla fiamma, non nascosto in un menu: e' il
-          // gesto con cui chi e' in gara si porta dentro i voti, ed e' anche il
-          // modo in cui CRASY incontra gente che non la conosce.
-          IconButton(
-            onPressed: () => ShareEntry.send(
-              context,
-              challengeId: entry.challengeId,
-              entryId: entry.id,
-              challengeTitle: entry.challengeTitle,
-            ),
-            tooltip: 'Condividi',
-            icon: const Icon(Icons.ios_share_rounded, color: AppColors.paper),
-          ),
-          InkWell(
-            onTap: () => giveFire(context, ref, entry, voted: !voted),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xs,
-                vertical: AppSpacing.xxs,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    voted
-                        ? Icons.local_fire_department
-                        : Icons.local_fire_department_outlined,
-                    size: 22,
-                    color: voted ? AppColors.crasyRed : AppColors.paper,
+              InkWell(
+                // A gara finita il numero resta, ma non e' piu' un comando: quelle
+                // fiamme hanno gia' deciso chi si prende i soldi.
+                onTap: live
+                    ? () => giveFire(context, ref, entry, voted: !voted)
+                    : null,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                    vertical: AppSpacing.xxs,
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '$votes',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: voted ? AppColors.crasyRed : AppColors.paper,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        voted
+                            ? Icons.local_fire_department
+                            : Icons.local_fire_department_outlined,
+                        size: 22,
+                        color: voted ? AppColors.crasyRed : AppColors.paper,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$votes',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: voted
+                                  ? AppColors.crasyRed
+                                  : AppColors.paper,
+                            ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ),

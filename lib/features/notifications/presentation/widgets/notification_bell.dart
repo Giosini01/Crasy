@@ -34,8 +34,8 @@ class NotificationBell extends ConsumerWidget {
               top: -4,
               right: -6,
               child: Container(
-                constraints: const BoxConstraints(minWidth: 15),
-                height: 15,
+                constraints: const BoxConstraints(minWidth: 17),
+                height: 17,
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
@@ -47,7 +47,7 @@ class NotificationBell extends ConsumerWidget {
                   unread > 9 ? '9+' : '$unread',
                   style: context.texts.labelSmall?.copyWith(
                     color: palette.background,
-                    fontSize: 9,
+                    fontSize: 10,
                     height: 1,
                     letterSpacing: 0,
                   ),

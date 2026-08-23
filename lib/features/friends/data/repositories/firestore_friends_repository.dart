@@ -43,6 +43,44 @@ class FirestoreFriendsRepository {
     });
   }
 
+  /// Le persone il cui nome comincia per [query].
+  ///
+  /// **Per prefisso, non "che contiene"**, ed e' un limite dichiarato invece
+  /// che nascosto: Firestore non sa cercare dentro una parola, e l'unico modo
+  /// di fingere che lo sappia — scaricare tutti i profili e filtrarli sul
+  /// telefono — e' una ricerca che funziona finche' gli iscritti sono cento e
+  /// smette di funzionare esattamente quando comincia a servire.
+  ///
+  /// Il nome e' gia' scritto minuscolo sul profilo, quindi qui basta abbassare
+  /// quello che e' stato digitato: una ricerca che non trova `Marco` perche' e'
+  /// stato scritto con la maiuscola sarebbe una ricerca rotta.
+  ///
+  /// Il carattere finale (``) e' il piu' alto che Firestore sappia
+  /// ordinare: sta dopo qualunque cosa possa seguire il prefisso, ed e' cio'
+  /// che chiude l'intervallo su "tutto quello che comincia cosi'".
+  Future<List<UserProfile>> searchProfiles(
+    String query, {
+    int limit = 20,
+  }) async {
+    final needle = query.trim().toLowerCase();
+
+    if (needle.isEmpty) {
+      return const [];
+    }
+
+    final snapshot = await _users
+        .orderBy('username')
+        .startAt([needle])
+        .endAt(['$needle'])
+        .limit(limit)
+        .get();
+
+    return [
+      for (final document in snapshot.docs)
+        UserProfileMapper.fromFirestore(document.id, document.data()),
+    ];
+  }
+
   Stream<List<Friend>> watchFriends(String userId) {
     return _friends(userId).limit(300).snapshots().map((snapshot) {
       final friends = [

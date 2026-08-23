@@ -38,6 +38,12 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   bool _signingUp = false;
   bool _passwordVisible = false;
 
+  /// Cosa dire dopo aver mandato il messaggio per rifare la password.
+  ///
+  /// Sta qui e non nel controller perche' non e' uno stato dell'app: e' una
+  /// frase che vale per questa schermata e finche' resta aperta.
+  String? _resetSent;
+
   @override
   void dispose() {
     _email.dispose();
@@ -88,7 +94,12 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                   keyboardType: TextInputType.emailAddress,
                   autofillHints: const [AutofillHints.email],
                   textInputAction: TextInputAction.next,
-                  validator: AuthValidators.validateEmail,
+                  // Chi si registra passa dal controllo in piu': niente
+                  // caselle usa-e-getta. Chi entra no — vedi
+                  // `validateNewEmail`.
+                  validator: _signingUp
+                      ? AuthValidators.validateNewEmail
+                      : AuthValidators.validateEmail,
                   decoration: const InputDecoration(
                     labelText: 'EMAIL',
                     hintText: 'tu@esempio.it',
@@ -123,6 +134,27 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                     ),
                   ),
                 ),
+                // **Solo per chi entra, non per chi si registra.** A chi sta
+                // creando un account una password da recuperare non esiste, e
+                // l'unica cosa che quel collegamento puo' fare li' e' far
+                // dubitare di essere nel posto sbagliato.
+                if (!_signingUp)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: action.isLoading ? null : _resetPassword,
+                      child: Text(
+                        'PASSWORD DIMENTICATA',
+                        style: texts.labelSmall?.copyWith(
+                          color: palette.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
+                if (_resetSent != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(_resetSent!, style: texts.bodySmall),
+                ],
                 if (error != null) ...[
                   const SizedBox(height: AppSpacing.md),
                   InlineBanner(message: ErrorMessageMapper.map(error)),
@@ -164,7 +196,10 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                 SecondaryButton(
                   label: _signingUp ? 'Entra' : 'Registrati',
                   accent: true,
-                  onPressed: () => setState(() => _signingUp = !_signingUp),
+                  onPressed: () => setState(() {
+                    _signingUp = !_signingUp;
+                    _resetSent = null;
+                  }),
                 ),
               ],
             ),
@@ -172,6 +207,43 @@ class _AuthPageState extends ConsumerState<AuthPage> {
         ),
       ),
     );
+  }
+
+  /// Manda il messaggio per rifarsi la password.
+  ///
+  /// Si convalida **solo l'email**, non tutto il modulo: chi non si ricorda la
+  /// password ha quel campo vuoto per definizione, e chiedergli di riempirlo
+  /// per poter dire che l'ha dimenticata sarebbe una porta chiusa a chiave con
+  /// la chiave dentro.
+  Future<void> _resetPassword() async {
+    final email = _email.text.trim();
+    final problema = AuthValidators.validateEmail(email);
+
+    if (problema != null) {
+      setState(
+        () => _resetSent = 'Scrivi qui sopra la tua email, poi ripremi.',
+      );
+
+      return;
+    }
+
+    final andata = await ref
+        .read(authActionControllerProvider.notifier)
+        .sendPasswordReset(email);
+
+    if (!mounted || !andata) {
+      return;
+    }
+
+    setState(() {
+      // La frase non dice **se quell'account esiste**, e non e' un giro di
+      // parole: dirlo regalerebbe a chiunque un modo di scoprire chi sta su
+      // CRASY. Lo spam si nomina perche' e' li' che quel messaggio finisce la
+      // meta' delle volte, e chi non lo trova pensa che l'app sia rotta.
+      _resetSent =
+          'Se esiste un account con $email, il messaggio per rifare la '
+          'password e\' partito. Guarda anche nello spam.';
+    });
   }
 
   Future<void> _submit() async {

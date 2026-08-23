@@ -125,81 +125,6 @@ class EntryTile extends ConsumerWidget {
   }
 }
 
-/// Accende o spegne la fiamma su una partecipazione.
-///
-/// Sta qui e non dentro i widget perche' la chiamano da tre posti — il doppio
-/// tocco sulla foto, il contatore accanto, la griglia dentro una challenge — e
-/// **tutti e tre devono passare per la stessa memoria**, altrimenti due gesti
-/// sulla stessa foto contano due volte.
-Future<VoteOutcome> giveFire(
-  BuildContext context,
-  WidgetRef ref,
-  ChallengeEntry entry, {
-  required bool voted,
-}) async {
-  final pending = ref.read(pendingVoteProvider(entry.voteKey).notifier);
-
-  pending.state = voted;
-
-  final VoteOutcome outcome;
-
-  try {
-    outcome = await ref
-        .read(voteControllerProvider)
-        .toggle(entry, voted: voted);
-  } catch (_) {
-    // **Se la scrittura fallisce, la fiamma torna com'era.**
-    //
-    // Prima l'eccezione usciva da qui e lo stato ottimistico restava acceso per
-    // sempre: la fiamma rossa, il numero salito, e sul database niente. Uno
-    // credeva di aver votato, riapriva l'app e il voto non c'era — senza che
-    // niente, in nessun momento, avesse detto che non era andata.
-    pending.state = null;
-
-    rethrow;
-  }
-
-  // **A scrittura riuscita lo stato ottimistico si spegne.**
-  //
-  // Non e' una pulizia: e' quello che fa combaciare il numero con la realta'.
-  // La correzione locale vale finche' il server non risponde; tenendola accesa
-  // dopo, il conto resta appeso a un valore letto prima del voto e non si
-  // muove piu' — che e' esattamente il difetto che si vedeva guardando una foto
-  // a schermo intero. Firestore aggiorna la sua copia locale prima ancora di
-  // aver finito di scrivere, quindi quando si arriva qui lo stream ha gia'
-  // detto la verita' e non c'e' nessuno sfarfallio.
-  if (outcome == VoteOutcome.done) {
-    // **La correzione locale si spegne solo quando il server dice la stessa
-    // cosa.**
-    //
-    // Spegnerla subito sembrava piu' pulito e produceva il difetto peggiore di
-    // tutti: fra la fine della scrittura e l'arrivo dello stream c'e' un
-    // istante in cui il server "non sa" ancora del voto, e in quell'istante la
-    // fiamma si spegneva e il numero scendeva. Chi lo vedeva toccava di nuovo —
-    // e quel secondo tocco era un voto vero, nella direzione sbagliata.
-    //
-    // Finche' non combaciano, la correzione resta e il conto e' giusto; quando
-    // combaciano non corregge piu' niente, e toglierla non si vede.
-    final confirmed =
-        ref.read(votedEntryIdsProvider).valueOrNull?.contains(entry.voteKey) ??
-        false;
-
-    if (confirmed == voted) {
-      pending.state = null;
-    }
-
-    return outcome;
-  }
-
-  pending.state = null;
-
-  if (outcome == VoteOutcome.needsAccount && context.mounted) {
-    context.push(AppRoutes.auth);
-  }
-
-  return outcome;
-}
-
 /// La fiamma e il suo numero.
 ///
 /// Tocco singolo: accende se e' spenta, spegne se e' accesa. E' l'unico comando
@@ -217,24 +142,30 @@ class VoteButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final palette = context.palette;
     final voted = ref.watch(entryVotedProvider(entry.voteKey));
+    final live = ref.watch(challengeIsLiveProvider(entry.challengeId));
+    // Finite le tre fiamme, quelle spente si smorzano: si vede che non si puo'
+    // piu', senza toglierle di mezzo. Restano toccabili apposta — un comando
+    // morto non spiega niente, e chi lo tocca si sente dire perche'.
+    final spendibile =
+        voted || ref.watch(firesLeftProvider(entry.challengeId)) > 0;
 
-    // **Il numero non scende mai sotto zero, ed e' qui che andava messo il
-    // freno.**
-    //
-    // Il conto mostrato e' quello del server piu' una correzione locale, che
-    // vale finche' la scrittura e' in volo. Nel mezzo di un mi piace tolto in
-    // fretta i due pezzi possono disallinearsi per una frazione di secondo — il
-    // contatore e' gia' sceso a zero, l'elenco dei voti dati dice ancora di si'
-    // — e la somma dava **-1**. Sul database non c'e' mai stato niente di
-    // negativo: era solo il numero disegnato a schermo.
-    //
-    // Una fiamma negativa non vuol dire niente: nessuno puo' togliere un voto
-    // che non ha dato.
-    final counted =
-        entry.votes + ref.watch(entryVoteDeltaProvider(entry.voteKey));
-    final votes = counted < 0 ? 0 : counted;
+    // Il numero lo decide `visibleVotes`: o la richiesta in corso, o il
+    // server, mai i due sommati. Vedi `VoteIntents`.
+    final votes = visibleVotes(ref, entry);
+
+    // **A gara finita non e' piu' un comando.** Niente tocco, niente
+    // etichetta che promette qualcosa: resta il conto com'era all'ultimo
+    // secondo, e la fiamma rossa di chi l'aveva data.
+    if (!live) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.xxs,
+        ),
+        child: _Fire(voted: voted, votes: votes),
+      );
+    }
 
     return Semantics(
       button: true,
@@ -246,27 +177,51 @@ class VoteButton extends ConsumerWidget {
             horizontal: AppSpacing.xs,
             vertical: AppSpacing.xxs,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                voted
-                    ? Icons.local_fire_department
-                    : Icons.local_fire_department_outlined,
-                size: 20,
-                color: voted ? palette.accent : palette.textSecondary,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '$votes',
-                style: context.texts.titleMedium?.copyWith(
-                  color: voted ? palette.accent : palette.textSecondary,
-                ),
-              ),
-            ],
-          ),
+          child: _Fire(voted: voted, votes: votes, dimmed: !spendibile),
         ),
       ),
+    );
+  }
+}
+
+/// La fiamma e il numero, disegnati.
+///
+/// Sta in un widget suo perche' li' e' l'unico posto in cui esiste: a gara
+/// aperta ci si tocca sopra, a gara finita no, ma **quello che si vede e' lo
+/// stesso** — la fiamma non deve cambiare aspetto quando smette di essere un
+/// comando, o sembrerebbe che sia successo qualcosa ai voti.
+class _Fire extends StatelessWidget {
+  const _Fire({required this.voted, required this.votes, this.dimmed = false});
+
+  final bool voted;
+  final int votes;
+
+  /// Vero quando le fiamme di questa gara sono finite: la si vede piu' pallida.
+  final bool dimmed;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final color = voted
+        ? palette.accent
+        : (dimmed ? palette.textFaint : palette.textSecondary);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          voted
+              ? Icons.local_fire_department
+              : Icons.local_fire_department_outlined,
+          size: 20,
+          color: color,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '$votes',
+          style: context.texts.titleMedium?.copyWith(color: color),
+        ),
+      ],
     );
   }
 }

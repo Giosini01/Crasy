@@ -1,4 +1,5 @@
 import 'package:crasy/app.dart';
+import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/features/auth/domain/entities/app_user.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
@@ -6,6 +7,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
+import 'package:crasy/routing/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -156,6 +158,56 @@ void main() {
     expect(find.text('€500'), findsOneWidget);
     expect(find.text('DO SOMETHING CRAZY'), findsOneWidget);
     expect(find.text('PARTECIPA'), findsOneWidget);
+
+    await tearDownTree(tester);
+  });
+
+  testWidgets('le schede si cambiano anche col dito', (tester) async {
+    final container = await pumpApp(
+      tester,
+      authRepository: FakeAuthRepository(currentUser: verifiedUser),
+      overrides: [
+        currentUserProfileProvider.overrideWith(
+          (ref) => Stream.value(completeProfile),
+        ),
+      ],
+    );
+
+    String where() => container
+        .read(goRouterProvider)
+        .routerDelegate
+        .currentConfiguration
+        .uri
+        .path;
+
+    expect(where(), AppRoutes.challenges);
+
+    // Il dito va verso sinistra e la scheda successiva entra da destra, come su
+    // qualunque app con delle schede in fondo.
+    await tester.drag(find.byType(PageView), const Offset(-600, 0));
+    await tester.pumpAndSettle();
+
+    expect(where(), AppRoutes.friends);
+
+    await tester.drag(find.byType(PageView), const Offset(-600, 0));
+    await tester.pumpAndSettle();
+
+    // La lente sta fra gli amici e i vincitori.
+    expect(where(), AppRoutes.search);
+
+    // E si torna indietro dall'altra parte.
+    await tester.drag(find.byType(PageView), const Offset(600, 0));
+    await tester.pumpAndSettle();
+
+    expect(where(), AppRoutes.friends);
+
+    // Toccando l'icona in fondo si arriva allo stesso posto: le due strade
+    // devono raccontare la stessa storia, altrimenti l'indirizzo e la schermata
+    // finiscono disallineati.
+    await tester.tap(find.text('PROFILO'));
+    await tester.pumpAndSettle();
+
+    expect(where(), AppRoutes.profile);
 
     await tearDownTree(tester);
   });

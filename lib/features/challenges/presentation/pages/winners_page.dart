@@ -5,6 +5,7 @@ import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
+import 'package:crasy/core/widgets/media_gestures.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/controllers/challenge_closer.dart';
@@ -57,28 +58,87 @@ class WinnersPage extends ConsumerWidget {
                       'Non riusciamo a caricare le challenge concluse. '
                       'Controlla la connessione.',
                 ),
-                data: (items) => items.isEmpty
-                    ? const EmptyState(
-                        title: 'Nessuna challenge conclusa',
-                        message:
-                            'Quando la prima challenge si chiude, qui trovi chi '
-                            'ha vinto e quanto.',
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          for (final challenge in items) ...[
-                            _WinnerBlock(challenge: challenge),
-                            const SizedBox(height: AppSpacing.section),
-                          ],
-                        ],
-                      ),
+                data: (items) => _Winners(challenges: items),
               ),
             ],
           ),
         ),
       ),
     );
+  }
+}
+
+/// Le gare finite che vale la pena mostrare.
+///
+/// **Quelle a cui non ha partecipato nessuno non si vedono.** Una challenge
+/// senza foto non ha niente da raccontare: non c'e' un vincitore, non c'e'
+/// un'immagine, e resta una riga che dice "non ha partecipato nessuno" in mezzo
+/// a chi ha vinto dei soldi. Su una schermata che esiste per rendere credibile
+/// la promessa, e' esattamente il contrario di quello che serve.
+///
+/// Sparire dalla vista non vuol dire sparire dai conti: quelle gare vanno
+/// **chiuse lo stesso** — e' cosi' che il premio torna a chi l'aveva messo — e
+/// per questo restano qui sotto forma di `_SilentCloser`, che non disegna
+/// niente e fa solo quel lavoro. Poco dopo le cancella il server.
+class _Winners extends StatelessWidget {
+  const _Winners({required this.challenges});
+
+  final List<Challenge> challenges;
+
+  @override
+  Widget build(BuildContext context) {
+    final withPeople = [
+      for (final challenge in challenges)
+        if (challenge.participantsCount > 0 && challenge.winnerEntryId != '')
+          challenge,
+    ];
+    final empty = [
+      for (final challenge in challenges)
+        if (!withPeople.contains(challenge)) challenge,
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final challenge in empty) _SilentCloser(challenge: challenge),
+        if (withPeople.isEmpty)
+          const EmptyState(
+            title: 'Nessuna challenge conclusa',
+            message:
+                'Quando la prima challenge si chiude, qui trovi chi ha vinto e '
+                'quanto.',
+          )
+        else
+          for (final challenge in withPeople) ...[
+            _WinnerBlock(challenge: challenge),
+            const SizedBox(height: AppSpacing.section),
+          ],
+      ],
+    );
+  }
+}
+
+/// Chiude una gara senza partecipanti senza mostrarla.
+class _SilentCloser extends ConsumerWidget {
+  const _SilentCloser({required this.challenge});
+
+  final Challenge challenge;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final entriesState = ref.watch(challengeEntriesProvider(challenge.id));
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(challengeCloserProvider)
+          .closeIfNeeded(
+            challenge,
+            entriesState.valueOrNull ?? const [],
+            entriesLoaded: entriesState.hasValue,
+          );
+    });
+
+    return const SizedBox.shrink();
   }
 }
 
@@ -144,12 +204,17 @@ class _WinnerBlock extends ConsumerWidget {
               style: texts.bodyMedium,
             )
           else if (winner == null)
-            Text('Vincitore in arrivo.', style: texts.bodyMedium)
+            Text(
+              challenge.waitsForChoiceAt(DateTime.now())
+                  ? 'Sta scegliendo @${challenge.createdByUsername}.'
+                  : 'Vincitore in arrivo.',
+              style: texts.bodyMedium,
+            )
           else ...[
             // **Solo la foto del vincitore.** Le altre stanno dentro la gara,
             // per chi vuole andarle a rivedere; qui si racconta come e' finita,
             // e come e' finita e' una foto sola.
-            GestureDetector(
+            MediaTap(
               onTap: () => FullscreenMedia.open(
                 context,
                 entries: [winner],
@@ -171,7 +236,15 @@ class _WinnerBlock extends ConsumerWidget {
                     style: texts.titleMedium,
                   ),
                   TextSpan(
-                    text: ' ha vinto ${challenge.prizeLabel}',
+                    // **Scelto o scaduto, si dice.** Chi guarda ha diritto di
+                    // sapere se quel premio e' stato assegnato da chi l'ha
+                    // messo o e' finito da solo a chi aveva piu' fiamme: sono
+                    // due storie diverse, e raccontarle uguali toglie valore
+                    // proprio a quella che ne ha di piu'.
+                    text: challenge.chosenByCreator
+                        ? ' ha vinto ${challenge.prizeLabel}, scelto da '
+                              '@${challenge.createdByUsername}'
+                        : ' ha vinto ${challenge.prizeLabel} con piu\' fiamme',
                     style: texts.bodyMedium,
                   ),
                 ],

@@ -252,6 +252,33 @@ class _Form extends StatelessWidget {
                     'e una volta mandata non si cambia.',
           style: texts.bodySmall,
         ),
+        const SizedBox(height: AppSpacing.sm),
+        // **Chi manda una cosa in gara ha diritto di sapere che ne sara'.**
+        //
+        // Prima non c'era scritto da nessuna parte: si mandava una foto fatta
+        // adesso, per dei soldi veri, senza una riga che dicesse di chi resta e
+        // dove finira'. Non e' un cavillo — e' la stessa cosa che ci si aspetta
+        // da chiunque ci chieda di consegnargli qualcosa che abbiamo fatto noi.
+        //
+        // Quello che dice e' il minimo vero: **l'opera resta di chi l'ha
+        // fatta**, e CRASY puo' mostrarla dentro l'app e raccontare com'e'
+        // finita la gara. Niente di piu': nessuna pubblicita', nessuna vendita,
+        // nessun uso fuori da qui.
+        //
+        // Le parole esatte vanno riviste da un legale prima di aprire al
+        // pubblico — vedi `legale.md`. Averle sbagliate e' meglio che non
+        // averle affatto, ma va sistemato prima che qualcuno ci metta dei soldi
+        // veri.
+        Text(
+          challenge.mediaKind.isVideo
+              ? 'Il video resta tuo. Mandandolo, CRASY puo\' mostrarlo qui '
+                    'dentro e usarlo per raccontare com\'e\' finita questa '
+                    'challenge.'
+              : 'La foto resta tua. Mandandola, CRASY puo\' mostrarla qui '
+                    'dentro e usarla per raccontare com\'e\' finita questa '
+                    'challenge.',
+          style: texts.bodySmall?.copyWith(color: palette.textFaint),
+        ),
       ],
     );
   }

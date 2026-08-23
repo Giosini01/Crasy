@@ -1,4 +1,5 @@
 import 'package:crasy/core/constants/app_routes.dart';
+import 'package:crasy/core/routing/swipe_back_page.dart';
 import 'package:crasy/features/auth/presentation/pages/auth_page.dart';
 import 'package:crasy/features/auth/presentation/pages/verify_email_page.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
@@ -11,7 +12,7 @@ import 'package:crasy/features/notifications/presentation/pages/notifications_pa
 import 'package:crasy/features/onboarding/presentation/pages/onboarding_page.dart';
 import 'package:crasy/features/profile/presentation/pages/public_profile_page.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -66,13 +67,25 @@ final sessionLandingRouteProvider = Provider<String>((ref) {
 /// Le schede sono rotte distinte, quindi go_router le tratterebbe come pagine
 /// da impilare e le farebbe entrare da destra. Cambiare scheda deve sembrare
 /// cambiare vista, non aprire una pagina nuova.
-GoRoute _tabRoute(String path, Widget child) {
+GoRoute _tabRoute(String path, Widget child, {LocalKey? key}) {
   return GoRoute(
     path: path,
     pageBuilder: (context, state) =>
-        NoTransitionPage<void>(key: state.pageKey, child: child),
+        NoTransitionPage<void>(key: key ?? state.pageKey, child: child),
   );
 }
+
+/// La chiave dell'impalcatura con le quattro schede.
+///
+/// **E' la stessa per tutte e quattro**, ed e' cio' che rende possibile passare
+/// da una scheda all'altra con il dito. Con una chiave per rotta — cioe' quello
+/// che viene naturale — ogni cambio di scheda butta via l'impalcatura e ne
+/// costruisce un'altra: non c'e' niente che resti in piedi abbastanza da poter
+/// scorrere, e ogni scheda ricomincia da capo anche solo per averla sfiorata.
+///
+/// Con una chiave sola l'impalcatura resta la stessa e cambia solo quale scheda
+/// sta mostrando, che e' esattamente cio' che succede quando si scorre.
+const _homeShellKey = ValueKey<String>('impalcatura-schede');
 
 /// Dove stava andando chi e' stato fermato all'ingresso.
 ///
@@ -86,6 +99,35 @@ GoRoute _tabRoute(String path, Widget child) {
 /// annota una cosa e la si consuma subito dopo.
 String? _destinationBeforeLogin;
 
+/// Una pagina che si apre sopra le schede.
+///
+/// **Si chiude tirandola via col dito dal bordo sinistro**, come su un
+/// telefono, e su tutte le piattaforme — il gesto sta dentro `CupertinoPage`,
+/// non nel tema. E' il gesto che tutti conoscono, non chiede niente a schermo,
+/// e lascia l'intestazione vuota: la freccia in alto resta per chi la cerca,
+/// ma non e' piu' l'unico modo di tornare indietro.
+GoRoute _pushedRoute(
+  String path,
+  Widget Function(GoRouterState state) child, {
+  List<RouteBase> routes = const [],
+  bool swipeAnywhere = true,
+}) {
+  return GoRoute(
+    path: path,
+    // **Due modi di tornare indietro col dito, e si vedono tutti e due.**
+    //
+    // `SwipeBackPage` fa muovere la pagina sotto il dito da qualunque punto la
+    // si prenda; `CupertinoPage` fa la stessa cosa ma solo dai venti punti
+    // all'estrema sinistra. Il secondo resta dove c'e' qualcosa da perdere —
+    // una foto appena scattata, una challenge scritta a meta' — perche' un
+    // gesto largo quanto lo schermo la butterebbe via per un dito storto.
+    pageBuilder: (context, state) => swipeAnywhere
+        ? SwipeBackPage<void>(key: state.pageKey, child: child(state))
+        : CupertinoPage<void>(key: state.pageKey, child: child(state)),
+    routes: routes,
+  );
+}
+
 final goRouterProvider = Provider<GoRouter>((ref) {
   final landing = ref.watch(sessionLandingRouteProvider);
 
@@ -96,31 +138,33 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       _tabRoute(AppRoutes.auth, const AuthPage()),
       _tabRoute(AppRoutes.verifyEmail, const VerifyEmailPage()),
       _tabRoute(AppRoutes.onboarding, const OnboardingPage()),
-      for (final tab in AppRoutes.tabs) _tabRoute(tab, HomePage(location: tab)),
-      GoRoute(
-        path: AppRoutes.challengeDetail,
-        builder: (context, state) =>
+      for (final tab in AppRoutes.tabs)
+        _tabRoute(tab, HomePage(location: tab), key: _homeShellKey),
+      _pushedRoute(
+        AppRoutes.challengeDetail,
+        (state) =>
             ChallengeDetailPage(challengeId: state.pathParameters['id'] ?? ''),
         routes: [
-          GoRoute(
-            path: 'partecipa',
-            builder: (context, state) =>
+          _pushedRoute(
+            'partecipa',
+            (state) =>
                 ParticipatePage(challengeId: state.pathParameters['id'] ?? ''),
+            swipeAnywhere: false,
           ),
         ],
       ),
-      GoRoute(
-        path: AppRoutes.notifications,
-        builder: (context, state) => const NotificationsPage(),
+      _pushedRoute(
+        AppRoutes.notifications,
+        (state) => const NotificationsPage(),
       ),
-      GoRoute(
-        path: AppRoutes.userProfile,
-        builder: (context, state) =>
-            PublicProfilePage(userId: state.pathParameters['id'] ?? ''),
+      _pushedRoute(
+        AppRoutes.userProfile,
+        (state) => PublicProfilePage(userId: state.pathParameters['id'] ?? ''),
       ),
-      GoRoute(
-        path: AppRoutes.create,
-        builder: (context, state) => const CreateChallengePage(),
+      _pushedRoute(
+        AppRoutes.create,
+        (state) => const CreateChallengePage(),
+        swipeAnywhere: false,
       ),
     ],
     redirect: (context, state) {

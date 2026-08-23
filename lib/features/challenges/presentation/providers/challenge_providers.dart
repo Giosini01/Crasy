@@ -60,6 +60,30 @@ final challengeProvider = StreamProvider.autoDispose.family<Challenge?, String>(
   (ref, id) => ref.watch(challengeRepositoryProvider).watchChallenge(id),
 );
 
+/// Se su questa gara si vota ancora.
+///
+/// **A gara finita le fiamme si fermano**, e non e' un dettaglio di
+/// interfaccia: la classifica di quel momento decide chi si prende i soldi, e
+/// un voto arrivato dopo la sirena li sposterebbe da una persona a un'altra.
+/// Il numero resta a schermo, fisso, com'era all'ultimo secondo.
+///
+/// Nel dubbio si lascia votare: se la gara non e' ancora arrivata — lo stream
+/// sta caricando — bloccare tutto vorrebbe dire una fiamma morta ogni volta che
+/// la rete e' lenta. A dire l'ultima parola sono le regole di Firestore, che un
+/// voto fuori tempo lo rifiutano comunque.
+final challengeIsLiveProvider = Provider.autoDispose.family<bool, String>((
+  ref,
+  challengeId,
+) {
+  final challenge = ref.watch(challengeProvider(challengeId)).valueOrNull;
+
+  if (challenge == null) {
+    return true;
+  }
+
+  return !challenge.hasEndedAt(DateTime.now());
+});
+
 /// Le partecipazioni a una challenge, gia' filtrate dal controllo.
 ///
 /// Il filtro sta **qui e non nella query**: una foto in attesa deve continuare a

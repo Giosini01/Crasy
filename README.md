@@ -3,8 +3,8 @@
 **DO SOMETHING CRAZY.**
 
 Challenge fotografiche con un premio in denaro. Si guarda cosa c'e' in palio, si
-partecipa con una foto, si vota quelle degli altri, allo scadere del tempo vince
-la piu' votata.
+partecipa con una foto, si vota quelle degli altri, e allo scadere del tempo chi
+ha messo il premio sceglie chi se lo prende.
 
     €500  ·  GLOBAL
     DO SOMETHING CRAZY
@@ -14,7 +14,7 @@ la piu' votata.
 
 Il giro completo del prodotto e' uno solo, e tutto il resto viene dopo:
 
-**challenge → partecipazione → contenuto → feed → fiamme → vincitore**
+**challenge → partecipazione → contenuto → feed → fiamme → scelta → vincitore**
 
 Tre regole, e non sono dettagli — sono il prodotto:
 
@@ -26,8 +26,12 @@ Tre regole, e non sono dettagli — sono il prodotto:
   dopo aver visto quante fiamme prende sarebbe cambiare la mano dopo aver
   guardato le carte degli altri.
 - **Si vota con una fiamma**, non con un cuore e non con un pollice. Si da' con
-  il doppio tocco sulla foto o dal contatore accanto. La foto con piu' fiamme
-  allo scadere del tempo si prende i soldi.
+  il doppio tocco sulla foto o dal contatore accanto.
+- **A decidere chi vince e' chi ha messo i soldi.** Allo scadere del tempo il
+  premio lo assegna chi ha lanciato la challenge, non il conteggio: sta
+  commissionando una cosa precisa, e la piu' votata non e' sempre quella che
+  aveva chiesto. Ha **ventiquattro ore**; passate quelle, il premio va da solo a
+  chi ha preso piu' fiamme.
 
 ---
 
@@ -46,10 +50,25 @@ ognuna i tre soliti strati:
         home/                impalcatura con le quattro schede, splash
       routing/               router e regole di accesso
 
-Le tre schede in fondo sono **Challenge, Vincitori, Profilo**, e ognuna risponde
-a una domanda diversa: *cosa c'e' in palio*, *chi ha vinto*, *come stanno andando
-le mie*. Creare una challenge sta nell'intestazione della home: e' una cosa che
-si fa una volta ogni tanto, non una sezione.
+Le schede in fondo sono cinque — **Challenge, Amici, Cerca, Vincitori,
+Profilo** — e ognuna risponde a una domanda diversa: *cosa c'e' in palio*, *chi
+conosco*, *dov'e' quella cosa che cerco*, *chi ha vinto*, *come stanno andando le
+mie*. Creare una challenge sta nell'intestazione della home: e' una cosa che si
+fa una volta ogni tanto, non una sezione — ma il suo **+ e' rosso**, che e'
+l'unica icona dell'app a esserlo.
+
+**Si cambia scheda anche col dito.** Le schede stanno una accanto all'altra e si
+scorrono, come su qualunque app con una barra in fondo: con il telefono in una
+mano sola il pollice arriva al bordo dello schermo molto meglio che a un'icona in
+fondo a sinistra. L'indirizzo segue il dito, quindi il tasto indietro del browser
+e i link condivisi continuano a raccontare la stessa storia di quello che si
+vede.
+
+> Perche' funzioni, le cinque schede condividono **una sola chiave di pagina**.
+> Con una chiave per rotta — cioe' quello che viene naturale — ogni cambio di
+> scheda butta via l'impalcatura e ne costruisce un'altra: non resta in piedi
+> niente su cui scorrere, e ogni scheda ricomincia da capo anche solo per averla
+> sfiorata.
 
 **Non c'e' un feed di tutti.** Le foto degli altri stanno dentro la loro
 challenge, che e' il posto in cui hanno un senso — li' si confrontano fra loro e
@@ -76,6 +95,97 @@ fiamma rossa senza averla toccata — e toccandola li', il conto di quella secon
 gara scendeva di uno senza essere mai salito. Con dei soldi in palio non e' un
 difetto grafico: e' un voto spostato da una foto a un'altra.
 
+**Il numero a schermo non si corregge: si congela.** Dal tocco alla conferma,
+sotto la foto c'e' un numero deciso dal gesto — non il contatore del server piu'
+un `+1`. La differenza sembra una sfumatura ed e' tutta la faccenda: il contatore
+della foto e l'elenco di cosa ho votato sono scritti nella stessa transazione ma
+**arrivano come due notizie separate**, e nell'istante fra l'una e l'altra il
+contatore aveva gia' dentro il voto che la correzione stava per aggiungere di
+nuovo. Sotto la foto compariva **+2**, e togliendo la fiamma `-2`. Chi lo vedeva
+toccava di nuovo per rimettere le cose a posto, e quel tocco era un voto vero
+nella direzione sbagliata: da li' "posso togliere due mi piace e aggiungerne uno".
+
+Il prezzo, dichiarato: per quel paio di secondi le fiamme date **da altri** su
+quella foto non si vedono arrivare. Nessuno guarda il contatore di una foto
+aspettando che si muova da solo, e in cambio il proprio gesto e' esatto sempre.
+
+### Chi decide chi vince
+
+**Le fiamme non sono il verdetto.** Allo scadere del tempo il premio lo assegna
+**chi ha lanciato la challenge**: ha messo dei soldi per far fare una cosa
+precisa, e la foto piu' votata non e' sempre quella che aveva chiesto. Le fiamme
+restano cio' che sono sempre state — il polso di chi guarda, e la faccia della
+gara in home — ma la scelta e' sua.
+
+Ha **ventiquattro ore** dalla fine. Il numero non e' a caso: e' la durata tipica
+di una gara, quindi chi la lancia sa gia' quanto dura il suo impegno.
+
+**Se non sceglie, il premio va da solo a chi ha piu' fiamme.** Una gara che
+resta senza vincitore perche' chi l'ha lanciata si e' distratto e' la cosa che
+fa perdere fiducia a tutti gli altri — a quel punto decide il conteggio, con le
+stesse regole di sempre: piu' fiamme, a parita' chi ha mandato prima.
+
+Sulla schermata dei vincitori le due cose **si distinguono**: *"scelto da
+@luca"* oppure *"con piu' fiamme"*. Chi guarda ha diritto di sapere se quel
+premio e' stato assegnato o e' semplicemente scaduto, e raccontarle uguali
+toglierebbe valore proprio a quella che ne ha di piu'.
+
+> Vale la pena dirlo: questa e' anche la struttura che rende CRASY piu'
+> difendibile davanti al DPR 430/2001 — vedi [`legale.md`](legale.md). Il premio
+> smette di essere il risultato di una votazione popolare e diventa il giudizio
+> di chi ha commissionato l'opera, che e' esattamente il terreno
+> dell'esclusione dei concorsi artistici. Non e' il motivo per cui e' stato
+> fatto, ma e' un effetto che conta.
+
+**Allo scadere del tempo le fiamme si fermano.** Il numero resta a schermo,
+fisso, com'era all'ultimo secondo, e la fiamma smette di essere un comando: non
+si tocca, non si accende, non si spegne. Non e' una scelta di interfaccia — la
+classifica di quel momento e' quella che ha assegnato dei soldi, e un voto
+arrivato dopo la sirena li sposterebbe da una persona a un'altra. Lo dicono
+tutte e due le porte: l'app non lo fa nemmeno provare, e le regole di Firestore
+lo **rifiutano** anche a chi scrivesse sul database direttamente. Costa una
+lettura in piu' per fiamma, e li vale tutti.
+
+Per la stessa ragione, **il messaggio della condivisione cambia**: a gara finita
+non dice piu' "sono in gara, dammi una fiamma" — manderebbe chi lo riceve a
+cercare un comando che non c'e' — ma "guarda com'e' finita".
+
+### Tre fiamme per gara
+
+**Ognuno ne ha tre dentro una singola challenge, e poi ha finito.** Non e' un
+limite tecnico: e' quello che trasforma il voto in una scelta. Potendo accendere
+tutto, l'unica cosa che un voto misura e' quante foto uno ha avuto la pazienza
+di guardare — e con dei soldi in palio, "mi piacciono tutte" non decide niente.
+Con tre in mano bisogna guardarle davvero e mettere le proprie da parte.
+
+Il conto e' **per gara**: finite qui, nella challenge accanto se ne hanno altre
+tre. Resta ferma la regola di sempre, che e' un'altra cosa: **una sola fiamma per
+foto**, scritta nella forma dei dati — il nome del voto — e garantita dal
+database. E chi ci ripensa se la riprende: si contano quante ne stanno accese,
+non quante volte si e' toccato.
+
+Sopra le foto della gara ci sono **tre fiamme disegnate**, quelle spese spente.
+Un numero si legge, tre segni si vedono — e su una schermata che si scorre col
+pollice vale di piu'. Dove quel contatore non c'e' (il doppio tocco dalla home)
+una riga in fondo allo schermo dice cosa e' successo: un gesto che non produce
+niente sembra un'app rotta.
+
+> **Questa regola vive dentro l'app.** Chi scrive sul database direttamente puo'
+> superarla — e il conto costerebbe un documento in piu' per persona e per gara,
+> piu' una lettura a ogni fiamma, per essere difeso anche li'. Vale la pena
+> sapere **quanto** si rischia: chi la aggira torna alla regola di prima, cioe'
+> una fiamma per foto e non una di piu'. Non puo' gonfiare una singola foto —
+> quello lo impedisce il documento del voto — puo' solo distribuirne piu' di
+> tre. E' un fastidio, non un furto.
+
+I gesti sono due, e fanno due cose diverse:
+
+- **doppio tocco sulla foto**: accende. Su una fiamma gia' accesa **non succede
+  niente** — ne' la spegne, ne' rifa' l'animazione. Nessuno ripete lo stesso
+  gesto per disfare quello che ha appena fatto;
+- **tocco sulla fiamma accanto al numero**: ribalta. E' l'unico modo di togliere
+  un voto, ed e' `-1`.
+
 Attorno al contatore ci sono altre tre difese, tutte imparate sul campo:
 
 - il contatore si **rilegge dentro la transazione** e si riscrive per intero.
@@ -97,11 +207,12 @@ Attorno al contatore ci sono altre tre difese, tutte imparate sul campo:
 | Dettaglio | Premio, consegna, regole, countdown, partecipazioni gia' inviate |
 | Partecipa | Scatti o registri sul momento, guardi l'anteprima, mandi in gara |
 | Amici | Le richieste ricevute e l'elenco di chi hai gia' |
+| Cerca | Una challenge o una persona, nella stessa casella |
 | Vincitori | Le challenge concluse e chi le ha vinte |
 | Profilo | Scatti, vittorie, premi, amici, e la griglia delle proprie foto |
 | Profilo altrui | Gli stessi quattro numeri, la sua griglia, e il comando dell'amicizia |
-| Crea | Lancia una challenge: premio, titolo, consegna, dove, per quanto |
-| Accesso | Email e password. Alla registrazione parte il messaggio di conferma |
+| Crea | Lancia una challenge: premio, titolo, consegna, **come si giudica**, dove, per quanto |
+| Accesso | Email e password, e il modo di rifarsi la password se non ce la si ricorda |
 | Verifica | Il muro: si sta qui finche' l'indirizzo non e' confermato |
 
 ### Foto o video
@@ -115,34 +226,100 @@ premio scegliendo fra mele e pere.
 In tutti e due i casi vale la regola di sempre: **si registra sul momento**. La
 galleria non si apre, ne' per le foto ne' per i video.
 
+### Come si guarda un video
+
+**Parte da solo, muto e in ciclo**, e senza nessun comando sopra. Un video che
+chiede di premere play prima di mostrarsi viene saltato: si scorre una gara
+guardando venti contenuti di fila, e chi guarda non sa nemmeno cosa sta
+rifiutando finche' non lo vede muoversi. Il ciclo serve alla gara — trenta
+secondi che ripartono lasciano il tempo di decidere se quella cosa merita una
+fiamma.
+
+> **Gli attributi prima dell'indirizzo.** iPhone decide se un video ha il
+> diritto di partire da solo guardando gli attributi che ha addosso **quando
+> comincia a caricarsi**. Scritti come proprieta' dopo `src` — cioe' come viene
+> naturale — arrivano troppo tardi: il video risulta "con l'audio" per un
+> istante, il permesso viene negato li', e non si riottiene mettendo `muted` un
+> attimo dopo. E' il motivo per cui i video si vedevano ma restavano fermi.
+>
+> Restano due reti sotto: quando i dati arrivano si riprova, e se il browser
+> dice di no lo stesso, **il primo tocco ovunque nella pagina** li sblocca tutti
+> — dopo un'interazione nessun browser rifiuta piu' niente.
+
+**Nell'elenco un video non ha nessun comando addosso, mai.** Niente barra dei
+comandi come ripiego quando la partenza viene rifiutata — su una miniatura larga
+due centimetri era una fascia grigia che copriva meta' della foto e faceva
+sembrare l'app rotta — e **niente menu del browser**: tenendo il dito su un
+video, Chrome offriva pausa, schermo intero, velocita' di riproduzione e
+*scarica*. Nessuna di quelle voci ha senso dentro CRASY, e "scarica" su una foto
+in gara e' proprio quella che non deve esserci.
+
+Nelle griglie dei profili **un tocco apre il contenuto grande**, non la gara: nel
+quadrato di due dita non si vede niente e un video non si sente nemmeno. La gara
+resta a un tocco, scritta sopra la foto a schermo intero.
+
+**Un tocco lo apre a schermo intero**, ed e' li' che diventa una cosa che si
+guarda davvero: audio acceso e **la barra dei secondi**, per tornare indietro sul
+momento in cui e' successo qualcosa. Sul web quella barra la disegna il browser,
+che e' anche l'unico a saper aprire il lettore di sistema su iPhone; sull'app ci
+sono la barra da trascinare e i due salti da dieci secondi, e spariscono da soli
+dopo qualche istante per non stare sopra il video.
+
+Nell'elenco suona **solo il video che si sta guardando**: quello che esce dallo
+schermo si ferma da solo. Venti video che partono insieme sono venti file che
+scendono insieme, e su un telefono e' la differenza fra un'app e un conto del
+traffico.
+
+Il **doppio tocco resta la fiamma**, anche sui video. Non era cosi': sul web un
+video e' un elemento del browser e si prendeva tutti i gesti, quindi sulle foto
+si poteva votare con due dita e sui video no.
+
+> **I due tocchi li conta CRASY, non il browser.** Il primo tentativo si
+> affidava all'evento `dblclick`, ed e' li' che si rompeva: sul telefono quel
+> messaggio non arriva sempre, e quando manca restano due `click` normali. Il
+> secondo faceva scadere l'attesa del primo, e invece della fiamma si apriva il
+> video — a volte due volte di fila. Contando i tocchi per conto nostro il caso
+> non esiste: se ne arriva un secondo mentre il primo sta ancora aspettando,
+> **quello e' un doppio tocco**, e il singolo non parte piu'.
+
 ### Gli amici
 
 Ogni profilo si puo' aprire, e ci si arriva da dove si e': dal nome sotto una
 foto, dalla riga di chi ha lanciato una challenge, dall'elenco degli amici. **Si
-incontra la gente guardando cosa combina**, non cercandola per nome — per questo
-non c'e' una ricerca.
+incontra la gente guardando cosa combina**, non cercandola per nome — ed e'
+ancora il modo principale in cui qui dentro ci si conosce.
+
+Una ricerca pero' adesso c'e', e serve prima di tutto alle **challenge**: quando
+le gare aperte diventano trenta, ritrovare *quella del cartello* scorrendo la
+home e' il momento in cui uno smette di cercarla. La lente e' una **scheda in
+fondo**, fra gli amici e i vincitori — il posto in cui il pollice la cerca senza
+guardare — e cerca due cose nella stessa casella: una challenge o una persona,
+perche' chi cerca sa la parola, non la categoria.
+
+Le due meta' funzionano in modo diverso, e la differenza e' voluta:
+
+- **le challenge** si cercano nel titolo, nella consegna, nel posto e nel nome di
+  chi le ha lanciate. Sono i quattro modi in cui uno si ricorda una gara vista
+  passare, e la ricerca gira su quello che l'app ha gia' in casa: nessuna query
+  in piu', risposta mentre si scrive;
+- **le persone** si trovano solo per **nome esatto, dall'inizio**. Nessun
+  suggerimento, nessun "forse cercavi", niente ricerca dentro le biografie. Chi
+  sa come si chiama qualcuno lo trova; **sfogliare gli iscritti resta impossibile,
+  ed e' chiuso apposta**.
+
+Sotto la casella ci sono quattro parole — **TUTTO, APERTE, FINITE, PERSONE** —
+e non servono a restringere i risultati: servono a dire **cosa si ha in testa**.
+Chi scrive "milano" sta cercando una gara a cui partecipare stasera oppure una
+persona che conosce, e sono due ricerche diverse che finirebbero mescolate nella
+stessa lista. Le gare aperte e quelle finite stanno separate per la stessa
+ragione: a una gara chiusa non si puo' piu' partecipare, e trovarsela in mezzo
+alle altre e' una speranza sprecata.
+
+Con un filtro sulle gare la ricerca delle persone **non parte nemmeno**: e' una
+lettura su Firestore risparmiata a ogni parola scritta.
 
 Un profilo pubblico mostra quattro numeri e la griglia delle sue foto: scatti,
 vittorie, premi vinti, amici. Niente eta', niente elenco di cosa ha votato.
-
-L'amicizia si chiede e si accetta. Sul database e' fatta di due documenti, uno
-per parte:
-
-```
-users/{id}/friends/{amico}           l'amicizia, scritta da tutte e due le parti
-users/{id}/friendRequests/{da}       le richieste ricevute
-```
-
-Sembra una duplicazione ed e' la scelta che tiene in piedi tutto: "chi sono i
-miei amici" diventa la lettura di una cartella sola invece di una ricerca su
-tutto il database. Le due righe nascono insieme, in un lotto: un'amicizia
-scritta da una parte sola e' lo stato che poi nessuno sa piu' come rimettere a
-posto.
-
-Le regole non chiedono "e' casa tua" ma **"esiste la richiesta che lo
-giustifica"**: senza un documento che quella persona ha ricevuto, nessuna delle
-due righe si puo' scrivere. E' quello a rendere impossibile aggiungersi da soli
-fra gli amici di qualcuno.
 
 ---
 
@@ -158,6 +335,13 @@ motivo che ha a che fare con i soldi in palio.
 - **L'email va confermata.** Senza un indirizzo vero non c'e' modo di far avere
   a nessuno il premio che ha vinto, ne' di riconoscere chi torna dopo essere
   stato allontanato.
+
+  Dallo stesso indirizzo si **rifa' la password**, e per un po' non si poteva:
+  chi la dimenticava restava fuori per sempre, senza che nemmeno noi potessimo
+  farci niente dall'altra parte. La frase di conferma non dice mai **se quel
+  conto esiste** — dirlo regalerebbe a chiunque un modo di scoprire chi sta su
+  CRASY, provando indirizzi finche' uno non risponde — e nomina lo spam, che e'
+  dove quel messaggio finisce meta' delle volte.
 - **Si entra da diciotto anni.** Qui girano soldi veri e si chiede alla gente di
   uscire e fare qualcosa per vincerli: e' esattamente il tipo di spinta che a un
   ragazzino non va data. Il selettore della data non arriva oltre la soglia, e
@@ -166,6 +350,37 @@ motivo che ha a che fare con i soldi in palio.
   Va detto cosa questo **non** e': una data che uno si scrive da solo non e' una
   verifica dell'eta'. Ferma chi e' onesto, non chi mente. Una verifica vera vuole
   un documento, ed e' una decisione da prendere prima di aprire al pubblico.
+
+### Le caselle usa-e-getta
+
+Su un'app qualunque un indirizzo temporaneo e' una scocciatura. **Qui e' il modo
+piu' semplice di rubare**: le challenge le decidono le fiamme, una per persona, e
+"una persona" per CRASY vuol dire un account. Chi si fa cinque caselle in due
+minuti su uno di quei siti si fa cinque account, e si vota cinque volte la
+propria foto.
+
+`lib/core/moderation/email_policy.dart` rifiuta i domini piu' diffusi **in
+registrazione**, sottodomini compresi. Tre cose vanno dette:
+
+- **vale solo a chi si registra, non a chi entra.** Chi si e' iscritto ieri con
+  un dominio che oggi finisce nell'elenco deve poter continuare a entrare:
+  chiudere fuori qualcuno che e' gia' dentro, magari con delle foto in gara, per
+  una regola scritta dopo, e' una punizione retroattiva;
+- **e' una prima porta, non un muro** — come per i testi. Ferma chi apre il
+  primo sito che trova, non chi ne cerca uno che nell'elenco non c'e', e
+  soprattutto vive **solo dentro l'app**: chi chiama l'API di Firebase
+  direttamente la scavalca. Il muro vero e' una *blocking function* lato server,
+  e richiede il piano a consumo;
+- **meta' del problema lo copre gia' il muro dell'email confermata**: un dominio
+  che non esiste non riceve niente, quindi nessuno conferma e nessuno entra. Qui
+  si para l'altra meta', le caselle temporanee che la posta la ricevono davvero.
+
+Due cose **non** si bloccano, di proposito: i relay di Apple
+(`privaterelay.appleid.com`), che sono indirizzi veri e che il giorno
+dell'accesso con Apple saremo obbligati ad accettare; e gli **alias con il piu'**
+(`nome+crasy@gmail.com`), che sono un buco piu' largo di questo elenco e non si
+chiudono con una lista di domini — serve tenere l'indirizzo ridotto alla sua
+forma canonica e impedire che si ripeta. **E' un lavoro a se', e va fatto.**
 
 ### Cosa non si puo' chiedere
 
@@ -201,6 +416,39 @@ vede **solo chi l'ha mandata**, con scritto "in verifica".
 > Per accenderlo servono tre cose: il piano Blaze, la Vision API abilitata, e
 > il deploy delle funzioni. Poi si compila con
 > `--dart-define=CRASY_PHOTO_MODERATION=true` e nel codice non cambia altro.
+
+---
+
+## Le gare finite non si accumulano
+
+Una gara chiusa smette di servire a qualcuno molto prima di smettere di occupare
+spazio: chi voleva sapere chi ha vinto lo ha saputo il giorno stesso, e da li' in
+poi restano soltanto documenti da leggere in ogni query e megabyte da pagare ogni
+mese. Quindi:
+
+- **le gare a cui non ha partecipato nessuno non si vedono affatto.** Una
+  challenge senza foto non ha niente da raccontare — nessun vincitore, nessuna
+  immagine — e in mezzo a chi ha vinto dei soldi resta una riga che dice "non ha
+  partecipato nessuno". Su una schermata che esiste per rendere credibile la
+  promessa e' esattamente il contrario di quello che serve. Sparire dalla vista
+  non vuol dire sparire dai conti: vengono **chiuse lo stesso**, ed e' cosi' che
+  il premio torna a chi l'aveva messo;
+- **dopo due giorni spariscono tutte.** `Challenge.winnersWindow` decide da
+  quanto indietro si leggono le gare finite, e la schermata dei vincitori non
+  chiede nemmeno le altre;
+- **e dopo due giorni il server le cancella davvero** — documenti,
+  partecipazioni e file. Lo fa `purgeOldChallenges`, ogni ora, e i due numeri
+  devono restare uguali: se il server cancellasse prima, la schermata mostrerebbe
+  gare i cui file non ci sono piu'. Una gara con i soldi ancora fermi in cassa
+  (`held`) non si tocca: cancellarla vorrebbe dire perdere le tracce di soldi
+  veri.
+
+> **Il taglio vale gia' adesso, la cancellazione no.** `purgeOldChallenges` e'
+> una Cloud Function, e le Cloud Function richiedono il piano a consumo che il
+> progetto non ha — come il controllo delle foto. Oggi le gare vecchie
+> **spariscono dall'app** ma restano scritte sul database: lo spazio si libera
+> davvero solo quando quella funzione viene accesa. Vale la pena saperlo prima
+> di scoprirlo guardando la fattura.
 
 ---
 
@@ -246,8 +494,14 @@ del fuoco**.
 - `#FA0000` e' il rosso di CRASY, e non e' stato scelto a tavolino: e'
   **campionato dalla "sy" del logotipo**, la tinta piu' frequente dei suoi pixel
   rossi. Marchio e interfaccia usano letteralmente lo stesso colore.
-- Compare in tre posti soltanto: **il premio, la fiamma del voto, cio' che e'
-  attivo**. Se compare altrove ha gia' smesso di significare qualcosa.
+- Compare in quattro posti soltanto: **il premio, la fiamma del voto, cio' che
+  e' attivo**, e **il + che lancia una challenge**. Se compare altrove ha gia'
+  smesso di significare qualcosa.
+- Il **+** e' l'ultimo arrivato dei quattro, e ha una ragione: e' il gesto con
+  cui si mettono dei soldi in palio, cioe' quello da cui nasce tutto il resto.
+  Nero come le altre icone non si capiva a cosa servisse — sembrava un piu'
+  qualunque in cima a una schermata piena di challenge, non il modo di
+  lanciarne una.
 - `#E00000` e' lo stesso rosso piu' scuro, e serve a un solo scopo: fare da
   riempimento sotto il testo bianco del bottone principale. Il rosso pieno su
   bianco sta a 4,2:1, abbastanza per un premio scritto a 64 punti ma non per
@@ -266,6 +520,26 @@ del fuoco**.
   sull'immagine scelta il primo giorno.
 - Tema chiaro e basta, anche su un dispositivo in tema scuro: le foto devono
   cadere sempre sullo stesso fondo.
+- **Si torna indietro col dito, da qualunque punto, e lo si vede succedere.**
+  La pagina scivola **sotto il dito** mentre la si trascina, e sotto rientra
+  quella di prima: al rilascio, oltre meta' schermo si esce, prima si torna a
+  posto. Non e' un vezzo — un gesto che non risponde mentre lo fai non si
+  capisce che c'e', e chi lo prova conclude che l'app non lo abbia.
+
+  > A muovere due schermate insieme e' l'animazione **della rotta**, non un
+  > widget dentro di essa: il primo tentativo misurava il trascinamento e
+  > chiamava `pop` al rilascio, e durante il gesto non succedeva niente.
+  > `SwipeBackPage` fa guidare quell'animazione dal dito, che e' quello che fa
+  > iPhone da sempre — solo che iPhone lo concede a chi parte dai venti punti
+  > all'estrema sinistra, e qui vale da ovunque.
+
+  La freccia in alto resta per chi la cerca, ma e' un accento sottile e non la
+  freccia piena di Material: quella e' la cosa che fa sembrare "un'app Android"
+  una schermata per il resto identica.
+
+  Le due schermate in cui si ha in mano qualcosa di non salvato — **Partecipa**
+  e **Crea** — tengono solo il gesto stretto del bordo: un gesto largo quanto lo
+  schermo butterebbe via una foto appena scattata per un dito storto.
 
 I token stanno in `lib/core/theme/`. Le schermate leggono da `AppPalette`, mai
 dai colori grezzi.
@@ -285,6 +559,110 @@ mezzo non e' un dettaglio.
 
 Il dominio e' fra quelli autorizzati per l'accesso: senza, i link di conferma
 dell'email arriverebbero e non funzionerebbero.
+
+### Perche' l'app aggiornata si vede subito
+
+Una PWA e' fatta per aprirsi senza rete, quindi tiene una copia di se stessa sul
+telefono. Il rovescio e' che dopo una pubblicazione qualcuno continua a vedere la
+versione di prima — e in un'app che cambia tutti i giorni e' il modo migliore di
+farsi dire "e' ancora rotto" da chi sta guardando una correzione gia' fatta.
+
+A tenerla fresca sono **due cose che devono valere insieme**, e per un po' ne
+valeva una sola.
+
+**Le intestazioni di Hosting.** Tutto viaggia con `no-cache`, che non vuol dire
+"non tenerlo": vuol dire *tienilo, ma prima di usarlo chiedi se e' cambiato*. La
+risposta e' un `304` da poche decine di byte quando non lo e', e la velocita' vera
+non viene da qui — viene dal service worker, che serve i file dal telefono senza
+rete. L'unica eccezione e' `canvaskit/`, che sta in un indirizzo diverso a ogni
+versione e quindi si puo' tenere per sempre.
+
+> **Le regole si leggono dall'ultima.** Quando piu' di una combacia con lo stesso
+> file, Firebase applica **l'ultima**. Prima c'erano tre regole `no-cache` sui file
+> d'ingresso e in fondo una che diceva "tutti i `.js` e i `.json` per una
+> settimana": quella in fondo se le mangiava tutte e tre. Il risultato si vedeva
+> chiedendolo al sito — `flutter_service_worker.js` rispondeva `max-age=604800` —
+> e voleva dire che **il file che si occupa degli aggiornamenti era esso stesso
+> vecchio di una settimana**. Per questo adesso la regola generale sta per prima e
+> l'unica eccezione dopo: e' l'ordine che le rende vere.
+
+**Il controllo dentro l'app.** `web/index.html` ascolta il service worker: appena
+la versione nuova ha finito di installarsi — e solo se ce n'era gia' una che
+controllava la pagina, cioe' se e' un aggiornamento e non una prima apertura — la
+pagina si ricarica una volta sola. E siccome un'app installata puo' restare aperta
+per giorni senza caricare nessuna pagina, il controllo si rifa' **ogni volta che
+si torna sull'app**, che e' anche il momento meno peggio per ricaricarla.
+
+> Il service worker generato da Flutter e' dichiarato deprecato e prima o poi
+> sparira' dalle build. Quando succede, e' questa la parte da rifare.
+
+### Farne un APK da mandare agli amici
+
+Su Android non serve nessuno store: si compila e si manda il file.
+
+```bash
+flutter build apk --release --split-per-abi
+# build/app/outputs/flutter-apk/app-arm64-v8a-release.apk   ~22 MB
+```
+
+`--split-per-abi` non e' un dettaglio: il pacchetto unico contiene tutte le
+architetture e pesa **sessanta megabyte**, quello per `arm64` ne pesa ventidue
+ed e' quello che gira su qualunque telefono Android degli ultimi otto anni.
+
+Cosa serve sulla macchina, una volta sola:
+
+- un **JDK 17** (`winget install Microsoft.OpenJDK.17`);
+- l'**SDK Android**, che si prende senza installare Android Studio: bastano gli
+  strumenti da riga di comando, e da li' `sdkmanager` scarica
+  `platform-tools`, `platforms;android-36` e `build-tools;36.0.0` — Flutter
+  3.44 vuole il 36;
+- dire a Flutter dove sono: `flutter config --android-sdk <cartella>` e
+  `flutter config --jdk-dir <cartella>`.
+
+Due cose da sapere su quel file, prima di mandarlo in giro:
+
+- **e' firmato con la chiave di debug**, perche' e' quella che la configurazione
+  usa anche per la release. Si installa benissimo, ma non si puo' caricare sul
+  Play Store — e il giorno in cui l'app vera arrivera' con una chiave vera, chi
+  ha questa dovra' **disinstallarla prima**: due firme diverse non si
+  aggiornano l'una sull'altra;
+- **il pacchetto si chiama ancora `com.example.app_incontri`**, quindi per il
+  telefono e' un'app diversa da quella che un giorno starà sullo store.
+
+Chi la riceve deve dare al programma con cui apre il file — messaggistica,
+gestore file, browser — il permesso di installare app; poi Play Protect avvisa
+che l'app non viene dallo store, e si prosegue lo stesso. E' il giro normale di
+qualunque beta fuori dallo store.
+
+### Provarla sull'iPhone, da un Mac
+
+Non serve l'account sviluppatore da 99 euro per installarla sul **proprio**
+telefono: basta un Mac, Xcode e un Apple ID qualunque. L'app resta installata
+**sette giorni** e poi va reinstallata — e' il limite della firma gratuita, non
+un difetto.
+
+```bash
+flutter pub get
+open ios/Runner.xcworkspace    # il workspace, non il progetto
+flutter run                     # con l'iPhone collegato e sbloccato
+```
+
+Due cose che vanno sistemate **una volta sola**, in Xcode, e che nessun errore
+spiega bene:
+
+- **La firma.** Signing & Capabilities → il proprio Apple ID come team. Il
+  nome del pacchetto e' ancora `com.example.appIncontri`, e con la firma
+  gratuita un identificativo che comincia per `com.example` viene quasi sempre
+  rifiutato perche' qualcun altro l'ha gia' preso: va cambiato in qualcosa di
+  proprio. **Firebase continua a funzionare lo stesso** — le chiavi arrivano da
+  `firebase_options.dart`, non dal nome del pacchetto — quindi per una prova non
+  serve registrare niente su Firebase.
+- **Il telefono deve fidarsi.** La prima volta l'app non parte: Impostazioni →
+  Generali → VPN e gestione dispositivo → il proprio account → *Autorizza*.
+
+`GoogleService-Info.plist` non c'e' e **non serve** per accesso, database e
+foto: quelle passano tutte dalle opzioni scritte nel codice. Servira' il giorno
+delle notifiche.
 
 ### Installarla sul telefono
 
@@ -418,7 +796,7 @@ cosi':
 ```
 
 `winnerEntryId` **deve esserci e valere `null`**: e' il campo su cui la funzione
-di chiusura trova le challenge ancora da proclamare. Il premio e' in centesimi —
+di chiusura trova le challenge a cui nessuno ha assegnato il premio in tempo. Il premio e' in centesimi —
 `50000` sono €500 — perche' un premio in denaro tenuto in virgola mobile prima o
 poi diventa `499,99999`.
 
@@ -448,9 +826,14 @@ ricordarsi di togliere la regola.
 
 ### La chiusura delle challenge
 
-`functions/index.js` gira ogni cinque minuti, cerca le challenge scadute senza
-vincitore e proclama la foto piu' votata. A parita' di voti vince chi ha mandato
-per primo: serve una regola qualunque, ma serve che sia sempre la stessa.
+`functions/index.js` gira ogni cinque minuti, cerca le challenge **finite da piu'
+di ventiquattro ore** a cui nessuno ha assegnato il premio, e lo da' alla foto
+piu' votata. A parita' di voti vince chi ha mandato per primo: serve una regola
+qualunque, ma serve che sia sempre la stessa.
+
+Quelle ventiquattro ore devono restare uguali a `Challenge.decisionWindow`
+nell'app: se il server fosse piu' impaziente, strapperebbe il verdetto di mano a
+chi l'app dice che ha ancora tempo per decidere.
 
 ---
 
@@ -583,6 +966,22 @@ e' discutibile che delle fiamme siano una valutazione di merito.
 codice e' scritto e funziona; questa e' l'unica cosa che il codice non puo'
 risolvere.
 
+Le domande da portargli — e la descrizione esatta di come funziona il prodotto,
+con i riferimenti al codice perche' possa verificarla — stanno in
+[`legale.md`](legale.md). In breve: la strada da far valutare e' l'esclusione
+dei **concorsi artistici** (art. 6), e le tre domande che contano quanto quella
+principale sono *chi e' il committente*, *se il voto del pubblico e' una
+valutazione di merito*, e *chi trattiene le imposte* — perche' oggi nessuno le
+trattiene.
+
+Nel frattempo il prodotto fa gia' le cose che quell'esclusione richiede, e le fa
+perche' sono giuste comunque: l'opera si realizza **sul momento** e per quella
+commissione, **i criteri di valutazione sono obbligatori** e si scrivono quando
+la challenge nasce, **non si possono piu' cambiare** dopo — le regole del
+database lasciano toccare a una gara gia' nata solo il numero dei partecipanti e
+il vincitore — la partecipazione e' gratuita, non c'e' un solo numero casuale
+nella catena, e chi manda un'opera legge prima che **resta sua**.
+
 ---
 
 ## Test
@@ -604,14 +1003,37 @@ fino alla prima challenge sullo schermo.
 Due cose che tengono in piedi il giro, e nessuna delle due richiede un server
 acceso.
 
-**La campanella** in cima alla home dice cosa hanno fatto gli altri: chi ha
-partecipato alle tue challenge, chi ha acceso una fiamma sulle tue foto, chi ti
-ha chiesto l'amicizia, e quando hai vinto. Le prime due **le scrive chi le
-provoca** — senza Cloud Function nessun altro puo' accorgersene — e il nome del
-documento e' sempre lo stesso per la stessa coppia persona-foto: chi toglie e
-rimette una fiamma venti volte manda una notifica sola. Le altre due non stanno
-sul database affatto: si ricavano da dati che esistono gia', perche' una copia
-puo' andare fuori sincrono con la cosa che racconta.
+**La campanella** in cima alla home dice cosa hanno fatto gli altri, e in cima
+ha **quattro parole: tutto, missioni, fiamme, amici**. Sono i filtri della
+ricerca, stessa forma e stesso comportamento: si tocca quella che interessa e
+resta solo quella roba, con accanto quante ne contiene — un filtro che si tocca
+per scoprire che e' vuoto e' un tocco sprecato.
+
+Un elenco solo e' andato bene finche' i tipi di notizia erano quattro; a sei,
+con fiamme gare e amicizie mescolate in ordine di ora, la cosa che si cercava era
+sempre in mezzo a tre che non c'entravano. Le **sezioni impilate** una sotto
+l'altra sono state il primo tentativo, e non risolvevano niente: per arrivare
+agli amici bisognava scorrere venti fiamme lo stesso.
+
+Dentro ci finiscono sei cose: chi partecipa alle tue challenge, chi accende una
+fiamma sulle tue foto, chi ti chiede l'amicizia, quando vinci, **quando una gara
+a cui hai partecipato e' finita e qualcuno sta scegliendo**, e **quando tocca a
+te scegliere**.
+
+Le prime due **le scrive chi le provoca** — senza Cloud Function nessun altro
+puo' accorgersene — e il nome del documento e' sempre lo stesso per la stessa
+coppia persona-foto: chi toglie e rimette una fiamma venti volte manda una
+notifica sola. **Le altre quattro non stanno sul database affatto**: si ricavano
+da dati che esistono gia', perche' una copia puo' andare fuori sincrono con la
+cosa che racconta.
+
+Quella per chi deve scegliere **si ripete**, ed e' il pezzo di cui vado piu'
+fiero perche' non costa niente: la sua data non e' l'ora in cui la gara e'
+finita, **avanza di sei ore in sei ore**. A ogni scatto torna a contare come non
+letta, il pallino rosso sulla campanella si riaccende, e smette da sola nel
+momento esatto in cui il premio viene assegnato — senza una riga scritta da
+nessuna parte, senza una coda di avvisi da spedire, senza niente da ripulire se
+uno sceglie prima.
 
 **Il link a una foto** e' la porta d'ingresso dell'app. Da una foto a schermo
 intero si condivide un indirizzo che porta *a quella foto*, non alla home. Chi

@@ -26,6 +26,12 @@ abstract final class AppRoutes {
 
   /// La campanella: cosa hanno fatto gli altri.
   static const notifications = '/notifiche';
+
+  /// La lente: si cerca una challenge o una persona.
+  ///
+  /// E' una scheda in fondo, non una pagina che si apre: sta fra gli amici e i
+  /// vincitori, che e' il posto in cui il pollice la cerca senza guardare.
+  static const search = '/cerca';
   static const userProfile = '/utente/:id';
   static const participate = '/challenge/:id/partecipa';
   static const create = '/crea';
@@ -37,7 +43,7 @@ abstract final class AppRoutes {
   static String participateOf(String id) => '/challenge/$id/partecipa';
 
   /// Le schede in fondo, nell'ordine in cui compaiono.
-  static const tabs = <String>[challenges, friends, winners, profile];
+  static const tabs = <String>[challenges, friends, search, winners, profile];
 
   /// Le sole schermate raggiungibili senza una sessione completa.
   ///

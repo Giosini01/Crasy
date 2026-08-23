@@ -37,6 +37,19 @@ class AuthActionController extends AsyncNotifier<void> {
     state = await AsyncValue.guard(_authRepository.sendEmailVerification);
   }
 
+  /// Manda il messaggio per rifarsi la password.
+  ///
+  /// Torna `true` se e' partito senza intoppi. **Non torna se quell'account
+  /// esista**: quello non lo sa nemmeno il repository, ed e' voluto.
+  Future<bool> sendPasswordReset(String email) async {
+    state = const AsyncLoading<void>();
+    state = await AsyncValue.guard(
+      () => _authRepository.sendPasswordReset(email: email),
+    );
+
+    return !state.hasError;
+  }
+
   /// Richiede lo stato aggiornato dell'utente. Torna `true` se nel frattempo
   /// l'indirizzo e' stato confermato.
   Future<bool> refreshVerification() async {

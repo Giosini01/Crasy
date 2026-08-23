@@ -4,9 +4,11 @@ import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/countdown_text.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
+import 'package:crasy/core/widgets/media_gestures.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -143,9 +145,8 @@ class ChallengeShowcase extends StatelessWidget {
     final palette = context.palette;
     final texts = context.texts;
 
-    return GestureDetector(
+    return MediaTap(
       onTap: onOpen,
-      behavior: HitTestBehavior.opaque,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -169,7 +170,20 @@ class ChallengeShowcase extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
-          MediaFrame(url: entry.mediaUrl, caption: entry.authorName),
+          // **Sulla foto vale la fiamma, come ovunque.** Il resto della scheda
+          // apre la challenge; qui sopra no: un tocco apre lo stesso, ma due
+          // accendono la fiamma. Prima questo pezzo non ascoltava il doppio
+          // tocco affatto, e due tocchi rapidi sulla foto in testa aprivano la
+          // gara due volte di fila.
+          FireTap(
+            entry: entry,
+            onTap: onOpen,
+            child: MediaFrame(
+              url: entry.mediaUrl,
+              video: entry.isVideo,
+              caption: entry.authorName,
+            ),
+          ),
           const SizedBox(height: AppSpacing.xs),
           Row(
             children: [

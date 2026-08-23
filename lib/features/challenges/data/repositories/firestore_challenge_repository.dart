@@ -72,8 +72,20 @@ class FirestoreChallengeRepository implements ChallengeRepository {
 
   @override
   Stream<List<Challenge>> watchEndedChallenges() {
+    // Due limiti sullo stesso campo — finita, ma **non piu' di due giorni fa**.
+    // Firestore li accetta perche' sono tutti e due su `endsAt`, e sono cio'
+    // che tiene questa schermata corta: le gare piu' vecchie non si leggono
+    // nemmeno, e poco dopo il server le cancella del tutto.
+    final now = DateTime.now();
+
     return _challenges
         .where('endsAt', isLessThanOrEqualTo: Timestamp.now())
+        .where(
+          'endsAt',
+          isGreaterThan: Timestamp.fromDate(
+            now.subtract(Challenge.winnersWindow),
+          ),
+        )
         .orderBy('endsAt', descending: true)
         .limit(50)
         .snapshots()
@@ -330,12 +342,16 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     required String challengeId,
     required String winnerEntryId,
     required String winnerUserId,
+    bool chosenByCreator = false,
   }) async {
     final challengeRef = _challenges.doc(challengeId);
     final batch = _firestore.batch()
       ..update(challengeRef, {
         'winnerEntryId': winnerEntryId,
         'winnerUserId': winnerUserId,
+        // Chi guarda ha diritto di sapere se quel premio e' stato **assegnato**
+        // o e' semplicemente scaduto in mano a chi aveva piu' fiamme.
+        'chosenByCreator': chosenByCreator,
       });
 
     if (winnerEntryId.isNotEmpty) {

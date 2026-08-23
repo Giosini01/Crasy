@@ -80,5 +80,6 @@ abstract class ChallengeRepository {
     required String challengeId,
     required String winnerEntryId,
     required String winnerUserId,
+    bool chosenByCreator = false,
   });
 }

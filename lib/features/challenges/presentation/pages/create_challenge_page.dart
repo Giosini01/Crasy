@@ -57,6 +57,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
   final _formKey = GlobalKey<FormState>();
   final _title = TextEditingController();
   final _brief = TextEditingController();
+
   final _prize = TextEditingController();
   final _place = TextEditingController();
   int _minutes = 1440;

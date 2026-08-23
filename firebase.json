@@ -32,27 +32,13 @@
     ],
     "headers": [
       {
-        "source": "/index.html",
-        "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, max-age=0" }
-        ]
+        "source": "**",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
       },
       {
-        "source": "/flutter_service_worker.js",
+        "source": "/canvaskit/**",
         "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, max-age=0" }
-        ]
-      },
-      {
-        "source": "/version.json",
-        "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, max-age=0" }
-        ]
-      },
-      {
-        "source": "**/*.@(js|wasm|png|jpg|jpeg|svg|ttf|otf|json)",
-        "headers": [
-          { "key": "Cache-Control", "value": "public, max-age=604800" }
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
         ]
       }
     ]

@@ -1,3 +1,5 @@
+import 'package:crasy/core/moderation/email_policy.dart';
+
 abstract final class AuthValidators {
   static final RegExp _emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 
@@ -13,6 +15,23 @@ abstract final class AuthValidators {
     }
 
     return null;
+  }
+
+  /// L'email di **chi si registra**, che ha un controllo in piu'.
+  ///
+  /// Sta separato da [validateEmail] di proposito: il divieto vale alla nascita
+  /// di un account, non all'ingresso. Chi si e' registrato ieri con un dominio
+  /// che oggi finisce nell'elenco deve poter continuare a entrare — chiudere
+  /// fuori qualcuno che e' gia' dentro, magari con delle foto in gara, sarebbe
+  /// una punizione per una regola scritta dopo.
+  static String? validateNewEmail(String? value) {
+    final problema = validateEmail(value);
+
+    if (problema != null) {
+      return problema;
+    }
+
+    return EmailPolicy.validate(value);
   }
 
   static String? validatePassword(String? value) {

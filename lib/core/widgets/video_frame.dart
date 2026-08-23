@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/widgets/media_gestures.dart';
 import 'package:crasy/core/widgets/video/html_video_stub.dart'
     if (dart.library.js_interop) 'package:crasy/core/widgets/video/html_video_web.dart';
 import 'package:flutter/foundation.dart';
@@ -8,9 +11,10 @@ import 'package:video_player/video_player.dart';
 
 /// Un video di una partecipazione.
 ///
-/// Prova a partire da solo, in silenzio, e va in ciclo: si scorre una gara
-/// guardando venti contenuti di fila, e un video che chiede di premere play
-/// prima di mostrarsi viene saltato.
+/// Parte da solo, in silenzio, e va in ciclo: si scorre una gara guardando
+/// venti contenuti di fila, e un video che chiede di premere play prima di
+/// mostrarsi viene saltato. Il ciclo serve alla gara: trenta secondi che
+/// ripartono lasciano il tempo di decidere se quella cosa merita una fiamma.
 ///
 /// **Ma se non parte, resta comunque il primo fotogramma con un play sopra**, e
 /// questa e' la correzione di un difetto che si vedeva come "i video non si
@@ -20,12 +24,35 @@ import 'package:video_player/video_player.dart';
 /// che funzionava benissimo. Adesso il rifiuto e' un caso previsto — si mostra
 /// il fotogramma e si aspetta un dito.
 ///
-/// Il ciclo serve alla gara: trenta secondi che ripartono lasciano il tempo di
-/// decidere se quella cosa merita una fiamma.
+/// ## Il primo tocco cambia mestiere al video
+///
+/// Finche' nessuno lo tocca e' **un contenuto che scorre**: muto, in ciclo,
+/// senza un comando sopra, perche' una barra con i pulsanti in mezzo a una
+/// griglia di foto dice "questo e' un lettore" invece di "questa e' la
+/// partecipazione di qualcuno".
+///
+/// Al primo tocco diventa **una cosa che si sta guardando**: arriva l'audio —
+/// chi tocca un video lo vuole guardare davvero — e arrivano i comandi, cioe'
+/// la barra per andare avanti e indietro, i dieci secondi in salto, la pausa e
+/// il volume. Spariscono da soli dopo qualche istante, cosi' tornano a coprire
+/// il video solo quando servono; **a video fermo restano**, perche' chi ha
+/// appena messo in pausa sta cercando proprio quelli.
+///
+/// Sul web niente di tutto questo passa di qui: il video lo disegna il browser
+/// con i suoi comandi, e la regola e' la stessa. Vedi `html_video_web.dart`.
 class VideoFrame extends StatefulWidget {
-  const VideoFrame({required this.url, this.caption, super.key});
+  const VideoFrame({
+    required this.url,
+    this.caption,
+    this.immersive = false,
+    super.key,
+  });
 
   final String url;
+
+  /// Se il video e' **la cosa che si sta guardando** e non una riga di un
+  /// elenco: a schermo intero arrivano audio e comandi, nell'elenco no.
+  final bool immersive;
 
   /// Cosa scrivere mentre il video sta arrivando.
   final String? caption;
@@ -35,8 +62,17 @@ class VideoFrame extends StatefulWidget {
 }
 
 class _VideoFrameState extends State<VideoFrame> {
+  /// Quanto restano i comandi dopo l'ultimo tocco.
+  static const _linger = Duration(seconds: 3);
+
+  /// Quanto si salta con una freccia. Dieci secondi sono il salto che tutti
+  /// conoscono, e su un video da trenta e' gia' un terzo della gara.
+  static const _step = Duration(seconds: 10);
+
   VideoPlayerController? _controller;
+  Timer? _hide;
   bool _failed = false;
+  bool _controls = false;
 
   @override
   void initState() {
@@ -56,6 +92,8 @@ class _VideoFrameState extends State<VideoFrame> {
       _controller?.dispose();
       _controller = null;
       _failed = false;
+      _hide?.cancel();
+      _controls = false;
       _open();
     }
   }
@@ -91,7 +129,7 @@ class _VideoFrameState extends State<VideoFrame> {
     // browser dei telefoni si aspettano.
     try {
       await controller.setLooping(true);
-      await controller.setVolume(0);
+      await controller.setVolume(widget.immersive ? 1 : 0);
       await controller.play();
     } on Object {
       // Silenzio voluto: c'e' il play in mezzo allo schermo.
@@ -100,19 +138,48 @@ class _VideoFrameState extends State<VideoFrame> {
     if (mounted) {
       setState(() {});
     }
+
+    // A schermo intero i comandi si fanno vedere subito e poi si tolgono da
+    // soli: chi ha appena aperto deve sapere che la barra dei secondi c'e',
+    // senza doverla cercare con un tocco alla cieca.
+    if (widget.immersive) {
+      _keepControls();
+    }
   }
 
   @override
   void dispose() {
+    _hide?.cancel();
     _controller?.dispose();
     super.dispose();
   }
 
+  /// Accende i comandi e mette in conto quando spegnerli.
+  ///
+  /// A video fermo non si spengono: chi ha messo in pausa sta cercando proprio
+  /// la barra, e vedersela sparire in mano vuol dire toccare di nuovo per
+  /// riaverla.
+  void _keepControls() {
+    _hide?.cancel();
+
+    if (_controller?.value.isPlaying ?? false) {
+      _hide = Timer(_linger, () {
+        if (mounted) {
+          setState(() => _controls = false);
+        }
+      });
+    }
+
+    if (mounted) {
+      setState(() => _controls = true);
+    }
+  }
+
   /// Un tocco fa la cosa che serve in quel momento.
   ///
-  /// Fermo: parte, e **con l'audio** — chi tocca un video fermo lo vuole
-  /// guardare davvero. Gia' in corso: accende o spegne il suono, perche' nessuno
-  /// vuole che il telefono cominci a parlare in mezzo alla gente.
+  /// Senza comandi a schermo: **parte l'audio e compaiono i comandi**, che e'
+  /// il passaggio da "sto scorrendo" a "sto guardando". Con i comandi gia'
+  /// fuori: ferma e riprende, come su qualunque lettore.
   Future<void> _tap() async {
     final controller = _controller;
 
@@ -120,16 +187,53 @@ class _VideoFrameState extends State<VideoFrame> {
       return;
     }
 
-    if (!controller.value.isPlaying) {
+    if (!_controls) {
       await controller.setVolume(1);
       await controller.play();
-    } else {
-      await controller.setVolume(controller.value.volume > 0 ? 0 : 1);
+      _keepControls();
+
+      return;
     }
 
-    if (mounted) {
-      setState(() {});
+    if (controller.value.isPlaying) {
+      await controller.pause();
+    } else {
+      await controller.play();
     }
+
+    _keepControls();
+  }
+
+  /// Avanti o indietro di [by], senza uscire dal video.
+  Future<void> _seek(Duration by) async {
+    final controller = _controller;
+
+    if (controller == null) {
+      return;
+    }
+
+    final end = controller.value.duration;
+    var target = controller.value.position + by;
+
+    if (target < Duration.zero) {
+      target = Duration.zero;
+    } else if (target > end) {
+      target = end;
+    }
+
+    await controller.seekTo(target);
+    _keepControls();
+  }
+
+  Future<void> _toggleVolume() async {
+    final controller = _controller;
+
+    if (controller == null) {
+      return;
+    }
+
+    await controller.setVolume(controller.value.volume > 0 ? 0 : 1);
+    _keepControls();
   }
 
   @override
@@ -142,9 +246,16 @@ class _VideoFrameState extends State<VideoFrame> {
     // e iPhone quel momento non lo raggiunge mai finche' qualcuno non tocca
     // play: restava un rettangolo grigio, per sempre, senza nemmeno un errore.
     // Con l'elemento vero decidiamo noi quanto caricare e chi disegna i
-    // comandi. Vedi `html_video_web.dart`.
+    // comandi. I gesti glieli passiamo noi, perche' sopra un elemento del
+    // browser quelli di Flutter non arrivano. Vedi `html_video_web.dart`.
     if (kIsWeb) {
-      final video = buildHtmlVideo(widget.url);
+      final gestures = MediaGestures.of(context);
+      final video = buildHtmlVideo(
+        widget.url,
+        immersive: widget.immersive,
+        onTap: gestures?.onTap,
+        onDoubleTap: gestures?.onDoubleTap,
+      );
 
       if (video != null) {
         return video;
@@ -180,37 +291,85 @@ class _VideoFrameState extends State<VideoFrame> {
     final playing = controller.value.isPlaying;
     final muted = controller.value.volume == 0;
 
-    return GestureDetector(
-      onTap: _tap,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // `FittedBox` con `cover`: il video riempie il riquadro come farebbe
-          // una foto, invece di lasciare due bande nere dove le proporzioni non
-          // combaciano.
-          FittedBox(
-            fit: BoxFit.cover,
-            clipBehavior: Clip.hardEdge,
-            child: SizedBox(
-              width: controller.value.size.width,
-              height: controller.value.size.height,
-              child: VideoPlayer(controller),
+    final content = Stack(
+      fit: StackFit.expand,
+      children: [
+        // `FittedBox` con `cover`: nell'elenco il video riempie il riquadro
+        // come farebbe una foto, invece di lasciare due bande nere dove le
+        // proporzioni non combaciano. A schermo intero vale il contrario — li'
+        // si guarda il video com'e', e tagliarne i bordi vorrebbe dire
+        // nascondere meta' di quello che qualcuno ha fatto per vincere.
+        FittedBox(
+          fit: widget.immersive ? BoxFit.contain : BoxFit.cover,
+          clipBehavior: Clip.hardEdge,
+          child: SizedBox(
+            width: controller.value.size.width,
+            height: controller.value.size.height,
+            child: VideoPlayer(controller),
+          ),
+        ),
+        // Il play grande al centro c'e' **solo** quando il video e' fermo e i
+        // comandi non ci sono: e' un invito, non una decorazione, e sopra un
+        // video che sta gia' andando coprirebbe la cosa che si e' venuti a
+        // vedere.
+        if (!playing && !_controls)
+          const Center(
+            child: Icon(
+              Icons.play_circle_fill_rounded,
+              size: 56,
+              color: Colors.white,
             ),
           ),
-          // Il play grande al centro c'e' **solo** quando il video e' fermo: e'
-          // un invito, non una decorazione, e sopra un video che sta gia'
-          // andando coprirebbe la cosa che si e' venuti a vedere.
-          if (!playing)
-            const Center(
-              child: Icon(
-                Icons.play_circle_fill_rounded,
-                size: 56,
-                color: Colors.white,
+        if (_controls) ...[
+          Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _Command(
+                  icon: Icons.replay_10_rounded,
+                  onTap: () => _seek(-_step),
+                ),
+                const SizedBox(width: 24),
+                _Command(
+                  icon: playing
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
+                  size: 32,
+                  onTap: _tap,
+                ),
+                const SizedBox(width: 24),
+                _Command(
+                  icon: Icons.forward_10_rounded,
+                  onTap: () => _seek(_step),
+                ),
+              ],
+            ),
+          ),
+          // La barra si trascina: e' l'"indietro di preciso" che i dieci
+          // secondi non sanno fare. Bianca, non rossa: il rosso qui dentro e'
+          // del premio e della fiamma, e speso su una barra di avanzamento
+          // smette di significare quelle due cose.
+          Positioned(
+            left: 8,
+            right: 8,
+            bottom: 26,
+            child: VideoProgressIndicator(
+              controller,
+              allowScrubbing: true,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              colors: const VideoProgressColors(
+                playedColor: Colors.white,
+                bufferedColor: Color(0x59FFFFFF),
+                backgroundColor: Color(0x40FFFFFF),
               ),
             ),
-          Positioned(
-            right: 8,
-            bottom: 8,
+          ),
+        ],
+        Positioned(
+          right: 8,
+          bottom: 8,
+          child: GestureDetector(
+            onTap: _controls ? _toggleVolume : null,
             child: DecoratedBox(
               decoration: const BoxDecoration(
                 color: Color(0x8C000000),
@@ -226,7 +385,46 @@ class _VideoFrameState extends State<VideoFrame> {
               ),
             ),
           ),
-        ],
+        ),
+      ],
+    );
+
+    // **Nell'elenco il video non si prende i tocchi.** Sopra di lui ci sono la
+    // fiamma del doppio tocco e il tocco che apre lo schermo intero, e un
+    // lettore che se li mangia per mostrare una barra di comandi in una
+    // miniatura toglie due gesti veri per darne uno che li' non serve.
+    if (!widget.immersive) {
+      return content;
+    }
+
+    return GestureDetector(onTap: _tap, child: content);
+  }
+}
+
+/// Un comando del lettore: icona bianca su un tondo scuro.
+///
+/// Il tondo non e' decorazione — sotto ci passa un video qualunque, e un'icona
+/// bianca su una scena chiara non si vede piu'.
+class _Command extends StatelessWidget {
+  const _Command({required this.icon, required this.onTap, this.size = 24});
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: Color(0x8C000000),
+          shape: BoxShape.circle,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Icon(icon, size: size, color: Colors.white),
+        ),
       ),
     );
   }

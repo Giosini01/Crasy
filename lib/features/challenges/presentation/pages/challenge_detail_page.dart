@@ -1,6 +1,8 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/utils/app_date_utils.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/countdown_text.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
@@ -9,6 +11,7 @@ import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/controllers/challenge_closer.dart';
+import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
@@ -326,28 +329,58 @@ class _EntriesState extends ConsumerState<_Entries> {
       }
     }
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.zero,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: AppSpacing.xs,
-        mainAxisSpacing: AppSpacing.lg,
-        // Il quadrato della foto piu' la riga sotto. Fissato invece che
-        // calcolato da un rapporto, cosi' la riga non si schiaccia quando la
-        // colonna si stringe.
-        mainAxisExtent: 210,
-      ),
-      itemCount: entries.length,
-      itemBuilder: (context, index) =>
-          _EntryGridTile(entry: entries[index], entries: entries),
+    final me = ref.watch(currentUserIdProvider);
+    final aspetta = challenge.waitsForChoiceAt(DateTime.now());
+    final scelgoIo = aspetta && me != null && me == challenge.createdByUserId;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (aspetta) _ChoiceBanner(challenge: challenge, mine: scelgoIo),
+        // Le fiamme rimaste stanno **sopra le foto**, non sotto: si guardano
+        // prima di cominciare a spenderle, non dopo averle finite.
+        if (!challenge.hasEndedAt(DateTime.now())) ...[
+          _FireBudget(challengeId: challenge.id),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: AppSpacing.xs,
+            mainAxisSpacing: AppSpacing.lg,
+            // Il quadrato della foto piu' la riga sotto. Fissato invece che
+            // calcolato da un rapporto, cosi' la riga non si schiaccia quando la
+            // colonna si stringe — e piu' alto quando sotto c'e' anche il
+            // comando per assegnare il premio.
+            mainAxisExtent: scelgoIo ? 258 : 210,
+          ),
+          itemCount: entries.length,
+          itemBuilder: (context, index) => _EntryGridTile(
+            entry: entries[index],
+            entries: entries,
+            // Il comando per assegnare il premio compare **solo a chi la gara
+            // l'ha lanciata**, e solo mentre il tempo per scegliere corre.
+            choosable: scelgoIo ? challenge : null,
+          ),
+        ),
+      ],
     );
   }
 }
 
 class _EntryGridTile extends ConsumerWidget {
-  const _EntryGridTile({required this.entry, required this.entries});
+  const _EntryGridTile({
+    required this.entry,
+    required this.entries,
+    this.choosable,
+  });
+
+  /// La gara, quando **io posso assegnarne il premio**. Nulla in tutti gli
+  /// altri casi, che sono la stragrande maggioranza.
+  final Challenge? choosable;
 
   final ChallengeEntry entry;
 
@@ -394,6 +427,8 @@ class _EntryGridTile extends ConsumerWidget {
             VoteButton(entry: entry),
           ],
         ),
+        if (choosable != null)
+          _ChooseButton(challenge: choosable!, entry: entry),
       ],
     );
   }
@@ -445,6 +480,171 @@ class _BottomAction extends ConsumerWidget {
           onPressed: () => context.push(AppRoutes.participateOf(challenge.id)),
         ),
       },
+    );
+  }
+}
+
+/// Chi ha lanciato la gara sceglie, e questa e' la riga che glielo dice.
+///
+/// **Il verdetto non e' del conteggio, e' suo.** Le fiamme restano sotto ogni
+/// foto — servono a capire il polso di chi guarda, e a decidere in automatico
+/// se lui non decide — ma chi ha messo i soldi sta comprando un'opera, e la
+/// piu' votata non e' sempre quella che aveva chiesto.
+///
+/// Agli altri la stessa riga dice due cose: che si sta aspettando una persona
+/// precisa, e **entro quando**. Una gara finita che non dice chi ha vinto ne'
+/// perche' e' il modo piu' rapido di far pensare che i soldi non arriveranno.
+class _ChoiceBanner extends ConsumerWidget {
+  const _ChoiceBanner({required this.challenge, required this.mine});
+
+  final Challenge challenge;
+
+  /// Vero se a dover scegliere sono io.
+  final bool mine;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+    final texts = context.texts;
+    final left = challenge.decisionDeadline.difference(DateTime.now());
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: palette.accentTint,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            mine ? 'SCEGLI CHI HA VINTO' : 'IN ATTESA DELLA SCELTA',
+            style: texts.labelSmall?.copyWith(color: palette.accent),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            mine
+                ? 'La gara e\' finita: il premio lo assegni tu. Se non scegli '
+                      'entro ${AppDateUtils.formatTimeLeft(left)}, va da solo '
+                      'a chi ha piu\' fiamme.'
+                : 'Decide @${challenge.createdByUsername}, che ha messo il '
+                      'premio. Se non lo fa entro '
+                      '${AppDateUtils.formatTimeLeft(left)}, vince chi ha piu\' '
+                      'fiamme.',
+            style: texts.bodyMedium,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Il comando che assegna il premio, sotto una foto.
+///
+/// Chiede conferma, e non per abitudine: **questo tocco sposta dei soldi veri e
+/// non si disfa**. Una gara proclamata non si riapre, ne' dall'app ne' dalle
+/// regole del database — e' il patto con chi ha partecipato.
+class _ChooseButton extends ConsumerWidget {
+  const _ChooseButton({required this.challenge, required this.entry});
+
+  final Challenge challenge;
+  final ChallengeEntry entry;
+
+  Future<void> _choose(BuildContext context, WidgetRef ref) async {
+    final conferma = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Vince @${entry.authorName}?'),
+        content: Text(
+          '${challenge.prizeLabel} vanno a lei o a lui, e non si torna '
+          'indietro.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('ANNULLA'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              'ASSEGNA',
+              style: TextStyle(color: context.palette.accent),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (conferma != true) {
+      return;
+    }
+
+    await ref
+        .read(challengeRepositoryProvider)
+        .proclaimWinner(
+          challengeId: challenge.id,
+          winnerEntryId: entry.id,
+          winnerUserId: entry.userId,
+          chosenByCreator: true,
+        );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xxs),
+      child: SecondaryButton(
+        label: 'Scegli questa',
+        accent: true,
+        onPressed: () => _choose(context, ref),
+      ),
+    );
+  }
+}
+
+/// Le fiamme che restano in questa gara, disegnate.
+///
+/// **Tre segni, non un numero.** "Ti restano 2 fiamme" si legge; tre fiamme di
+/// cui una spenta si *vede*, e chi guarda capisce in un colpo d'occhio due cose
+/// insieme: quante ne ha date e quante gliene restano. Su una schermata che si
+/// scorre col pollice vale piu' della frase.
+///
+/// Sparisce a gara finita: li' non c'e' piu' niente da spendere, e un contatore
+/// pieno sotto una gara chiusa e' una promessa che non si puo' mantenere.
+class _FireBudget extends ConsumerWidget {
+  const _FireBudget({required this.challengeId});
+
+  final String challengeId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+    final texts = context.texts;
+    final left = ref.watch(firesLeftProvider(challengeId));
+    final finite = left == 0;
+
+    return Row(
+      children: [
+        for (var i = 0; i < Challenge.firesPerChallenge; i++)
+          Padding(
+            padding: const EdgeInsets.only(right: 2),
+            child: Icon(
+              i < left
+                  ? Icons.local_fire_department
+                  : Icons.local_fire_department_outlined,
+              size: 16,
+              color: i < left ? palette.accent : palette.textFaint,
+            ),
+          ),
+        const SizedBox(width: AppSpacing.xs),
+        Text(
+          finite ? 'FINITE QUI' : 'TE NE RESTANO $left',
+          style: texts.labelSmall?.copyWith(
+            color: finite ? palette.textFaint : palette.accent,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -5,4 +5,9 @@ import 'package:flutter/widgets.dart';
 /// Su telefono il lettore di sistema — AVPlayer su iPhone, ExoPlayer su
 /// Android — fa gia' tutto quello che serve, e lo fa meglio: `VideoFrame` usa
 /// quello e questa funzione non viene mai chiamata.
-Widget? buildHtmlVideo(String url) => null;
+Widget? buildHtmlVideo(
+  String url, {
+  bool immersive = false,
+  VoidCallback? onTap,
+  VoidCallback? onDoubleTap,
+}) => null;

@@ -120,11 +120,13 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
     required String challengeId,
     required String winnerEntryId,
     required String winnerUserId,
+    bool chosenByCreator = false,
   }) {
     return _forChallenge(challengeId).proclaimWinner(
       challengeId: challengeId,
       winnerEntryId: winnerEntryId,
       winnerUserId: winnerUserId,
+      chosenByCreator: chosenByCreator,
     );
   }
 

@@ -1,4 +1,3 @@
-import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
@@ -6,14 +5,15 @@ import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
+import 'package:crasy/core/widgets/media_gestures.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/payments/presentation/widgets/wallet_card.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 /// Il profilo di qualcun altro.
 ///
@@ -365,9 +365,10 @@ class _EntryGrid extends StatelessWidget {
       itemBuilder: (context, index) {
         final entry = entries[index];
 
-        return GestureDetector(
+        return MediaTap(
+          // Un tocco apre il contenuto grande, come nel proprio profilo.
           onTap: () =>
-              context.push(AppRoutes.challengeDetailOf(entry.challengeId)),
+              FullscreenMedia.open(context, entries: entries, entry: entry),
           child: MediaFrame(
             url: entry.mediaUrl,
             video: entry.isVideo,

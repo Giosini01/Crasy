@@ -1,4 +1,3 @@
-import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
@@ -6,10 +5,12 @@ import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
+import 'package:crasy/core/widgets/media_gestures.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
 import 'package:crasy/features/auth/presentation/controllers/auth_action_controller.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/onboarding/presentation/utils/onboarding_validators.dart';
 import 'package:crasy/features/payments/presentation/widgets/wallet_card.dart';
@@ -18,7 +19,6 @@ import 'package:crasy/features/profile/presentation/controllers/profile_edit_con
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 /// Il profilo: quello che hai fatto, non quello che sei.
@@ -457,14 +457,19 @@ class _EntryGrid extends StatelessWidget {
       itemBuilder: (context, index) {
         final entry = entries[index];
 
-        return GestureDetector(
+        return MediaTap(
+          // **Un tocco apre il contenuto**, non la gara. Nel quadrato di due
+          // dita della griglia non si vede niente e un video non si sente
+          // nemmeno: quello che si e' venuti a rivedere e' la foto grande. Da
+          // li' la gara resta a un tocco, scritta sotto.
           onTap: () =>
-              context.push(AppRoutes.challengeDetailOf(entry.challengeId)),
+              FullscreenMedia.open(context, entries: entries, entry: entry),
           child: Stack(
             fit: StackFit.expand,
             children: [
               MediaFrame(
                 url: entry.mediaUrl,
+                video: entry.isVideo,
                 aspectRatio: 1,
                 radius: AppRadius.xs,
                 caption: entry.challengeTitle,

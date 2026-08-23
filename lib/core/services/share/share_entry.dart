@@ -47,14 +47,26 @@ abstract final class ShareEntry {
     required String challengeId,
     required String entryId,
     required String challengeTitle,
+    bool ended = false,
   }) {
     final title = challengeTitle.isEmpty
         ? 'una challenge'
         : '"${challengeTitle.toUpperCase()}"';
 
+    final link = linkTo(challengeId: challengeId, entryId: entryId);
+
+    // **A gara finita si chiede un'altra cosa, perche' non c'e' piu' niente
+    // da chiedere.** "Dammi una fiamma" su una foto che non si puo' piu'
+    // votare manda chi lo riceve a cercare un comando che non c'e', e fa fare
+    // a chi condivide la figura di chi non sa come funziona la sua stessa
+    // app. Li' la foto non e' piu' in gara: e' andata come e' andata, e si
+    // guarda.
+    if (ended) {
+      return 'Guarda com\'e\' finita $title su CRASY.\n\n$link';
+    }
+
     return 'Sono in gara su CRASY con $title. Aprila e dammi una fiamma: '
-        'vince chi ne prende di piu\'.\n\n'
-        '${linkTo(challengeId: challengeId, entryId: entryId)}';
+        'vince chi ne prende di piu\'.\n\n$link';
   }
 
   /// Apre il pannello di condivisione, e **se non c'e' copia il link**.
@@ -72,11 +84,13 @@ abstract final class ShareEntry {
     required String challengeId,
     required String entryId,
     required String challengeTitle,
+    bool ended = false,
   }) async {
     final message = messageFor(
       challengeId: challengeId,
       entryId: entryId,
       challengeTitle: challengeTitle,
+      ended: ended,
     );
 
     final messenger = ScaffoldMessenger.maybeOf(context);

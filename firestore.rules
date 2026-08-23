@@ -344,11 +344,33 @@ service cloud.firestore {
       // Va detto cosa questo permette, oggi: chiunque puo' scrivere il nome di
       // un vincitore diverso da quello vero. Non ci sono soldi di mezzo, e il
       // costo di non chiudere mai una gara e' piu' alto.
+      // **Il premio lo assegna chi ha lanciato la gara.**
+      //
+      // Non lo decide piu' il conteggio delle fiamme: chi mette i soldi sta
+      // commissionando un'opera, e la piu' votata non e' sempre quella che
+      // aveva chiesto. Ha ventiquattro ore dalla fine per farlo.
+      //
+      // Passate quelle, **chiude chiunque passi di li'** — e' la strada di
+      // riserva di prima, e resta necessaria per la stessa ragione di prima:
+      // la funzione che dovrebbe farlo dal server richiede il piano a pagamento.
+      // Una gara senza vincitore perche' chi l'ha lanciata si e' distratto e'
+      // la cosa che fa perdere fiducia a tutti gli altri.
+      //
+      // Quello che nessuna regola puo' controllare e' **che il vincitore
+      // automatico sia davvero il piu' votato**: quel conto lo fa chi scrive.
+      // Era vero anche prima, ed e' una delle ragioni per cui questa strada
+      // deve sparire il giorno in cui il server si accende — cosa che succede
+      // da sola, perche' vale solo finche' CRASY non ha un centesimo in cassa.
       allow update: if signedIn()
-                    && changedOnly(['winnerEntryId', 'winnerUserId'])
-                    && resource.data.endsAt <= request.time
+                    && changedOnly(['winnerEntryId', 'winnerUserId', 'chosenByCreator'])
                     && resource.data.get('prizeStatus', 'unpaid') == 'unpaid'
-                    && resource.data.get('winnerEntryId', null) == null;
+                    && resource.data.get('winnerEntryId', null) == null
+                    && (
+                      (resource.data.createdByUserId == request.auth.uid
+                       && resource.data.endsAt <= request.time)
+                      || resource.data.endsAt
+                         < request.time - duration.value(24, 'h')
+                    );
 
       match /entries/{entryId} {
 
@@ -436,15 +458,36 @@ service cloud.firestore {
         allow update: if signedIn()
                       && changedOnly(['isWinner'])
                       && request.resource.data.isWinner == true
-                      && challenge().endsAt <= request.time
-                      && challenge().get('prizeStatus', 'unpaid') == 'unpaid';
+                      && challenge().get('prizeStatus', 'unpaid') == 'unpaid'
+                      // Le stesse due strade della proclamazione qui sopra: chi
+                      // ha lanciato la gara appena finisce, chiunque dopo le
+                      // ventiquattro ore.
+                      && (
+                        (challenge().createdByUserId == request.auth.uid
+                         && challenge().endsAt <= request.time)
+                        || challenge().endsAt
+                           < request.time - duration.value(24, 'h')
+                      );
 
         allow update: if signedIn()
                       && changedOnly(['votes'])
                       && (request.resource.data.votes
                             == resource.data.get('votes', 0) + 1
                           || request.resource.data.votes
-                            == resource.data.get('votes', 0) - 1);
+                            == resource.data.get('votes', 0) - 1)
+                      // **Allo scadere del tempo le fiamme si fermano.**
+                      //
+                      // E' la riga che rende vera la regola scritta nelle
+                      // challenge: vince la foto con piu' voti **allo scadere
+                      // del tempo**. Senza, un voto arrivato dopo la sirena
+                      // sposterebbe dei soldi da una persona a un'altra, e
+                      // l'app che lo impedisce sarebbe l'unica difesa — cioe'
+                      // nessuna difesa, per chi scrive sul database
+                      // direttamente.
+                      //
+                      // Costa una lettura in piu' per fiamma. Vale il prezzo:
+                      // qui si sta decidendo chi incassa.
+                      && challengeIsLive();
 
         // Una foto mandata in gara non si cancella: e' il patto con chi la
         // vota e con gli altri concorrenti.

@@ -26,9 +26,14 @@ void main() {
     });
   });
 
-  /// Una gara gia' scaduta, con dentro le partecipazioni chieste.
+  /// Una gara finita, con dentro le partecipazioni chieste.
+  ///
+  /// [ago] dice **da quanto** e' finita, e ora e' la cosa che decide tutto: a
+  /// chi l'ha lanciata restano ventiquattro ore per assegnare il premio, e
+  /// prima di allora qui non si chiude niente.
   Future<(Challenge, List<ChallengeEntry>)> endedChallenge({
     required List<String> authors,
+    Duration ago = const Duration(hours: 25),
   }) async {
     final samples = container.read(sampleChallengeRepositoryProvider);
     final now = DateTime.now();
@@ -40,8 +45,8 @@ void main() {
         brief: 'Fai qualcosa di assurdo.',
         prizeCents: 50000,
         scope: ChallengeScope.global,
-        startsAt: now.subtract(const Duration(hours: 2)),
-        endsAt: now.subtract(const Duration(minutes: 1)),
+        startsAt: now.subtract(ago + const Duration(hours: 2)),
+        endsAt: now.subtract(ago),
       ),
     );
 
@@ -115,6 +120,81 @@ void main() {
       expect((await reread(challenge.id)).winnerEntryId, '');
     },
   );
+
+  test('finita da poco non si chiude: sta ancora scegliendo', () async {
+    // **E' la regola nuova, e vale un premio.** Il verdetto e' di chi ha messo i
+    // soldi, e chiudere prima che il suo tempo scada vorrebbe dire toglierglielo
+    // di mano e darlo al conteggio delle fiamme.
+    final (challenge, entries) = await endedChallenge(
+      authors: ['a', 'b'],
+      ago: const Duration(minutes: 10),
+    );
+
+    await container
+        .read(challengeCloserProvider)
+        .closeIfNeeded(challenge, entries, entriesLoaded: true);
+
+    expect((await reread(challenge.id)).winnerEntryId, isNull);
+  });
+
+  test('passate le ventiquattro ore vince chi ha piu\' fiamme', () async {
+    final (challenge, entries) = await endedChallenge(
+      authors: ['a', 'b'],
+      ago: const Duration(hours: 25),
+    );
+    final samples = container.read(sampleChallengeRepositoryProvider);
+
+    await samples.setVote(
+      challengeId: challenge.id,
+      entryId: entries[1].id,
+      userId: 'chiunque',
+      voted: true,
+    );
+
+    await container
+        .read(challengeCloserProvider)
+        .closeIfNeeded(
+          challenge,
+          await samples.watchEntries(challenge.id).first,
+          entriesLoaded: true,
+        );
+
+    final closed = await reread(challenge.id);
+
+    expect(closed.winnerEntryId, entries[1].id);
+    // E si vede che nessuno l'ha scelto: il premio e' scaduto, non assegnato.
+    expect(closed.chosenByCreator, isFalse);
+  });
+
+  test('chi ha lanciato la gara sceglie chi vuole, anche subito', () async {
+    final (challenge, entries) = await endedChallenge(
+      authors: ['a', 'b'],
+      ago: const Duration(minutes: 5),
+    );
+    final samples = container.read(sampleChallengeRepositoryProvider);
+
+    // La prima foto non ha nessuna fiamma: e' proprio il punto. Chi mette i
+    // soldi sta commissionando un'opera, e la piu' votata non e' sempre quella
+    // che aveva chiesto.
+    await samples.setVote(
+      challengeId: challenge.id,
+      entryId: entries[1].id,
+      userId: 'chiunque',
+      voted: true,
+    );
+
+    await samples.proclaimWinner(
+      challengeId: challenge.id,
+      winnerEntryId: entries[0].id,
+      winnerUserId: entries[0].userId,
+      chosenByCreator: true,
+    );
+
+    final closed = await reread(challenge.id);
+
+    expect(closed.winnerEntryId, entries[0].id);
+    expect(closed.chosenByCreator, isTrue);
+  });
 
   test('una gara ancora aperta non si tocca', () async {
     final samples = container.read(sampleChallengeRepositoryProvider);

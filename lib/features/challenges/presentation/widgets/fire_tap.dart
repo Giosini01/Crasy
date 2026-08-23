@@ -1,7 +1,8 @@
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/widgets/media_gestures.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
-import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
+import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -45,8 +46,16 @@ class _FireTapState extends ConsumerState<FireTap>
   }
 
   Future<void> _handleDoubleTap() async {
-    // A fiamma gia' accesa il doppio tocco non fa niente e il voto resta:
-    // nessuno ripete lo stesso gesto per disfare quello che ha appena fatto.
+    // A gara finita non c'e' niente da accendere: le fiamme sono quelle
+    // dell'ultimo secondo, e sono gia' servite a dare dei soldi a qualcuno.
+    if (!ref.read(challengeIsLiveProvider(widget.entry.challengeId))) {
+      return;
+    }
+
+    // **A fiamma gia' accesa il doppio tocco non fa niente**: ne' la spegne, ne'
+    // la riaccende, e nemmeno rifa' l'animazione. Nessuno ripete lo stesso
+    // gesto per disfare quello che ha appena fatto, e per toglierla c'e' un
+    // gesto solo — il tocco sulla fiamma rossa.
     if (ref.read(entryVotedProvider(widget.entry.voteKey))) {
       return;
     }
@@ -64,7 +73,15 @@ class _FireTapState extends ConsumerState<FireTap>
       child: Stack(
         alignment: Alignment.center,
         children: [
-          widget.child,
+          // I due gesti si lasciano detti anche qui sotto: sul web un video e'
+          // un elemento del browser e i tocchi di Flutter non ci arrivano, e
+          // senza questo su un video non si potrebbe ne' dare la fiamma ne'
+          // aprire lo schermo intero. Vedi `MediaGestures`.
+          MediaGestures(
+            onTap: widget.onTap,
+            onDoubleTap: _handleDoubleTap,
+            child: widget.child,
+          ),
           // `IgnorePointer` e non un semplice widget sopra: la fiamma copre
           // tutta la foto mentre e' visibile, e senza si mangerebbe i tocchi
           // successivi proprio nel mezzo del doppio tocco.

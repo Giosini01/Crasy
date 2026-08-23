@@ -40,9 +40,34 @@ class SampleChallengeRepository implements ChallengeRepository {
     _changes.close();
   }
 
-  Stream<T> _watch<T>(T Function() read) async* {
-    yield read();
-    yield* _changes.stream.map((_) => read());
+  /// Un flusso che parte da com'e' adesso e poi segue i battiti.
+  ///
+  /// **Ci si iscrive ai cambiamenti prima di consegnare il valore di adesso**,
+  /// e non e' pignoleria. Scritto come veniva naturale — `yield` del valore
+  /// corrente e poi `yield*` dei battiti — l'iscrizione avviene un giro di
+  /// eventi **dopo**, e una modifica arrivata in quel buco non la sente
+  /// nessuno: i battiti sono un flusso broadcast, e quello che succede senza
+  /// ascoltatori non torna piu' indietro.
+  ///
+  /// Si vedeva come "il voto e' scritto ma l'elenco dei voti dice ancora di
+  /// no", cioe' esattamente la cosa che sul database vero non succede — e una
+  /// prova in memoria che si comporta peggio del database assolve un codice che
+  /// sul database sbaglierebbe.
+  Stream<T> _watch<T>(T Function() read) {
+    final controller = StreamController<T>();
+    StreamSubscription<void>? beats;
+
+    controller
+      ..onListen = () {
+        beats = _changes.stream.listen((_) => controller.add(read()));
+        controller.add(read());
+      }
+      ..onCancel = () async {
+        await beats?.cancel();
+        beats = null;
+      };
+
+    return controller.stream;
   }
 
   void _emit() {
@@ -71,9 +96,16 @@ class SampleChallengeRepository implements ChallengeRepository {
   Stream<List<Challenge>> watchEndedChallenges() {
     return _watch(() {
       final now = DateTime.now();
+      // La stessa finestra delle challenge vere: due giorni e poi via. Le due
+      // strade devono comportarsi allo stesso modo.
+      final since = now.subtract(Challenge.winnersWindow);
       final ended =
           _challenges.values
-              .where((challenge) => challenge.hasEndedAt(now))
+              .where(
+                (challenge) =>
+                    challenge.hasEndedAt(now) &&
+                    challenge.endsAt.isAfter(since),
+              )
               .toList()
             ..sort((a, b) => b.endsAt.compareTo(a.endsAt));
 
@@ -224,6 +256,7 @@ class SampleChallengeRepository implements ChallengeRepository {
     required String challengeId,
     required String winnerEntryId,
     required String winnerUserId,
+    bool chosenByCreator = false,
   }) async {
     final challenge = _challenges[challengeId];
 
@@ -231,7 +264,10 @@ class SampleChallengeRepository implements ChallengeRepository {
       return;
     }
 
-    _challenges[challengeId] = challenge.copyWith(winnerEntryId: winnerEntryId);
+    _challenges[challengeId] = challenge.copyWith(
+      winnerEntryId: winnerEntryId,
+      chosenByCreator: chosenByCreator,
+    );
 
     final entries = _entries[challengeId];
     final index = entries?.indexWhere((entry) => entry.id == winnerEntryId);

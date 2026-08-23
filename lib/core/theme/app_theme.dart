@@ -2,6 +2,7 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/theme/app_typography.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 abstract final class AppTheme {
@@ -63,6 +64,29 @@ abstract final class AppTheme {
       splashFactory: NoSplash.splashFactory,
       splashColor: Colors.transparent,
       highlightColor: palette.surfaceMuted,
+      // **Si torna indietro come su un telefono, non come su Android.**
+      //
+      // Le pagine entrano da destra e si tirano via col dito dal bordo
+      // sinistro, su tutte le piattaforme — telefono e browser. Non e' gusto
+      // personale per iOS: e' che quel gesto lo conoscono tutti, funziona senza
+      // che ci sia niente da toccare a schermo, e lascia l'interfaccia vuota
+      // com'e' giusto che sia qui dentro.
+      //
+      // Perche' valga davvero, le pagine vanno aperte come `CupertinoPage`: il
+      // gesto sta nella rotta, non nel tema. Vedi `app_router.dart`.
+      pageTransitionsTheme: PageTransitionsTheme(
+        builders: {
+          for (final platform in TargetPlatform.values)
+            platform: const CupertinoPageTransitionsBuilder(),
+        },
+      ),
+      // Il ritorno indietro e' un accento sottile, non la freccia piena di
+      // Material: quella e' la cosa che fa sembrare "un'app Android" una
+      // schermata per il resto identica.
+      actionIconTheme: ActionIconThemeData(
+        backButtonIconBuilder: (context) =>
+            const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: palette.background,
         surfaceTintColor: Colors.transparent,

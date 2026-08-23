@@ -62,6 +62,26 @@ class FirebaseAuthRepository implements AuthRepository {
     await _firebaseAuth.currentUser?.sendEmailVerification(_backToCrasy);
   }
 
+  @override
+  Future<void> sendPasswordReset({required String email}) async {
+    try {
+      await _firebaseAuth.sendPasswordResetEmail(
+        email: email,
+        actionCodeSettings: _backToCrasy,
+      );
+    } on FirebaseAuthException catch (error) {
+      // **Un indirizzo sconosciuto non e' un errore da mostrare.** Firebase lo
+      // dice — `user-not-found` — e ripeterlo a schermo trasformerebbe questa
+      // schermata in uno strumento per sapere chi e' iscritto a CRASY: si
+      // provano indirizzi finche' uno non risponde "esiste". Qui il caso si
+      // ingoia, e chi ha sbagliato a scrivere se ne accorge dal messaggio che
+      // non arriva.
+      if (error.code != 'user-not-found' && error.code != 'invalid-email') {
+        rethrow;
+      }
+    }
+  }
+
   /// Dove si finisce dopo aver confermato l'indirizzo.
   ///
   /// Senza, l'ultima cosa che vede chi si registra e' una pagina bianca di

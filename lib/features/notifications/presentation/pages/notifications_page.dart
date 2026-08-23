@@ -1,9 +1,11 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/utils/app_date_utils.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
@@ -22,6 +24,28 @@ import 'package:go_router/go_router.dart';
 /// Si segna tutto come visto **aprendo la pagina**, non riga per riga. Chi apre
 /// la campanella le ha viste: chiedergli anche di toccarne una per volta
 /// sarebbe dargli un lavoro per un problema che non ha.
+///
+/// ## Come e' fatta una riga
+///
+/// Tre cose, in quest'ordine di importanza: **chi**, **cosa**, **quando**.
+///
+/// La faccia e' grande — quanto un pollice — perche' e' l'unica parte della
+/// riga che si riconosce senza leggere: si scorre la campanella cercando una
+/// persona, non una frase. Sopra la faccia, in basso a destra, c'e' un tondino
+/// che dice **di che notizia si tratta**: la fiamma, la coppa, la fotocamera,
+/// la persona. E' quello che permette di capire una riga con un colpo d'occhio
+/// invece di leggerla.
+///
+/// Il rosso compare in tre posti soltanto, e sono i tre di sempre:
+///
+/// - **la fiamma e la coppa**, cioe' voti e premi;
+/// - **il velo dietro le righe non lette**, che e' cio' che e' attivo — la
+///   ragione per cui uno ha aperto questa schermata;
+/// - **il pallino** a destra di quelle righe.
+///
+/// Una partecipazione e una richiesta di amicizia hanno il tondino nero: sono
+/// notizie, non fuoco. Se fosse rosso tutto, il rosso smetterebbe di dire
+/// qualcosa gia' alla terza riga.
 class NotificationsPage extends ConsumerStatefulWidget {
   const NotificationsPage({super.key});
 
@@ -50,6 +74,13 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   @override
   Widget build(BuildContext context) {
     final notifications = ref.watch(notificationsProvider);
+    final filtro = ref.watch(notificationFilterProvider);
+    final visibili = filtro == null
+        ? notifications
+        : [
+            for (final riga in notifications)
+              if (riga.group == filtro) riga,
+          ];
 
     return Scaffold(
       appBar: AppBar(title: const Text('Notifiche')),
@@ -65,15 +96,97 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                       'foto, chi ti chiede l\'amicizia.',
                 ),
               )
-            : ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.page,
-                  vertical: AppSpacing.md,
-                ),
-                itemCount: notifications.length,
-                itemBuilder: (context, index) =>
-                    _Row(notification: notifications[index]),
+            : Column(
+                children: [
+                  _Filters(notifications: notifications),
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(
+                        // Meno margine del solito, e non e' una dimenticanza:
+                        // il velo rosso delle righe non lette ha bisogno di
+                        // respiro attorno, e alla pagina piena resterebbe
+                        // stretto.
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.sm,
+                      ),
+                      itemCount: visibili.length,
+                      itemBuilder: (context, index) =>
+                          _Row(notification: visibili[index]),
+                    ),
+                  ),
+                ],
               ),
+      ),
+    );
+  }
+}
+
+/// Cosa si sta guardando nella campanella. Nullo vuol dire tutto.
+///
+/// **Una riga sola in cima, come i filtri della ricerca**, e non tre sezioni
+/// impilate una sotto l'altra. Le sezioni sembravano la cosa giusta e non lo
+/// erano: per arrivare agli amici bisognava scorrere venti fiamme, cioe'
+/// esattamente il difetto che dovevano risolvere. Cosi' invece si tocca la
+/// parola e resta solo quella roba.
+final notificationFilterProvider =
+    StateProvider.autoDispose<NotificationGroup?>((ref) => null);
+
+/// Le quattro parole in cima.
+///
+/// Come nella ricerca: parole, non pillole colorate, e quella scelta e' rossa —
+/// che qui dentro vuol dire cio' che e' attivo. Accanto a ciascuna c'e' quante
+/// ne contiene, perche' un filtro che si tocca per scoprire che e' vuoto e' un
+/// tocco sprecato.
+class _Filters extends ConsumerWidget {
+  const _Filters({required this.notifications});
+
+  final List<AppNotification> notifications;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(notificationFilterProvider);
+    final palette = context.palette;
+    final texts = context.texts;
+
+    int quante(NotificationGroup? group) {
+      if (group == null) {
+        return notifications.length;
+      }
+
+      return notifications.where((riga) => riga.group == group).length;
+    }
+
+    Widget parola(NotificationGroup? group, String label) {
+      final attiva = group == selected;
+
+      return GestureDetector(
+        onTap: () =>
+            ref.read(notificationFilterProvider.notifier).state = group,
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.only(right: AppSpacing.md),
+          child: Center(
+            child: Text(
+              '$label · ${quante(group)}',
+              style: texts.labelSmall?.copyWith(
+                color: attiva ? palette.accent : palette.textFaint,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 34,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+        children: [
+          parola(null, 'TUTTO'),
+          for (final group in NotificationGroup.values)
+            parola(group, group.label),
+        ],
       ),
     );
   }
@@ -108,57 +221,76 @@ class _Row extends ConsumerWidget {
     return GestureDetector(
       onTap: () => _open(context),
       behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AppSpacing.xxs),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          // Un velo, non una scheda: niente bordo, niente ombra. Dice "questa
+          // non l'hai ancora vista" e sparisce da solo alla visita dopo.
+          color: unread ? palette.accentTint : null,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (isWin)
-              Icon(Icons.emoji_events, size: 36, color: palette.accent)
-            else
-              FriendAvatar(
-                userId: notification.actorId,
-                username: notification.actorUsername,
-                size: 36,
-              ),
+            _Face(notification: notification),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    notification.message,
-                    style: isWin
-                        ? texts.titleMedium?.copyWith(color: palette.accent)
-                        : texts.bodyMedium,
+                  _Message(notification: notification),
+                  const SizedBox(height: 3),
+                  // Seconda riga di servizio: **dove** e **quando**, piccoli e
+                  // chiari. Prima l'ora stava in fondo alla riga e si portava
+                  // via la larghezza del titolo della gara; qui non toglie
+                  // niente a nessuno.
+                  Row(
+                    children: [
+                      if (notification.challengeTitle.isNotEmpty)
+                        Flexible(
+                          child: Text(
+                            notification.challengeTitle.toUpperCase(),
+                            style: texts.labelSmall?.copyWith(
+                              color: isWin ? palette.accent : palette.textFaint,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      if (notification.challengeTitle.isNotEmpty &&
+                          createdAt != null)
+                        Text(
+                          '  ·  ',
+                          style: texts.labelSmall?.copyWith(
+                            color: palette.textFaint,
+                          ),
+                        ),
+                      if (createdAt != null)
+                        Text(
+                          AppDateUtils.shortTimeAgo(createdAt),
+                          style: texts.labelSmall?.copyWith(
+                            color: palette.textFaint,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                    ],
                   ),
-                  if (notification.challengeTitle.isNotEmpty)
-                    Text(
-                      notification.challengeTitle.toUpperCase(),
-                      style: texts.labelSmall?.copyWith(
-                        color: palette.textFaint,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
                 ],
               ),
             ),
-            const SizedBox(width: AppSpacing.xs),
-            if (createdAt != null)
-              Text(
-                AppDateUtils.shortTimeAgo(createdAt),
-                style: texts.labelSmall?.copyWith(color: palette.textFaint),
-              ),
+            _Thumb(notification: notification),
             // Il pallino sta a destra e non a sinistra: a sinistra sposterebbe
             // il testo di ogni riga non letta, e l'elenco non sarebbe piu'
             // allineato con se stesso.
             if (unread) ...[
               const SizedBox(width: AppSpacing.xs),
               Container(
-                width: 7,
-                height: 7,
-                margin: const EdgeInsets.only(top: 6),
+                width: 8,
+                height: 8,
                 decoration: BoxDecoration(
                   color: palette.accent,
                   shape: BoxShape.circle,
@@ -166,6 +298,251 @@ class _Row extends ConsumerWidget {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Cosa e' successo, scritto per essere letto di sfuggita.
+///
+/// Il nome di chi l'ha fatto sta in **grassetto** e il resto della frase no:
+/// chi scorre cerca la persona, e trovarla senza leggere tutta la riga e' la
+/// differenza fra un elenco che si guarda e uno che si legge.
+class _Message extends StatelessWidget {
+  const _Message({required this.notification});
+
+  final AppNotification notification;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+    final message = notification.message;
+
+    // La vittoria e' l'unica riga che urla, e ha diritto di farlo: e' l'unica
+    // che porta dei soldi.
+    if (notification.kind == NotificationKind.win) {
+      return Text(
+        message.toUpperCase(),
+        style: texts.titleLarge?.copyWith(
+          color: palette.accent,
+          letterSpacing: 0.6,
+        ),
+      );
+    }
+
+    final handle = '@${notification.actorUsername}';
+
+    if (notification.actorUsername.isEmpty || !message.startsWith(handle)) {
+      return Text(message, style: texts.bodyLarge, maxLines: 2);
+    }
+
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: handle,
+            style: texts.bodyLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: palette.textPrimary,
+            ),
+          ),
+          TextSpan(
+            text: message.substring(handle.length),
+            style: texts.bodyLarge?.copyWith(color: palette.textSecondary),
+          ),
+        ],
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+/// La faccia di chi ha fatto la cosa, con sopra il segno di che cosa e'.
+///
+/// Il tondino in basso a destra vale piu' di quanto costa: dice fiamma, coppa,
+/// fotocamera o amicizia **prima** che uno legga la frase, e su una campanella
+/// piena e' l'unica cosa che rende l'elenco scorribile.
+class _Face extends StatelessWidget {
+  const _Face({required this.notification});
+
+  static const double _size = 48;
+  static const double _mark = 22;
+
+  final AppNotification notification;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final kind = notification.kind;
+
+    // La vittoria non la provoca nessuno: al posto della faccia c'e' la coppa,
+    // e il tondino sarebbe la stessa cosa detta due volte.
+    if (kind == NotificationKind.win) {
+      return Container(
+        width: _size,
+        height: _size,
+        decoration: BoxDecoration(
+          color: palette.accentTint,
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: Icon(Icons.emoji_events, size: 26, color: palette.accent),
+      );
+    }
+
+    final (icon, color) = switch (kind) {
+      NotificationKind.fire => (Icons.local_fire_department, palette.accent),
+      NotificationKind.participation => (
+        Icons.photo_camera_rounded,
+        palette.textPrimary,
+      ),
+      NotificationKind.friendRequest => (
+        Icons.person_add_alt_1_rounded,
+        palette.textPrimary,
+      ),
+      NotificationKind.win => (Icons.emoji_events, palette.accent),
+      // Il tempo che passa mentre qualcun altro decide.
+      NotificationKind.choosing => (
+        Icons.hourglass_bottom_rounded,
+        palette.textPrimary,
+      ),
+      // Questa non e' una notizia: e' una cosa da fare, e il rosso e' li' per
+      // dirlo.
+      NotificationKind.mustChoose => (Icons.gavel_rounded, palette.accent),
+    };
+
+    return SizedBox(
+      width: _size,
+      height: _size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          FriendAvatar(
+            userId: notification.actorId,
+            username: notification.actorUsername,
+            size: _size,
+          ),
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              width: _mark,
+              height: _mark,
+              // Il tondo del colore della pagina ritaglia un buco nella foto:
+              // e' cio' che tiene l'icona leggibile su una faccia qualunque,
+              // senza doverle mettere un bordo attorno.
+              decoration: BoxDecoration(
+                color: palette.background,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, size: 13, color: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// La foto di cui parla la riga.
+///
+/// **E' quello che riempie la campanella**, e non e' decorazione: una riga che
+/// dice "qualcuno ha dato una fiamma alla tua foto" senza far vedere *quale*
+/// foto costringe ad aprirla per sapere di cosa si sta parlando. Con la foto
+/// accanto, la riga si capisce da ferma.
+///
+/// Da dove si prende cambia con la notizia, e ogni volta e' roba gia' in casa:
+///
+/// - **fiamma** e **vittoria** parlano di una foto mia, e le mie partecipazioni
+///   le legge gia' il profilo;
+/// - **partecipazione** parla della foto che ha appena mandato un altro dentro
+///   una gara mia, e quella sta nella gara.
+///
+/// Per una richiesta di amicizia non c'e' nessuna foto da mostrare: c'e' gia'
+/// la faccia di chi l'ha mandata, ed e' esattamente il punto della notizia.
+class _Thumb extends ConsumerWidget {
+  const _Thumb({required this.notification});
+
+  static const double _size = 52;
+
+  final AppNotification notification;
+
+  ChallengeEntry? _entry(WidgetRef ref) {
+    final challengeId = notification.challengeId;
+
+    if (challengeId.isEmpty) {
+      return null;
+    }
+
+    if (notification.kind == NotificationKind.participation) {
+      final entries =
+          ref.watch(challengeEntriesProvider(challengeId)).valueOrNull ??
+          const <ChallengeEntry>[];
+
+      for (final entry in entries) {
+        if (entry.userId == notification.actorId) {
+          return entry;
+        }
+      }
+
+      return null;
+    }
+
+    if (notification.kind == NotificationKind.friendRequest) {
+      return null;
+    }
+
+    final mine = ref.watch(myEntriesProvider).valueOrNull ?? const [];
+
+    for (final entry in mine) {
+      if (entry.challengeId == challengeId) {
+        return entry;
+      }
+    }
+
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final entry = _entry(ref);
+
+    if (entry == null || entry.mediaUrl.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final palette = context.palette;
+
+    return Padding(
+      padding: const EdgeInsets.only(left: AppSpacing.sm),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.xs),
+        child: SizedBox(
+          width: _size,
+          height: _size,
+          // Un video non si apre qui dentro: venti righe che si mettono a
+          // suonare mentre si scorre la campanella sono venti file scaricati
+          // per un quadrato di due centimetri. Resta il segno che c'e' un
+          // video, e per vederlo si apre la gara.
+          child: entry.isVideo
+              ? ColoredBox(
+                  color: palette.surfaceMuted,
+                  child: Icon(
+                    Icons.play_arrow_rounded,
+                    size: 22,
+                    color: palette.textSecondary,
+                  ),
+                )
+              : Image.network(
+                  entry.mediaUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      ColoredBox(color: palette.surfaceMuted),
+                ),
         ),
       ),
     );

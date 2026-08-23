@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
@@ -8,7 +9,9 @@ import 'package:crasy/features/notifications/data/repositories/firestore_notific
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
 import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 final voteControllerProvider = Provider<VoteController>(VoteController.new);
 
@@ -19,53 +22,268 @@ enum VoteOutcome {
 
   /// Serve un account. Capita solo sulle challenge vere.
   needsAccount,
+
+  /// La gara e' finita: le fiamme sono quelle, e non si toccano piu'.
+  closed,
+
+  /// Le tre fiamme di questa gara sono finite.
+  noFiresLeft,
 }
 
-/// La fiamma che l'utente ha appena chiesto, finche' il server non conferma.
+/// **Come deve vedersi una fiamma adesso**, mentre il server non ha ancora
+/// risposto.
 ///
-/// **Sta in un provider e non dentro un widget**, ed e' la correzione di un bug
-/// vero: il doppio tocco sulla foto e il tocco sulla fiamma sotto erano due
-/// comandi con due memorie separate. Chi faceva doppio tocco e poi toccava la
-/// fiamma vedeva il numero salire di due, perche' il secondo comando non sapeva
-/// niente del primo.
+/// Non e' una correzione da sommare a quello che dice il server: e' il numero
+/// per intero, fiamma accesa o spenta e conto gia' fatto. La differenza sembra
+/// una sfumatura ed e' tutta la faccenda — sotto c'e' scritto perche'.
+@immutable
+class VoteIntent {
+  const VoteIntent({required this.voted, required this.votes});
+
+  final bool voted;
+  final int votes;
+}
+
+/// Quello che l'utente ha appena chiesto, per partecipazione.
 ///
-/// Ora la memoria e' una sola, per partecipazione, e qualunque gesto la
-/// aggiorna: due gesti sulla stessa foto sono lo stesso gesto.
-/// Chiave: `ChallengeEntry.voteKey`, non l'identificativo della partecipazione.
-/// Due gare diverse sono due voti diversi anche se la foto e' della stessa
-/// persona — vedi `voteKey` per il perche'.
-final pendingVoteProvider = StateProvider.family<bool?, String>(
-  (ref, voteKey) => null,
+/// ## Perche' il numero si congela invece di correggersi
+///
+/// Prima qui c'era una correzione — `+1` mentre la scrittura era in volo — che
+/// si sommava al contatore del server. Sembra la cosa giusta e non lo e', per
+/// un motivo che si vede solo con due flussi aperti: **il contatore della foto
+/// e l'elenco di cosa ho votato arrivano da due ascolti diversi**. Sono scritti
+/// nella stessa transazione, ma consegnati come due notizie separate.
+///
+/// Nell'istante fra l'una e l'altra il contatore era gia' salito e l'elenco dei
+/// voti diceva ancora di no: la correzione si aggiungeva a un numero che il
+/// voto ce l'aveva gia' dentro, e sotto la foto compariva **+2**. Togliendo la
+/// fiamma, `-2`. Chi lo vedeva toccava di nuovo per rimettere le cose a posto —
+/// e quel tocco era un voto vero, nella direzione sbagliata. Da li' "posso
+/// togliere due mi piace e aggiungerne uno".
+///
+/// Adesso la richiesta porta con se' **il numero finito**: dal tocco alla
+/// conferma, sotto la foto c'e' quello e nient'altro. Non puo' sommarsi a
+/// niente, quindi non puo' contare due volte, e non balla.
+///
+/// Il prezzo, dichiarato: per quel paio di secondi le fiamme date **da altri**
+/// su quella foto non si vedono arrivare. Nessuno guarda il contatore di una
+/// foto aspettando che si muova da solo, e in cambio il proprio gesto e' esatto
+/// sempre.
+///
+/// La richiesta si cancella da sola quando il server dice la stessa cosa: da
+/// quel momento il numero vero e quello congelato coincidono, e toglierla non
+/// si vede.
+class VoteIntents extends Notifier<Map<String, VoteIntent>> {
+  @override
+  Map<String, VoteIntent> build() {
+    // L'elenco dei voti confermati e' l'unica cosa che puo' chiudere una
+    // richiesta: e' la risposta del server alla domanda che si e' fatta.
+    ref.listen(votedEntryIdsProvider, (_, next) => _settle(next.valueOrNull));
+
+    return const {};
+  }
+
+  /// Da adesso questa foto si vede cosi'.
+  void want(String voteKey, VoteIntent intent) {
+    state = {...state, voteKey: intent};
+  }
+
+  /// La richiesta non vale piu': si torna a quello che dice il server.
+  void forget(String voteKey) {
+    if (!state.containsKey(voteKey)) {
+      return;
+    }
+
+    state = {...state}..remove(voteKey);
+  }
+
+  void _settle(Set<String>? confirmed) {
+    if (confirmed == null || state.isEmpty) {
+      return;
+    }
+
+    final next = {...state}
+      ..removeWhere(
+        (voteKey, intent) => confirmed.contains(voteKey) == intent.voted,
+      );
+
+    if (next.length != state.length) {
+      state = next;
+    }
+  }
+}
+
+final voteIntentsProvider =
+    NotifierProvider<VoteIntents, Map<String, VoteIntent>>(VoteIntents.new);
+
+/// La richiesta in corso su una foto, se c'e'.
+final voteIntentProvider = Provider.family<VoteIntent?, String>(
+  (ref, voteKey) => ref.watch(voteIntentsProvider)[voteKey],
 );
+
+/// Quante fiamme restano a chi guarda, **in questa gara**.
+///
+/// Si conta senza chiedere niente a nessuno: l'elenco dei voti confermati e'
+/// gia' in casa — lo legge ogni fiamma sullo schermo — e le chiavi portano
+/// dentro la gara (`{challenge}__{foto}`), quindi basta contare quelle che
+/// cominciano per questa. Zero letture in piu' su Firestore.
+///
+/// Le richieste ancora in volo vincono su quello che dice il server: chi ha
+/// appena acceso la terza deve vedere subito che ha finito, non fra mezzo
+/// secondo.
+final firesLeftProvider = Provider.autoDispose.family<int, String>((
+  ref,
+  challengeId,
+) {
+  final prefix = '${challengeId}__';
+  final confirmed = ref.watch(votedEntryIdsProvider).valueOrNull ?? const {};
+  final accese = {
+    for (final key in confirmed)
+      if (key.startsWith(prefix)) key,
+  };
+
+  ref.watch(voteIntentsProvider).forEach((key, intent) {
+    if (!key.startsWith(prefix)) {
+      return;
+    }
+
+    if (intent.voted) {
+      accese.add(key);
+    } else {
+      accese.remove(key);
+    }
+  });
+
+  final left = Challenge.firesPerChallenge - accese.length;
+
+  return left < 0 ? 0 : left;
+});
 
 /// Se la fiamma di questa foto e' accesa **per come la vede l'utente**.
 ///
-/// Quello che ha appena chiesto vince su quello che dice il server: fra il tocco
-/// e la risposta di Firestore passa qualche decimo di secondo, e in quel momento
-/// deve vedere il gesto fatto, non lo stato di prima.
+/// Quello che ha appena chiesto vince su quello che dice il server: fra il
+/// tocco e la risposta di Firestore passa qualche decimo di secondo, e in quel
+/// momento deve vedere il gesto fatto, non lo stato di prima.
 final entryVotedProvider = Provider.family<bool, String>((ref, voteKey) {
-  final confirmed =
-      ref.watch(votedEntryIdsProvider).valueOrNull?.contains(voteKey) ?? false;
+  final intent = ref.watch(voteIntentProvider(voteKey));
 
-  return ref.watch(pendingVoteProvider(voteKey)) ?? confirmed;
-});
-
-/// Di quanto va corretto il contatore che arriva dal server.
-///
-/// Zero quando il server e' gia' allineato. Vale uno solo nell'attimo in cui la
-/// scrittura e' in volo: il numero che abbiamo in mano non comprende ancora il
-/// nostro voto, e glielo aggiungiamo noi.
-final entryVoteDeltaProvider = Provider.family<int, String>((ref, voteKey) {
-  final confirmed =
-      ref.watch(votedEntryIdsProvider).valueOrNull?.contains(voteKey) ?? false;
-  final pending = ref.watch(pendingVoteProvider(voteKey));
-
-  if (pending == null || pending == confirmed) {
-    return 0;
+  if (intent != null) {
+    return intent.voted;
   }
 
-  return pending ? 1 : -1;
+  return ref.watch(votedEntryIdsProvider).valueOrNull?.contains(voteKey) ??
+      false;
 });
+
+/// Il numero da scrivere sotto la foto.
+///
+/// **Una fiamma sola per gesto, sempre.** O il numero congelato della richiesta
+/// in corso, o quello del server — mai i due sommati, che era il difetto.
+///
+/// Sotto zero non si scende: nessuno puo' togliere un voto che non ha dato, e
+/// un `-1` sotto una foto non vuol dire niente.
+int visibleVotes(WidgetRef ref, ChallengeEntry entry) {
+  final intent = ref.watch(voteIntentProvider(entry.voteKey));
+  final votes = intent?.votes ?? entry.votes;
+
+  return votes < 0 ? 0 : votes;
+}
+
+/// Accende o spegne la fiamma su una partecipazione.
+///
+/// Sta qui e non dentro i widget perche' la chiamano da quattro posti — il
+/// doppio tocco sulla foto nell'elenco, la fiamma accanto al numero, il doppio
+/// tocco a schermo intero e la fiamma li' sotto — e **tutti e quattro devono
+/// passare per la stessa memoria**, altrimenti due gesti sulla stessa foto
+/// contano due volte.
+///
+/// **Chiedere quello che c'e' gia' non fa niente.** E' la prima riga, ed e' la
+/// regola scritta come la vuole chi tocca: il doppio tocco su una fiamma gia'
+/// accesa non la spegne e non la riaccende — non succede niente. A spegnerla
+/// c'e' un gesto solo, il tocco sulla fiamma rossa, e fa `-1`.
+Future<VoteOutcome> giveFire(
+  BuildContext context,
+  WidgetRef ref,
+  ChallengeEntry entry, {
+  required bool voted,
+}) async {
+  final voteKey = entry.voteKey;
+  final intents = ref.read(voteIntentsProvider.notifier);
+  final messenger = ScaffoldMessenger.maybeOf(context);
+
+  // **A gara finita non si vota**, e non si prova nemmeno a scrivere: la
+  // classifica dell'ultimo secondo e' quella che ha assegnato dei soldi.
+  // L'interfaccia la fiamma non la fa nemmeno toccare; questa riga vale per
+  // tutte le altre strade — il doppio tocco, una schermata rimasta aperta
+  // mentre il tempo scadeva.
+  if (!ref.read(challengeIsLiveProvider(entry.challengeId))) {
+    return VoteOutcome.closed;
+  }
+
+  if (ref.read(entryVotedProvider(voteKey)) == voted) {
+    return VoteOutcome.done;
+  }
+
+  // **Tre per gara, e poi si e' finito.** Togliere una fiamma non consuma
+  // niente — anzi, ne restituisce una — quindi il controllo vale solo quando se
+  // ne sta accendendo una.
+  if (voted && ref.read(firesLeftProvider(entry.challengeId)) <= 0) {
+    // **Un gesto che non produce niente sembra un'app rotta.** Il doppio tocco
+    // si fa anche dalla home, dove il contatore delle fiamme rimaste non si
+    // vede: senza una riga che lo dica, chi ha finito le sue tre crede che la
+    // fiamma non funzioni.
+    messenger?.showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Hai finito le fiamme per questa challenge. In un\'altra ne hai '
+          'altre tre.',
+        ),
+      ),
+    );
+
+    return VoteOutcome.noFiresLeft;
+  }
+
+  // Si parte da **quello che c'e' scritto adesso**, non dal numero del server:
+  // se una richiesta e' gia' in corso, il gesto successivo si conta da li'.
+  final shown = ref.read(voteIntentProvider(voteKey))?.votes ?? entry.votes;
+  final wanted = voted ? shown + 1 : shown - 1;
+
+  intents.want(
+    voteKey,
+    VoteIntent(voted: voted, votes: wanted < 0 ? 0 : wanted),
+  );
+
+  final VoteOutcome outcome;
+
+  try {
+    outcome = await ref
+        .read(voteControllerProvider)
+        .toggle(entry, voted: voted);
+  } on Object {
+    // **Se la scrittura fallisce, la fiamma torna com'era.** Prima lo stato
+    // ottimistico restava acceso per sempre: uno credeva di aver votato,
+    // riapriva l'app e il voto non c'era, senza che niente lo avesse detto.
+    intents.forget(voteKey);
+
+    rethrow;
+  }
+
+  if (outcome == VoteOutcome.needsAccount) {
+    intents.forget(voteKey);
+
+    if (context.mounted) {
+      context.push(AppRoutes.auth);
+    }
+  }
+
+  // A scrittura riuscita **non si tocca niente**: la richiesta si chiude da
+  // sola quando l'elenco dei voti confermati arriva e dice la stessa cosa.
+  // Chiuderla qui la spegnerebbe un istante prima che il server risponda, e in
+  // quell'istante la fiamma si spegne da sola sotto gli occhi di chi ha appena
+  // votato.
+  return outcome;
+}
 
 /// La fiamma.
 ///
@@ -93,19 +311,23 @@ class VoteController {
   final Map<String, Future<void>> _inFlight = {};
 
   Future<VoteOutcome> toggle(ChallengeEntry entry, {required bool voted}) {
-    final previous = _inFlight[entry.id] ?? Future<void>.value();
+    // In fila per **chiave di voto**, non per identificativo della
+    // partecipazione: le foto si chiamano come chi le ha mandate, quindi la
+    // stessa persona in due gare diverse aveva un'unica coda per due voti che
+    // non c'entrano niente l'uno con l'altro.
+    final previous = _inFlight[entry.voteKey] ?? Future<void>.value();
     final next = previous
         .then((_) => _write(entry, voted: voted))
         // La coda non si deve interrompere per un errore: se una scrittura
         // fallisce, il tocco successivo deve poter riprovare invece di restare
         // agganciato a una catena morta.
         .catchError((Object error) {
-          _inFlight.remove(entry.id);
+          _inFlight.remove(entry.voteKey);
 
           throw error;
         });
 
-    _inFlight[entry.id] = next.then((_) {}, onError: (Object _) {});
+    _inFlight[entry.voteKey] = next.then((_) {}, onError: (Object _) {});
 
     return next;
   }

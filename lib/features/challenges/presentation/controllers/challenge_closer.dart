@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final challengeCloserProvider = Provider<ChallengeCloser>(ChallengeCloser.new);
 
-/// Chiude una gara scaduta e proclama chi ha vinto.
+/// Chiude una gara a cui **nessuno ha assegnato il premio in tempo**.
 ///
 /// **Questo lavoro e' del server, e il codice del server c'e' gia'**: la
 /// funzione che gira ogni cinque minuti sta in `functions/index.js` e richiede
@@ -20,6 +20,13 @@ final challengeCloserProvider = Provider<ChallengeCloser>(ChallengeCloser.new);
 /// calcola qui, con le stesse regole del server: piu' fiamme per prima, a
 /// parita' chi ha mandato prima, e fuori dalla gara chi non ha passato il
 /// controllo.
+///
+/// **Questa e' la strada di riserva, non quella principale.** Il vincitore lo
+/// sceglie chi ha lanciato la gara, e ha ventiquattro ore per farlo: qui si
+/// arriva solo quando quelle ore passano senza che nessuno abbia deciso. Una
+/// gara che resta senza vincitore perche' chi l'ha lanciata si e' distratto e'
+/// la cosa che fa perdere fiducia a tutti gli altri — e il premio, a quel
+/// punto, va a chi ha preso piu' fiamme.
 ///
 /// Il permesso, nelle regole di Firestore, e' legato a una condizione che **si
 /// spegne da sola**: vale solo se il premio non e' stato incassato da CRASY. Il
@@ -97,7 +104,14 @@ class ChallengeCloser {
       return false;
     }
 
-    if (!challenge.hasEndedAt(DateTime.now())) {
+    // **Non basta che la gara sia finita: deve essere scaduto anche il tempo
+    // per scegliere.**
+    //
+    // A decidere chi vince e' chi ha lanciato la gara, e ha ventiquattro ore
+    // per farlo. Chiudere prima vorrebbe dire togliergli il verdetto di mano e
+    // darlo al conteggio delle fiamme — cioe' esattamente la cosa che non deve
+    // succedere finche' quelle ore non sono passate.
+    if (!challenge.choiceExpiredAt(DateTime.now())) {
       return false;
     }
 

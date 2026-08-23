@@ -44,6 +44,14 @@ class FakeAuthRepository implements AuthRepository {
     verificationEmailsSent += 1;
   }
 
+  /// Gli indirizzi a cui e' stato chiesto di rifare la password.
+  final passwordResets = <String>[];
+
+  @override
+  Future<void> sendPasswordReset({required String email}) async {
+    passwordResets.add(email);
+  }
+
   @override
   Future<AppUser?> reload() async => currentUser;
 

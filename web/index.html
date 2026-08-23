@@ -58,9 +58,8 @@
        che rende CRASY installabile sul telefono e ne fa un'app che si apre
        subito invece di una pagina che si scarica ogni volta.
 
-       Il prezzo e' che dopo un aggiornamento la prima apertura mostra ancora la
-       versione precedente e la seconda quella nuova. E' il funzionamento
-       normale di una app installata, non un difetto da correggere. -->
+       Il prezzo — dopo un aggiornamento la prima apertura mostra ancora la
+       versione di prima — se lo prende in carico lo script qui sotto. -->
   <script src="flutter_bootstrap.js" async></script>
 
   <script>
@@ -88,6 +87,21 @@
       var reloading = false;
 
       navigator.serviceWorker.ready.then(function (registration) {
+        // **Un'app installata puo' restare aperta per giorni senza caricare
+        // nemmeno una pagina**, e il browser va a vedere se c'e' una versione
+        // nuova solo quando una pagina la carica. Senza questo controllo, chi
+        // tiene CRASY fra le icone del telefono resta su quello che c'era il
+        // giorno in cui l'ha aperta.
+        //
+        // Il momento in cui si torna sull'app e' anche il meno peggio per
+        // ricaricarla: nessuno sta scrivendo il titolo di una challenge mentre
+        // ha l'app in secondo piano.
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'visible') {
+            registration.update();
+          }
+        });
+
         registration.addEventListener('updatefound', function () {
           var incoming = registration.installing;
 

@@ -83,10 +83,17 @@ class _Header extends StatelessWidget {
               // volte al giorno, si lancia una challenge una volta ogni tanto.
               // L'ordine delle due icone e' l'ordine in cui si usano.
               const NotificationBell(),
+              // **Il piu' e' rosso**, ed e' l'unica icona dell'app che lo sia.
+              //
+              // Il rosso qui dentro vuol dire premio, fiamma, attivo — e questo
+              // comando e' il gesto con cui si mettono dei soldi in palio, cioe'
+              // la cosa da cui nasce tutto il resto. Nero come le altre non si
+              // capiva a cosa servisse: sembrava un piu' qualunque in cima a una
+              // schermata piena di challenge, non il modo di lanciarne una.
               IconButton(
                 onPressed: () => context.push(AppRoutes.create),
-                icon: const Icon(Icons.add_rounded),
-                tooltip: 'Crea una challenge',
+                icon: Icon(Icons.add_rounded, color: context.palette.accent),
+                tooltip: 'Lancia una challenge',
               ),
             ],
           ),

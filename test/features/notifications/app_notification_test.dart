@@ -70,4 +70,46 @@ void main() {
     expect(AppNotification.kindFromName('boh'), NotificationKind.fire);
     expect(AppNotification.kindFromName('win'), NotificationKind.win);
   });
+
+  group('le sezioni e gli avvisi della scelta', () {
+    test('ogni tipo finisce nella sua sezione', () {
+      const casi = {
+        NotificationKind.participation: NotificationGroup.missions,
+        NotificationKind.win: NotificationGroup.missions,
+        NotificationKind.choosing: NotificationGroup.missions,
+        NotificationKind.mustChoose: NotificationGroup.missions,
+        NotificationKind.fire: NotificationGroup.fires,
+        NotificationKind.friendRequest: NotificationGroup.friends,
+      };
+
+      casi.forEach((kind, gruppo) {
+        expect(
+          AppNotification(id: 'x', kind: kind).group,
+          gruppo,
+          reason: kind.name,
+        );
+      });
+    });
+
+    test('chi ha partecipato legge chi sta scegliendo', () {
+      const notification = AppNotification(
+        id: 'scelta_1',
+        kind: NotificationKind.choosing,
+        actorUsername: 'luca',
+      );
+
+      expect(notification.message, contains('@luca'));
+      expect(notification.message, contains('sta scegliendo'));
+    });
+
+    test('a chi deve scegliere si dice cosa fare', () {
+      const notification = AppNotification(
+        id: 'devi_1',
+        kind: NotificationKind.mustChoose,
+      );
+
+      // Non e' una notizia, e' una cosa da fare: la frase e' un comando.
+      expect(notification.message, 'Scegli chi ha vinto');
+    });
+  });
 }

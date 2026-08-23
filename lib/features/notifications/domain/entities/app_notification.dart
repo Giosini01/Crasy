@@ -18,6 +18,30 @@ enum NotificationKind {
 
   /// Hai vinto.
   win,
+
+  /// Una gara a cui hai partecipato e' finita, e chi l'ha lanciata sta
+  /// scegliendo.
+  choosing,
+
+  /// **Una gara tua e' finita e tocca a te scegliere.** Torna a farsi viva
+  /// finche' non lo fai: vedi `notificationsProvider`.
+  mustChoose,
+}
+
+/// In quale sezione della campanella finisce una notizia.
+///
+/// Le sezioni sono arrivate quando i tipi sono diventati sei: un elenco solo,
+/// con dentro le fiamme, le gare e le amicizie mescolate in ordine di ora, non
+/// si scorreva piu' — e la cosa che si stava cercando era sempre in mezzo a
+/// tre che non c'entravano.
+enum NotificationGroup {
+  missions('MISSIONI'),
+  fires('FIAMME'),
+  friends('AMICI');
+
+  const NotificationGroup(this.label);
+
+  final String label;
 }
 
 /// Una riga della campanella.
@@ -78,6 +102,18 @@ class AppNotification {
     NotificationKind.friendRequest =>
       '@$actorUsername ti ha chiesto l\'amicizia',
     NotificationKind.win => 'Hai vinto',
+    NotificationKind.choosing => '@$actorUsername sta scegliendo il vincitore',
+    NotificationKind.mustChoose => 'Scegli chi ha vinto',
+  };
+
+  /// La sezione in cui finisce.
+  NotificationGroup get group => switch (kind) {
+    NotificationKind.fire => NotificationGroup.fires,
+    NotificationKind.friendRequest => NotificationGroup.friends,
+    NotificationKind.participation ||
+    NotificationKind.win ||
+    NotificationKind.choosing ||
+    NotificationKind.mustChoose => NotificationGroup.missions,
   };
 
   static NotificationKind kindFromName(String? value) {
