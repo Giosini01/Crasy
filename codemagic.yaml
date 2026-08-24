@@ -9,9 +9,10 @@
 #   1. accesso con GitHub e collegamento del repository;
 #   2. una **chiave API di App Store Connect** (Users and Access ->
 #      Integrations -> App Store Connect API): il file .p8, il Key ID e
-#      l'Issuer ID. Su Codemagic si carica in Teams -> Integrations -> App
-#      Store Connect, e **va chiamata `appstore`** — se le si da' un altro nome,
-#      qui sotto va cambiato di conseguenza, altrimenti non si trovano;
+#      l'Issuer ID. Su Codemagic **non** si mettono come integrazione ma come
+#      gruppo di variabili chiamato `appstore` — vedi il commento piu' sotto:
+#      la strada dell'integrazione e' morta con "integration does not exist"
+#      pur essendoci, e su una cosa che deve funzionare non si indovina;
 #   3. su App Store Connect, la scheda dell'app: Apps -> +, bundle id
 #      `app.crasy.mobile`. Senza quella il caricamento non ha dove atterrare.
 #
@@ -26,16 +27,6 @@ workflows:
     # contro una build che si impianta e mangia i minuti del mese.
     max_build_duration: 45
 
-    # **Il filo che tiene tutto insieme**, e sta qui e non dentro `environment`.
-    #
-    # `appstore` non e' un nome a caso: e' il nome dell'integrazione creata su
-    # Codemagic in Teams -> Integrations -> Developer Portal, quella dove sono
-    # finiti il file .p8, il Key ID e l'Issuer ID. Senza, la firma non trova le
-    # credenziali e `auth: integration` piu' sotto non ha niente a cui
-    # agganciarsi.
-    integrations:
-      app_store_connect: appstore
-
     environment:
       # Fissata, non "stable". Una versione che cambia da sola sotto i piedi
       # produce il guaio peggiore che ci sia: funziona sul mio computer e si
@@ -47,6 +38,24 @@ workflows:
 
       vars:
         BUNDLE_ID: app.crasy.mobile
+
+      groups:
+        # **Le credenziali passano da qui, non da un'integrazione con un nome.**
+        #
+        # La strada "pulita" — `integrations: app_store_connect: appstore` —
+        # e' morta con "integration does not exist" pur essendoci: quella voce
+        # cerca una cosa che nell'interfaccia sta sotto un altro nome, e
+        # indovinare quale non e' un lavoro.
+        #
+        # Cosi' invece non c'e' niente da indovinare: tre variabili con i nomi
+        # che gli strumenti di Codemagic leggono da soli. Il gruppo va creato
+        # in Codemagic con **questo nome esatto**, e dentro:
+        #
+        #   APP_STORE_CONNECT_KEY_IDENTIFIER   il Key ID (A5PPT67BHM)
+        #   APP_STORE_CONNECT_ISSUER_ID        l'Issuer ID, quello coi trattini
+        #   APP_STORE_CONNECT_PRIVATE_KEY      il contenuto del file .p8,
+        #                                      **segnato come secure**
+        - appstore
 
     triggering:
       events:
@@ -132,7 +141,11 @@ workflows:
 
     publishing:
       app_store_connect:
-        auth: integration
+        # Le stesse tre variabili del gruppo qui sopra: chi carica e chi firma
+        # usano la stessa chiave, e sono scritte una volta sola.
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         # In TestFlight si, sullo Store no: quella e' una decisione da prendere
         # a mano, non la conseguenza di un push.
         submit_to_testflight: true
