@@ -30,6 +30,21 @@ class Challenge {
     this.prizeStatus = PrizeStatus.unpaid,
   });
 
+  /// A quante gare si puo' partecipare **in un giorno**.
+  ///
+  /// **Cinque, e poi si aspetta domani.** Senza un tetto, l'unica strategia che
+  /// paga e' partecipare a tutto: si mandano venti scatti fatti male sperando
+  /// che uno prenda delle fiamme per caso, e chi guarda si trova un elenco di
+  /// roba buttata li'. Con cinque in mano bisogna scegliere **a quali gare
+  /// tiene davvero**, che e' la stessa cosa che fanno le tre fiamme dall'altra
+  /// parte del tavolo.
+  ///
+  /// Il conto e' sul giorno di calendario, ora locale: a mezzanotte tornano
+  /// tutte e cinque. Non e' una finestra mobile di ventiquattro ore — quella
+  /// costringerebbe a ricordarsi a che ora si e' partecipato ieri, e nessuno lo
+  /// fa.
+  static const int livesPerDay = 5;
+
   /// Quante fiamme ha ciascuno **dentro una singola gara**.
   ///
   /// **Tre, e poi si e' finito.** Non e' un limite tecnico: e' quello che

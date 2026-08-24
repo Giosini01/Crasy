@@ -59,6 +59,7 @@ class EntryTile extends ConsumerWidget {
             url: entry.mediaUrl,
             video: entry.isVideo,
             caption: entry.authorName,
+            mine: entry.userId == ref.watch(currentUserIdProvider),
             // La propria foto in attesa si vede, con scritto che e' in coda:
             // sapere che sta per essere controllata e' molto meglio che vederla
             // sparire senza spiegazioni.

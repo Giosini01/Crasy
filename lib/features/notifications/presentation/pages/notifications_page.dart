@@ -74,13 +74,26 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   @override
   Widget build(BuildContext context) {
     final notifications = ref.watch(notificationsProvider);
+    final seenAt = ref.watch(notificationsSeenAtProvider).valueOrNull;
     final filtro = ref.watch(notificationFilterProvider);
-    final visibili = filtro == null
-        ? notifications
-        : [
-            for (final riga in notifications)
-              if (riga.group == filtro) riga,
-          ];
+    final visibili = [
+      for (final riga in notifications)
+        if (riga.group == filtro) riga,
+    ];
+
+    // **Le vecchie non stanno in mezzo, stanno in fondo.** Sopra la settimana
+    // una notizia non e' piu' una notizia: chi apre la campanella cerca cosa e'
+    // successo adesso, e ritrovarsi venti righe di un mese fa in mezzo e' il
+    // motivo per cui questa schermata sembrava un macello.
+    final soglia = DateTime.now().subtract(_oldAfter);
+    final recenti = [
+      for (final riga in visibili)
+        if (riga.createdAt == null || !riga.createdAt!.isBefore(soglia)) riga,
+    ];
+    final vecchie = [
+      for (final riga in visibili)
+        if (riga.createdAt != null && riga.createdAt!.isBefore(soglia)) riga,
+    ];
 
     return Scaffold(
       appBar: AppBar(title: const Text('Notifiche')),
@@ -98,7 +111,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
               )
             : Column(
                 children: [
-                  _Filters(notifications: notifications),
+                  _Filters(notifications: notifications, seenAt: seenAt),
                   Expanded(
                     child: ListView.builder(
                       padding: const EdgeInsets.symmetric(
@@ -109,9 +122,14 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                         horizontal: AppSpacing.md,
                         vertical: AppSpacing.sm,
                       ),
-                      itemCount: visibili.length,
-                      itemBuilder: (context, index) =>
-                          _Row(notification: visibili[index]),
+                      itemCount: recenti.length + (vecchie.isEmpty ? 0 : 1),
+                      itemBuilder: (context, index) {
+                        if (index < recenti.length) {
+                          return _Row(notification: recenti[index]);
+                        }
+
+                        return _Older(notifications: vecchie);
+                      },
                     ),
                   ),
                 ],
@@ -121,26 +139,28 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   }
 }
 
-/// Cosa si sta guardando nella campanella. Nullo vuol dire tutto.
+/// Cosa si sta guardando nella campanella.
 ///
-/// **Una riga sola in cima, come i filtri della ricerca**, e non tre sezioni
-/// impilate una sotto l'altra. Le sezioni sembravano la cosa giusta e non lo
-/// erano: per arrivare agli amici bisognava scorrere venti fiamme, cioe'
-/// esattamente il difetto che dovevano risolvere. Cosi' invece si tocca la
-/// parola e resta solo quella roba.
-final notificationFilterProvider =
-    StateProvider.autoDispose<NotificationGroup?>((ref) => null);
+/// **Due sole, e una e' sempre scelta.** Il "tutto" di prima rimetteva insieme
+/// quello che le sezioni erano state fatte per separare, e le richieste di
+/// amicizia sono sparite del tutto: hanno gia' la loro scheda, con i comandi
+/// per accettare o rifiutare, e tenerne due elenchi vuol dire doverli tenere
+/// d'accordo.
+final notificationFilterProvider = StateProvider.autoDispose<NotificationGroup>(
+  (ref) => NotificationGroup.missions,
+);
 
-/// Le quattro parole in cima.
+/// Le due parole in cima.
 ///
-/// Come nella ricerca: parole, non pillole colorate, e quella scelta e' rossa —
-/// che qui dentro vuol dire cio' che e' attivo. Accanto a ciascuna c'e' quante
-/// ne contiene, perche' un filtro che si tocca per scoprire che e' vuoto e' un
-/// tocco sprecato.
+/// **Il rosso dice due cose diverse, e non si accavallano**: il colore della
+/// parola dice quale sezione si sta guardando, il numero accanto dice quante
+/// notizie nuove ci sono la' dentro. Le gia' lette non si contano — un numero
+/// che non cala mai smette di voler dire qualcosa dopo due giorni.
 class _Filters extends ConsumerWidget {
-  const _Filters({required this.notifications});
+  const _Filters({required this.notifications, required this.seenAt});
 
   final List<AppNotification> notifications;
+  final DateTime? seenAt;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -148,46 +168,129 @@ class _Filters extends ConsumerWidget {
     final palette = context.palette;
     final texts = context.texts;
 
-    int quante(NotificationGroup? group) {
-      if (group == null) {
-        return notifications.length;
-      }
-
-      return notifications.where((riga) => riga.group == group).length;
+    int nuove(NotificationGroup group) {
+      return notifications
+          .where((riga) => riga.group == group && riga.isUnreadSince(seenAt))
+          .length;
     }
 
-    Widget parola(NotificationGroup? group, String label) {
-      final attiva = group == selected;
-
-      return GestureDetector(
-        onTap: () =>
-            ref.read(notificationFilterProvider.notifier).state = group,
-        behavior: HitTestBehavior.opaque,
-        child: Padding(
-          padding: const EdgeInsets.only(right: AppSpacing.md),
-          child: Center(
-            child: Text(
-              '$label · ${quante(group)}',
-              style: texts.labelSmall?.copyWith(
-                color: attiva ? palette.accent : palette.textFaint,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.sm,
+        AppSpacing.xs,
+        AppSpacing.sm,
+        AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          for (final group in NotificationGroup.values)
+            GestureDetector(
+              onTap: () =>
+                  ref.read(notificationFilterProvider.notifier).state = group,
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.md),
+                child: Row(
+                  children: [
+                    Text(
+                      group.label,
+                      style: texts.labelSmall?.copyWith(
+                        color: group == selected
+                            ? palette.accent
+                            : palette.textFaint,
+                      ),
+                    ),
+                    if (nuove(group) > 0) ...[
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: palette.accent,
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                        child: Text(
+                          '${nuove(group)}',
+                          style: texts.labelSmall?.copyWith(
+                            color: palette.onAccent,
+                            fontSize: 9,
+                            height: 1.3,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Da quanto una notizia smette di essere una notizia.
+const _oldAfter = Duration(days: 7);
+
+/// Le vecchie, chiuse in una riga sola.
+///
+/// **Ci sono ma non ingombrano.** Aprirle e' un tocco, e chi lo fa sta cercando
+/// una cosa precisa: nessuno scorre la campanella per rileggersi le fiamme del
+/// mese scorso.
+class _Older extends StatefulWidget {
+  const _Older({required this.notifications});
+
+  final List<AppNotification> notifications;
+
+  @override
+  State<_Older> createState() => _OlderState();
+}
+
+class _OlderState extends State<_Older> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GestureDetector(
+          onTap: () => setState(() => _open = !_open),
+          behavior: HitTestBehavior.opaque,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.md,
+            ),
+            child: Row(
+              children: [
+                Text(
+                  'PIU\' VECCHIE · ${widget.notifications.length}',
+                  style: context.texts.labelSmall?.copyWith(
+                    color: palette.textFaint,
+                  ),
+                ),
+                const Spacer(),
+                Icon(
+                  _open
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  size: 18,
+                  color: palette.textFaint,
+                ),
+              ],
             ),
           ),
         ),
-      );
-    }
-
-    return SizedBox(
-      height: 34,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-        children: [
-          parola(null, 'TUTTO'),
-          for (final group in NotificationGroup.values)
-            parola(group, group.label),
-        ],
-      ),
+        if (_open)
+          for (final notification in widget.notifications)
+            _Row(notification: notification),
+      ],
     );
   }
 }

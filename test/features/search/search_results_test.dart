@@ -201,4 +201,38 @@ void main() {
       isEmpty,
     );
   });
+
+  test('una lettera sola non basta piu', () async {
+    // Il difetto: `h` sta dentro "challenge", dentro "che", dentro mezza lingua
+    // italiana. Una ricerca che risponde tutto non ha risposto niente.
+    final container = containerWith(
+      live: [
+        challenge(
+          id: 'a',
+          title:
+              'Il cartello piu'
+              ' assurdo',
+        ),
+        challenge(id: 'b', title: 'Balla in mezzo alla strada'),
+      ],
+    );
+
+    expect(await search(container, 'h'), isEmpty);
+  });
+
+  test('si cerca dall inizio di una parola, non a meta', () async {
+    final container = containerWith(
+      live: [
+        challenge(id: 'cartello', title: 'Fotografa un cartello'),
+        challenge(id: 'altro', title: 'Balla in cucina'),
+      ],
+    );
+
+    // Nessuno si ricorda una gara dalla sua prima parola: "quella del
+    // cartello" si cerca cosi'.
+    expect((await search(container, 'cart')).map((c) => c.id), ['cartello']);
+
+    // Ma un pezzo in mezzo a una parola non e' una ricerca: e' un caso.
+    expect(await search(container, 'rtel'), isEmpty);
+  });
 }

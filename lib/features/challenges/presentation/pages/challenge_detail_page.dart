@@ -405,6 +405,7 @@ class _EntryGridTile extends ConsumerWidget {
             video: entry.isVideo,
             aspectRatio: 1,
             caption: entry.authorName,
+            mine: entry.userId == ref.watch(currentUserIdProvider),
           ),
         ),
         const SizedBox(height: AppSpacing.xxs),

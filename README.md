@@ -150,6 +150,24 @@ Per la stessa ragione, **il messaggio della condivisione cambia**: a gara finita
 non dice piu' "sono in gara, dammi una fiamma" — manderebbe chi lo riceve a
 cercare un comando che non c'e' — ma "guarda com'e' finita".
 
+### Cinque partecipazioni al giorno
+
+**Cinque gare al giorno, e poi si aspetta domani.** Senza un tetto l'unica
+strategia che paga e' partecipare a tutto: venti scatti fatti male sperando che
+uno prenda delle fiamme per caso, e chi guarda si trova un elenco di roba
+buttata li'. Con cinque in mano bisogna scegliere **a quali gare si tiene
+davvero** — la stessa cosa che fanno le tre fiamme dall'altra parte del tavolo.
+
+Il conto e' sul **giorno di calendario**, ora locale: a mezzanotte tornano tutte
+e cinque. Non una finestra mobile di ventiquattro ore, che costringerebbe a
+ricordarsi a che ora si e' partecipato ieri.
+
+Si vedono in home, sotto il marchio e sopra le gare — cioe' nel punto esatto in
+cui uno sta per decidere a quale partecipare — e **compaiono solo quando ne hai
+gia' spesa una**: una riga che dice "ne hai cinque" tutti i giorni diventa
+arredamento. Il controllo sta sia sul bottone che nel controller: la schermata
+puo' restare aperta mentre le altre quattro si consumano altrove.
+
 ### Tre fiamme per gara
 
 **Ognuno ne ha tre dentro una singola challenge, e poi ha finito.** Non e' un
@@ -299,7 +317,12 @@ perche' chi cerca sa la parola, non la categoria.
 Le due meta' funzionano in modo diverso, e la differenza e' voluta:
 
 - **le challenge** si cercano nel titolo, nella consegna, nel posto e nel nome di
-  chi le ha lanciate. Sono i quattro modi in cui uno si ricorda una gara vista
+  chi le ha lanciate, **dall'inizio di una parola** e da almeno due lettere.
+  "Contiene" non andava bene e si vedeva alla prima lettera: cercando `h`
+  uscivano tutte le gare del mondo, perche' quella lettera sta dentro
+  *challenge*, dentro *che*, dentro mezza lingua italiana. Per parole e non solo
+  dalla prima, pero': nessuno si ricorda una gara dalla sua parola iniziale —
+  *"quella del cartello"* si cerca scrivendo `cartello`. Sono i quattro modi in cui uno si ricorda una gara vista
   passare, e la ricerca gira su quello che l'app ha gia' in casa: nessuna query
   in piu', risposta mentre si scrive;
 - **le persone** si trovano solo per **nome esatto, dall'inizio**. Nessun
@@ -318,8 +341,17 @@ alle altre e' una speranza sprecata.
 Con un filtro sulle gare la ricerca delle persone **non parte nemmeno**: e' una
 lettura su Firestore risparmiata a ogni parola scritta.
 
-Un profilo pubblico mostra quattro numeri e la griglia delle sue foto: scatti,
-vittorie, premi vinti, amici. Niente eta', niente elenco di cosa ha votato.
+Un profilo mostra quattro numeri e **due sezioni di foto: in gara e vinte**.
+Niente eta', niente elenco di cosa ha votato — e **niente raccolta di tutto
+quello che ha mandato da quando esiste**: quella racconta la quantita', non la
+persona, e dopo trenta gare sono trenta quadrati in cui le due che contano
+stanno in fondo. Le due sezioni rispondono invece alle due domande che uno si fa
+davvero guardando un profilo: **dove sta gareggiando adesso** e **cosa ha
+vinto**.
+
+"In gara" vuol dire che la challenge e' ancora aperta, non che la foto e' stata
+mandata di recente: una di tre giorni fa in una gara che dura una settimana e'
+ancora in gioco, una di stamattina in una gara chiusa non lo e' piu'.
 
 ---
 
@@ -510,6 +542,12 @@ del fuoco**.
 - Niente card, niente ombre, niente gradienti, niente badge. A separare le cose
   sono lo spazio bianco e, dove serve, un filetto da mezzo pixel.
 - La gerarchia la fa la tipografia: dal 64 del premio all'11 dell'occhiello.
+- **La propria foto ha una cornice rossa** dentro la gara e nel feed. In una
+  griglia di dodici quadrati tutti uguali, ritrovare la propria vuol dire
+  leggere dodici nomi: il riquadro la fa saltare fuori senza leggere niente. E'
+  l'unico posto in cui il rosso non indica ne' un premio ne' una fiamma ma
+  **te**, e va bene cosi' — in mezzo a quella griglia, tu sei la cosa che stai
+  cercando.
 - **Le foto compaiono solo se esistono.** Una challenge senza immagine e' premio,
   titolo, consegna e comando — non un rettangolo grigio, che non e' una foto
   mancante ma una schermata che sembra rotta.
@@ -1004,28 +1042,34 @@ Due cose che tengono in piedi il giro, e nessuna delle due richiede un server
 acceso.
 
 **La campanella** in cima alla home dice cosa hanno fatto gli altri, e in cima
-ha **quattro parole: tutto, missioni, fiamme, amici**. Sono i filtri della
-ricerca, stessa forma e stesso comportamento: si tocca quella che interessa e
-resta solo quella roba, con accanto quante ne contiene — un filtro che si tocca
-per scoprire che e' vuoto e' un tocco sprecato.
+ha **due parole: missioni e fiamme**. Una delle due e' sempre scelta — il
+"tutto" di prima rimetteva insieme proprio quello che le due sezioni servivano a
+separare — e il rosso li' dice due cose che non si accavallano: **il colore
+della parola** dice quale si sta guardando, **il numero accanto** quante notizie
+nuove ci sono la' dentro. Le gia' lette non si contano: un numero che non cala
+mai smette di voler dire qualcosa dopo due giorni.
 
-Un elenco solo e' andato bene finche' i tipi di notizia erano quattro; a sei,
-con fiamme gare e amicizie mescolate in ordine di ora, la cosa che si cercava era
-sempre in mezzo a tre che non c'entravano. Le **sezioni impilate** una sotto
-l'altra sono state il primo tentativo, e non risolvevano niente: per arrivare
-agli amici bisognava scorrere venti fiamme lo stesso.
+**Le richieste di amicizia non ci sono piu'**, ed e' voluto: stanno gia' nella
+scheda Amici, con i due comandi per accettare o rifiutare. Tenerne due elenchi
+vuol dire doverli tenere d'accordo. E li' dentro, se le richieste in attesa sono
+tante, **se ne vedono tre**: con cento in coda l'elenco degli amici finirebbe
+due schermate piu' giu', e la scheda smetterebbe di servire a quello per cui
+esiste.
 
-Dentro ci finiscono sei cose: chi partecipa alle tue challenge, chi accende una
-fiamma sulle tue foto, chi ti chiede l'amicizia, quando vinci, **quando una gara
-a cui hai partecipato e' finita e qualcuno sta scegliendo**, e **quando tocca a
-te scegliere**.
+Oltre la settimana una notizia non e' piu' una notizia: **le vecchie si chiudono
+in una riga sola** in fondo, e si aprono con un tocco. Nessuno scorre la
+campanella per rileggersi le fiamme del mese scorso.
+
+Dentro ci finiscono cinque cose: chi partecipa alle tue challenge, chi accende
+una fiamma sulle tue foto, quando vinci, **quando una gara a cui hai partecipato
+e' finita e qualcuno sta scegliendo**, e **quando tocca a te scegliere**.
 
 Le prime due **le scrive chi le provoca** — senza Cloud Function nessun altro
 puo' accorgersene — e il nome del documento e' sempre lo stesso per la stessa
 coppia persona-foto: chi toglie e rimette una fiamma venti volte manda una
-notifica sola. **Le altre quattro non stanno sul database affatto**: si ricavano
-da dati che esistono gia', perche' una copia puo' andare fuori sincrono con la
-cosa che racconta.
+notifica sola. **Le altre tre non stanno sul database affatto**: si ricavano da
+dati che esistono gia', perche' una copia puo' andare fuori sincrono con la cosa
+che racconta.
 
 Quella per chi deve scegliere **si ripete**, ed e' il pezzo di cui vado piu'
 fiero perche' non costa niente: la sua data non e' l'ora in cui la gara e'

@@ -36,8 +36,7 @@ enum NotificationKind {
 /// tre che non c'entravano.
 enum NotificationGroup {
   missions('MISSIONI'),
-  fires('FIAMME'),
-  friends('AMICI');
+  fires('FIAMME');
 
   const NotificationGroup(this.label);
 
@@ -107,13 +106,18 @@ class AppNotification {
   };
 
   /// La sezione in cui finisce.
+  ///
+  /// **Le amicizie non hanno una sezione qui**, e non e' una dimenticanza: le
+  /// richieste ricevute stanno gia' nella scheda Amici, con i due comandi per
+  /// accettare o rifiutare. Ripeterle in campanella vuol dire farsi due elenchi
+  /// della stessa cosa, e poi doverli tenere d'accordo.
   NotificationGroup get group => switch (kind) {
     NotificationKind.fire => NotificationGroup.fires,
-    NotificationKind.friendRequest => NotificationGroup.friends,
     NotificationKind.participation ||
     NotificationKind.win ||
     NotificationKind.choosing ||
-    NotificationKind.mustChoose => NotificationGroup.missions,
+    NotificationKind.mustChoose ||
+    NotificationKind.friendRequest => NotificationGroup.missions,
   };
 
   static NotificationKind kindFromName(String? value) {

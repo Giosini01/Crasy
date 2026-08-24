@@ -28,10 +28,20 @@ class MediaFrame extends StatelessWidget {
     this.caption,
     this.overlay,
     this.video = false,
+    this.mine = false,
     super.key,
   });
 
   final String? url;
+
+  /// Se questa e' **la mia** partecipazione.
+  ///
+  /// La incornicia di rosso. In una griglia di dodici quadrati tutti uguali,
+  /// ritrovare la propria vuol dire leggere dodici nomi sotto le foto: il
+  /// riquadro la fa saltare fuori senza leggere niente. E' l'unico posto in cui
+  /// il rosso non indica ne' un premio ne' una fiamma ma **te**, e va bene
+  /// cosi': in mezzo a quella griglia, tu sei la cosa che stai cercando.
+  final bool mine;
 
   /// Se il contenuto e' un video invece che una foto.
   ///
@@ -71,6 +81,15 @@ class MediaFrame extends StatelessWidget {
             else
               _Surface(url: url!, caption: caption),
             ?overlay,
+            if (mine)
+              IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: context.palette.accent, width: 2),
+                    borderRadius: borderRadius,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

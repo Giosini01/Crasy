@@ -6,12 +6,15 @@ import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/core/widgets/media_gestures.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/payments/presentation/widgets/wallet_card.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
+import 'package:crasy/features/profile/presentation/widgets/profile_shelf.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -64,13 +67,21 @@ class PublicProfilePage extends ConsumerWidget {
   }
 }
 
-class _Body extends ConsumerWidget {
+class _Body extends ConsumerStatefulWidget {
   const _Body({required this.profile});
 
   final UserProfile profile;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_Body> createState() => _BodyState();
+}
+
+class _BodyState extends ConsumerState<_Body> {
+  ProfileShelf _shelf = ProfileShelf.live;
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = widget.profile;
     final palette = context.palette;
     final texts = context.texts;
     final entries =
@@ -79,6 +90,13 @@ class _Body extends ConsumerWidget {
         ref.watch(friendsOfProvider(profile.id)).valueOrNull ?? const [];
     final prizeCents = ref.watch(prizeCentsOfProvider(profile.id));
     final wins = entries.where((entry) => entry.isWinner).length;
+    final liveChallenges =
+        ref.watch(liveChallengesProvider).valueOrNull ?? const <Challenge>[];
+    final shown = shelfEntries(
+      _shelf,
+      entries,
+      liveChallenges.map((challenge) => challenge.id).toSet(),
+    );
 
     return ListView(
       padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
@@ -128,16 +146,24 @@ class _Body extends ConsumerWidget {
         const SizedBox(height: AppSpacing.lg),
         _Stats(entries: entries.length, wins: wins, friends: friends.length),
         const SizedBox(height: AppSpacing.xl),
-        if (entries.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: AppSpacing.page),
+        ProfileShelfTabs(
+          selected: _shelf,
+          onPick: (shelf) => setState(() => _shelf = shelf),
+        ),
+        if (shown.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
             child: EmptyState(
-              title: 'Ancora niente in gara',
-              message: 'Quando partecipa a una challenge lo vedi qui.',
+              title: _shelf == ProfileShelf.live
+                  ? 'Non e\' in nessuna gara'
+                  : 'Non ha ancora vinto',
+              message: _shelf == ProfileShelf.live
+                  ? 'Quando partecipa a una challenge aperta lo vedi qui.'
+                  : 'Le foto con cui vince restano qui.',
             ),
           )
         else
-          _EntryGrid(entries: entries),
+          _EntryGrid(entries: shown),
       ],
     );
   }

@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
-
 import 'package:crasy/core/services/media/photo_compressor.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
@@ -36,6 +36,20 @@ final participationControllerProvider =
     );
 
 /// Il giro della partecipazione: scegli una foto, la guardi, la mandi.
+/// Le cinque partecipazioni di oggi sono finite.
+///
+/// Un'eccezione sua invece di un errore qualunque: la schermata la riconosce e
+/// dice cosa e' successo, invece di mostrare "qualcosa e' andato storto" per una
+/// cosa che non e' andata storta affatto.
+class OutOfLivesException implements Exception {
+  const OutOfLivesException();
+
+  @override
+  String toString() =>
+      'Hai gia\' partecipato a ${Challenge.livesPerDay} gare oggi. '
+      'A mezzanotte ricominci.';
+}
+
 class ParticipationController extends AsyncNotifier<void> {
   late final ChallengeRepository _challenges;
 
@@ -130,6 +144,16 @@ class ParticipationController extends AsyncNotifier<void> {
         StateError('Sessione non valida.'),
         StackTrace.current,
       );
+
+      return false;
+    }
+
+    // **Cinque gare al giorno, e poi si aspetta domani.** Il controllo sta qui
+    // e non solo sul bottone: la schermata puo' restare aperta mentre le altre
+    // quattro si consumano altrove, e a quel punto il bottone direbbe una cosa
+    // che non e' piu' vera.
+    if (ref.read(livesLeftProvider) <= 0) {
+      state = AsyncError<void>(const OutOfLivesException(), StackTrace.current);
 
       return false;
     }

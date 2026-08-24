@@ -42,10 +42,12 @@ final searchFilterProvider = StateProvider.autoDispose<SearchFilter>(
   (ref) => SearchFilter.all,
 );
 
-/// Il minimo per cercare qualcuno.
+/// Il minimo per cercare, persone o gare che siano.
 ///
-/// Una lettera sola risponderebbe con mezzo database ordinato alfabeticamente,
-/// che non e' un risultato: e' un elenco.
+/// Una lettera sola risponde con tutto: fra le persone sarebbe mezzo database
+/// ordinato alfabeticamente, fra le gare tutte quelle che hanno una parola che
+/// comincia per quella lettera. In tutti e due i casi non e' un risultato, e'
+/// un elenco.
 const searchMinimumLength = 2;
 
 String _normalize(String value) => value.trim().toLowerCase();
@@ -61,11 +63,40 @@ String _normalize(String value) => value.trim().toLowerCase();
 /// Si cerca nel titolo, nella consegna, nel posto e nel nome di chi l'ha
 /// lanciata: sono i quattro modi in cui uno si ricorda una gara che ha visto
 /// passare — *"quella del cartello"*, *"quella a Milano"*, *"quella di luca"*.
+/// Se [text] comincia per [needle], o se lo fa **una delle sue parole**.
+///
+/// **Non "contiene", e la differenza si vedeva alla prima lettera.** Cercando
+/// `h` con il vecchio confronto uscivano tutte le gare del mondo: quella
+/// lettera sta dentro *challenge*, dentro *che*, dentro mezza lingua italiana.
+/// Una ricerca che risponde tutto non ha risposto niente.
+///
+/// Per parole e non solo dall'inizio della frase, perche' nessuno si ricorda
+/// una gara dalla sua prima parola: *"quella del cartello"* si cerca scrivendo
+/// `cartello`, e il titolo comincia per "Fotografa".
+bool _startsWithWord(String text, String needle) {
+  final lower = text.toLowerCase();
+
+  if (lower.startsWith(needle)) {
+    return true;
+  }
+
+  for (final word in lower.split(_wordBreak)) {
+    if (word.startsWith(needle)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/// Tutto cio' che separa due parole: spazi, punteggiatura, simboli.
+final _wordBreak = RegExp('[^a-z0-9àèéìòù]+');
+
 bool _matches(Challenge challenge, String needle) {
-  return challenge.title.toLowerCase().contains(needle) ||
-      challenge.brief.toLowerCase().contains(needle) ||
-      challenge.place.toLowerCase().contains(needle) ||
-      challenge.createdByUsername.toLowerCase().contains(needle);
+  return _startsWithWord(challenge.title, needle) ||
+      _startsWithWord(challenge.brief, needle) ||
+      _startsWithWord(challenge.place, needle) ||
+      _startsWithWord(challenge.createdByUsername, needle);
 }
 
 /// Le gare **aperte** che corrispondono.
@@ -74,7 +105,8 @@ final liveChallengeResultsProvider = Provider.autoDispose<List<Challenge>>((
 ) {
   final needle = _normalize(ref.watch(searchQueryProvider));
 
-  if (needle.isEmpty || !ref.watch(searchFilterProvider).wantsChallenges) {
+  if (needle.length < searchMinimumLength ||
+      !ref.watch(searchFilterProvider).wantsChallenges) {
     return const [];
   }
 
@@ -100,7 +132,7 @@ final endedChallengeResultsProvider = Provider.autoDispose<List<Challenge>>((
   final needle = _normalize(ref.watch(searchQueryProvider));
   final filter = ref.watch(searchFilterProvider);
 
-  if (needle.isEmpty ||
+  if (needle.length < searchMinimumLength ||
       !filter.wantsChallenges ||
       filter == SearchFilter.liveChallenges) {
     return const [];

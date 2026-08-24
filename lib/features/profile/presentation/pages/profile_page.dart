@@ -8,6 +8,7 @@ import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/core/widgets/media_gestures.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
 import 'package:crasy/features/auth/presentation/controllers/auth_action_controller.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
@@ -17,6 +18,7 @@ import 'package:crasy/features/payments/presentation/widgets/wallet_card.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/controllers/profile_edit_controller.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
+import 'package:crasy/features/profile/presentation/widgets/profile_shelf.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -30,15 +32,26 @@ import 'package:image_picker/image_picker.dart';
 /// L'impaginazione segue la stessa regola delle challenge — un blocco grande in
 /// cima, una riga di numeri, poi il contenuto — cosi' il profilo non sembra una
 /// schermata presa da un'altra app.
-class ProfilePage extends ConsumerWidget {
+class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends ConsumerState<ProfilePage> {
+  ProfileShelf _shelf = ProfileShelf.live;
+
+  @override
+  Widget build(BuildContext context) {
     final palette = context.palette;
     final profileState = ref.watch(currentUserProfileProvider);
     final entries = ref.watch(myEntriesProvider).valueOrNull ?? const [];
     final wins = ref.watch(myWinsProvider);
+    final liveChallenges =
+        ref.watch(liveChallengesProvider).valueOrNull ?? const <Challenge>[];
+    final live = liveChallenges.map((challenge) => challenge.id).toSet();
+    final shown = shelfEntries(_shelf, entries, live);
 
     return Scaffold(
       body: AppBackground(
@@ -82,20 +95,28 @@ class ProfilePage extends ConsumerWidget {
                         ref.watch(myFriendsProvider).valueOrNull?.length ?? 0,
                   ),
                   const SizedBox(height: AppSpacing.xl),
-                  if (entries.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(
+                  ProfileShelfTabs(
+                    selected: _shelf,
+                    onPick: (shelf) => setState(() => _shelf = shelf),
+                  ),
+                  if (shown.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.page,
                       ),
                       child: EmptyState(
-                        title: 'Ancora nessuno scatto',
-                        message:
-                            'Le foto che mandi alle challenge finiscono qui, '
-                            'con le fiamme che si prendono.',
+                        title: _shelf == ProfileShelf.live
+                            ? 'Non sei in nessuna gara'
+                            : 'Ancora nessuna vittoria',
+                        message: _shelf == ProfileShelf.live
+                            ? 'Le foto che mandi alle challenge aperte stanno '
+                                  'qui finche\' la gara non finisce.'
+                            : 'Le foto con cui hai vinto restano qui, con il '
+                                  'premio che si sono prese.',
                       ),
                     )
                   else
-                    _EntryGrid(entries: entries),
+                    _EntryGrid(entries: shown),
                   const SizedBox(height: AppSpacing.xl),
                   Center(
                     child: TextButton(

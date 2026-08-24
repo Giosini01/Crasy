@@ -94,6 +94,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
               media: _media,
               error: _error,
               submitting: submitting,
+              outOfLives: ref.watch(livesLeftProvider) <= 0,
               onCapture: () => _capture(challenge.mediaKind),
               onSubmit: () => _submit(challenge),
               onClear: () => setState(() => _media = null),
@@ -186,6 +187,7 @@ class _Form extends StatelessWidget {
     required this.media,
     required this.error,
     required this.submitting,
+    required this.outOfLives,
     required this.onCapture,
     required this.onSubmit,
     required this.onClear,
@@ -195,6 +197,9 @@ class _Form extends StatelessWidget {
   final PickedMedia? media;
   final String? error;
   final bool submitting;
+
+  /// Vero quando le cinque partecipazioni di oggi sono finite.
+  final bool outOfLives;
   final VoidCallback onCapture;
   final VoidCallback onSubmit;
   final VoidCallback onClear;
@@ -240,8 +245,19 @@ class _Form extends StatelessWidget {
         CrasyButton(
           label: 'Manda in gara',
           loading: submitting,
-          onPressed: picked == null ? null : onSubmit,
+          // **Le cinque di oggi valgono anche qui.** Il bottone si spegne prima
+          // che uno scatti, non dopo: far scattare una foto per poi dire che
+          // non si puo' mandare e' il modo peggiore di comunicare un limite.
+          onPressed: picked == null || outOfLives ? null : onSubmit,
         ),
+        if (outOfLives) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Hai gia\' partecipato a ${Challenge.livesPerDay} gare oggi. '
+            'A mezzanotte ricominci.',
+            style: texts.bodySmall?.copyWith(color: palette.accent),
+          ),
+        ],
         const SizedBox(height: AppSpacing.sm),
         Text(
           challenge.mediaKind.isVideo

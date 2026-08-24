@@ -21,11 +21,24 @@ import 'package:go_router/go_router.dart';
 /// Non c'e' una ricerca per nome, e non e' una dimenticanza: qui le persone si
 /// incontrano guardando le foto che mandano alle challenge, non digitando un
 /// nome che si dovrebbe gia' conoscere.
-class FriendsPage extends ConsumerWidget {
+class FriendsPage extends ConsumerStatefulWidget {
   const FriendsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FriendsPage> createState() => _FriendsPageState();
+}
+
+class _FriendsPageState extends ConsumerState<FriendsPage> {
+  /// Quante richieste si vedono prima del "vedi le altre".
+  ///
+  /// Tre: abbastanza per accorgersi che ci sono, poche perche' gli amici
+  /// restino sopra la piega dello schermo.
+  static const int _initiallyShown = 3;
+
+  int _requestsShown = _initiallyShown;
+
+  @override
+  Widget build(BuildContext context) {
     final palette = context.palette;
     final requests =
         ref.watch(incomingRequestsProvider).valueOrNull ?? const [];
@@ -69,7 +82,26 @@ class FriendsPage extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                for (final request in requests) _RequestRow(request: request),
+                // **Non tutte, se sono tante.** Con cento richieste in attesa
+                // l'elenco degli amici finisce due schermate piu' giu', e la
+                // scheda smette di servire a quello per cui esiste. Se ne
+                // vedono tre, e le altre stanno dietro un tocco.
+                for (final request in requests.take(_requestsShown))
+                  _RequestRow(request: request),
+                if (requests.length > _requestsShown) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  GestureDetector(
+                    onTap: () =>
+                        setState(() => _requestsShown = requests.length),
+                    behavior: HitTestBehavior.opaque,
+                    child: Text(
+                      'VEDI LE ALTRE ${requests.length - _requestsShown}',
+                      style: context.texts.labelSmall?.copyWith(
+                        color: palette.accent,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.lg),
                 Divider(color: palette.line),
                 const SizedBox(height: AppSpacing.lg),

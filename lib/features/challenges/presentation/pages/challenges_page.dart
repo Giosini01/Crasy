@@ -35,6 +35,7 @@ class ChallengesPage extends ConsumerWidget {
             child: CustomScrollView(
               slivers: [
                 const _Header(),
+                const _Lives(),
                 challenges.when(
                   loading: () =>
                       const SliverToBoxAdapter(child: SizedBox.shrink()),
@@ -97,6 +98,68 @@ class _Header extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Le partecipazioni che restano oggi.
+///
+/// **Cinque al giorno, e poi si aspetta domani.** Senza un tetto, l'unica
+/// strategia che paga e' partecipare a tutto: venti scatti fatti male sperando
+/// che uno prenda delle fiamme per caso. Con cinque in mano bisogna scegliere a
+/// quali gare si tiene davvero.
+///
+/// Sta **sotto il marchio e sopra le gare**, cioe' nel punto esatto in cui uno
+/// sta per decidere a quale partecipare. Sparisce quando sono tutte e cinque
+/// intatte: all'inizio della giornata non c'e' niente da sapere, e una riga che
+/// dice "ne hai cinque" tutti i giorni diventa arredamento.
+class _Lives extends ConsumerWidget {
+  const _Lives();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final left = ref.watch(livesLeftProvider);
+
+    if (left >= Challenge.livesPerDay) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+
+    final palette = context.palette;
+    final finite = left == 0;
+
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.page,
+        0,
+        AppSpacing.page,
+        AppSpacing.lg,
+      ),
+      sliver: SliverToBoxAdapter(
+        child: Row(
+          children: [
+            for (var i = 0; i < Challenge.livesPerDay; i++)
+              Padding(
+                padding: const EdgeInsets.only(right: 3),
+                child: Icon(
+                  i < left
+                      ? Icons.photo_camera_rounded
+                      : Icons.photo_camera_outlined,
+                  size: 14,
+                  color: i < left ? palette.accent : palette.line,
+                ),
+              ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              finite
+                  ? 'FINITE PER OGGI, DOMANI RICOMINCI'
+                  : 'PUOI PARTECIPARE AD ALTRE $left OGGI',
+              style: context.texts.labelSmall?.copyWith(
+                color: finite ? palette.textFaint : palette.accent,
+              ),
+            ),
+          ],
         ),
       ),
     );

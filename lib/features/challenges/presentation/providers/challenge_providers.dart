@@ -221,6 +221,32 @@ final votedEntryIdsProvider = StreamProvider<Set<String>>((ref) {
       .watchVotedEntryIds(authState.user.id);
 });
 
+/// A quante gare posso ancora partecipare oggi.
+///
+/// Si conta su quello che l'app ha gia' in mano — le mie partecipazioni — senza
+/// chiedere niente a Firestore. Il confine e' la **mezzanotte locale**: non una
+/// finestra mobile di ventiquattro ore, che costringerebbe a ricordarsi a che
+/// ora si e' partecipato ieri.
+final livesLeftProvider = Provider<int>((ref) {
+  final entries = ref.watch(myEntriesProvider).valueOrNull ?? const [];
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+
+  var used = 0;
+
+  for (final entry in entries) {
+    final when = entry.createdAt;
+
+    if (when != null && !when.isBefore(today)) {
+      used++;
+    }
+  }
+
+  final left = Challenge.livesPerDay - used;
+
+  return left < 0 ? 0 : left;
+});
+
 /// Le mie partecipazioni che hanno vinto.
 ///
 /// Si ricava dalle partecipazioni invece di essere un contatore sul profilo: un

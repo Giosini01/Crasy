@@ -79,7 +79,9 @@ void main() {
         NotificationKind.choosing: NotificationGroup.missions,
         NotificationKind.mustChoose: NotificationGroup.missions,
         NotificationKind.fire: NotificationGroup.fires,
-        NotificationKind.friendRequest: NotificationGroup.friends,
+        // Le richieste d'amicizia non hanno una sezione qui: stanno nella
+        // scheda Amici, con i comandi per accettare o rifiutare.
+        NotificationKind.friendRequest: NotificationGroup.missions,
       };
 
       casi.forEach((kind, gruppo) {
