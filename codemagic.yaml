@@ -45,9 +45,8 @@ workflows:
       xcode: latest
       cocoapods: default
 
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: app.crasy.mobile
+      vars:
+        BUNDLE_ID: app.crasy.mobile
 
     triggering:
       events:
@@ -94,7 +93,32 @@ workflows:
           echo "NUMERO=$NUMERO" >> $CM_ENV
 
       - name: Firma
-        script: xcode-project use-profiles
+        # **I profili si creano, non si cercano soltanto.**
+        #
+        # La prima build e' morta qui con "No matching profiles found for
+        # bundle identifier app.crasy.mobile": e' vero, non ce n'erano — quel
+        # nome non era mai stato registrato nel portale Apple sotto il team a
+        # pagamento. La firma dichiarativa di Codemagic i profili li cerca e
+        # basta, e si ferma prima ancora di arrivare a questi passi.
+        #
+        # `--create` cambia la domanda: se il bundle id non c'e' lo registra, se
+        # il certificato di distribuzione non c'e' lo emette, se il profilo non
+        # c'e' lo fa. Dalla seconda volta in poi non crea niente perche' trova
+        # tutto, e questa riga diventa invisibile.
+        #
+        # **La chiave API deve avere il ruolo App Manager**: con "Developer" ha
+        # il permesso di leggere ma non di creare, e l'errore che ne esce parla
+        # di autorizzazioni.
+        script: |
+          app-store-connect fetch-signing-files "$BUNDLE_ID"             --type IOS_APP_STORE             --create
+
+          # Il portachiavi della macchina che compila: nasce vuoto a ogni
+          # build, e i certificati appena scaricati vanno messi dentro o
+          # Xcode non li vede.
+          keychain initialize
+          keychain add-certificates
+
+          xcode-project use-profiles
 
       - name: Compila
         script: flutter build ipa --release --build-number=$NUMERO
