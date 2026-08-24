@@ -146,13 +146,20 @@ workflows:
           xcode-project use-profiles
 
       - name: Compila
-        # `--export-options-plist` e' il foglietto che `use-profiles` ha appena
-        # scritto: dice a Xcode **quale profilo usare per quale bersaglio**.
-        # Senza, l'archiviazione riesce e l'esportazione no, con un errore che
-        # parla di firma quando il problema e' che nessuno le ha detto cosa
-        # usare.
+        # **Flutter compila, ma non firma.**
+        #
+        # `flutter build ipa` prima di partire cerca un certificato di
+        # *sviluppo* nel portachiavi, e qui non c'e' ne' ci deve essere: su
+        # questa macchina c'e' un certificato di **distribuzione**, che e' quello
+        # giusto per TestFlight. Il controllo di Flutter non lo sa e si ferma con
+        # "No development certificates available", che e' vero e irrilevante.
+        #
+        # Allora si spezza in due: Flutter costruisce l'app senza firmarla, e a
+        # firmare e a impacchettare ci pensa lo strumento di Codemagic, che i
+        # profili li ha appena scaricati e sa quale usare.
         script: |
-          flutter build ipa --release --build-number=$NUMERO --export-options-plist=$HOME/export_options.plist
+          flutter build ios --release --no-codesign --build-number=$NUMERO
+          xcode-project build-ipa --project "ios/Runner.xcodeproj" --scheme "Runner"
 
     artifacts:
       - build/ios/ipa/*.ipa
