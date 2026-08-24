@@ -110,7 +110,7 @@ workflows:
         # il permesso di leggere ma non di creare, e l'errore che ne esce parla
         # di autorizzazioni.
         script: |
-          app-store-connect fetch-signing-files "$BUNDLE_ID"             --type IOS_APP_STORE             --create
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
 
           # Il portachiavi della macchina che compila: nasce vuoto a ogni
           # build, e i certificati appena scaricati vanno messi dentro o
