@@ -55,6 +55,13 @@ workflows:
         #   APP_STORE_CONNECT_ISSUER_ID        l'Issuer ID, quello coi trattini
         #   APP_STORE_CONNECT_PRIVATE_KEY_B64  il file .p8 in base64, una riga
         #                                      sola, **segnato come secure**
+        #   CERTIFICATE_PRIVATE_KEY_B64        la chiave del certificato di
+        #                                      firma, sempre in base64 e sempre
+        #                                      secure. Si genera una volta con
+        #                                      `openssl genrsa 2048` e **non si
+        #                                      cambia piu'**: cambiarla vuol dire
+        #                                      un certificato nuovo ogni volta,
+        #                                      e Apple ne concede pochi.
         - appstore
 
     triggering:
@@ -102,26 +109,91 @@ workflows:
           echo "NUMERO=$NUMERO" >> $CM_ENV
 
       - name: Certificati
-        # **La chiave torna a essere un file.**
+        # **Le chiavi sono due, e fanno due mestieri diversi.**
         #
-        # Incollata dentro una variabile, una chiave PEM perde gli a capo — e
-        # senza quelli non e' piu' una chiave: "Provided value is not a valid
-        # PEM encoded private key". In base64 e' **una riga sola**, quindi
-        # incollandola non si puo' rompere, e qui si rimette com'era.
+        # La `.p8` di App Store Connect e' il *lasciapassare*: serve a parlare
+        # con Apple. La seconda e' la chiave privata del **certificato di
+        # firma**: nasce su un computer, Apple ne firma solo la parte pubblica e
+        # restituisce il certificato. Sul Mac di casa la crea Xcode di nascosto,
+        # ed e' per questo che nessuno sa di averla. Qui la macchina viene
+        # cancellata a fine build, quindi non c'e' nessuno che la crei: va
+        # portata da fuori, sempre la stessa. Se cambiasse a ogni build, Apple si
+        # ritroverebbe a emettere un certificato nuovo ogni volta, e i
+        # certificati di distribuzione sono contati.
         #
-        # `--create` fa il lavoro vero: se il bundle id non e' mai stato
-        # registrato lo registra, se il certificato di distribuzione non c'e' lo
-        # emette, se il profilo non c'e' lo crea. Dalla seconda volta trova
-        # tutto e non crea niente. **La chiave API deve avere il ruolo App
-        # Manager**: con "Developer" legge e non crea.
-        #
-        # I profili si applicano **piu' avanti**, dopo `flutter build`: quel
-        # comando fa girare `pod install`, che riscrive `Runner.xcodeproj` e si
-        # porterebbe via la firma appena messa.
+        # **Le chiavi arrivano come una riga sola.** Una chiave PEM incollata in
+        # una casella di testo perde gli a capo, e senza quelli non e' piu' una
+        # chiave: e' il motivo di "Provided value is not a valid PEM encoded
+        # private key". In base64 e' una riga e non si puo' rompere. Qui sotto si
+        # accettano tutt'e due le forme e si rimette a posto, cosi' un incollaggio
+        # sfortunato non costa un'altra build.
         script: |
-          echo "$APP_STORE_CONNECT_PRIVATE_KEY_B64" | base64 --decode > /tmp/authkey.p8
+          set -e
 
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" --private-key @file:/tmp/authkey.p8
+          rimetti_in_riga() {
+            VALORE="$1"
+            DESTINAZIONE="$2"
+            NOME="$3"
+
+            if [ -z "$VALORE" ]; then
+              echo "La variabile di $NOME e' vuota: controlla che il gruppo"
+              echo "'appstore' sia collegato e la variabile scritta giusta."
+              exit 1
+            fi
+
+            # Gia' una chiave, o base64 da decodificare?
+            case "$VALORE" in
+              *BEGIN*) TESTO="$VALORE" ;;
+              *) TESTO=$(printf '%s' "$VALORE" | tr -d ' \t\n\r' | openssl base64 -d -A) ;;
+            esac
+
+            APERTURA=$(printf '%s\n' "$TESTO" | grep -o -- '-----BEGIN [A-Z ]*-----' | head -1)
+            CHIUSURA=$(printf '%s\n' "$TESTO" | grep -o -- '-----END [A-Z ]*-----' | head -1)
+
+            if [ -z "$APERTURA" ]; then
+              echo "Quello che c'e' nella variabile di $NOME non e' una chiave."
+              exit 1
+            fi
+
+            # Il corpo torna su righe da 64 caratteri, come vuole il formato.
+            CORPO=$(printf '%s\n' "$TESTO" \
+              | sed -e 's/-----BEGIN [A-Z ]*-----//' -e 's/-----END [A-Z ]*-----//' \
+              | tr -d ' \t\n\r')
+
+            {
+              echo "$APERTURA"
+              printf '%s\n' "$CORPO" | fold -w 64
+              echo "$CHIUSURA"
+            } > "$DESTINAZIONE"
+            chmod 600 "$DESTINAZIONE"
+
+            # Il controllo vero: openssl la legge o no. Meglio saperlo adesso
+            # che dentro il messaggio d'errore di un altro strumento.
+            if ! openssl pkey -in "$DESTINAZIONE" -noout 2>/dev/null; then
+              echo "La chiave di $NOME si e' rotta per strada: rimettila nella"
+              echo "variabile in base64, tutta su una riga."
+              exit 1
+            fi
+
+            echo "$NOME: a posto ($(wc -l < "$DESTINAZIONE" | tr -d ' ') righe)"
+          }
+
+          rimetti_in_riga "$APP_STORE_CONNECT_PRIVATE_KEY_B64" /tmp/authkey.p8 "App Store Connect"
+          rimetti_in_riga "$CERTIFICATE_PRIVATE_KEY_B64" /tmp/certificato.pem "certificato di firma"
+
+          # `--create` fa il lavoro vero: se il bundle id non e' registrato lo
+          # registra, se il certificato non c'e' lo emette, se il profilo non
+          # c'e' lo crea. Dalla seconda volta trova tutto e non crea niente —
+          # ma solo perche' la chiave del certificato e' rimasta la stessa.
+          # **La chiave API deve avere il ruolo App Manager**: con "Developer"
+          # legge e non crea.
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create \
+            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            --private-key @file:/tmp/authkey.p8 \
+            --certificate-key @file:/tmp/certificato.pem
 
           # Il portachiavi della macchina nasce vuoto a ogni build: i
           # certificati appena scaricati vanno messi dentro o Xcode non li vede.

@@ -63,6 +63,13 @@ firebase-debug.log
 *.p8
 AuthKey_*.p8
 
+# `crasy_certificato.pem` e' l'altra chiave, quella del **certificato di
+# firma**: nasce sul computer, Apple ne firma solo la parte pubblica, e chi ce
+# l'ha puo' firmare un'app col nome tuo. Perdendola non si perde niente di
+# grave — se ne rifa' una e si rifa' il certificato — ma pubblicandola si
+# regala la firma.
+*.pem
+
 # Stessa ragione, per le altre cose che non devono uscire.
 *.jks
 *.keystore
