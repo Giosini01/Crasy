@@ -10,9 +10,9 @@
 #   2. una **chiave API di App Store Connect** (Users and Access ->
 #      Integrations -> App Store Connect API): il file .p8, il Key ID e
 #      l'Issuer ID. Su Codemagic **non** si mettono come integrazione ma come
-#      gruppo di variabili chiamato `appstore` — vedi il commento piu' sotto:
-#      la strada dell'integrazione e' morta con "integration does not exist"
-#      pur essendoci, e su una cosa che deve funzionare non si indovina;
+#      gruppo di variabili chiamato `appstore`, e la chiave privata **in
+#      base64**: incollata cosi' com'e' perde gli a capo e smette di essere una
+#      chiave;
 #   3. su App Store Connect, la scheda dell'app: Apps -> +, bundle id
 #      `app.crasy.mobile`. Senza quella il caricamento non ha dove atterrare.
 #
@@ -53,8 +53,8 @@ workflows:
         #
         #   APP_STORE_CONNECT_KEY_IDENTIFIER   il Key ID (A5PPT67BHM)
         #   APP_STORE_CONNECT_ISSUER_ID        l'Issuer ID, quello coi trattini
-        #   APP_STORE_CONNECT_PRIVATE_KEY      il contenuto del file .p8,
-        #                                      **segnato come secure**
+        #   APP_STORE_CONNECT_PRIVATE_KEY_B64  il file .p8 in base64, una riga
+        #                                      sola, **segnato come secure**
         - appstore
 
     triggering:
@@ -102,22 +102,26 @@ workflows:
           echo "NUMERO=$NUMERO" >> $CM_ENV
 
       - name: Certificati
-        # I certificati si prendono adesso; **i profili si applicano dopo**, ed
-        # e' la lezione dell'ultimo tentativo: `flutter build` fa girare
-        # `pod install`, e quello **riscrive `Runner.xcodeproj`** cancellando le
-        # impostazioni di firma appena messe. Applicarle prima vuol dire
-        # perderle, e l'errore che ne esce — "requires a provisioning profile" —
-        # non dice niente di tutto questo.
+        # **La chiave torna a essere un file.**
+        #
+        # Incollata dentro una variabile, una chiave PEM perde gli a capo — e
+        # senza quelli non e' piu' una chiave: "Provided value is not a valid
+        # PEM encoded private key". In base64 e' **una riga sola**, quindi
+        # incollandola non si puo' rompere, e qui si rimette com'era.
         #
         # `--create` fa il lavoro vero: se il bundle id non e' mai stato
         # registrato lo registra, se il certificato di distribuzione non c'e' lo
         # emette, se il profilo non c'e' lo crea. Dalla seconda volta trova
-        # tutto e non crea niente.
+        # tutto e non crea niente. **La chiave API deve avere il ruolo App
+        # Manager**: con "Developer" legge e non crea.
         #
-        # **La chiave API deve avere il ruolo App Manager**: con "Developer"
-        # legge e non crea, e l'errore parla di autorizzazioni.
+        # I profili si applicano **piu' avanti**, dopo `flutter build`: quel
+        # comando fa girare `pod install`, che riscrive `Runner.xcodeproj` e si
+        # porterebbe via la firma appena messa.
         script: |
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY_B64" | base64 --decode > /tmp/authkey.p8
+
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" --private-key @file:/tmp/authkey.p8
 
           # Il portachiavi della macchina nasce vuoto a ogni build: i
           # certificati appena scaricati vanno messi dentro o Xcode non li vede.
@@ -145,6 +149,13 @@ workflows:
 
           xcode-project build-ipa --project "ios/Runner.xcodeproj" --scheme "Runner"
 
+      - name: Su TestFlight
+        # Il caricamento usa **la stessa chiave rimessa a posto** del passo dei
+        # certificati, non la variabile: cosi' c'e' un solo modo di leggerla, e
+        # non due che possono divergere.
+        script: |
+          app-store-connect publish --path build/ios/ipa/*.ipa --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" --private-key @file:/tmp/authkey.p8 --testflight
+
     artifacts:
       - build/ios/ipa/*.ipa
       # I registri servono solo quando qualcosa va storto, ed e' esattamente
@@ -152,21 +163,5 @@ workflows:
       - /tmp/xcodebuild_logs/*.log
       - flutter_drive.log
 
-    publishing:
-      app_store_connect:
-        # Le stesse tre variabili del gruppo qui sopra: chi carica e chi firma
-        # usano la stessa chiave, e sono scritte una volta sola.
-        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
-        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
-        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
-        # In TestFlight si, sullo Store no: quella e' una decisione da prendere
-        # a mano, non la conseguenza di un push.
-        submit_to_testflight: true
-        submit_to_app_store: false
-
-      # email:
-      #   recipients:
-      #     - il-tuo-indirizzo@esempio.it
-      #   notify:
-      #     success: false
-      #     failure: true
+    # Niente blocco `publishing`: il caricamento lo fa il passo "Su TestFlight"
+    # qui sopra, con la stessa chiave rimessa a posto una volta sola.
