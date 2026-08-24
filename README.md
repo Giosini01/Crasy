@@ -678,6 +678,13 @@ Con l'account sviluppatore attivo, dal Mac non serve nessuna CI: si compila e si
 carica.
 
 ```bash
+./tool/testflight.sh
+```
+
+Fa le quattro cose che si fanno ogni volta e che ogni volta si sbagliano: prende
+il lavoro nuovo, **alza il numero di build**, compila, carica. A mano sarebbe:
+
+```bash
 git pull
 flutter build ipa --release
 open build/ios/archive/Runner.xcarchive
@@ -694,6 +701,12 @@ funzionavano lo stesso, perche' dipendono dal progetto e non dal pacchetto, ma l
 notifiche push si agganciano **per identificativo** e sarebbero andate a cercare
 l'app sbagliata.
 
+Perche' lo script carichi da solo servono le tre cose della **chiave API** di
+App Store Connect (*Users and Access -> Integrations*): `APP_STORE_KEY_ID`,
+`APP_STORE_ISSUER_ID` e il file `.p8` in `~/.appstoreconnect/private_keys/`.
+Senza, compila lo stesso e apre la cartella del pacchetto: si trascina su
+Transporter.
+
 Su App Store Connect, una volta sola: *Apps -> +* con quel bundle id, poi
 **TestFlight -> Internal Testing**, si aggiungono le persone e si sceglie la
 build. Gli invitati installano **TestFlight** dall'App Store e da li' hanno
@@ -703,7 +716,10 @@ Due cose che fanno perdere un pomeriggio la prima volta:
 
 - **il numero di build deve salire a ogni caricamento.** E' il `+1` di
   `version: 1.0.0+1` nel `pubspec.yaml`: ricaricare due volte lo stesso numero
-  viene rifiutato, e il messaggio non lo dice chiaramente;
+  viene rifiutato, e il messaggio non lo dice chiaramente — si scopre venti
+  minuti dopo, a compilazione finita. Lo script lo alza da solo, e **committa il
+  numero nuovo**: lasciarlo sul proprio computer vuol dire ritrovarsi due build
+  con lo stesso numero il giorno che si compila da un'altra parte;
 - **la conformita' all'export.** App Store Connect la chiede a ogni build, e
   finche' non si risponde la build non arriva ai tester: si carica, si aspetta,
   e non succede niente. `ITSAppUsesNonExemptEncryption` a `false` nel
