@@ -672,6 +672,46 @@ gestore file, browser — il permesso di installare app; poi Play Protect avvisa
 che l'app non viene dallo store, e si prosegue lo stesso. E' il giro normale di
 qualunque beta fuori dallo store.
 
+### Mandarla su TestFlight
+
+Con l'account sviluppatore attivo, dal Mac non serve nessuna CI: si compila e si
+carica.
+
+```bash
+git pull
+flutter build ipa --release
+open build/ios/archive/Runner.xcarchive
+# Distribute App -> App Store Connect -> Upload
+```
+
+Prima volta, in Xcode: *Signing & Capabilities* con il **team a pagamento**
+selezionato e la firma automatica accesa. Il nome del pacchetto e'
+**`app.crasy.mobile`** e non si cambia piu' dopo il primo caricamento — e' quello
+scritto in `project.pbxproj`, in `GoogleService-Info.plist` e in
+`firebase_options.dart`: **i tre devono coincidere sempre**, e per un po' non lo
+facevano (il codice Dart parlava ancora dell'app di prova). Accesso e database
+funzionavano lo stesso, perche' dipendono dal progetto e non dal pacchetto, ma le
+notifiche push si agganciano **per identificativo** e sarebbero andate a cercare
+l'app sbagliata.
+
+Su App Store Connect, una volta sola: *Apps -> +* con quel bundle id, poi
+**TestFlight -> Internal Testing**, si aggiungono le persone e si sceglie la
+build. Gli invitati installano **TestFlight** dall'App Store e da li' hanno
+CRASY con un tasto *Installa*.
+
+Due cose che fanno perdere un pomeriggio la prima volta:
+
+- **il numero di build deve salire a ogni caricamento.** E' il `+1` di
+  `version: 1.0.0+1` nel `pubspec.yaml`: ricaricare due volte lo stesso numero
+  viene rifiutato, e il messaggio non lo dice chiaramente;
+- **la conformita' all'export.** App Store Connect la chiede a ogni build, e
+  finche' non si risponde la build non arriva ai tester: si carica, si aspetta,
+  e non succede niente. `ITSAppUsesNonExemptEncryption` a `false` nel
+  `Info.plist` toglie la domanda per sempre — CRASY usa solo HTTPS, che rientra
+  fra le esenzioni.
+
+Le build durano **90 giorni**, non 7: quella scadenza era della firma gratuita.
+
 ### Provarla sull'iPhone, da un Mac
 
 Non serve l'account sviluppatore da 99 euro per installarla sul **proprio**

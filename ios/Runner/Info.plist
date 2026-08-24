@@ -20,6 +20,13 @@
 	<string>Serve la fotocamera per scattare al volo la foto con cui partecipi a una challenge.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<!-- Nessuna crittografia da dichiarare.
+	     Senza questa riga App Store Connect chiede la conformita' all'export
+	     a **ogni singolo caricamento**, e finche' non si risponde la build non
+	     arriva ai tester: si carica, si aspetta, e non succede niente. CRASY usa
+	     solo HTTPS, che rientra fra le esenzioni. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>CFBundleDisplayName</key>
 	<string>CRASY</string>
 	<key>CFBundleExecutable</key>

@@ -55,12 +55,21 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
+    // **Questi tre valori devono coincidere con `GoogleService-Info.plist`.**
+    //
+    // Il file nel progetto iOS e queste righe sono due copie della stessa
+    // configurazione, e per un po' hanno detto due cose diverse: il plist
+    // parlava di `app.crasy.mobile`, qui c'era ancora l'app di prova
+    // `com.example.appIncontri`. Accesso e database funzionavano lo stesso —
+    // dipendono dal progetto, non dal nome del pacchetto — ma le notifiche
+    // push, che si agganciano all'app **per identificativo**, sarebbero andate
+    // a cercare quella sbagliata.
     apiKey: 'AIzaSyA6D3TTiQlIljxTbVZNJwmYEgefZF6Heck',
-    appId: '1:781052311292:ios:6fdfb01344985a3c264979',
+    appId: '1:781052311292:ios:cf2f5293adc52143264979',
     messagingSenderId: '781052311292',
     projectId: 'daily-dating-app',
     storageBucket: 'daily-dating-app.firebasestorage.app',
-    iosBundleId: 'com.example.appIncontri',
+    iosBundleId: 'app.crasy.mobile',
   );
 
   static const FirebaseOptions web = FirebaseOptions(
