@@ -127,10 +127,32 @@ workflows:
           keychain initialize
           keychain add-certificates
 
+          # **Via la firma automatica, qui non puo' funzionare.**
+          #
+          # Nel progetto c'e' `DEVELOPMENT_TEAM`, che serve sul Mac di casa: con
+          # quello Xcode firma da solo e non chiede niente. Ma Flutter, appena
+          # lo vede, sceglie **la firma automatica** — e quella pretende un
+          # account Apple collegato dentro Xcode. Su una macchina in affitto non
+          # c'e' nessun account, e la build muore con "No Accounts: Add a new
+          # account in Accounts settings", ignorando i profili appena scaricati.
+          #
+          # Qui si tolgono le due righe e si passa alla firma manuale, che e'
+          # quella giusta per una macchina: i profili ce li ha gia' in mano.
+          # Il progetto sul disco della macchina viene buttato a fine build,
+          # quindi sul repository non cambia niente e sul Mac resta tutto com'e'.
+          sed -i '' '/DEVELOPMENT_TEAM = /d' ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
+
           xcode-project use-profiles
 
       - name: Compila
-        script: flutter build ipa --release --build-number=$NUMERO
+        # `--export-options-plist` e' il foglietto che `use-profiles` ha appena
+        # scritto: dice a Xcode **quale profilo usare per quale bersaglio**.
+        # Senza, l'archiviazione riesce e l'esportazione no, con un errore che
+        # parla di firma quando il problema e' che nessuno le ha detto cosa
+        # usare.
+        script: |
+          flutter build ipa --release --build-number=$NUMERO --export-options-plist=$HOME/export_options.plist
 
     artifacts:
       - build/ios/ipa/*.ipa

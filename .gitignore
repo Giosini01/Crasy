@@ -53,3 +53,18 @@ functions/*.local
 .firebase/
 firebase-debug.log
 .firebaserc.local
+
+# **Le chiavi private non entrano qui dentro. Mai.**
+#
+# `AuthKey_*.p8` e' la chiave di App Store Connect: con quella, il Key ID e
+# l'Issuer ID si carica sullo Store al posto tuo. Ne e' finita una dentro un
+# commit perche' era stata salvata nella cartella del progetto e un `git add -A`
+# se l'e' portata via senza chiedere. Da qui in poi git non la vede nemmeno.
+*.p8
+AuthKey_*.p8
+
+# Stessa ragione, per le altre cose che non devono uscire.
+*.jks
+*.keystore
+key.properties
+service-account*.json
