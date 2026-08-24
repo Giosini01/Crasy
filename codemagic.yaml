@@ -101,64 +101,48 @@ workflows:
           echo "Build numero $NUMERO"
           echo "NUMERO=$NUMERO" >> $CM_ENV
 
-      - name: Firma
-        # **I profili si creano, non si cercano soltanto.**
+      - name: Certificati
+        # I certificati si prendono adesso; **i profili si applicano dopo**, ed
+        # e' la lezione dell'ultimo tentativo: `flutter build` fa girare
+        # `pod install`, e quello **riscrive `Runner.xcodeproj`** cancellando le
+        # impostazioni di firma appena messe. Applicarle prima vuol dire
+        # perderle, e l'errore che ne esce — "requires a provisioning profile" —
+        # non dice niente di tutto questo.
         #
-        # La prima build e' morta qui con "No matching profiles found for
-        # bundle identifier app.crasy.mobile": e' vero, non ce n'erano — quel
-        # nome non era mai stato registrato nel portale Apple sotto il team a
-        # pagamento. La firma dichiarativa di Codemagic i profili li cerca e
-        # basta, e si ferma prima ancora di arrivare a questi passi.
+        # `--create` fa il lavoro vero: se il bundle id non e' mai stato
+        # registrato lo registra, se il certificato di distribuzione non c'e' lo
+        # emette, se il profilo non c'e' lo crea. Dalla seconda volta trova
+        # tutto e non crea niente.
         #
-        # `--create` cambia la domanda: se il bundle id non c'e' lo registra, se
-        # il certificato di distribuzione non c'e' lo emette, se il profilo non
-        # c'e' lo fa. Dalla seconda volta in poi non crea niente perche' trova
-        # tutto, e questa riga diventa invisibile.
-        #
-        # **La chiave API deve avere il ruolo App Manager**: con "Developer" ha
-        # il permesso di leggere ma non di creare, e l'errore che ne esce parla
-        # di autorizzazioni.
+        # **La chiave API deve avere il ruolo App Manager**: con "Developer"
+        # legge e non crea, e l'errore parla di autorizzazioni.
         script: |
           app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
 
-          # Il portachiavi della macchina che compila: nasce vuoto a ogni
-          # build, e i certificati appena scaricati vanno messi dentro o
-          # Xcode non li vede.
+          # Il portachiavi della macchina nasce vuoto a ogni build: i
+          # certificati appena scaricati vanno messi dentro o Xcode non li vede.
           keychain initialize
           keychain add-certificates
-
-          # **Via la firma automatica, qui non puo' funzionare.**
-          #
-          # Nel progetto c'e' `DEVELOPMENT_TEAM`, che serve sul Mac di casa: con
-          # quello Xcode firma da solo e non chiede niente. Ma Flutter, appena
-          # lo vede, sceglie **la firma automatica** — e quella pretende un
-          # account Apple collegato dentro Xcode. Su una macchina in affitto non
-          # c'e' nessun account, e la build muore con "No Accounts: Add a new
-          # account in Accounts settings", ignorando i profili appena scaricati.
-          #
-          # Qui si tolgono le due righe e si passa alla firma manuale, che e'
-          # quella giusta per una macchina: i profili ce li ha gia' in mano.
-          # Il progetto sul disco della macchina viene buttato a fine build,
-          # quindi sul repository non cambia niente e sul Mac resta tutto com'e'.
-          sed -i '' '/DEVELOPMENT_TEAM = /d' ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
-
-          xcode-project use-profiles
 
       - name: Compila
         # **Flutter compila, ma non firma.**
         #
         # `flutter build ipa` prima di partire cerca un certificato di
         # *sviluppo* nel portachiavi, e qui non c'e' ne' ci deve essere: su
-        # questa macchina c'e' un certificato di **distribuzione**, che e' quello
-        # giusto per TestFlight. Il controllo di Flutter non lo sa e si ferma con
-        # "No development certificates available", che e' vero e irrilevante.
+        # questa macchina c'e' quello di **distribuzione**, l'unico giusto per
+        # TestFlight. Il controllo di Flutter non lo sa e si ferma con "No
+        # development certificates available", che e' vero e irrilevante.
         #
-        # Allora si spezza in due: Flutter costruisce l'app senza firmarla, e a
-        # firmare e a impacchettare ci pensa lo strumento di Codemagic, che i
-        # profili li ha appena scaricati e sa quale usare.
+        # Quindi: Flutter costruisce senza firmare, poi si applicano i profili
+        # sul progetto **cosi' com'e' rimasto dopo `pod install`**, e infine
+        # firma e impacchetta lo strumento di Codemagic.
         script: |
           flutter build ios --release --no-codesign --build-number=$NUMERO
+
+          sed -i '' '/DEVELOPMENT_TEAM = /d' ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
+          xcode-project use-profiles
+
           xcode-project build-ipa --project "ios/Runner.xcodeproj" --scheme "Runner"
 
     artifacts:

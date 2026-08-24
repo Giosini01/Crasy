@@ -689,6 +689,22 @@ Tre cose una volta sola, e sono tutte fuori dal codice:
 3. su **App Store Connect**, la scheda dell'app: *Apps -> +* con bundle id
    `app.crasy.mobile`. Senza, il caricamento non ha dove atterrare.
 
+Tre cose imparate a caro prezzo, tutte sulla firma:
+
+- **Flutter compila, non firma.** `flutter build ipa` cerca un certificato di
+  *sviluppo* nel portachiavi; su una macchina che costruisce per TestFlight c'e'
+  quello di **distribuzione**, e quel controllo si ferma con "No development
+  certificates available" — vero e irrilevante. Si spezza in due: Flutter
+  costruisce senza firmare, gli strumenti di Codemagic firmano e impacchettano;
+- **i profili si applicano dopo `flutter build`, non prima.** Quel comando fa
+  girare `pod install`, e `pod install` **riscrive `Runner.xcodeproj`**:
+  applicare la firma prima vuol dire perderla, e l'errore che ne esce —
+  "requires a provisioning profile" — non dice niente di tutto questo;
+- **niente `Podfile` scritto a mano.** Ormai i plugin iOS sono tutti pacchetti
+  Swift: un Podfile fuori standard produce "The sandbox is not in sync with the
+  Podfile.lock" e non serve a niente. La versione minima di iOS sta dove conta
+  davvero, nel progetto Xcode.
+
 Due scelte dentro quel file che vale la pena conoscere:
 
 - **la versione di Flutter e' fissata**, non "stable". Una versione che cambia
