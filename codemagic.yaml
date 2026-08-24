@@ -26,6 +26,16 @@ workflows:
     # contro una build che si impianta e mangia i minuti del mese.
     max_build_duration: 45
 
+    # **Il filo che tiene tutto insieme**, e sta qui e non dentro `environment`.
+    #
+    # `appstore` non e' un nome a caso: e' il nome dell'integrazione creata su
+    # Codemagic in Teams -> Integrations -> Developer Portal, quella dove sono
+    # finiti il file .p8, il Key ID e l'Issuer ID. Senza, la firma non trova le
+    # credenziali e `auth: integration` piu' sotto non ha niente a cui
+    # agganciarsi.
+    integrations:
+      app_store_connect: appstore
+
     environment:
       # Fissata, non "stable". Una versione che cambia da sola sotto i piedi
       # produce il guaio peggiore che ci sia: funziona sul mio computer e si
@@ -34,16 +44,6 @@ workflows:
       flutter: 3.44.9
       xcode: latest
       cocoapods: default
-
-      # **Il filo che tiene tutto insieme.**
-      #
-      # `appstore` non e' un nome a caso: e' il nome dell'integrazione creata su
-      # Codemagic in Teams -> Integrations -> App Store Connect, quella dove
-      # sono finiti il file .p8, il Key ID e l'Issuer ID. Senza questa riga la
-      # firma non trova le credenziali e la build muore dopo dieci minuti con
-      # un errore che parla di profili, non di chiavi.
-      integrations:
-        app_store_connect: appstore
 
       ios_signing:
         distribution_type: app_store
