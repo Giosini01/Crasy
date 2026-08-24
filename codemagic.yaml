@@ -1,0 +1,115 @@
+# CRASY su TestFlight, senza toccare un Mac.
+#
+# Ogni push su `main` diventa una build firmata che finisce in TestFlight, e da
+# li' una notifica sul telefono di chi la sta provando. Il Mac serve solo se si
+# vuole il hot reload mentre si sviluppa.
+#
+# Serve una volta sola, dalla parte di Codemagic:
+#
+#   1. accesso con GitHub e collegamento del repository;
+#   2. una **chiave API di App Store Connect** (Users and Access ->
+#      Integrations -> App Store Connect API): il file .p8, il Key ID e
+#      l'Issuer ID. Su Codemagic si carica in Teams -> Integrations -> App
+#      Store Connect, con il nome `appstore` — lo stesso scritto qui sotto;
+#   3. su App Store Connect, la scheda dell'app: Apps -> +, bundle id
+#      `app.crasy.mobile`. Senza quella il caricamento non ha dove atterrare.
+#
+# La firma **non si configura**: con la chiave API, Codemagic crea e rinnova da
+# solo certificati e profili. E' il pezzo che a mano fa perdere i pomeriggi.
+
+workflows:
+  ios-testflight:
+    name: CRASY su TestFlight
+    instance_type: mac_mini_m2
+    # Tre quarti d'ora e' il doppio abbondante di quanto serve: e' un freno
+    # contro una build che si impianta e mangia i minuti del mese.
+    max_build_duration: 45
+
+    environment:
+      # Fissata, non "stable". Una versione che cambia da sola sotto i piedi
+      # produce il guaio peggiore che ci sia: funziona sul mio computer e si
+      # rompe qui, senza che nessuno abbia toccato niente. Si alza a mano,
+      # quando si e' pronti ad alzarla.
+      flutter: 3.44.9
+      xcode: latest
+      cocoapods: default
+
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: app.crasy.mobile
+
+      groups:
+        # Le variabili della chiave API. Il gruppo si chiama cosi' anche su
+        # Codemagic, e dentro ci va APP_STORE_APP_ID — il numero che App Store
+        # Connect da' all'app dopo il primo caricamento.
+        - appstore
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+      # Una modifica al README non merita quindici minuti di Mac.
+      cancel_previous_builds: true
+
+    scripts:
+      - name: Dipendenze
+        script: flutter pub get
+
+      - name: Analisi e prove
+        # **Prima di compilare, non dopo.** Dodici minuti di build per scoprire
+        # che un test era rosso sono dodici minuti buttati, e una versione
+        # rotta che arriva ai tester e' peggio di una versione che non arriva.
+        script: |
+          flutter analyze
+          flutter test
+
+      - name: Numero di build
+        # Il numero deve salire a ogni caricamento, e App Store Connect rifiuta
+        # senza spiegarsi. Si chiede a lui qual e' l'ultimo e si aggiunge uno:
+        # cosi' il conto regge anche se una build e' partita dal Mac.
+        #
+        # Al primo giro l'app su App Store Connect non ha ancora nessuna build,
+        # e il comando non ha niente da rispondere: si ripiega sul contatore di
+        # Codemagic, che parte da uno e sale sempre.
+        script: |
+          ULTIMO=$(app-store-connect get-latest-testflight-build-number \
+            "$APP_STORE_APP_ID" 2>/dev/null || echo "")
+
+          if [ -z "$ULTIMO" ]; then
+            NUMERO=$PROJECT_BUILD_NUMBER
+          else
+            NUMERO=$(($ULTIMO + 1))
+          fi
+
+          echo "Build numero $NUMERO"
+          echo "NUMERO=$NUMERO" >> $CM_ENV
+
+      - name: Firma
+        script: xcode-project use-profiles
+
+      - name: Compila
+        script: flutter build ipa --release --build-number=$NUMERO
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      # I registri servono solo quando qualcosa va storto, ed e' esattamente
+      # quando non si ha voglia di andarseli a cercare altrove.
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        # In TestFlight si, sullo Store no: quella e' una decisione da prendere
+        # a mano, non la conseguenza di un push.
+        submit_to_testflight: true
+        submit_to_app_store: false
+
+      # email:
+      #   recipients:
+      #     - il-tuo-indirizzo@esempio.it
+      #   notify:
+      #     success: false
+      #     failure: true

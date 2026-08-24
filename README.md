@@ -674,8 +674,37 @@ qualunque beta fuori dallo store.
 
 ### Mandarla su TestFlight
 
-Con l'account sviluppatore attivo, dal Mac non serve nessuna CI: si compila e si
-carica.
+**Ogni push su `main` diventa una build in TestFlight**, e da li' una notifica
+sul telefono di chi la sta provando. Se ne occupa `codemagic.yaml`: un Mac in
+affitto compila, firma e carica. Il Mac vero serve solo per il hot reload
+mentre si sviluppa.
+
+Tre cose una volta sola, e sono tutte fuori dal codice:
+
+1. su **Codemagic**, accesso con GitHub e collegamento del repository;
+2. una **chiave API di App Store Connect** (*Users and Access -> Integrations*),
+   caricata su Codemagic come integrazione chiamata `appstore`. **La firma non
+   si configura**: con quella chiave, certificati e profili se li crea e se li
+   rinnova da solo — e' il pezzo che a mano fa perdere i pomeriggi;
+3. su **App Store Connect**, la scheda dell'app: *Apps -> +* con bundle id
+   `app.crasy.mobile`. Senza, il caricamento non ha dove atterrare.
+
+Due scelte dentro quel file che vale la pena conoscere:
+
+- **la versione di Flutter e' fissata**, non "stable". Una versione che cambia
+  da sola sotto i piedi produce il guaio peggiore che ci sia: funziona sul
+  proprio computer e si rompe sulla macchina che compila, senza che nessuno
+  abbia toccato niente;
+- **analisi e prove girano prima di compilare.** Dodici minuti di build per
+  scoprire che un test era rosso sono dodici minuti buttati, e una versione
+  rotta che arriva ai tester e' peggio di una versione che non arriva.
+
+Il numero di build lo chiede ad App Store Connect — l'ultimo, piu' uno — cosi'
+il conto regge anche quando una build parte dal Mac invece che dalla CI.
+
+### E dal Mac, quando serve
+
+Il giro a mano resta, e sta in un comando solo.
 
 ```bash
 ./tool/testflight.sh
