@@ -111,32 +111,75 @@ class _Header extends StatelessWidget {
 /// che uno prenda delle fiamme per caso. Con cinque in mano bisogna scegliere a
 /// quali gare si tiene davvero.
 ///
-/// Sta **sotto il marchio e sopra le gare**, cioe' nel punto esatto in cui uno
-/// sta per decidere a quale partecipare. Sparisce quando sono tutte e cinque
-/// intatte: all'inizio della giornata non c'e' niente da sapere, e una riga che
-/// dice "ne hai cinque" tutti i giorni diventa arredamento.
+/// **Resta incollata in cima mentre si scorre, e non sparisce mai.** Prima si
+/// nascondeva quando erano tutte e cinque intatte, con l'idea che a inizio
+/// giornata non ci fosse niente da sapere. Era sbagliato, e per due motivi.
+/// Il primo: un tetto che si vede solo quando lo stai gia' consumando arriva
+/// sempre tardi — la scelta di quali gare valgono la pena si fa **prima** di
+/// bruciare la prima. Il secondo: le gare si guardano scorrendo, e una riga in
+/// cima alla lista, dopo due schermate, e' come se non ci fosse. Quando decidi
+/// se partecipare a questa qui, il numero deve essere ancora sotto gli occhi.
+///
+/// Il prezzo e' una striscia di quaranta pixel che sta li' sempre, ed e' un
+/// prezzo giusto: e' l'unica cosa in tutta l'app che dice quanto ti resta.
 class _Lives extends ConsumerWidget {
   const _Lives();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final left = ref.watch(livesLeftProvider);
+    return SliverPersistentHeader(
+      pinned: true,
+      delegate: _LivesBar(
+        left: ref.watch(livesLeftProvider),
+        palette: context.palette,
+        text: context.texts.labelSmall,
+      ),
+    );
+  }
+}
 
-    if (left >= Challenge.livesPerDay) {
-      return const SliverToBoxAdapter(child: SizedBox.shrink());
-    }
+/// La striscia vera e propria, con il fondo pieno.
+///
+/// Il fondo **deve** essere opaco: da fermo e' invisibile perche' e' lo stesso
+/// colore della pagina, ma mentre si scorre e' l'unica cosa che impedisce alle
+/// foto delle gare di passarci attraverso.
+class _LivesBar extends SliverPersistentHeaderDelegate {
+  const _LivesBar({
+    required this.left,
+    required this.palette,
+    required this.text,
+  });
 
-    final palette = context.palette;
+  final int left;
+  final AppPalette palette;
+  final TextStyle? text;
+
+  /// Quanto e' alta: una riga da undici punti, le sue icone, e l'aria intorno.
+  static const double _height = 40;
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     final finite = left == 0;
 
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.page,
-        0,
-        AppSpacing.page,
-        AppSpacing.lg,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.background,
+        // Il filetto compare **solo quando qualcosa le sta scorrendo sotto**.
+        // Da fermo separerebbe due cose che sono la stessa cosa; in movimento
+        // dice dove finisce quello che resta li' e dove comincia quello che
+        // scorre.
+        border: overlapsContent
+            ? Border(bottom: BorderSide(color: palette.line, width: 0.5))
+            : null,
       ),
-      sliver: SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
         child: Row(
           children: [
             for (var i = 0; i < Challenge.livesPerDay; i++)
@@ -155,7 +198,7 @@ class _Lives extends ConsumerWidget {
               finite
                   ? 'FINITE PER OGGI, DOMANI RICOMINCI'
                   : 'PUOI PARTECIPARE AD ALTRE $left OGGI',
-              style: context.texts.labelSmall?.copyWith(
+              style: text?.copyWith(
                 color: finite ? palette.textFaint : palette.accent,
               ),
             ),
@@ -164,6 +207,10 @@ class _Lives extends ConsumerWidget {
       ),
     );
   }
+
+  @override
+  bool shouldRebuild(_LivesBar old) =>
+      old.left != left || old.palette != palette || old.text != text;
 }
 
 /// Un messaggio al posto delle challenge, con lo stesso margine laterale che
@@ -195,7 +242,7 @@ class _ChallengeList extends StatelessWidget {
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.page,
-        0,
+        AppSpacing.md,
         AppSpacing.page,
         AppSpacing.section,
       ),
