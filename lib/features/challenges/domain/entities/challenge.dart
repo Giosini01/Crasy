@@ -2,6 +2,7 @@ import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
+import 'package:crasy/features/payments/domain/prize_ledger.dart';
 
 /// Una challenge: una consegna, una scadenza, dei soldi in palio.
 ///
@@ -27,6 +28,11 @@ class Challenge {
     this.participantsCount = 0,
     this.chosenByCreator = false,
     this.winnerEntryId,
+    this.winnerUserId = '',
+    this.winnerUsername = '',
+    this.winnerMediaUrl = '',
+    this.winnerMediaKind = MediaKind.photo,
+    this.winnerVotes = 0,
     this.prizeStatus = PrizeStatus.unpaid,
   });
 
@@ -154,6 +160,39 @@ class Challenge {
   /// e' stato proclamato. Nulla prima.
   final String? winnerEntryId;
 
+  /// Chi ha vinto, e con cosa. **Copiato qui dentro apposta.**
+  ///
+  /// Sono gli stessi dati che stanno gia' nella partecipazione vincente, e la
+  /// duplicazione e' il punto: quarantotto ore dopo la fine, la gara sparisce
+  /// dalla vetrina e le partecipazioni vengono cancellate insieme alle foto —
+  /// e con loro sparirebbe **la prova di aver vinto**. Uno si porta a casa
+  /// cinquanta euro e due giorni dopo nel suo profilo non c'e' piu' niente che
+  /// lo dica.
+  ///
+  /// Ricopiando qui la foto che ha vinto, il trofeo vive nel documento della
+  /// gara e non nella partecipazione: si tiene **una foto per gara** invece di
+  /// quaranta, e nessuna pulizia se la porta via.
+  final String winnerUserId;
+  final String winnerUsername;
+  final String winnerMediaUrl;
+  final MediaKind winnerMediaKind;
+
+  /// Le fiamme che quella foto aveva alla fine. Congelate: dopo la
+  /// proclamazione non si vota piu', quindi e' un numero definitivo.
+  final int winnerVotes;
+
+  /// Se questa gara ha prodotto un trofeo da mettere in bacheca.
+  ///
+  /// Non basta che sia chiusa: una gara a cui non ha partecipato nessuno si
+  /// chiude con il vincitore vuoto, ed e' giusto che non lasci niente.
+  bool get hasTrophy =>
+      (winnerEntryId ?? '').isNotEmpty && winnerMediaUrl.isNotEmpty;
+
+  /// Quanto e' finito davvero in tasca a chi ha vinto: il premio meno la
+  /// percentuale di CRASY. E' il numero che va sulla figurina, perche' e'
+  /// quello che uno ha incassato — non quello che era scritto in vetrina.
+  int get payoutCents => PrizeLedger.payoutCents(prizeCents);
+
   /// Dove sono i soldi del premio.
   ///
   /// Lo scrive il server e nessun altro. E' il campo che separa una challenge
@@ -235,6 +274,11 @@ class Challenge {
     int? participantsCount,
     bool? chosenByCreator,
     String? winnerEntryId,
+    String? winnerUserId,
+    String? winnerUsername,
+    String? winnerMediaUrl,
+    MediaKind? winnerMediaKind,
+    int? winnerVotes,
     PrizeStatus? prizeStatus,
   }) {
     return Challenge(
@@ -253,6 +297,11 @@ class Challenge {
       participantsCount: participantsCount ?? this.participantsCount,
       chosenByCreator: chosenByCreator ?? this.chosenByCreator,
       winnerEntryId: winnerEntryId ?? this.winnerEntryId,
+      winnerUserId: winnerUserId ?? this.winnerUserId,
+      winnerUsername: winnerUsername ?? this.winnerUsername,
+      winnerMediaUrl: winnerMediaUrl ?? this.winnerMediaUrl,
+      winnerMediaKind: winnerMediaKind ?? this.winnerMediaKind,
+      winnerVotes: winnerVotes ?? this.winnerVotes,
       prizeStatus: prizeStatus ?? this.prizeStatus,
     );
   }

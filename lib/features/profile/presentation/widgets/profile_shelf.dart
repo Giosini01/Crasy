@@ -7,12 +7,21 @@ import 'package:flutter/material.dart';
 ///
 /// **Non "tutte le foto".** Una raccolta di tutto quello che uno ha mandato da
 /// quando esiste racconta la quantita', non la persona: dopo trenta gare sono
-/// trenta quadrati in cui le due che contano stanno in fondo. Due sezioni
-/// rispondono invece alle due domande che uno si fa davvero guardando un
-/// profilo — **dove sta gareggiando adesso** e **cosa ha vinto**.
+/// trenta quadrati in cui le due che contano stanno in fondo.
+///
+/// Tre sezioni, e sono le tre domande che uno si fa davvero guardando un
+/// profilo: **dove sta gareggiando adesso**, **cosa ha vinto**, **cosa ha
+/// fatto fare agli altri**.
+///
+/// L'ultima e' la piu' recente e la meno ovvia. Chi lancia una challenge mette
+/// dei soldi e non gareggia, quindi non vincera' mai niente: senza una sezione
+/// sua, del gesto piu' impegnativo che si possa fare qui dentro non resterebbe
+/// traccia da nessuna parte. E' anche l'unico posto in cui il profilo racconta
+/// una cosa che uno ha **ordinato** invece che eseguito.
 enum ProfileShelf {
   live('IN GARA'),
-  won('VINTE');
+  trophies('TROFEI'),
+  commissioned('COMANDATE');
 
   const ProfileShelf(this.label);
 
@@ -65,24 +74,23 @@ class ProfileShelfTabs extends StatelessWidget {
   }
 }
 
-/// Le partecipazioni da mostrare in una delle due sezioni.
+/// Le partecipazioni in gara adesso.
 ///
 /// **In gara** vuol dire "la challenge e' ancora aperta", non "l'ho mandata di
 /// recente": una foto di tre giorni fa in una gara che dura una settimana e'
 /// ancora in gioco, e una di stamattina in una gara chiusa non lo e' piu'.
-List<ChallengeEntry> shelfEntries(
-  ProfileShelf shelf,
+///
+/// Le altre due sezioni non passano da qui: **non sono fatte di
+/// partecipazioni**. Una partecipazione viene cancellata quarantotto ore dopo
+/// la fine della gara — foto compresa — quindi una bacheca costruita su quelle
+/// si svuoterebbe da sola due giorni dopo ogni vittoria. I trofei stanno sulla
+/// gara, che resta.
+List<ChallengeEntry> liveEntries(
   List<ChallengeEntry> entries,
   Set<String> liveChallengeIds,
 ) {
-  return switch (shelf) {
-    ProfileShelf.live => [
-      for (final entry in entries)
-        if (liveChallengeIds.contains(entry.challengeId)) entry,
-    ],
-    ProfileShelf.won => [
-      for (final entry in entries)
-        if (entry.isWinner) entry,
-    ],
-  };
+  return [
+    for (final entry in entries)
+      if (liveChallengeIds.contains(entry.challengeId)) entry,
+  ];
 }

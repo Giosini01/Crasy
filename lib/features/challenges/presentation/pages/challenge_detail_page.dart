@@ -587,6 +587,7 @@ class _ChooseButton extends ConsumerWidget {
           challengeId: challenge.id,
           winnerEntryId: entry.id,
           winnerUserId: entry.userId,
+          winner: entry,
           chosenByCreator: true,
         );
   }

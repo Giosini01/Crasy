@@ -197,6 +197,7 @@ exports.purgeOldChallenges = onSchedule('every 60 minutes', async () => {
   // quantita' di gare che questa app possa ragionevolmente produrre.
   const old = await db
     .collection('challenges')
+    .where('purgedAt', '==', null)
     .where('endsAt', '<=', cutoff)
     .limit(20)
     .get();
@@ -219,10 +220,19 @@ exports.purgeOldChallenges = onSchedule('every 60 minutes', async () => {
 
     const entries = await challenge.ref.collection('entries').limit(500).get();
 
+    // **La foto che ha vinto non si tocca.**
+    //
+    // E' il trofeo: sta nella bacheca di chi ha vinto e in quella di chi ha
+    // commissionato la gara, e cancellarla vorrebbe dire togliere a una persona
+    // l'unica prova di aver preso dei soldi qui dentro. Si tiene **una foto per
+    // gara** invece di quaranta, che e' il novantasette per cento di magazzino
+    // risparmiato lo stesso.
+    const winnerEntryId = challenge.get('winnerEntryId') || '';
+
     for (const entry of entries.docs) {
       const path = entry.get('storagePath');
 
-      if (path) {
+      if (path && entry.id !== winnerEntryId) {
         try {
           await bucket.file(path).delete({ ignoreNotFound: true });
           files++;
@@ -234,11 +244,21 @@ exports.purgeOldChallenges = onSchedule('every 60 minutes', async () => {
       await entry.ref.delete();
     }
 
-    await challenge.ref.delete();
+    // **La gara non si cancella piu': e' diventata il trofeo.**
+    //
+    // Il documento e' piccolo — poche righe di testo — e dentro ci sono il
+    // titolo, il premio, chi ha vinto e l'indirizzo della foto. A pesare erano
+    // le foto, e quelle se ne sono andate. Si segna il giro dello spazzino,
+    // cosi' la prossima volta non ripassa da qui: senza questa riga il filtro
+    // ripescherebbe sempre le stesse venti gare gia' svuotate, e quelle nuove
+    // non arriverebbero mai in cima alla fila.
+    await challenge.ref.update({
+      purgedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
     challenges++;
   }
 
-  logger.info(`Cancellate ${challenges} challenge vecchie e ${files} file.`);
+  logger.info(`Svuotate ${challenges} challenge vecchie e ${files} file.`);
 });
 
 /**

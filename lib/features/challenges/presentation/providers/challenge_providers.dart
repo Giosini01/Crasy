@@ -221,6 +221,60 @@ final votedEntryIdsProvider = StreamProvider<Set<String>>((ref) {
       .watchVotedEntryIds(authState.user.id);
 });
 
+/// I miei trofei: le gare che ho vinto.
+///
+/// Sono gare, non partecipazioni, e la differenza conta: la partecipazione
+/// viene cancellata quarantotto ore dopo la fine, la gara con dentro la foto
+/// vincente resta. E' il motivo per cui una vittoria si guarda da qui e non
+/// dall'elenco delle proprie foto.
+/// I trofei di chiunque, non solo i propri.
+///
+/// E' per famiglia perche' una bacheca serve **soprattutto guardata da fuori**:
+/// il proprio profilo lo si conosce gia', quello di un altro e' dove si scopre
+/// che qui si vince davvero.
+final trophiesOfProvider = StreamProvider.family<List<Challenge>, String>((
+  ref,
+  userId,
+) {
+  return ref.watch(challengeRepositoryProvider).watchTrophiesOf(userId);
+});
+
+final myTrophiesProvider = StreamProvider<List<Challenge>>((ref) {
+  final authState = ref.watch(authStateProvider);
+
+  if (authState is! AuthenticatedAuthState) {
+    return Stream.value(const <Challenge>[]);
+  }
+
+  return ref
+      .watch(challengeRepositoryProvider)
+      .watchTrophiesOf(authState.user.id);
+});
+
+/// Le gare che ho commissionato e che hanno prodotto qualcosa.
+///
+/// Chi mette i soldi non gareggia, quindi non vincera' mai niente: senza
+/// questo, del gesto piu' impegnativo dell'app non resterebbe traccia da
+/// nessuna parte.
+final commissionsOfProvider = StreamProvider.family<List<Challenge>, String>((
+  ref,
+  userId,
+) {
+  return ref.watch(challengeRepositoryProvider).watchCommissionedBy(userId);
+});
+
+final myCommissionsProvider = StreamProvider<List<Challenge>>((ref) {
+  final authState = ref.watch(authStateProvider);
+
+  if (authState is! AuthenticatedAuthState) {
+    return Stream.value(const <Challenge>[]);
+  }
+
+  return ref
+      .watch(challengeRepositoryProvider)
+      .watchCommissionedBy(authState.user.id);
+});
+
 /// A quante gare posso ancora partecipare oggi.
 ///
 /// Si conta su quello che l'app ha gia' in mano — le mie partecipazioni — senza

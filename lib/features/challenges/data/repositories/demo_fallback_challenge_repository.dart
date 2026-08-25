@@ -120,14 +120,49 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
     required String challengeId,
     required String winnerEntryId,
     required String winnerUserId,
+    ChallengeEntry? winner,
     bool chosenByCreator = false,
   }) {
     return _forChallenge(challengeId).proclaimWinner(
       challengeId: challengeId,
       winnerEntryId: winnerEntryId,
       winnerUserId: winnerUserId,
+      winner: winner,
       chosenByCreator: chosenByCreator,
     );
+  }
+
+  @override
+  Stream<List<Challenge>> watchTrophiesOf(String userId) {
+    return _unione(
+      _remote.watchTrophiesOf(userId),
+      _samples.watchTrophiesOf(userId),
+    );
+  }
+
+  @override
+  Stream<List<Challenge>> watchCommissionedBy(String userId) {
+    return _unione(
+      _remote.watchCommissionedBy(userId),
+      _samples.watchCommissionedBy(userId),
+    );
+  }
+
+  /// Le gare vere e quelle di esempio in un'unica bacheca, dalla piu' recente.
+  ///
+  /// Una gara di prova vinta e' un trofeo a tutti gli effetti: e' il modo in cui
+  /// chi apre l'app per la prima volta vede com'e' fatta questa sezione, invece
+  /// di trovarla vuota e non capire a cosa serva.
+  Stream<List<Challenge>> _unione(
+    Stream<List<Challenge>> vere,
+    Stream<List<Challenge>> esempi,
+  ) {
+    return vere.asyncExpand((remote) {
+      return esempi.map(
+        (demo) =>
+            [...remote, ...demo]..sort((a, b) => b.endsAt.compareTo(a.endsAt)),
+      );
+    });
   }
 
   @override

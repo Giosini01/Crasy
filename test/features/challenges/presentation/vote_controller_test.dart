@@ -524,7 +524,10 @@ void main() {
       final intents = container.read(voteIntentsProvider.notifier);
 
       for (var i = 0; i < Challenge.firesPerChallenge; i++) {
-        intents.want('gara-1__foto-$i', const VoteIntent(voted: true, votes: 1));
+        intents.want(
+          'gara-1__foto-$i',
+          const VoteIntent(voted: true, votes: 1),
+        );
       }
 
       expect(container.read(firesLeftProvider('gara-1')), 0);
@@ -535,7 +538,10 @@ void main() {
       // Bruno entra con le sue tre fiamme intatte. Se il conto si portasse
       // dietro quello di Anna, si ritroverebbe una gara in cui non puo' votare
       // senza aver mai toccato niente.
-      expect(container.read(firesLeftProvider('gara-1')), Challenge.firesPerChallenge);
+      expect(
+        container.read(firesLeftProvider('gara-1')),
+        Challenge.firesPerChallenge,
+      );
     });
   });
 }

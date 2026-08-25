@@ -361,8 +361,36 @@ service cloud.firestore {
       // Era vero anche prima, ed e' una delle ragioni per cui questa strada
       // deve sparire il giorno in cui il server si accende — cosa che succede
       // da sola, perche' vale solo finche' CRASY non ha un centesimo in cassa.
+      // **La foto del trofeo dev'essere quella che ha davvero vinto.**
+      //
+      // Insieme al vincitore si scrive nella gara una copia della sua foto:
+      // serve a farla sopravvivere alla pulizia che quarantotto ore dopo
+      // cancella le partecipazioni. Ma una copia e' un dato scritto da un
+      // telefono, e senza questo controllo chiunque potrebbe proclamare un
+      // vincitore e attaccarci l'immagine che vuole — una figurina falsa nella
+      // bacheca di qualcun altro.
+      //
+      // Si va a leggere la partecipazione dichiarata vincente e si pretende che
+      // l'indirizzo combaci. Vale finche' quella partecipazione esiste, cioe'
+      // esattamente il momento in cui si proclama.
+      //
+      // Vincitore vuoto vuol dire "non ha partecipato nessuno": non c'e'
+      // nessuna foto da controllare, e la seconda meta' non viene nemmeno
+      // valutata.
+      function winnerPhotoIsReal() {
+        return request.resource.data.winnerEntryId == ''
+               || request.resource.data.winnerMediaUrl == get(
+                    /databases/$(database)/documents/challenges/$(challengeId)/entries/$(request.resource.data.winnerEntryId)
+                  ).data.mediaUrl;
+      }
+
       allow update: if signedIn()
-                    && changedOnly(['winnerEntryId', 'winnerUserId', 'chosenByCreator'])
+                    && changedOnly([
+                         'winnerEntryId', 'winnerUserId', 'chosenByCreator',
+                         'winnerUsername', 'winnerMediaUrl',
+                         'winnerMediaKind', 'winnerVotes'
+                       ])
+                    && winnerPhotoIsReal()
                     && resource.data.get('prizeStatus', 'unpaid') == 'unpaid'
                     && resource.data.get('winnerEntryId', null) == null
                     && (

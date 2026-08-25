@@ -15,6 +15,7 @@ import 'package:crasy/features/friends/presentation/providers/friends_providers.
 import 'package:crasy/features/payments/presentation/widgets/wallet_card.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/widgets/profile_shelf.dart';
+import 'package:crasy/features/profile/presentation/widgets/trophy_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -92,11 +93,14 @@ class _BodyState extends ConsumerState<_Body> {
     final wins = entries.where((entry) => entry.isWinner).length;
     final liveChallenges =
         ref.watch(liveChallengesProvider).valueOrNull ?? const <Challenge>[];
-    final shown = shelfEntries(
-      _shelf,
+    final shown = liveEntries(
       entries,
       liveChallenges.map((challenge) => challenge.id).toSet(),
     );
+    final trophies =
+        ref.watch(trophiesOfProvider(profile.id)).valueOrNull ?? const [];
+    final commissions =
+        ref.watch(commissionsOfProvider(profile.id)).valueOrNull ?? const [];
 
     return ListView(
       padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
@@ -150,20 +154,35 @@ class _BodyState extends ConsumerState<_Body> {
           selected: _shelf,
           onPick: (shelf) => setState(() => _shelf = shelf),
         ),
-        if (shown.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-            child: EmptyState(
-              title: _shelf == ProfileShelf.live
-                  ? 'Non e\' in nessuna gara'
-                  : 'Non ha ancora vinto',
-              message: _shelf == ProfileShelf.live
-                  ? 'Quando partecipa a una challenge aperta lo vedi qui.'
-                  : 'Le foto con cui vince restano qui.',
-            ),
-          )
-        else
-          _EntryGrid(entries: shown),
+        switch (_shelf) {
+          ProfileShelf.live =>
+            shown.isEmpty
+                ? const _EmptyShelf(
+                    title: 'Non e\' in nessuna gara',
+                    message:
+                        'Quando partecipa a una challenge aperta lo vedi qui.',
+                  )
+                : _EntryGrid(entries: shown),
+          ProfileShelf.trophies =>
+            trophies.isEmpty
+                ? const _EmptyShelf(
+                    title: 'Non ha ancora vinto',
+                    message: 'Le foto con cui vince restano qui.',
+                  )
+                : TrophyGrid(challenges: trophies, kind: TrophyKind.won),
+          ProfileShelf.commissioned =>
+            commissions.isEmpty
+                ? const _EmptyShelf(
+                    title: 'Non ha ancora fatto fare niente',
+                    message:
+                        'Qui finiscono le foto che ha fatto fare mettendo dei '
+                        'soldi in palio.',
+                  )
+                : TrophyGrid(
+                    challenges: commissions,
+                    kind: TrophyKind.commissioned,
+                  ),
+        },
       ],
     );
   }
@@ -404,6 +423,26 @@ class _EntryGrid extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Il messaggio quando una sezione non ha ancora niente dentro.
+///
+/// Dice **cosa ci finira'**, non "nessun risultato": una sezione vuota che
+/// spiega come si riempie e' un invito, una che constata il vuoto e' una porta
+/// chiusa.
+class _EmptyShelf extends StatelessWidget {
+  const _EmptyShelf({required this.title, required this.message});
+
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+      child: EmptyState(title: title, message: message),
     );
   }
 }

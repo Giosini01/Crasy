@@ -256,6 +256,7 @@ class SampleChallengeRepository implements ChallengeRepository {
     required String challengeId,
     required String winnerEntryId,
     required String winnerUserId,
+    ChallengeEntry? winner,
     bool chosenByCreator = false,
   }) async {
     final challenge = _challenges[challengeId];
@@ -266,7 +267,14 @@ class SampleChallengeRepository implements ChallengeRepository {
 
     _challenges[challengeId] = challenge.copyWith(
       winnerEntryId: winnerEntryId,
+      winnerUserId: winnerUserId,
       chosenByCreator: chosenByCreator,
+      // Come nel repository vero: la foto vincente si ricopia sulla gara, e da
+      // li' in poi il trofeo non dipende piu' dalla partecipazione.
+      winnerUsername: winner?.authorName ?? '',
+      winnerMediaUrl: winner?.mediaUrl ?? '',
+      winnerMediaKind: winner?.mediaKind ?? MediaKind.photo,
+      winnerVotes: winner?.votes ?? 0,
     );
 
     final entries = _entries[challengeId];
@@ -282,6 +290,28 @@ class SampleChallengeRepository implements ChallengeRepository {
   @override
   Stream<Set<String>> watchVotedEntryIds(String userId) {
     return _watch(() => {...?_votes[userId]});
+  }
+
+  @override
+  Stream<List<Challenge>> watchTrophiesOf(String userId) {
+    return _watch(
+      () => [
+        for (final challenge in _challenges.values)
+          if (challenge.hasTrophy && challenge.winnerUserId == userId)
+            challenge,
+      ],
+    );
+  }
+
+  @override
+  Stream<List<Challenge>> watchCommissionedBy(String userId) {
+    return _watch(
+      () => [
+        for (final challenge in _challenges.values)
+          if (challenge.hasTrophy && challenge.createdByUserId == userId)
+            challenge,
+      ],
+    );
   }
 
   static final DateTime _never = DateTime.fromMillisecondsSinceEpoch(0);

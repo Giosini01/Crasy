@@ -28,6 +28,11 @@ abstract final class ChallengeMapper {
       participantsCount: (data['participantsCount'] as num?)?.toInt() ?? 0,
       chosenByCreator: data['chosenByCreator'] as bool? ?? false,
       winnerEntryId: data['winnerEntryId'] as String?,
+      winnerUserId: data['winnerUserId'] as String? ?? '',
+      winnerUsername: data['winnerUsername'] as String? ?? '',
+      winnerMediaUrl: data['winnerMediaUrl'] as String? ?? '',
+      winnerMediaKind: MediaKind.fromName(data['winnerMediaKind'] as String?),
+      winnerVotes: (data['winnerVotes'] as num?)?.toInt() ?? 0,
       prizeStatus: PrizeStatus.fromName(data['prizeStatus'] as String?),
     );
   }
@@ -58,6 +63,13 @@ abstract final class ChallengeMapper {
       // impongono la stessa cosa dall'altra parte.
       'prizeStatus': PrizeStatus.unpaid.name,
       'createdAt': FieldValue.serverTimestamp(),
+      // **Nasce esplicitamente non ripulita, e il `null` scritto serve.**
+      //
+      // Lo spazzino cerca le gare da svuotare con `purgedAt == null`, e per
+      // Firestore un campo che non c'e' non corrisponde a nessun confronto —
+      // nemmeno a quello con `null`. Senza questa riga la gara non verrebbe
+      // trovata mai, e le sue foto resterebbero in magazzino per sempre.
+      'purgedAt': null,
     };
   }
 

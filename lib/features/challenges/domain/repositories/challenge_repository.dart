@@ -76,10 +76,24 @@ abstract class ChallengeRepository {
   ///
   /// [winnerEntryId] vuoto vuol dire "nessuno ha partecipato": si scrive lo
   /// stesso, per non ricontrollare la stessa gara per sempre.
+  /// [winner] e' la partecipazione che ha vinto, quando c'e'. Serve a
+  /// ricopiare la foto dentro la gara — il trofeo sopravvive alla pulizia che
+  /// quarantotto ore dopo cancella le partecipazioni.
   Future<void> proclaimWinner({
     required String challengeId,
     required String winnerEntryId,
     required String winnerUserId,
+    ChallengeEntry? winner,
     bool chosenByCreator = false,
   });
+
+  /// Le gare che [userId] ha **vinto**. La sua bacheca dei trofei.
+  Stream<List<Challenge>> watchTrophiesOf(String userId);
+
+  /// Le gare che [userId] ha **commissionato** e che hanno prodotto qualcosa.
+  ///
+  /// Chi mette i soldi non gareggia, quindi non vincera' mai niente: senza
+  /// questo, del gesto piu' impegnativo dell'app non resterebbe traccia. Qui
+  /// resta la foto che ha fatto fare.
+  Stream<List<Challenge>> watchCommissionedBy(String userId);
 }

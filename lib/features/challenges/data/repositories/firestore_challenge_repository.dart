@@ -342,6 +342,7 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     required String challengeId,
     required String winnerEntryId,
     required String winnerUserId,
+    ChallengeEntry? winner,
     bool chosenByCreator = false,
   }) async {
     final challengeRef = _challenges.doc(challengeId);
@@ -352,6 +353,22 @@ class FirestoreChallengeRepository implements ChallengeRepository {
         // Chi guarda ha diritto di sapere se quel premio e' stato **assegnato**
         // o e' semplicemente scaduto in mano a chi aveva piu' fiamme.
         'chosenByCreator': chosenByCreator,
+        // **La foto che ha vinto si ricopia qui dentro.**
+        //
+        // E' lo stesso dato che sta nella partecipazione, e la duplicazione e'
+        // voluta: quarantotto ore dopo la fine le partecipazioni vengono
+        // cancellate insieme alle foto, e con loro sparirebbe la prova di aver
+        // vinto. Copiata qui, sopravvive — e si tiene **una foto per gara**
+        // invece di quaranta.
+        //
+        // Si scrive nella stessa scrittura della proclamazione, non dopo: due
+        // scritture separate vogliono dire che la seconda puo' non arrivare, e
+        // un trofeo mancante non se ne accorge nessuno finche' non lo cerca il
+        // suo proprietario, settimane dopo.
+        'winnerUsername': winner?.authorName ?? '',
+        'winnerMediaUrl': winner?.mediaUrl ?? '',
+        'winnerMediaKind': (winner?.mediaKind ?? MediaKind.photo).name,
+        'winnerVotes': winner?.votes ?? 0,
       });
 
     if (winnerEntryId.isNotEmpty) {
@@ -404,6 +421,36 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     }
 
     return '${challengeId}__$entryId';
+  }
+
+  @override
+  Stream<List<Challenge>> watchTrophiesOf(String userId) {
+    // Senza `orderBy`: incrociare un filtro e un ordinamento su campi diversi
+    // costringe Firestore a un indice composto, e un indice mancante non e' un
+    // errore che si vede scrivendo il codice — e' una schermata vuota in mano a
+    // qualcuno. Sono pochi documenti: si ordinano qui.
+    return _challenges
+        .where('winnerUserId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) => _mostRecentFirst(_challengesFrom(snapshot)));
+  }
+
+  @override
+  Stream<List<Challenge>> watchCommissionedBy(String userId) {
+    return _challenges
+        .where('createdByUserId', isEqualTo: userId)
+        .snapshots()
+        .map(
+          (snapshot) => _mostRecentFirst([
+            for (final challenge in _challengesFrom(snapshot))
+              if (challenge.hasTrophy) challenge,
+          ]),
+        );
+  }
+
+  /// La bacheca si legge dall'ultimo trofeo: e' quello di cui ci si ricorda.
+  static List<Challenge> _mostRecentFirst(List<Challenge> challenges) {
+    return challenges..sort((a, b) => b.endsAt.compareTo(a.endsAt));
   }
 
   List<Challenge> _challengesFrom(

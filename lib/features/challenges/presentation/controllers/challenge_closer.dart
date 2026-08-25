@@ -81,6 +81,7 @@ class ChallengeCloser {
             // stesso: senza, questa gara verrebbe ricontrollata per sempre.
             winnerEntryId: winner?.id ?? '',
             winnerUserId: winner?.userId ?? '',
+            winner: winner,
           );
     } on Exception catch (_) {
       // Il caso normale e' che qualcun altro l'abbia chiusa un istante prima.

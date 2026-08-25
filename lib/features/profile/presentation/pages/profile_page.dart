@@ -19,6 +19,7 @@ import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/controllers/profile_edit_controller.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:crasy/features/profile/presentation/widgets/profile_shelf.dart';
+import 'package:crasy/features/profile/presentation/widgets/trophy_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -51,7 +52,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final liveChallenges =
         ref.watch(liveChallengesProvider).valueOrNull ?? const <Challenge>[];
     final live = liveChallenges.map((challenge) => challenge.id).toSet();
-    final shown = shelfEntries(_shelf, entries, live);
+    final shown = liveEntries(entries, live);
+    final trophies = ref.watch(myTrophiesProvider).valueOrNull ?? const [];
+    final commissions =
+        ref.watch(myCommissionsProvider).valueOrNull ?? const [];
 
     return Scaffold(
       body: AppBackground(
@@ -111,24 +115,41 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           selected: _shelf,
                           onPick: (shelf) => setState(() => _shelf = shelf),
                         ),
-                        if (shown.isEmpty)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.page,
-                            ),
-                            child: EmptyState(
-                              title: _shelf == ProfileShelf.live
-                                  ? 'Non sei in nessuna gara'
-                                  : 'Ancora nessuna vittoria',
-                              message: _shelf == ProfileShelf.live
-                                  ? 'Le foto che mandi alle challenge aperte stanno '
-                                        'qui finche\' la gara non finisce.'
-                                  : 'Le foto con cui hai vinto restano qui, con il '
-                                        'premio che si sono prese.',
-                            ),
-                          )
-                        else
-                          _EntryGrid(entries: shown),
+                        switch (_shelf) {
+                          ProfileShelf.live =>
+                            shown.isEmpty
+                                ? const _EmptyShelf(
+                                    title: 'Non sei in nessuna gara',
+                                    message:
+                                        'Le foto che mandi alle challenge aperte stanno qui '
+                                        'finche\' la gara non finisce.',
+                                  )
+                                : _EntryGrid(entries: shown),
+                          ProfileShelf.trophies =>
+                            trophies.isEmpty
+                                ? const _EmptyShelf(
+                                    title: 'Ancora nessun trofeo',
+                                    message:
+                                        'La foto con cui vinci resta qui per sempre, con quanto '
+                                        'ti ha fatto incassare.',
+                                  )
+                                : TrophyGrid(
+                                    challenges: trophies,
+                                    kind: TrophyKind.won,
+                                  ),
+                          ProfileShelf.commissioned =>
+                            commissions.isEmpty
+                                ? const _EmptyShelf(
+                                    title: 'Non hai ancora fatto fare niente',
+                                    message:
+                                        'Lancia una challenge: la foto che sceglierai come '
+                                        'vincitrice resta qui, ed e\' roba che hai fatto fare tu.',
+                                  )
+                                : TrophyGrid(
+                                    challenges: commissions,
+                                    kind: TrophyKind.commissioned,
+                                  ),
+                        },
                         const SizedBox(height: AppSpacing.xl),
                         Center(
                           child: TextButton(
@@ -558,6 +579,26 @@ class _FireBadge extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Il messaggio quando una sezione non ha ancora niente dentro.
+///
+/// Dice **cosa ci finira'**, non "nessun risultato": una sezione vuota che
+/// spiega come si riempie e' un invito, una che constata il vuoto e' una porta
+/// chiusa.
+class _EmptyShelf extends StatelessWidget {
+  const _EmptyShelf({required this.title, required this.message});
+
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+      child: EmptyState(title: title, message: message),
     );
   }
 }
