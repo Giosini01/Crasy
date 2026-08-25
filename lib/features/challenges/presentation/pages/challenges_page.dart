@@ -35,7 +35,6 @@ class ChallengesPage extends ConsumerWidget {
             child: CustomScrollView(
               slivers: [
                 const _Header(),
-                const _Lives(),
                 challenges.when(
                   loading: () =>
                       const SliverToBoxAdapter(child: SizedBox.shrink()),
@@ -63,99 +62,36 @@ class ChallengesPage extends ConsumerWidget {
   }
 }
 
-class _Header extends StatelessWidget {
+/// L'intestazione: marchio, macchine fotografiche, comandi. **E resta li'.**
+///
+/// Prima scorreva via con la lista. Adesso e' incollata in alto, e il motivo e'
+/// quello che ci sta in mezzo: le partecipazioni rimaste oggi. Un tetto che si
+/// vede solo tornando in cima non serve a niente — la decisione su quali gare
+/// valgono la pena si prende **mentre si scorre**, guardando questa qui.
+class _Header extends ConsumerWidget {
   const _Header();
-
-  @override
-  Widget build(BuildContext context) {
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.page,
-        AppSpacing.md,
-        AppSpacing.page - AppSpacing.xs,
-        AppSpacing.xl,
-      ),
-      sliver: SliverToBoxAdapter(
-        child: CrasyHeader(
-          action: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // La campanella prima del piu': si guarda cosa e' successo molte
-              // volte al giorno, si lancia una challenge una volta ogni tanto.
-              // L'ordine delle due icone e' l'ordine in cui si usano.
-              const NotificationBell(),
-              // **Il piu' e' rosso**, ed e' l'unica icona dell'app che lo sia.
-              //
-              // Il rosso qui dentro vuol dire premio, fiamma, attivo — e questo
-              // comando e' il gesto con cui si mettono dei soldi in palio, cioe'
-              // la cosa da cui nasce tutto il resto. Nero come le altre non si
-              // capiva a cosa servisse: sembrava un piu' qualunque in cima a una
-              // schermata piena di challenge, non il modo di lanciarne una.
-              IconButton(
-                onPressed: () => context.push(AppRoutes.create),
-                icon: Icon(Icons.add_rounded, color: context.palette.accent),
-                tooltip: 'Lancia una challenge',
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Le partecipazioni che restano oggi.
-///
-/// **Cinque al giorno, e poi si aspetta domani.** Senza un tetto, l'unica
-/// strategia che paga e' partecipare a tutto: venti scatti fatti male sperando
-/// che uno prenda delle fiamme per caso. Con cinque in mano bisogna scegliere a
-/// quali gare si tiene davvero.
-///
-/// **Resta incollata in cima mentre si scorre, e non sparisce mai.** Prima si
-/// nascondeva quando erano tutte e cinque intatte, con l'idea che a inizio
-/// giornata non ci fosse niente da sapere. Era sbagliato, e per due motivi.
-/// Il primo: un tetto che si vede solo quando lo stai gia' consumando arriva
-/// sempre tardi — la scelta di quali gare valgono la pena si fa **prima** di
-/// bruciare la prima. Il secondo: le gare si guardano scorrendo, e una riga in
-/// cima alla lista, dopo due schermate, e' come se non ci fosse. Quando decidi
-/// se partecipare a questa qui, il numero deve essere ancora sotto gli occhi.
-///
-/// Il prezzo e' una striscia di quaranta pixel che sta li' sempre, ed e' un
-/// prezzo giusto: e' l'unica cosa in tutta l'app che dice quanto ti resta.
-class _Lives extends ConsumerWidget {
-  const _Lives();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SliverPersistentHeader(
       pinned: true,
-      delegate: _LivesBar(
+      delegate: _HeaderBar(
         left: ref.watch(livesLeftProvider),
         palette: context.palette,
-        text: context.texts.labelSmall,
       ),
     );
   }
 }
 
-/// La striscia vera e propria, con il fondo pieno.
-///
-/// Il fondo **deve** essere opaco: da fermo e' invisibile perche' e' lo stesso
-/// colore della pagina, ma mentre si scorre e' l'unica cosa che impedisce alle
-/// foto delle gare di passarci attraverso.
-class _LivesBar extends SliverPersistentHeaderDelegate {
-  const _LivesBar({
-    required this.left,
-    required this.palette,
-    required this.text,
-  });
+class _HeaderBar extends SliverPersistentHeaderDelegate {
+  const _HeaderBar({required this.left, required this.palette});
 
   final int left;
   final AppPalette palette;
-  final TextStyle? text;
 
-  /// Quanto e' alta: una riga da undici punti, le sue icone, e l'aria intorno.
-  static const double _height = 40;
+  static const double _top = AppSpacing.md;
+  static const double _bottom = AppSpacing.sm;
+  static const double _height = CrasyHeader.height + _top + _bottom;
 
   @override
   double get minExtent => _height;
@@ -164,53 +100,131 @@ class _LivesBar extends SliverPersistentHeaderDelegate {
   double get maxExtent => _height;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    final finite = left == 0;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: palette.background,
-        // Il filetto compare **solo quando qualcosa le sta scorrendo sotto**.
-        // Da fermo separerebbe due cose che sono la stessa cosa; in movimento
-        // dice dove finisce quello che resta li' e dove comincia quello che
-        // scorre.
-        border: overlapsContent
-            ? Border(bottom: BorderSide(color: palette.line, width: 0.5))
-            : null,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-        child: Row(
-          children: [
-            for (var i = 0; i < Challenge.livesPerDay; i++)
-              Padding(
-                padding: const EdgeInsets.only(right: 3),
-                child: Icon(
-                  i < left
-                      ? Icons.photo_camera_rounded
-                      : Icons.photo_camera_outlined,
-                  size: 14,
-                  color: i < left ? palette.accent : palette.line,
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    // **Il riquadro riempie tutta l'altezza dichiarata.** Lasciato libero si
+    // stringe sul contenuto, e una striscia che occupa meno spazio di quello
+    // che ha chiesto lascia passare le foto sotto il proprio fondo.
+    return SizedBox.expand(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          // Il fondo **deve** essere pieno: da fermo e' invisibile perche' e'
+          // lo stesso colore della pagina, ma mentre si scorre e' l'unica cosa
+          // che impedisce alle foto di passarci attraverso.
+          color: palette.background,
+          // Il filetto compare solo quando qualcosa sta scorrendo sotto. Da
+          // fermo separerebbe due cose che sono la stessa cosa; in movimento
+          // dice dove finisce quello che resta e dove comincia quello che va.
+          border: overlapsContent
+              ? Border(bottom: BorderSide(color: palette.line, width: 0.5))
+              : null,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.page,
+            _top,
+            AppSpacing.page - AppSpacing.xs,
+            _bottom,
+          ),
+          child: CrasyHeader(
+            middle: _Lives(left: left, palette: palette),
+            action: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // La campanella prima del piu': si guarda cosa e' successo
+                // molte volte al giorno, si lancia una challenge una volta ogni
+                // tanto. L'ordine delle due icone e' l'ordine in cui si usano.
+                const NotificationBell(),
+                // **Il piu' e' rosso**, ed e' l'unica icona dell'app che lo sia.
+                //
+                // Il rosso qui dentro vuol dire premio, fiamma, attivo — e
+                // questo comando e' il gesto con cui si mettono dei soldi in
+                // palio, cioe' la cosa da cui nasce tutto il resto. Nero come le
+                // altre non si capiva a cosa servisse: sembrava un piu'
+                // qualunque in cima a una schermata piena di challenge, non il
+                // modo di lanciarne una.
+                IconButton(
+                  onPressed: () => context.push(AppRoutes.create),
+                  icon: Icon(Icons.add_rounded, color: palette.accent),
+                  tooltip: 'Lancia una challenge',
                 ),
-              ),
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-              finite
-                  ? 'FINITE PER OGGI, DOMANI RICOMINCI'
-                  : 'PUOI PARTECIPARE AD ALTRE $left OGGI',
-              style: text?.copyWith(
-                color: finite ? palette.textFaint : palette.accent,
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   @override
-  bool shouldRebuild(_LivesBar old) =>
-      old.left != left || old.palette != palette || old.text != text;
+  bool shouldRebuild(_HeaderBar old) =>
+      old.left != left || old.palette != palette;
+}
+
+/// Le partecipazioni che restano oggi: cinque macchine fotografiche e basta.
+///
+/// **Cinque al giorno, e poi si aspetta domani.** Senza un tetto, l'unica
+/// strategia che paga e' partecipare a tutto: venti scatti fatti male sperando
+/// che uno prenda delle fiamme per caso. Con cinque in mano bisogna scegliere a
+/// quali gare si tiene davvero.
+///
+/// **Senza scritte.** Una riga come "puoi partecipare ad altre tre oggi" dice
+/// la stessa cosa dei disegni ma occupa l'intestazione, e in cima a una
+/// schermata lo spazio e' l'unica valuta che c'e'. Cinque sagome che si
+/// spengono una alla volta sono un contatore che si legge senza leggere: quante
+/// sono rosse, quante grigie. La frase resta comunque raggiungibile — si tiene
+/// il dito sopra, o si tocca — per chi la prima volta non capisce cosa siano.
+class _Lives extends StatelessWidget {
+  const _Lives({required this.left, required this.palette});
+
+  final int left;
+  final AppPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final frase = left == 0
+        ? 'Hai finito le partecipazioni di oggi: domani ricominci da cinque.'
+        : 'Puoi partecipare ad altre $left gare oggi.';
+
+    return Tooltip(
+      message: frase,
+      child: Semantics(
+        label: frase,
+        excludeSemantics: true,
+        child: GestureDetector(
+          // Toccarle non porta da nessuna parte: dice cosa sono. E' la sola
+          // spiegazione rimasta dopo aver tolto la scritta, e senza di essa
+          // cinque disegnini in cima allo schermo restano un mistero.
+          onTap: () => ScaffoldMessenger.maybeOf(
+            context,
+          )?.showSnackBar(SnackBar(content: Text(frase))),
+          behavior: HitTestBehavior.opaque,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < Challenge.livesPerDay; i++)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Icon(
+                    // Quella spesa diventa il contorno vuoto, non solo grigia:
+                    // il colore da solo non basta a chi non lo distingue, e la
+                    // forma piena contro la forma vuota si vede comunque.
+                    i < left
+                        ? Icons.photo_camera_rounded
+                        : Icons.photo_camera_outlined,
+                    size: 16,
+                    color: i < left ? palette.accent : palette.line,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Un messaggio al posto delle challenge, con lo stesso margine laterale che
@@ -242,7 +256,7 @@ class _ChallengeList extends StatelessWidget {
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.page,
-        AppSpacing.md,
+        AppSpacing.lg,
         AppSpacing.page,
         AppSpacing.section,
       ),

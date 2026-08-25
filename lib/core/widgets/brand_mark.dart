@@ -64,7 +64,18 @@ class CrasyWordmark extends StatelessWidget {
 /// finisce dentro: con o senza comando a destra, il segno si posa sempre alla
 /// stessa quota.
 class CrasyHeader extends StatelessWidget {
-  const CrasyHeader({this.action, super.key});
+  const CrasyHeader({this.middle, this.action, super.key});
+
+  /// Cosa sta **in mezzo**, fra il marchio e i comandi.
+  ///
+  /// E' il posto piu' prezioso della schermata — l'occhio ci passa sopra ogni
+  /// volta che risale in cima — quindi ci va una cosa sola e piccola. Oggi ci
+  /// stanno le partecipazioni rimaste per oggi.
+  ///
+  /// Sta fra due spazi elastici, quindi si trova a meta' strada fra il segno e
+  /// i comandi, non al centro dello schermo: e' li' che l'occhio se lo aspetta,
+  /// perche' quel centro e' fatto dalle due cose che lo circondano.
+  final Widget? middle;
 
   /// Il comando a destra, se la scheda ne ha uno. Solo la home ce l'ha.
   final Widget? action;
@@ -80,7 +91,15 @@ class CrasyHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: height,
-      child: Row(children: [const CrasyWordmark(), const Spacer(), ?action]),
+      child: Row(
+        children: [
+          const CrasyWordmark(),
+          const Spacer(),
+          ?middle,
+          const Spacer(),
+          ?action,
+        ],
+      ),
     );
   }
 }

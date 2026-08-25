@@ -30,6 +30,17 @@ enum VoteOutcome {
   noFiresLeft,
 }
 
+/// Chi sta votando adesso.
+///
+/// Un provider a se' invece di leggere lo stato dell'accesso dove serve: cosi'
+/// chi dipende dall'identita' si riaggiorna **solo quando l'identita' cambia**
+/// davvero, e non a ogni notizia che riguarda l'account.
+final voterIdProvider = Provider<String>((ref) {
+  final authState = ref.watch(authStateProvider);
+
+  return authState is AuthenticatedAuthState ? authState.user.id : guestVoterId;
+});
+
 /// **Come deve vedersi una fiamma adesso**, mentre il server non ha ancora
 /// risposto.
 ///
@@ -76,6 +87,23 @@ class VoteIntent {
 class VoteIntents extends Notifier<Map<String, VoteIntent>> {
   @override
   Map<String, VoteIntent> build() {
+    // **Le richieste appartengono a chi le ha fatte, e cambiando account non
+    // valgono piu' niente.**
+    //
+    // Questa riga chiude un difetto vero: davo la fiamma con un account,
+    // passavo a un altro, e la fiamma risultava data anche li'. La causa e' che
+    // una richiesta si chiude solo quando il server conferma *quella stessa
+    // cosa*; se l'account cambia prima della conferma, l'elenco dei voti che
+    // arriva e' di un'altra persona e non la conferma mai — cosi' la richiesta
+    // restava in memoria, e la fiamma di uno si vedeva accesa addosso a un
+    // altro. Con dei soldi in palio, un voto attribuito alla persona sbagliata
+    // e' fra le cose peggiori che possano succedere.
+    //
+    // Leggendo l'identita' qui dentro, il cambio di account ricostruisce questo
+    // oggetto da zero: le richieste dell'account di prima spariscono nello
+    // stesso istante in cui sparisce l'account.
+    ref.watch(voterIdProvider);
+
     // L'elenco dei voti confermati e' l'unica cosa che puo' chiudere una
     // richiesta: e' la risposta del server alla domanda che si e' fatta.
     ref.listen(votedEntryIdsProvider, (_, next) => _settle(next.valueOrNull));

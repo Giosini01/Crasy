@@ -60,4 +60,14 @@ class FakeAuthRepository implements AuthRepository {
     currentUser = null;
     _controller.add(null);
   }
+
+  /// Cambia account senza passare da un accesso vero.
+  ///
+  /// Serve alle prove che devono guardare **cosa resta appiccicato** quando
+  /// l'identita' cambia: e' li' che si nascondono i difetti in cui la roba di
+  /// una persona si vede addosso a un'altra.
+  void becomes(AppUser? user) {
+    currentUser = user;
+    _controller.add(user);
+  }
 }

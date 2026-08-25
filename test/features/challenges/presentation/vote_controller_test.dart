@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:crasy/features/auth/domain/entities/app_user.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
@@ -463,6 +464,78 @@ void main() {
 
       expect(container.read(firesLeftProvider(primaId)), 0);
       expect(container.read(firesLeftProvider(secondaId)), 3);
+    });
+  });
+
+  group('cambiando account', () {
+    /// Un contenitore con dentro una persona vera, non un ospite.
+    (ProviderContainer, FakeAuthRepository) containerCon(String userId) {
+      final authRepository = FakeAuthRepository(
+        currentUser: AppUser(id: userId, email: '$userId@esempio.it'),
+      );
+      final container = ProviderContainer(
+        overrides: [authRepositoryProvider.overrideWithValue(authRepository)],
+      );
+
+      addTearDown(() {
+        authRepository.dispose();
+        container.dispose();
+      });
+
+      return (container, authRepository);
+    }
+
+    test('le fiamme di uno non si vedono addosso a un altro', () async {
+      final (container, auth) = containerCon('anna');
+
+      // Lo stato dell'accesso va ascoltato o resta fermo su "sto caricando":
+      // e' un Notifier, e senza nessuno in ascolto non si accorge di niente.
+      final sessione = container.listen(authStateProvider, (_, _) {});
+      addTearDown(sessione.close);
+      await Future<void>.delayed(Duration.zero);
+
+      const voteKey = 'gara-1__foto-1';
+
+      // Anna accende la fiamma. La richiesta resta in volo — e' esattamente il
+      // momento in cui prima si rompeva: se l'account cambia adesso, la
+      // conferma che arriva e' di un'altra persona e non chiude piu' niente.
+      container
+          .read(voteIntentsProvider.notifier)
+          .want(voteKey, const VoteIntent(voted: true, votes: 1));
+
+      expect(container.read(entryVotedProvider(voteKey)), isTrue);
+
+      // Entra Bruno.
+      auth.becomes(const AppUser(id: 'bruno', email: 'bruno@esempio.it'));
+      await Future<void>.delayed(Duration.zero);
+
+      // **Bruno non ha votato niente.** Prima qui la fiamma era accesa, e il
+      // numero sotto la foto diceva uno: il gesto di Anna attribuito a lui.
+      expect(container.read(voteIntentsProvider), isEmpty);
+      expect(container.read(entryVotedProvider(voteKey)), isFalse);
+    });
+
+    test('nemmeno le fiamme rimaste da spendere si portano dietro', () async {
+      final (container, auth) = containerCon('anna');
+      final sessione = container.listen(authStateProvider, (_, _) {});
+      addTearDown(sessione.close);
+      await Future<void>.delayed(Duration.zero);
+
+      final intents = container.read(voteIntentsProvider.notifier);
+
+      for (var i = 0; i < Challenge.firesPerChallenge; i++) {
+        intents.want('gara-1__foto-$i', const VoteIntent(voted: true, votes: 1));
+      }
+
+      expect(container.read(firesLeftProvider('gara-1')), 0);
+
+      auth.becomes(const AppUser(id: 'bruno', email: 'bruno@esempio.it'));
+      await Future<void>.delayed(Duration.zero);
+
+      // Bruno entra con le sue tre fiamme intatte. Se il conto si portasse
+      // dietro quello di Anna, si ritroverebbe una gara in cui non puo' votare
+      // senza aver mai toccato niente.
+      expect(container.read(firesLeftProvider('gara-1')), Challenge.firesPerChallenge);
     });
   });
 }
