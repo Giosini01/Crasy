@@ -128,10 +128,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           ProfileShelf.trophies =>
                             trophies.isEmpty
                                 ? const _EmptyShelf(
-                                    title: 'Ancora nessun trofeo',
+                                    title: 'Nessun trofeo, per ora',
                                     message:
-                                        'La foto con cui vinci resta qui per sempre, con quanto '
-                                        'ti ha fatto incassare.',
+                                        'Qui finiscono le missioni che vinci: '
+                                        'la foto resta, con quanto ti ha fatto '
+                                        'incassare. Partecipa a una challenge '
+                                        'e prenditi la prima.',
                                   )
                                 : TrophyGrid(
                                     challenges: trophies,

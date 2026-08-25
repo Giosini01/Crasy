@@ -325,7 +325,20 @@ class _EntriesState extends ConsumerState<_Entries> {
       final winner = entries.where((entry) => entry.id == winnerId).firstOrNull;
 
       if (winner != null) {
-        return EntryTile(entry: winner, showChallenge: false);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // **Perche' e' finita cosi'.**
+            //
+            // Un vincitore che compare senza spiegazioni lascia chi ha lanciato
+            // la gara a chiedersi perche' non gli sia stato chiesto niente. La
+            // risposta e' una sola riga, e cambia tutto: o ha scelto lui, o ha
+            // lasciato scadere le ventiquattro ore e ha deciso il conteggio
+            // delle fiamme.
+            _Verdict(challenge: challenge),
+            EntryTile(entry: winner, showChallenge: false),
+          ],
+        );
       }
     }
 
@@ -553,6 +566,13 @@ class _ChooseButton extends ConsumerWidget {
   final ChallengeEntry entry;
 
   Future<void> _choose(BuildContext context, WidgetRef ref) async {
+    // Presi **prima** della finestra di conferma: dopo un `await` il contesto
+    // puo' non esistere piu' — si e' tornati indietro, la schermata e' stata
+    // chiusa — e leggerlo li' e' un errore che si presenta una volta ogni
+    // cento, cioe' nel momento peggiore.
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final rossoCupo = context.palette.accentDeep;
+
     final conferma = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -581,15 +601,46 @@ class _ChooseButton extends ConsumerWidget {
       return;
     }
 
-    await ref
-        .read(challengeRepositoryProvider)
-        .proclaimWinner(
-          challengeId: challenge.id,
-          winnerEntryId: entry.id,
-          winnerUserId: entry.userId,
-          winner: entry,
-          chosenByCreator: true,
-        );
+    // **Se l'assegnazione non riesce, bisogna dirlo.**
+    //
+    // Prima non c'era niente qui intorno: la scrittura poteva fallire — rete
+    // caduta, gara chiusa un istante prima da qualcun altro, tempo per
+    // scegliere scaduto mentre la schermata era aperta — e sullo schermo non
+    // succedeva **assolutamente nulla**. Chi tocca "assegna" e non vede
+    // cambiare niente conclude che il comando non funziona, e non ha torto:
+    // dal suo lato del vetro e' esattamente quello che e' successo.
+    //
+    // Con dei soldi in palio, un gesto che sembra non aver fatto niente e' la
+    // cosa peggiore: o si ripete finche' non succede qualcosa, o si rinuncia
+    // pensando che l'app sia rotta.
+    try {
+      await ref
+          .read(challengeRepositoryProvider)
+          .proclaimWinner(
+            challengeId: challenge.id,
+            winnerEntryId: entry.id,
+            winnerUserId: entry.userId,
+            winner: entry,
+            chosenByCreator: true,
+          );
+    } on Object {
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Non siamo riusciti ad assegnare il premio. Se il tempo per '
+            'scegliere e\' scaduto, e\' andato da solo a chi aveva piu\' '
+            'fiamme; altrimenti riprova.',
+          ),
+          backgroundColor: rossoCupo,
+        ),
+      );
+
+      return;
+    }
+
+    messenger?.showSnackBar(
+      SnackBar(content: Text('Premio assegnato a @${entry.authorName}.')),
+    );
   }
 
   @override
@@ -647,6 +698,56 @@ class _FireBudget extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Come e' stato deciso il premio, in una riga.
+class _Verdict extends ConsumerWidget {
+  const _Verdict({required this.challenge});
+
+  final Challenge challenge;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+    final mine = ref.watch(currentUserIdProvider) == challenge.createdByUserId;
+    final scelto = challenge.chosenByCreator;
+
+    final testo = scelto
+        ? (mine
+              ? 'L\'hai scelta tu.'
+              : 'L\'ha scelta @${challenge.createdByUsername}, '
+                    'che aveva messo il premio.')
+        : (mine
+              // Non e' un rimprovero, e' un'informazione: la prossima volta si
+              // sa che le ventiquattro ore contano davvero.
+              ? 'Il tempo per scegliere e\' scaduto, e il premio e\' andato '
+                    'da solo a chi aveva piu\' fiamme.'
+              : 'Nessuno ha scelto entro il tempo: ha vinto chi aveva piu\' '
+                    'fiamme.');
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            scelto ? Icons.how_to_reg_rounded : Icons.timer_off_rounded,
+            size: 16,
+            color: palette.textFaint,
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              testo,
+              style: context.texts.bodySmall?.copyWith(
+                color: palette.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
