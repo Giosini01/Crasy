@@ -225,8 +225,27 @@ workflows:
         # Il caricamento usa **la stessa chiave rimessa a posto** del passo dei
         # certificati, non la variabile: cosi' c'e' un solo modo di leggerla, e
         # non due che possono divergere.
+        #
+        # **Si carica e basta: la revisione per i tester esterni non si chiede
+        # da qui.**
+        #
+        # C'era `--testflight`, che dopo il caricamento manda la build in
+        # revisione da Apple. Sembra comodo e su una build ogni tanto lo e'; su
+        # una build a ogni modifica no, perche' Apple ne tiene in revisione
+        # **una sola per versione**: la seconda si becca un 422 "Another build
+        # is in review" e tinge di rosso una build che era andata benissimo.
+        # Un rosso che non vuol dire niente e' peggio di nessun rosso — dopo tre
+        # volte non lo guarda piu' nessuno, e il giorno che significa qualcosa
+        # passa inosservato.
+        #
+        # Cosa si perde: niente, per come si prova adesso. **I tester interni
+        # non passano da nessuna revisione**, quindi la build arriva sul telefono
+        # come prima, in pochi minuti. Serve solo il giorno che si vuole dare una
+        # versione nuova ai tester esterni, ed e' un bottone su App Store
+        # Connect: la build, poi *Invia per la revisione*. Una volta per
+        # versione, non una volta per build.
         script: |
-          app-store-connect publish --path build/ios/ipa/*.ipa --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" --private-key @file:/tmp/authkey.p8 --testflight
+          app-store-connect publish --path build/ios/ipa/*.ipa --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" --private-key @file:/tmp/authkey.p8
 
     artifacts:
       - build/ios/ipa/*.ipa
