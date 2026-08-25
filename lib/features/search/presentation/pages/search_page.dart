@@ -117,18 +117,17 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               // Adesso l'impalcatura e' identica a quella degli amici e dei
               // vincitori: `CrasyHeader` decide l'altezza, e la casella sta
               // sotto, dove le altre schede mettono la loro prima riga.
+              const CrasyHeaderBar(),
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.page,
-                  AppSpacing.md,
+                  AppSpacing.sm,
                   AppSpacing.page,
                   0,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const CrasyHeader(),
-                    const SizedBox(height: AppSpacing.lg),
                     TextField(
                       controller: _controller,
                       // **Non si prende il fuoco da sola.** Da quando la lente

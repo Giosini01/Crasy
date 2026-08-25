@@ -29,139 +29,76 @@ class ChallengesPage extends ConsumerWidget {
       body: AppBackground(
         child: SafeArea(
           bottom: false,
-          child: RefreshIndicator(
-            color: context.palette.accent,
-            onRefresh: () async => ref.invalidate(liveChallengesProvider),
-            child: CustomScrollView(
-              slivers: [
-                const _Header(),
-                challenges.when(
-                  loading: () =>
-                      const SliverToBoxAdapter(child: SizedBox.shrink()),
-                  error: (_, _) => const _Message(
-                    title: 'Niente da mostrare',
-                    message:
-                        'Non riusciamo a caricare le challenge. '
-                        'Controlla la connessione e riprova.',
-                  ),
-                  data: (items) => items.isEmpty
-                      ? const _Message(
-                          title: 'Nessuna challenge aperta',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              CrasyHeaderBar(
+                middle: _Lives(
+                  left: ref.watch(livesLeftProvider),
+                  palette: context.palette,
+                ),
+                action: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // La campanella prima del piu': si guarda cosa e' successo
+                    // molte volte al giorno, si lancia una challenge una volta
+                    // ogni tanto. L'ordine delle icone e' l'ordine in cui si
+                    // usano.
+                    const NotificationBell(),
+                    // **Il piu' e' rosso**, ed e' l'unica icona dell'app che lo
+                    // sia.
+                    //
+                    // Il rosso qui dentro vuol dire premio, fiamma, attivo — e
+                    // questo comando e' il gesto con cui si mettono dei soldi
+                    // in palio, cioe' la cosa da cui nasce tutto il resto. Nero
+                    // come le altre non si capiva a cosa servisse: sembrava un
+                    // piu' qualunque in cima a una schermata piena di
+                    // challenge, non il modo di lanciarne una.
+                    IconButton(
+                      onPressed: () => context.push(AppRoutes.create),
+                      icon: Icon(
+                        Icons.add_rounded,
+                        color: context.palette.accent,
+                      ),
+                      tooltip: 'Lancia una challenge',
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: RefreshIndicator(
+                  color: context.palette.accent,
+                  onRefresh: () async => ref.invalidate(liveChallengesProvider),
+                  child: CustomScrollView(
+                    slivers: [
+                      challenges.when(
+                        loading: () =>
+                            const SliverToBoxAdapter(child: SizedBox.shrink()),
+                        error: (_, _) => const _Message(
+                          title: 'Niente da mostrare',
                           message:
-                              'Appena ne parte una la trovi qui, con quanto '
-                              'c\'e\' in palio e quanto tempo hai.',
-                        )
-                      : _ChallengeList(challenges: items),
+                              'Non riusciamo a caricare le challenge. '
+                              'Controlla la connessione e riprova.',
+                        ),
+                        data: (items) => items.isEmpty
+                            ? const _Message(
+                                title: 'Nessuna challenge aperta',
+                                message:
+                                    'Appena ne parte una la trovi qui, con quanto '
+                                    'c\'e\' in palio e quanto tempo hai.',
+                              )
+                            : _ChallengeList(challenges: items),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
-}
-
-/// L'intestazione: marchio, macchine fotografiche, comandi. **E resta li'.**
-///
-/// Prima scorreva via con la lista. Adesso e' incollata in alto, e il motivo e'
-/// quello che ci sta in mezzo: le partecipazioni rimaste oggi. Un tetto che si
-/// vede solo tornando in cima non serve a niente — la decisione su quali gare
-/// valgono la pena si prende **mentre si scorre**, guardando questa qui.
-class _Header extends ConsumerWidget {
-  const _Header();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return SliverPersistentHeader(
-      pinned: true,
-      delegate: _HeaderBar(
-        left: ref.watch(livesLeftProvider),
-        palette: context.palette,
-      ),
-    );
-  }
-}
-
-class _HeaderBar extends SliverPersistentHeaderDelegate {
-  const _HeaderBar({required this.left, required this.palette});
-
-  final int left;
-  final AppPalette palette;
-
-  static const double _top = AppSpacing.md;
-  static const double _bottom = AppSpacing.sm;
-  static const double _height = CrasyHeader.height + _top + _bottom;
-
-  @override
-  double get minExtent => _height;
-
-  @override
-  double get maxExtent => _height;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    // **Il riquadro riempie tutta l'altezza dichiarata.** Lasciato libero si
-    // stringe sul contenuto, e una striscia che occupa meno spazio di quello
-    // che ha chiesto lascia passare le foto sotto il proprio fondo.
-    return SizedBox.expand(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          // Il fondo **deve** essere pieno: da fermo e' invisibile perche' e'
-          // lo stesso colore della pagina, ma mentre si scorre e' l'unica cosa
-          // che impedisce alle foto di passarci attraverso.
-          color: palette.background,
-          // Il filetto compare solo quando qualcosa sta scorrendo sotto. Da
-          // fermo separerebbe due cose che sono la stessa cosa; in movimento
-          // dice dove finisce quello che resta e dove comincia quello che va.
-          border: overlapsContent
-              ? Border(bottom: BorderSide(color: palette.line, width: 0.5))
-              : null,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.page,
-            _top,
-            AppSpacing.page - AppSpacing.xs,
-            _bottom,
-          ),
-          child: CrasyHeader(
-            middle: _Lives(left: left, palette: palette),
-            action: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // La campanella prima del piu': si guarda cosa e' successo
-                // molte volte al giorno, si lancia una challenge una volta ogni
-                // tanto. L'ordine delle due icone e' l'ordine in cui si usano.
-                const NotificationBell(),
-                // **Il piu' e' rosso**, ed e' l'unica icona dell'app che lo sia.
-                //
-                // Il rosso qui dentro vuol dire premio, fiamma, attivo — e
-                // questo comando e' il gesto con cui si mettono dei soldi in
-                // palio, cioe' la cosa da cui nasce tutto il resto. Nero come le
-                // altre non si capiva a cosa servisse: sembrava un piu'
-                // qualunque in cima a una schermata piena di challenge, non il
-                // modo di lanciarne una.
-                IconButton(
-                  onPressed: () => context.push(AppRoutes.create),
-                  icon: Icon(Icons.add_rounded, color: palette.accent),
-                  tooltip: 'Lancia una challenge',
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(_HeaderBar old) =>
-      old.left != left || old.palette != palette;
 }
 
 /// Le partecipazioni che restano oggi: cinque macchine fotografiche e basta.

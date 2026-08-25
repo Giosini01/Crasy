@@ -57,83 +57,98 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       body: AppBackground(
         child: SafeArea(
           bottom: false,
-          child: profileState.when(
-            loading: () => const SizedBox.shrink(),
-            error: (_, _) => const Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.page),
-              child: EmptyState(
-                title: 'Profilo non disponibile',
-                message: 'Non riusciamo a leggere il tuo profilo. Riprova.',
-              ),
-            ),
-            data: (profile) {
-              if (profile == null) {
-                return const SizedBox.shrink();
-              }
-
-              return ListView(
-                padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.page,
-                    ),
-                    child: _Identity(profile: profile),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  // Il portafoglio sta **prima** dei numeri: gli altri tre
-                  // raccontano cosa hai fatto, questo dice cosa ti spetta.
-                  const Padding(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const CrasyHeaderBar(),
+              Expanded(
+                child: profileState.when(
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, _) => const Padding(
                     padding: EdgeInsets.symmetric(horizontal: AppSpacing.page),
-                    child: WalletCard(),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  _Stats(
-                    entries: entries.length,
-                    wins: wins.length,
-                    friends:
-                        ref.watch(myFriendsProvider).valueOrNull?.length ?? 0,
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  ProfileShelfTabs(
-                    selected: _shelf,
-                    onPick: (shelf) => setState(() => _shelf = shelf),
-                  ),
-                  if (shown.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.page,
-                      ),
-                      child: EmptyState(
-                        title: _shelf == ProfileShelf.live
-                            ? 'Non sei in nessuna gara'
-                            : 'Ancora nessuna vittoria',
-                        message: _shelf == ProfileShelf.live
-                            ? 'Le foto che mandi alle challenge aperte stanno '
-                                  'qui finche\' la gara non finisce.'
-                            : 'Le foto con cui hai vinto restano qui, con il '
-                                  'premio che si sono prese.',
-                      ),
-                    )
-                  else
-                    _EntryGrid(entries: shown),
-                  const SizedBox(height: AppSpacing.xl),
-                  Center(
-                    child: TextButton(
-                      onPressed: () => ref
-                          .read(authActionControllerProvider.notifier)
-                          .signOut(),
-                      child: Text(
-                        'Esci',
-                        style: context.texts.titleMedium?.copyWith(
-                          color: palette.textFaint,
-                        ),
-                      ),
+                    child: EmptyState(
+                      title: 'Profilo non disponibile',
+                      message:
+                          'Non riusciamo a leggere il tuo profilo. Riprova.',
                     ),
                   ),
-                ],
-              );
-            },
+                  data: (profile) {
+                    if (profile == null) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return ListView(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.page,
+                          ),
+                          child: _Identity(profile: profile),
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        // Il portafoglio sta **prima** dei numeri: gli altri tre
+                        // raccontano cosa hai fatto, questo dice cosa ti spetta.
+                        const Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: AppSpacing.page,
+                          ),
+                          child: WalletCard(),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        _Stats(
+                          entries: entries.length,
+                          wins: wins.length,
+                          friends:
+                              ref
+                                  .watch(myFriendsProvider)
+                                  .valueOrNull
+                                  ?.length ??
+                              0,
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        ProfileShelfTabs(
+                          selected: _shelf,
+                          onPick: (shelf) => setState(() => _shelf = shelf),
+                        ),
+                        if (shown.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.page,
+                            ),
+                            child: EmptyState(
+                              title: _shelf == ProfileShelf.live
+                                  ? 'Non sei in nessuna gara'
+                                  : 'Ancora nessuna vittoria',
+                              message: _shelf == ProfileShelf.live
+                                  ? 'Le foto che mandi alle challenge aperte stanno '
+                                        'qui finche\' la gara non finisce.'
+                                  : 'Le foto con cui hai vinto restano qui, con il '
+                                        'premio che si sono prese.',
+                            ),
+                          )
+                        else
+                          _EntryGrid(entries: shown),
+                        const SizedBox(height: AppSpacing.xl),
+                        Center(
+                          child: TextButton(
+                            onPressed: () => ref
+                                .read(authActionControllerProvider.notifier)
+                                .signOut(),
+                            child: Text(
+                              'Esci',
+                              style: context.texts.titleMedium?.copyWith(
+                                color: palette.textFaint,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -155,9 +170,6 @@ class _Identity extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: AppSpacing.md),
-        const CrasyHeader(),
-        const SizedBox(height: AppSpacing.lg),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

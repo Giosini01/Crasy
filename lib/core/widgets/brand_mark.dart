@@ -1,4 +1,5 @@
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 
 /// Il logotipo di CRASY.
@@ -213,6 +214,57 @@ class EyebrowLabel extends StatelessWidget {
       style: context.texts.labelSmall?.copyWith(
         color: color ?? context.palette.textFaint,
       ),
+    );
+  }
+}
+
+/// La barra in alto, **ferma**.
+///
+/// E' [CrasyHeader] con i suoi margini, pensato per stare **fuori** da cio' che
+/// scorre: in cima alla schermata, con il contenuto in un [Expanded] sotto.
+///
+/// Perche' non scorre piu' via. Il marchio in cima e' l'unica cosa che dice in
+/// che app sei; se se ne va con la prima passata di dito, dopo due schermate
+/// stai guardando un elenco che potrebbe essere di chiunque. E nella home ci
+/// vive dentro un dato che serve **mentre** si scorre — le partecipazioni
+/// rimaste per oggi — che tornando in cima a controllare arriverebbe sempre
+/// tardi.
+///
+/// Il prezzo e' onesto e vale la pena dirlo: settantadue punti di schermo che
+/// non si possono piu' recuperare scorrendo. Su un telefono piccolo sono un
+/// decimo dell'altezza. In cambio, quattro schede su cinque hanno lo stesso
+/// punto fermo in cima, e la quinta — la ricerca — ce l'aveva gia'.
+class CrasyHeaderBar extends StatelessWidget {
+  const CrasyHeaderBar({this.middle, this.action, super.key});
+
+  /// Cosa sta in mezzo, fra il marchio e i comandi. Vedi [CrasyHeader.middle].
+  final Widget? middle;
+
+  /// Il comando a destra, se la scheda ne ha uno.
+  final Widget? action;
+
+  /// L'aria sopra, la riga del marchio, l'aria sotto.
+  ///
+  /// Serve a chi deve lasciare spazio a questa barra senza indovinare un
+  /// numero: un margine scritto a mano qui e' un margine che il giorno che la
+  /// barra cambia altezza resta indietro.
+  static const double height =
+      AppSpacing.md + CrasyHeader.height + AppSpacing.sm;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.page,
+        AppSpacing.md,
+        // **Il margine a destra dipende da cosa c'e'.** Un bottone con l'icona
+        // porta con se' il proprio spazio interno, quindi con il margine pieno
+        // l'icona finirebbe otto punti piu' dentro del marchio a sinistra — uno
+        // sbilanciamento che non si sa spiegare ma si vede.
+        action == null ? AppSpacing.page : AppSpacing.page - AppSpacing.xs,
+        AppSpacing.sm,
+      ),
+      child: CrasyHeader(middle: middle, action: action),
     );
   }
 }

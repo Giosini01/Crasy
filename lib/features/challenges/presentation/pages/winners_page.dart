@@ -32,33 +32,39 @@ class WinnersPage extends ConsumerWidget {
       body: AppBackground(
         child: SafeArea(
           bottom: false,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.page,
-              AppSpacing.md,
-              AppSpacing.page,
-              AppSpacing.xxl,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Il logotipo al posto del titolo. Questa schermata e' la
               // vetrina della promessa — qualcuno ha vinto davvero — ed e' il
               // posto giusto perche' il marchio ci metta la faccia.
-              const CrasyHeader(),
-              const SizedBox(height: AppSpacing.lg),
-              const HighlightedText(
-                'Le challenge chiuse, e chi si e\' preso i soldi.',
-                highlight: 'chi si e\' preso i soldi',
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              challenges.when(
-                loading: () => const SizedBox.shrink(),
-                error: (_, _) => const EmptyState(
-                  title: 'Non disponibile',
-                  message:
-                      'Non riusciamo a caricare le challenge concluse. '
-                      'Controlla la connessione.',
+              const CrasyHeaderBar(),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.page,
+                    AppSpacing.sm,
+                    AppSpacing.page,
+                    AppSpacing.xxl,
+                  ),
+                  children: [
+                    const HighlightedText(
+                      'Le challenge chiuse, e chi si e\' preso i soldi.',
+                      highlight: 'chi si e\' preso i soldi',
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    challenges.when(
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, _) => const EmptyState(
+                        title: 'Non disponibile',
+                        message:
+                            'Non riusciamo a caricare le challenge concluse. '
+                            'Controlla la connessione.',
+                      ),
+                      data: (items) => _Winners(challenges: items),
+                    ),
+                  ],
                 ),
-                data: (items) => _Winners(challenges: items),
               ),
             ],
           ),

@@ -48,107 +48,113 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
       body: AppBackground(
         child: SafeArea(
           bottom: false,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.page,
-              AppSpacing.md,
-              AppSpacing.page,
-              AppSpacing.xxl,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const CrasyHeader(),
-              const SizedBox(height: AppSpacing.lg),
-              const HighlightedText(
-                'Le persone che conosci, e cosa stanno combinando.',
-                highlight: 'cosa stanno combinando',
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              if (requests.isNotEmpty) ...[
-                Row(
-                  children: [
-                    Text(
-                      'TI HANNO CHIESTO',
-                      style: context.texts.labelSmall?.copyWith(
-                        color: palette.accent,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      '${requests.length}',
-                      style: context.texts.labelSmall?.copyWith(
-                        color: palette.accent,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                // **Non tutte, se sono tante.** Con cento richieste in attesa
-                // l'elenco degli amici finisce due schermate piu' giu', e la
-                // scheda smette di servire a quello per cui esiste. Se ne
-                // vedono tre, e le altre stanno dietro un tocco.
-                for (final request in requests.take(_requestsShown))
-                  _RequestRow(request: request),
-                if (requests.length > _requestsShown) ...[
-                  const SizedBox(height: AppSpacing.xs),
-                  GestureDetector(
-                    onTap: () =>
-                        setState(() => _requestsShown = requests.length),
-                    behavior: HitTestBehavior.opaque,
-                    child: Text(
-                      'VEDI LE ALTRE ${requests.length - _requestsShown}',
-                      style: context.texts.labelSmall?.copyWith(
-                        color: palette.accent,
-                      ),
-                    ),
+              const CrasyHeaderBar(),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.page,
+                    AppSpacing.sm,
+                    AppSpacing.page,
+                    AppSpacing.xxl,
                   ),
-                ],
-                const SizedBox(height: AppSpacing.lg),
-                Divider(color: palette.line),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-              // Il titolo della sezione e' grande e rosso, non una scritta
-              // grigia in punta di piedi. E' la schermata delle persone che
-              // uno conosce: senza il rosso e' un elenco di nomi, con il rosso
-              // e' la parte di CRASY che gli appartiene.
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  // Due parole, due pesi: "I TUOI" e' la premessa, "AMICI" e'
-                  // la cosa. Il rosso sta sulla seconda, come il punto rosso in
-                  // fondo ai titoli dell'app — un accento, non una vernice.
-                  Text.rich(
-                    TextSpan(
-                      style: context.texts.headlineSmall,
-                      children: [
-                        const TextSpan(text: 'I TUOI '),
-                        TextSpan(
-                          text: 'AMICI',
-                          style: TextStyle(color: palette.accent),
+                  children: [
+                    const HighlightedText(
+                      'Le persone che conosci, e cosa stanno combinando.',
+                      highlight: 'cosa stanno combinando',
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    if (requests.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          Text(
+                            'TI HANNO CHIESTO',
+                            style: context.texts.labelSmall?.copyWith(
+                              color: palette.accent,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Text(
+                            '${requests.length}',
+                            style: context.texts.labelSmall?.copyWith(
+                              color: palette.accent,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      // **Non tutte, se sono tante.** Con cento richieste in attesa
+                      // l'elenco degli amici finisce due schermate piu' giu', e la
+                      // scheda smette di servire a quello per cui esiste. Se ne
+                      // vedono tre, e le altre stanno dietro un tocco.
+                      for (final request in requests.take(_requestsShown))
+                        _RequestRow(request: request),
+                      if (requests.length > _requestsShown) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        GestureDetector(
+                          onTap: () =>
+                              setState(() => _requestsShown = requests.length),
+                          behavior: HitTestBehavior.opaque,
+                          child: Text(
+                            'VEDI LE ALTRE ${requests.length - _requestsShown}',
+                            style: context.texts.labelSmall?.copyWith(
+                              color: palette.accent,
+                            ),
+                          ),
                         ),
                       ],
+                      const SizedBox(height: AppSpacing.lg),
+                      Divider(color: palette.line),
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
+                    // Il titolo della sezione e' grande e rosso, non una scritta
+                    // grigia in punta di piedi. E' la schermata delle persone che
+                    // uno conosce: senza il rosso e' un elenco di nomi, con il rosso
+                    // e' la parte di CRASY che gli appartiene.
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        // Due parole, due pesi: "I TUOI" e' la premessa, "AMICI" e'
+                        // la cosa. Il rosso sta sulla seconda, come il punto rosso in
+                        // fondo ai titoli dell'app — un accento, non una vernice.
+                        Text.rich(
+                          TextSpan(
+                            style: context.texts.headlineSmall,
+                            children: [
+                              const TextSpan(text: 'I TUOI '),
+                              TextSpan(
+                                text: 'AMICI',
+                                style: TextStyle(color: palette.accent),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        if (friends.isNotEmpty)
+                          Text(
+                            '${friends.length}',
+                            style: context.texts.titleMedium?.copyWith(
+                              color: palette.textFaint,
+                            ),
+                          ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  if (friends.isNotEmpty)
-                    Text(
-                      '${friends.length}',
-                      style: context.texts.titleMedium?.copyWith(
-                        color: palette.textFaint,
-                      ),
-                    ),
-                ],
+                    const SizedBox(height: AppSpacing.md),
+                    if (friends.isEmpty)
+                      const EmptyState(
+                        title: 'Ancora nessun amico',
+                        message:
+                            'Tocca il nome sotto una foto per aprire il profilo di '
+                            'chi l\'ha mandata, e da li\' chiedigli l\'amicizia.',
+                      )
+                    else
+                      for (final friend in friends) _FriendRow(friend: friend),
+                  ],
+                ),
               ),
-              const SizedBox(height: AppSpacing.md),
-              if (friends.isEmpty)
-                const EmptyState(
-                  title: 'Ancora nessun amico',
-                  message:
-                      'Tocca il nome sotto una foto per aprire il profilo di '
-                      'chi l\'ha mandata, e da li\' chiedigli l\'amicizia.',
-                )
-              else
-                for (final friend in friends) _FriendRow(friend: friend),
             ],
           ),
         ),
