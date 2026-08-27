@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/utils/app_date_utils.dart';
 import 'package:crasy/core/utils/app_money.dart';
+import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
@@ -33,45 +36,52 @@ enum TrophyKind {
   bool get isWon => this == TrophyKind.won;
 }
 
-/// Una figurina: la foto che ha vinto, incorniciata, con sopra il suo valore.
+/// **La figurina e' un oggetto, non un riquadro dell'interfaccia.**
 ///
-/// **Non e' una riga di elenco, ed e' voluto.** Una vittoria raccontata come
-/// "CHALLENGE X — 45 euro" e' una voce di estratto conto. Qui invece si vede
-/// per prima cosa la foto — la cosa che uno ha fatto davvero — e il numero le
-/// sta sopra come il valore stampato su una carta da collezione. E' la stessa
-/// differenza che c'e' fra un elenco di partite giocate e un album.
+/// Qui dentro ci sono un bordo di due colori, un riflesso in diagonale e
+/// un'ombra — cioe' tre cose che in tutto il resto di CRASY sono vietate, e per
+/// una ragione buona: le schermate si separano con lo spazio vuoto, e ogni
+/// ombra aggiunta e' un pezzo di un'altra app.
 ///
-/// La cornice e' rossa in tutti e due i casi. In CRASY il rosso vuol dire
-/// premio, fiamma, cosa attiva: un trofeo e' tutte e tre.
-class TrophyCard extends StatelessWidget {
-  const TrophyCard({required this.challenge, required this.kind, super.key});
+/// Qui la regola si rompe apposta, ed e' l'unico posto in cui succede. Una
+/// figurina non e' una scheda: e' una **cosa che si possiede**, e le cose che si
+/// possiedono hanno uno spessore, riflettono la luce e hanno un davanti e un
+/// dietro. Un rettangolo piatto con dentro una foto racconta un archivio; questo
+/// racconta un premio. La differenza e' tutto il motivo per cui la sezione
+/// esiste.
+///
+/// Il bordo e' rosso CRASY perche' e' il colore dei premi, e il riflesso e'
+/// tenuto basso: deve leggersi come plastica, non come uno specchio.
+class TrophyFront extends StatelessWidget {
+  const TrophyFront({required this.challenge, required this.kind, super.key});
 
   final Challenge challenge;
   final TrophyKind kind;
+
+  /// Le proporzioni di una figurina vera, non un quadrato.
+  ///
+  /// Sono quelle delle carte da collezione — piu' alta che larga — e non e'
+  /// vezzo: un quadrato e' il formato di una griglia di foto, e una griglia di
+  /// foto e' esattamente cio' che questa sezione **non** deve sembrare.
+  static const double ratio = 0.72;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
 
-    return GestureDetector(
-      onTap: () => showTrophy(context, challenge: challenge, kind: kind),
-      behavior: HitTestBehavior.opaque,
+    return _Laminated(
       child: Stack(
         fit: StackFit.expand,
         children: [
           MediaFrame(
             url: challenge.winnerMediaUrl,
             video: challenge.winnerMediaKind.isVideo,
-            aspectRatio: 1,
-            radius: AppRadius.xs,
-            // La cornice rossa che nel resto dell'app dice "questa e' tua" qui
-            // dice "questa e' tua **per sempre**". E' lo stesso segno, ed e' la
-            // ragione per cui non ne serve uno nuovo.
-            mine: true,
+            aspectRatio: ratio,
+            radius: AppRadius.sm,
           ),
-          // La striscia scura sotto **non e' decorazione**: senza, il numero
+          // La fascia scura sotto **non e' decorazione**: senza, il valore
           // finisce sopra una foto qualunque, e su una foto chiara sparisce. Il
-          // valore di un trofeo e' l'unica cosa che deve leggersi sempre.
+          // numero di un trofeo e' l'unica cosa che deve leggersi sempre.
           Positioned(
             left: 0,
             right: 0,
@@ -82,16 +92,16 @@ class TrophyCard extends StatelessWidget {
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.72),
+                    Colors.black.withValues(alpha: 0.78),
                     Colors.black.withValues(alpha: 0),
                   ],
                 ),
                 borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(AppRadius.xs),
+                  bottom: Radius.circular(AppRadius.sm),
                 ),
               ),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(6, 12, 6, 6),
+                padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -101,24 +111,26 @@ class TrophyCard extends StatelessWidget {
                       style: context.texts.labelSmall?.copyWith(
                         color: Colors.white70,
                         fontSize: 8,
-                        letterSpacing: 1.2,
+                        letterSpacing: 1.4,
                       ),
                     ),
-                    Text(
-                      // **Chi vince legge quello che ha incassato**, non quello
-                      // che era scritto in vetrina: il premio meno la
-                      // percentuale di CRASY. Chi ha commissionato legge invece
-                      // quanto ha messo, perche' e' quello che ha speso.
-                      AppMoney.format(
-                        kind.isWon
-                            ? challenge.payoutCents
-                            : challenge.prizeCents,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.texts.titleMedium?.copyWith(
-                        color: palette.accent,
-                        height: 1.1,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        // **Chi vince legge quello che ha incassato**, non il
+                        // numero della vetrina: il premio meno la percentuale
+                        // di CRASY. Chi ha commissionato legge quanto ha messo,
+                        // perche' e' quello che ha speso.
+                        AppMoney.format(
+                          kind.isWon
+                              ? challenge.payoutCents
+                              : challenge.prizeCents,
+                        ),
+                        style: context.texts.headlineSmall?.copyWith(
+                          color: palette.accent,
+                          height: 1,
+                        ),
                       ),
                     ),
                   ],
@@ -132,13 +144,296 @@ class TrophyCard extends StatelessWidget {
   }
 }
 
-/// Il retro della figurina: tutto quello che c'era dietro quella foto.
+/// Il dietro: il marchio in bianco su rosso, e cos'era quella gara.
 ///
-/// Si apre toccando il trofeo, e serve a una cosa sola: **rimettere la foto nel
-/// suo contesto**. Sei mesi dopo, di una gara non ci si ricorda niente — cosa
-/// chiedeva, quanto era in palio, chi l'aveva lanciata, quante fiamme aveva
-/// preso. Senza queste righe il trofeo e' una foto qualunque nel proprio
-/// telefono; con queste righe e' una cosa che e' successa.
+/// **Una figurina senza retro e' una foto incorniciata.** Il dietro e' la meta'
+/// che dice di che collezione fa parte — su una figurina vera c'e' sempre, ed e'
+/// sempre uguale per tutte. Qui fa anche una seconda cosa: tiene il titolo e la
+/// data, che davanti toglierebbero spazio alla foto.
+class TrophyBack extends StatelessWidget {
+  const TrophyBack({required this.challenge, required this.kind, super.key});
+
+  final Challenge challenge;
+  final TrophyKind kind;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return _Laminated(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [palette.accent, palette.accentDeep],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Spacer(),
+              // Il marchio ridipinto di bianco. Il file vero ha "cra" in nero e
+              // "sy" in rosso: su un fondo rosso la seconda meta' sparirebbe, e
+              // resterebbe un logo mutilato.
+              ColorFiltered(
+                colorFilter: const ColorFilter.mode(
+                  Colors.white,
+                  BlendMode.srcIn,
+                ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: CrasyWordmark(size: 34, alignment: Alignment.center),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                kind.label,
+                textAlign: TextAlign.center,
+                style: context.texts.labelSmall?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 8,
+                  letterSpacing: 2,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                challenge.title.toUpperCase(),
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: context.texts.labelSmall?.copyWith(
+                  color: Colors.white,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                AppDateUtils.formatItalianDate(challenge.endsAt),
+                textAlign: TextAlign.center,
+                style: context.texts.labelSmall?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 8,
+                  letterSpacing: 0.6,
+                ),
+              ),
+              const Spacer(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// La cornice: il bordo rosso, il riflesso, l'ombra. Uguale sulle due facce.
+class _Laminated extends StatelessWidget {
+  const _Laminated({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return AspectRatio(
+      aspectRatio: TrophyFront.ratio,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [palette.accent, palette.accentDeep, palette.accent],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.16),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(5),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                child,
+                // Il riflesso: una diagonale chiara e appena accennata. Piu'
+                // forte di cosi' sembra vetro, e una figurina non e' di vetro.
+                IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        stops: const [0, 0.42, 0.52, 1],
+                        colors: [
+                          Colors.white.withValues(alpha: 0.22),
+                          Colors.white.withValues(alpha: 0.04),
+                          Colors.white.withValues(alpha: 0.10),
+                          Colors.white.withValues(alpha: 0),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// La figurina che si gira in mano.
+///
+/// **Si trascina col dito e continua a girare**, non fa un ribaltamento e
+/// basta: e' la differenza fra un'animazione e un oggetto. Lasciandola, si
+/// ferma sulla faccia piu' vicina — nessuno vuole restare con una carta di
+/// taglio — e la spinta del dito conta, quindi un colpo secco la fa fare piu' di
+/// un giro come farebbe una carta vera.
+///
+/// Il tocco resta la strada semplice: mezzo giro, e si vede il dietro.
+class FlippableTrophy extends StatefulWidget {
+  const FlippableTrophy({
+    required this.challenge,
+    required this.kind,
+    super.key,
+  });
+
+  final Challenge challenge;
+  final TrophyKind kind;
+
+  @override
+  State<FlippableTrophy> createState() => _FlippableTrophyState();
+}
+
+class _FlippableTrophyState extends State<FlippableTrophy>
+    with SingleTickerProviderStateMixin {
+  /// Senza limiti, perche' l'angolo non ne ha: si puo' girare all'infinito
+  /// nella stessa direzione, come si fa con una carta vera fra le dita.
+  late final AnimationController _angolo = AnimationController.unbounded(
+    vsync: this,
+  );
+
+  @override
+  void dispose() {
+    _angolo.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _mezzoGiro,
+      onHorizontalDragStart: (_) => _angolo.stop(),
+      onHorizontalDragUpdate: (dettagli) {
+        // Un centimetro di dito, mezzo giro scarso: piu' lento sembra
+        // appiccicoso, piu' veloce non si riesce a fermarla dove si vuole.
+        _angolo.value += dettagli.delta.dx * 0.012;
+      },
+      onHorizontalDragEnd: (dettagli) {
+        final spinta = dettagli.primaryVelocity ?? 0;
+        _fermaSullaFaccia(_angolo.value + spinta * 0.0012);
+      },
+      child: AnimatedBuilder(
+        animation: _angolo,
+        builder: (context, _) {
+          final angolo = _angolo.value;
+          final davanti = math.cos(angolo) >= 0;
+
+          return Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              // La prospettiva: senza questa riga la carta non gira, si
+              // schiaccia. E' la distanza dell'occhio dalla scena.
+              ..setEntry(3, 2, 0.0013)
+              ..rotateY(angolo),
+            child: davanti
+                ? TrophyFront(challenge: widget.challenge, kind: widget.kind)
+                : Transform(
+                    alignment: Alignment.center,
+                    // Il retro va rigirato su se stesso, o si vedrebbe
+                    // specchiato: e' dietro, quindi lo stiamo guardando dalla
+                    // parte sbagliata.
+                    transform: Matrix4.identity()..rotateY(math.pi),
+                    child: TrophyBack(
+                      challenge: widget.challenge,
+                      kind: widget.kind,
+                    ),
+                  ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _mezzoGiro() => _fermaSullaFaccia(_angolo.value + math.pi);
+
+  /// Si posa sulla faccia piu' vicina a [meta].
+  void _fermaSullaFaccia(double meta) {
+    final faccia = (meta / math.pi).roundToDouble() * math.pi;
+
+    _angolo.animateTo(
+      faccia,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+    );
+  }
+}
+
+/// La bacheca: le figurine due per riga.
+///
+/// **Due e non tre.** Con tre stanno in un quadrato di due dita, e a quella
+/// misura di una figurina non si vede niente: ne' la foto, ne' il valore, ne'
+/// il bordo. Sono poche per definizione — sono i premi, non le partecipazioni —
+/// quindi vale la pena che si vedano.
+class TrophyGrid extends StatelessWidget {
+  const TrophyGrid({required this.challenges, required this.kind, super.key});
+
+  final List<Challenge> challenges;
+  final TrophyKind kind;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: AppSpacing.sm,
+        mainAxisSpacing: AppSpacing.md,
+        childAspectRatio: TrophyFront.ratio,
+      ),
+      itemCount: challenges.length,
+      itemBuilder: (context, index) {
+        final challenge = challenges[index];
+
+        return GestureDetector(
+          onTap: () => showTrophy(context, challenge: challenge, kind: kind),
+          behavior: HitTestBehavior.opaque,
+          child: TrophyFront(challenge: challenge, kind: kind),
+        );
+      },
+    );
+  }
+}
+
+/// La figurina grande, girabile, con sotto tutto quello che c'era dietro.
+///
+/// Serve a **rimettere la foto nel suo contesto**. Sei mesi dopo, di una gara
+/// non ci si ricorda niente — cosa chiedeva, quanto era in palio, chi l'aveva
+/// lanciata, quante fiamme aveva preso. Senza queste righe il trofeo e' una foto
+/// qualunque nel proprio telefono; con queste righe e' una cosa che e' successa.
 Future<void> showTrophy(
   BuildContext context, {
   required Challenge challenge,
@@ -166,63 +461,85 @@ class _TrophyDetails extends StatelessWidget {
     final palette = context.palette;
     final texts = context.texts;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        MediaFrame(
-          url: challenge.winnerMediaUrl,
-          video: challenge.winnerMediaKind.isVideo,
-          aspectRatio: 1,
-          mine: true,
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.66,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: SizedBox(
+                width: 230,
+                child: FlippableTrophy(challenge: challenge, kind: kind),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            // Che si giri non si vede: una carta ferma sembra un'immagine.
+            // Una riga sola, piccola, e chi vuole prova.
+            Center(
+              child: Text(
+                'TRASCINALA PER GIRARLA',
+                style: texts.labelSmall?.copyWith(
+                  color: palette.textFaint,
+                  fontSize: 9,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(challenge.title.toUpperCase(), style: texts.headlineSmall),
+            if (challenge.brief.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                challenge.brief,
+                style: texts.bodyMedium?.copyWith(color: palette.textSecondary),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.lg),
+            _Line(
+              label: kind.isWon ? 'Hai incassato' : 'Hai messo in palio',
+              value: AppMoney.format(
+                kind.isWon ? challenge.payoutCents : challenge.prizeCents,
+              ),
+              accent: true,
+            ),
+            // Chi ha vinto sa gia' chi e'. Chi ha commissionato spesso no: e' la
+            // riga che trasforma "una foto" in "la foto di quella persona".
+            if (!kind.isWon && challenge.winnerUsername.isNotEmpty)
+              _Line(
+                label: 'L\'ha fatta',
+                value: '@${challenge.winnerUsername}',
+              ),
+            if (kind.isWon && challenge.hasCreator)
+              _Line(
+                label: 'L\'aveva chiesta',
+                value: '@${challenge.createdByUsername}',
+              ),
+            _Line(label: 'Fiamme', value: '${challenge.winnerVotes}'),
+            if (challenge.participantsCount > 0)
+              _Line(
+                label: 'Hanno partecipato',
+                value: '${challenge.participantsCount}',
+              ),
+            _Line(
+              label: 'Finita',
+              value: AppDateUtils.formatItalianDate(challenge.endsAt),
+            ),
+            // **Assegnata o scaduta non e' la stessa cosa**, e chi ha in mano il
+            // trofeo ha diritto di saperlo: uno l'ha scelto una persona, l'altro
+            // l'ha deciso il tempo che passava.
+            _Line(
+              label: 'Il premio',
+              value: challenge.chosenByCreator
+                  ? 'scelto da chi l\'ha lanciata'
+                  : 'andato a chi aveva piu\' fiamme',
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
         ),
-        const SizedBox(height: AppSpacing.lg),
-        Text(challenge.title.toUpperCase(), style: texts.headlineSmall),
-        if (challenge.brief.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            challenge.brief,
-            style: texts.bodyMedium?.copyWith(color: palette.textSecondary),
-          ),
-        ],
-        const SizedBox(height: AppSpacing.lg),
-        _Line(
-          label: kind.isWon ? 'Hai incassato' : 'Hai messo in palio',
-          value: AppMoney.format(
-            kind.isWon ? challenge.payoutCents : challenge.prizeCents,
-          ),
-          accent: true,
-        ),
-        // Chi ha vinto sa gia' chi e'. Chi ha commissionato spesso no: e' la
-        // riga che trasforma "una foto" in "la foto di quella persona".
-        if (!kind.isWon && challenge.winnerUsername.isNotEmpty)
-          _Line(label: 'L\'ha fatta', value: '@${challenge.winnerUsername}'),
-        if (kind.isWon && challenge.hasCreator)
-          _Line(
-            label: 'L\'aveva chiesta',
-            value: '@${challenge.createdByUsername}',
-          ),
-        _Line(label: 'Fiamme', value: '${challenge.winnerVotes}'),
-        if (challenge.participantsCount > 0)
-          _Line(
-            label: 'Hanno partecipato',
-            value: '${challenge.participantsCount}',
-          ),
-        _Line(
-          label: 'Finita',
-          value: AppDateUtils.formatItalianDate(challenge.endsAt),
-        ),
-        // **Assegnata o scaduta non e' la stessa cosa**, e chi ha in mano il
-        // trofeo ha diritto di saperlo: uno l'ha scelto una persona, l'altro
-        // l'ha deciso il tempo che passava.
-        _Line(
-          label: 'Il premio',
-          value: challenge.chosenByCreator
-              ? 'scelto da chi l\'ha lanciata'
-              : 'andato a chi aveva piu\' fiamme',
-        ),
-        const SizedBox(height: AppSpacing.sm),
-      ],
+      ),
     );
   }
 }
@@ -260,36 +577,6 @@ class _Line extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// La bacheca: le figurine tre per riga, come le foto.
-///
-/// Stessa griglia delle partecipazioni, di proposito. Un trofeo e' pur sempre
-/// una foto, e dargli un'impaginazione tutta sua vorrebbe dire che passando da
-/// una sezione all'altra del profilo cambia il ritmo della pagina — la cosa che
-/// fa sembrare un'app cucita insieme da pezzi diversi.
-class TrophyGrid extends StatelessWidget {
-  const TrophyGrid({required this.challenges, required this.kind, super.key});
-
-  final List<Challenge> challenges;
-  final TrophyKind kind;
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 2,
-        mainAxisSpacing: 2,
-      ),
-      itemCount: challenges.length,
-      itemBuilder: (context, index) =>
-          TrophyCard(challenge: challenges[index], kind: kind),
     );
   }
 }
