@@ -14,6 +14,10 @@ abstract final class UserProfileMapper {
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
       onboardingCompleted: data['onboardingCompleted'] as bool? ?? false,
+      legalVersion: data['legalVersion'] as String? ?? '',
+      legalAcceptedAt: (data['legalAcceptedAt'] as Timestamp?)?.toDate(),
+      marketingConsent: data['marketingConsent'] as bool? ?? false,
+      profilingConsent: data['profilingConsent'] as bool? ?? false,
     );
   }
 

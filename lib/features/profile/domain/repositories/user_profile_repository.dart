@@ -25,4 +25,19 @@ abstract class UserProfileRepository {
     required Uint8List bytes,
     String? contentType,
   });
+
+  /// Registra cosa questa persona ha accettato, e quando.
+  ///
+  /// Scrive in due posti e servono tutti e due: sul profilo, perche' l'app
+  /// deve sapere in un colpo d'occhio se la versione accettata e' quella di
+  /// oggi; e in un **registro che non si puo' modificare**, perche' il GDPR non
+  /// chiede solo di raccogliere il consenso ma di **dimostrarlo** — chi, a che
+  /// cosa, quando. Un campo che si sovrascrive a ogni cambio non dimostra
+  /// niente: cancella la storia mentre la aggiorna.
+  Future<void> saveConsent({
+    required String userId,
+    required String version,
+    required bool marketing,
+    required bool profiling,
+  });
 }

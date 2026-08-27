@@ -1,4 +1,5 @@
 import 'package:crasy/core/constants/app_routes.dart';
+import 'package:crasy/core/legal/legal_documents.dart';
 import 'package:crasy/core/routing/swipe_back_page.dart';
 import 'package:crasy/features/auth/presentation/pages/auth_page.dart';
 import 'package:crasy/features/auth/presentation/pages/verify_email_page.dart';
@@ -8,6 +9,7 @@ import 'package:crasy/features/challenges/presentation/pages/create_challenge_pa
 import 'package:crasy/features/challenges/presentation/pages/participate_page.dart';
 import 'package:crasy/features/home/presentation/pages/home_page.dart';
 import 'package:crasy/features/home/presentation/pages/splash_page.dart';
+import 'package:crasy/features/legal/presentation/pages/consent_page.dart';
 import 'package:crasy/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:crasy/features/onboarding/presentation/pages/onboarding_page.dart';
 import 'package:crasy/features/profile/presentation/pages/public_profile_page.dart';
@@ -18,12 +20,18 @@ import 'package:go_router/go_router.dart';
 
 /// Dove deve stare la sessione in questo momento.
 ///
-/// Sono quattro porte in fila, e si passano in quest'ordine: **accesso**, poi
-/// **email confermata**, poi **profilo con data di nascita**, poi l'app. Ognuna
-/// esiste per un motivo che ha a che fare con i soldi in palio: senza un
-/// account non si sa chi vince, senza un indirizzo vero non si sa dove
-/// mandarlo, e senza sapere quanti anni ha non si dovrebbe chiedere a nessuno
-/// di uscire a fare qualcosa per vincerlo.
+/// Sono cinque porte in fila, e si passano in quest'ordine: **accesso**, poi
+/// **email confermata**, poi **profilo con data di nascita**, poi **i
+/// consensi**, poi l'app. Ognuna esiste per un motivo che ha a che fare con i
+/// soldi in palio: senza un account non si sa chi vince, senza un indirizzo
+/// vero non si sa dove mandarlo, e senza sapere quanti anni ha non si dovrebbe
+/// chiedere a nessuno di uscire a fare qualcosa per vincerlo.
+///
+/// **L'ultima e' una porta che si riapre.** Le altre quattro si passano una
+/// volta sola; questa torna a chiudersi ogni volta che i testi legali cambiano
+/// versione, perche' un'informativa nuova che nessuno ha mai visto non vale
+/// niente. E' il meccanismo che rende vera la frase "ti verra' chiesto di
+/// prenderne visione" invece che una promessa scritta in un documento.
 final sessionLandingRouteProvider = Provider<String>((ref) {
   final authState = ref.watch(authStateProvider);
 
@@ -55,6 +63,12 @@ final sessionLandingRouteProvider = Provider<String>((ref) {
       // dall'onboarding: l'eta' non e' un campo che si possa lasciare vuoto.
       if (profile.birthDate == null) {
         return AppRoutes.onboarding;
+      }
+
+      // Chi non ha mai accettato, e chi aveva accettato una versione che nel
+      // frattempo e' stata sostituita.
+      if (!profile.acceptedLegalVersion(LegalTexts.version)) {
+        return AppRoutes.consents;
       }
 
       return AppRoutes.challenges;
@@ -138,6 +152,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       _tabRoute(AppRoutes.auth, const AuthPage()),
       _tabRoute(AppRoutes.verifyEmail, const VerifyEmailPage()),
       _tabRoute(AppRoutes.onboarding, const OnboardingPage()),
+      _tabRoute(AppRoutes.consents, const ConsentPage()),
       for (final tab in AppRoutes.tabs)
         _tabRoute(tab, HomePage(location: tab), key: _homeShellKey),
       _pushedRoute(
@@ -180,6 +195,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         AppRoutes.auth,
         AppRoutes.verifyEmail,
         AppRoutes.onboarding,
+        AppRoutes.consents,
       };
 
       if (gates.contains(landing)) {

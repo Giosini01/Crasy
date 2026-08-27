@@ -13,6 +13,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
+import 'package:crasy/features/legal/presentation/widgets/privacy_settings.dart';
 import 'package:crasy/features/onboarding/presentation/utils/onboarding_validators.dart';
 import 'package:crasy/features/payments/presentation/widgets/wallet_card.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
@@ -153,6 +154,21 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                   ),
                         },
                         const SizedBox(height: AppSpacing.xl),
+                        // **La porta per revocare sta accanto a quella per
+                        // uscire**, non sepolta in un menu: il GDPR chiede che
+                        // togliere un consenso sia facile quanto darlo, e
+                        // "facile" vuol dire trovabile senza cercare.
+                        Center(
+                          child: TextButton(
+                            onPressed: () => showPrivacySettings(context),
+                            child: Text(
+                              'Privacy e consensi',
+                              style: context.texts.titleMedium?.copyWith(
+                                color: palette.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
                         Center(
                           child: TextButton(
                             onPressed: () => ref

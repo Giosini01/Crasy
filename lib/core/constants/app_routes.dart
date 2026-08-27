@@ -7,6 +7,9 @@ abstract final class AppRoutes {
 
   static const onboarding = '/onboarding';
 
+  /// I consensi: cosa accetti prima di entrare.
+  static const consents = '/consensi';
+
   // --- Le tre schede ---------------------------------------------------------
 
   /// La home: le challenge aperte.

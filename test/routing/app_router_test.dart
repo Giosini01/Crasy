@@ -1,4 +1,5 @@
 import 'package:crasy/core/constants/app_routes.dart';
+import 'package:crasy/core/legal/legal_documents.dart';
 import 'package:crasy/features/auth/domain/entities/app_user.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
@@ -137,6 +138,8 @@ void main() {
               createdAt: null,
               updatedAt: null,
               onboardingCompleted: true,
+              legalVersion: LegalTexts.version,
+              legalAcceptedAt: DateTime(2026),
             ),
           ),
         ),
@@ -157,5 +160,63 @@ void main() {
     expect(AppRoutes.openToEveryone, isNot(contains(AppRoutes.challenges)));
     expect(AppRoutes.openToEveryone, isNot(contains(AppRoutes.winners)));
     expect(AppRoutes.openToEveryone, isNot(contains(AppRoutes.profile)));
+  });
+
+  test('senza i consensi non si entra', () async {
+    // **Un profilo a posto in tutto tranne i consensi resta fuori.** E' la
+    // differenza fra avere un'informativa e averla fatta leggere: senza questa
+    // porta, il testo esisterebbe e non l'avrebbe visto nessuno.
+    final container = containerWith(
+      FakeAuthRepository(currentUser: user),
+      overrides: [
+        currentUserProfileProvider.overrideWith(
+          (ref) => Stream.value(
+            UserProfile(
+              id: 'user-1',
+              username: 'martina',
+              birthDate: DateTime(2000, 1, 1),
+              createdAt: null,
+              updatedAt: null,
+              onboardingCompleted: true,
+            ),
+          ),
+        ),
+      ],
+    );
+
+    await container.read(currentUserProfileProvider.future);
+    await container.pump();
+
+    expect(container.read(sessionLandingRouteProvider), AppRoutes.consents);
+  });
+
+  test('una versione vecchia non basta', () async {
+    // Cambiando i testi cambia la versione, e chi aveva accettato quella di
+    // prima **ripassa dalla porta**. E' il meccanismo che rende vera la frase
+    // "ti verra' chiesto di prenderne visione".
+    final container = containerWith(
+      FakeAuthRepository(currentUser: user),
+      overrides: [
+        currentUserProfileProvider.overrideWith(
+          (ref) => Stream.value(
+            UserProfile(
+              id: 'user-1',
+              username: 'martina',
+              birthDate: DateTime(2000, 1, 1),
+              createdAt: null,
+              updatedAt: null,
+              onboardingCompleted: true,
+              legalVersion: 'una-versione-di-due-anni-fa',
+              legalAcceptedAt: DateTime(2024),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    await container.read(currentUserProfileProvider.future);
+    await container.pump();
+
+    expect(container.read(sessionLandingRouteProvider), AppRoutes.consents);
   });
 }

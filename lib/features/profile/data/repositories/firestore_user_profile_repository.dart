@@ -60,6 +60,40 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
     return _users.doc(userId).snapshots().map(_mapSnapshot);
   }
 
+  @override
+  Future<void> saveConsent({
+    required String userId,
+    required String version,
+    required bool marketing,
+    required bool profiling,
+  }) {
+    final user = _users.doc(userId);
+
+    // Le due scritture partono insieme: o si registrano tutte e due, o
+    // nessuna. Un profilo che dice "accettato" senza la riga corrispondente nel
+    // registro e' peggio di nessuna delle due — sembra a posto e non lo e'.
+    final batch = _firestore.batch()
+      ..update(user, {
+        'legalVersion': version,
+        'legalAcceptedAt': FieldValue.serverTimestamp(),
+        'marketingConsent': marketing,
+        'profilingConsent': profiling,
+        'updatedAt': FieldValue.serverTimestamp(),
+      })
+      // Documento nuovo a ogni volta, mai lo stesso riscritto: revocare un
+      // consenso **non cancella** quello dato prima. Il registro deve poter
+      // rispondere anche a "cosa aveva accettato in quel momento", non solo a
+      // "cosa accetta adesso".
+      ..set(user.collection('consents').doc(), {
+        'version': version,
+        'marketing': marketing,
+        'profiling': profiling,
+        'at': FieldValue.serverTimestamp(),
+      });
+
+    return batch.commit();
+  }
+
   UserProfile? _mapSnapshot(DocumentSnapshot<Map<String, dynamic>> snapshot) {
     final data = snapshot.data();
 

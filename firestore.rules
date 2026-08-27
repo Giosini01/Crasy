@@ -114,6 +114,25 @@ service cloud.firestore {
       allow read: if signedIn();
       allow delete: if false;
 
+      // **Il registro dei consensi. Si scrive e non si tocca piu'.**
+      //
+      // Il GDPR non chiede solo di raccogliere il consenso: chiede di poter
+      // dimostrare chi ha acconsentito, a che cosa e quando. Una riga che si
+      // puo' modificare non dimostra niente, e una che si puo' cancellare
+      // dimostra ancora meno — quindi qui non si aggiorna e non si cancella,
+      // nemmeno il proprietario.
+      //
+      // Revocare un consenso non cancella niente: aggiunge una riga nuova che
+      // dice "da adesso no". La storia resta leggibile in tutte e due le
+      // direzioni.
+      //
+      // La legge solo chi la riguarda: sono le sue scelte, non un dato
+      // pubblico come il nome utente.
+      match /consents/{consentId} {
+        allow read, create: if signedIn() && request.auth.uid == userId;
+        allow update, delete: if false;
+      }
+
       // Cosa ho votato.
       //
       // Sta sotto chi ha votato e non sotto la foto votata: cosi' "ho gia'

@@ -20,6 +20,10 @@ class UserProfile {
     this.city = '',
     this.photoUrl,
     this.photoStoragePath,
+    this.legalVersion = '',
+    this.legalAcceptedAt,
+    this.marketingConsent = false,
+    this.profilingConsent = false,
   });
 
   final String id;
@@ -53,6 +57,31 @@ class UserProfile {
   final DateTime? updatedAt;
   final bool onboardingCompleted;
 
+  /// La versione dei testi legali che questa persona ha accettato.
+  ///
+  /// **Serve a poterlo dimostrare.** Il GDPR non chiede solo di raccogliere il
+  /// consenso: chiede di essere in grado di provare *chi* ha acconsentito, *a
+  /// che cosa* e *quando*. Un booleano "ha accettato" non prova niente il
+  /// giorno in cui il testo e' cambiato tre volte.
+  ///
+  /// Vuota per chi si e' iscritto prima che i consensi esistessero: quelle
+  /// persone ripassano dalla schermata e accettano la versione di oggi.
+  final String legalVersion;
+  final DateTime? legalAcceptedAt;
+
+  /// I due consensi facoltativi. Nascono **spenti**, sempre: una casella gia'
+  /// spuntata non e' un consenso, e' una distrazione sfruttata.
+  final bool marketingConsent;
+  final bool profilingConsent;
+
+  /// Se ha accettato **la versione che gira adesso**.
+  ///
+  /// Cambiando i testi cambia la versione, e da quel momento questo torna falso
+  /// per tutti: e' il modo in cui un testo nuovo viene davvero letto invece di
+  /// essere pubblicato e basta.
+  bool acceptedLegalVersion(String current) =>
+      legalVersion.isNotEmpty && legalVersion == current;
+
   bool get hasPhoto => (photoUrl ?? '').isNotEmpty;
 
   bool get hasBio => bio.trim().isNotEmpty;
@@ -81,6 +110,10 @@ class UserProfile {
     String? city,
     String? photoUrl,
     String? photoStoragePath,
+    String? legalVersion,
+    DateTime? legalAcceptedAt,
+    bool? marketingConsent,
+    bool? profilingConsent,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? onboardingCompleted,
@@ -93,6 +126,10 @@ class UserProfile {
       city: city ?? this.city,
       photoUrl: photoUrl ?? this.photoUrl,
       photoStoragePath: photoStoragePath ?? this.photoStoragePath,
+      legalVersion: legalVersion ?? this.legalVersion,
+      legalAcceptedAt: legalAcceptedAt ?? this.legalAcceptedAt,
+      marketingConsent: marketingConsent ?? this.marketingConsent,
+      profilingConsent: profilingConsent ?? this.profilingConsent,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,

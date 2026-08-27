@@ -1,5 +1,6 @@
 import 'package:crasy/app.dart';
 import 'package:crasy/core/constants/app_routes.dart';
+import 'package:crasy/core/legal/legal_documents.dart';
 import 'package:crasy/features/auth/domain/entities/app_user.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
@@ -28,6 +29,9 @@ void main() {
     createdAt: null,
     updatedAt: null,
     onboardingCompleted: true,
+    // La quinta porta: senza la versione accettata si resta fermi ai consensi.
+    legalVersion: LegalTexts.version,
+    legalAcceptedAt: DateTime(2026),
   );
 
   /// Le schermate con il countdown tengono un timer che batte ogni secondo.
