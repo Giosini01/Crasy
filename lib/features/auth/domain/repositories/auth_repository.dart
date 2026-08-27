@@ -29,4 +29,13 @@ abstract class AuthRepository {
   /// l'app resterebbe convinta che l'indirizzo non sia confermato anche dopo
   /// che lo e'.
   Future<AppUser?> reload();
+
+  /// Cancella l'account, per sempre.
+  ///
+  /// **La password si richiede davvero**, e non e' una formalita': Firebase
+  /// rifiuta una cancellazione se l'accesso e' vecchio, e senza ripassare da
+  /// qui l'operazione fallirebbe con un errore che parla di sessione scaduta
+  /// mentre la persona sta cercando di andarsene. E' anche l'ultima difesa
+  /// contro un telefono lasciato aperto sul tavolo.
+  Future<void> deleteAccount({required String password});
 }

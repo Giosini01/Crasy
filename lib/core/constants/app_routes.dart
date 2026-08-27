@@ -10,6 +10,9 @@ abstract final class AppRoutes {
   /// I consensi: cosa accetti prima di entrare.
   static const consents = '/consensi';
 
+  /// Le quattro regole del gioco, una volta sola.
+  static const tutorial = '/come-funziona';
+
   // --- Le tre schede ---------------------------------------------------------
 
   /// La home: le challenge aperte.

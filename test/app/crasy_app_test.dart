@@ -32,6 +32,7 @@ void main() {
     // La quinta porta: senza la versione accettata si resta fermi ai consensi.
     legalVersion: LegalTexts.version,
     legalAcceptedAt: DateTime(2026),
+    tutorialSeen: true,
   );
 
   /// Le schermate con il countdown tengono un timer che batte ogni secondo.

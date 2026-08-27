@@ -112,7 +112,22 @@ service cloud.firestore {
                     && isAdultProfile()
                     && doesNotTouchTheWallet();
       allow read: if signedIn();
-      allow delete: if false;
+
+      // **Il proprio profilo si cancella, ma non con dei soldi dentro.**
+      //
+      // Cancellare l'account e' un diritto — il GDPR lo chiama diritto
+      // all'oblio, e Apple non pubblica un'app che non lo offre. Ma un profilo
+      // che sparisce con un saldo diverso da zero porta via le tracce di soldi
+      // veri: quelli vanno prelevati prima, e finche' ci sono questa riga
+      // tiene il documento dov'e'.
+      //
+      // Si legge con `get` perche' il saldo nasce solo con il primo premio: un
+      // profilo che non ha mai vinto niente quel campo non ce l'ha, e
+      // pretenderlo lo renderebbe incancellabile.
+      allow delete: if signedIn()
+                    && request.auth.uid == userId
+                    && resource.data.get('walletCents', 0) == 0
+                    && resource.data.get('withdrawingCents', 0) == 0;
 
       // **Il registro dei consensi. Si scrive e non si tocca piu'.**
       //
@@ -536,9 +551,23 @@ service cloud.firestore {
                       // qui si sta decidendo chi incassa.
                       && challengeIsLive();
 
-        // Una foto mandata in gara non si cancella: e' il patto con chi la
-        // vota e con gli altri concorrenti.
-        allow delete: if false;
+        // **Una foto in gara non si cancella. Una foto in una gara finita
+        // si'.**
+        //
+        // Il divieto durante la gara non e' pignoleria: la partecipazione si
+        // chiama come chi l'ha mandata — e' cosi' che vale la regola "una foto
+        // a testa" — quindi cancellarla libererebbe il posto per mandarne
+        // un'altra. Chi sta perdendo guarderebbe le fiamme degli altri, si
+        // ritirerebbe e rientrerebbe con uno scatto migliore: cambiare la
+        // propria carta dopo aver visto quelle degli avversari.
+        //
+        // A gara chiusa quel rischio non esiste piu' e resta solo il diritto di
+        // portarsi via le proprie cose, che e' la strada su cui passa la
+        // cancellazione dell'account.
+        allow delete: if signedIn()
+                      && request.auth.uid == entryId
+                      && resource.data.userId == request.auth.uid
+                      && !challengeIsLive();
       }
     }
   }

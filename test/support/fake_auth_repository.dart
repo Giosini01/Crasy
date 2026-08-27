@@ -61,6 +61,16 @@ class FakeAuthRepository implements AuthRepository {
     _controller.add(null);
   }
 
+  /// Le password con cui e' stata chiesta la cancellazione dell'account.
+  final deleteAttempts = <String>[];
+
+  @override
+  Future<void> deleteAccount({required String password}) async {
+    deleteAttempts.add(password);
+    currentUser = null;
+    _controller.add(null);
+  }
+
   /// Cambia account senza passare da un accesso vero.
   ///
   /// Serve alle prove che devono guardare **cosa resta appiccicato** quando

@@ -24,6 +24,7 @@ class UserProfile {
     this.legalAcceptedAt,
     this.marketingConsent = false,
     this.profilingConsent = false,
+    this.tutorialSeen = false,
   });
 
   final String id;
@@ -74,6 +75,13 @@ class UserProfile {
   final bool marketingConsent;
   final bool profilingConsent;
 
+  /// Se ha gia' visto le quattro regole del gioco.
+  ///
+  /// Sta sul profilo e non sul telefono: chi cambia dispositivo o rientra dal
+  /// sito non deve rifare il giro, e chi si registra da capo lo rifa'. E' una
+  /// cosa che riguarda la persona, non l'apparecchio.
+  final bool tutorialSeen;
+
   /// Se ha accettato **la versione che gira adesso**.
   ///
   /// Cambiando i testi cambia la versione, e da quel momento questo torna falso
@@ -114,6 +122,7 @@ class UserProfile {
     DateTime? legalAcceptedAt,
     bool? marketingConsent,
     bool? profilingConsent,
+    bool? tutorialSeen,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? onboardingCompleted,
@@ -130,6 +139,7 @@ class UserProfile {
       legalAcceptedAt: legalAcceptedAt ?? this.legalAcceptedAt,
       marketingConsent: marketingConsent ?? this.marketingConsent,
       profilingConsent: profilingConsent ?? this.profilingConsent,
+      tutorialSeen: tutorialSeen ?? this.tutorialSeen,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,

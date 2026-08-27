@@ -134,4 +134,23 @@ class FirebaseAuthRepository implements AuthRepository {
       emailVerified: user.emailVerified,
     );
   }
+
+  @override
+  Future<void> deleteAccount({required String password}) async {
+    final user = _firebaseAuth.currentUser;
+    final email = user?.email;
+
+    if (user == null || email == null) {
+      return;
+    }
+
+    // Prima si dimostra di essere chi si dice, poi si cancella. L'ordine non e'
+    // negoziabile: al contrario, un accesso scaduto lascerebbe i dati
+    // cancellati e l'account in piedi.
+    await user.reauthenticateWithCredential(
+      EmailAuthProvider.credential(email: email, password: password),
+    );
+
+    await user.delete();
+  }
 }

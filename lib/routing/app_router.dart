@@ -14,6 +14,7 @@ import 'package:crasy/features/notifications/presentation/pages/notifications_pa
 import 'package:crasy/features/onboarding/presentation/pages/onboarding_page.dart';
 import 'package:crasy/features/profile/presentation/pages/public_profile_page.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
+import 'package:crasy/features/tutorial/presentation/pages/tutorial_page.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -69,6 +70,14 @@ final sessionLandingRouteProvider = Provider<String>((ref) {
       // frattempo e' stata sostituita.
       if (!profile.acceptedLegalVersion(LegalTexts.version)) {
         return AppRoutes.consents;
+      }
+
+      // **Le quattro regole, una volta sola.** Senza, la prima schermata e' un
+      // elenco di gare e nessuno ha detto cosa sono le fiamme, quante ne hai,
+      // o chi decide chi vince: si scoprono sbagliando, e sbagliare qui vuol
+      // dire bruciare una partecipazione che non torna fino a domani.
+      if (!profile.tutorialSeen) {
+        return AppRoutes.tutorial;
       }
 
       return AppRoutes.challenges;
@@ -153,6 +162,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       _tabRoute(AppRoutes.verifyEmail, const VerifyEmailPage()),
       _tabRoute(AppRoutes.onboarding, const OnboardingPage()),
       _tabRoute(AppRoutes.consents, const ConsentPage()),
+      _tabRoute(AppRoutes.tutorial, const TutorialPage()),
       for (final tab in AppRoutes.tabs)
         _tabRoute(tab, HomePage(location: tab), key: _homeShellKey),
       _pushedRoute(
@@ -196,6 +206,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         AppRoutes.verifyEmail,
         AppRoutes.onboarding,
         AppRoutes.consents,
+        AppRoutes.tutorial,
       };
 
       if (gates.contains(landing)) {

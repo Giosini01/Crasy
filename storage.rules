@@ -61,7 +61,11 @@ service firebase.storage {
                    && request.resource.size < 8 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
 
-      allow delete: if false;
+      // La propria foto profilo si cancella: e' la faccia di una persona, ed e'
+      // la prima cosa che deve sparire quando quella persona se ne va. Le foto
+      // mandate alle gare restano invece dove sono — quelle le porta via lo
+      // spazzino dopo la chiusura, come quelle di tutti.
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
     match /{allPaths=**} {

@@ -19,8 +19,10 @@ import 'package:crasy/features/payments/presentation/widgets/wallet_card.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/controllers/profile_edit_controller.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
+import 'package:crasy/features/profile/presentation/widgets/delete_account.dart';
 import 'package:crasy/features/profile/presentation/widgets/profile_shelf.dart';
 import 'package:crasy/features/profile/presentation/widgets/trophy_card.dart';
+import 'package:crasy/features/tutorial/presentation/pages/tutorial_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -160,6 +162,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         // "facile" vuol dire trovabile senza cercare.
                         Center(
                           child: TextButton(
+                            onPressed: () => showHowItWorks(context),
+                            child: Text(
+                              'Come funziona',
+                              style: context.texts.titleMedium?.copyWith(
+                                color: palette.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Center(
+                          child: TextButton(
                             onPressed: () => showPrivacySettings(context),
                             child: Text(
                               'Privacy e consensi',
@@ -178,6 +191,22 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               'Esci',
                               style: context.texts.titleMedium?.copyWith(
                                 color: palette.textFaint,
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Staccata dalle altre e rossa. **E' l'unica voce di
+                        // questa schermata che non si disfa**, e deve
+                        // sembrarlo: messa in fila con "Esci", prima o poi
+                        // qualcuno la tocca al posto suo.
+                        const SizedBox(height: AppSpacing.lg),
+                        Center(
+                          child: TextButton(
+                            onPressed: () => showDeleteAccount(context),
+                            child: Text(
+                              'Cancella account',
+                              style: context.texts.bodySmall?.copyWith(
+                                color: palette.accent,
                               ),
                             ),
                           ),

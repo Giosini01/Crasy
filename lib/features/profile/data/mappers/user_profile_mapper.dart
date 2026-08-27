@@ -18,6 +18,7 @@ abstract final class UserProfileMapper {
       legalAcceptedAt: (data['legalAcceptedAt'] as Timestamp?)?.toDate(),
       marketingConsent: data['marketingConsent'] as bool? ?? false,
       profilingConsent: data['profilingConsent'] as bool? ?? false,
+      tutorialSeen: data['tutorialSeen'] as bool? ?? false,
     );
   }
 

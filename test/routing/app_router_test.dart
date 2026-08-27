@@ -140,6 +140,7 @@ void main() {
               onboardingCompleted: true,
               legalVersion: LegalTexts.version,
               legalAcceptedAt: DateTime(2026),
+              tutorialSeen: true,
             ),
           ),
         ),
@@ -218,5 +219,36 @@ void main() {
     await container.pump();
 
     expect(container.read(sessionLandingRouteProvider), AppRoutes.consents);
+  });
+
+  test('il giro di presentazione si fa prima di entrare', () async {
+    // **Le quattro regole prima dell'elenco delle gare.** Senza, la prima
+    // schermata e' una lista e nessuno ha detto quante fiamme si hanno: si
+    // scopre sbagliando, e sbagliare qui costa una partecipazione che torna
+    // solo domani.
+    final container = containerWith(
+      FakeAuthRepository(currentUser: user),
+      overrides: [
+        currentUserProfileProvider.overrideWith(
+          (ref) => Stream.value(
+            UserProfile(
+              id: 'user-1',
+              username: 'martina',
+              birthDate: DateTime(2000, 1, 1),
+              createdAt: null,
+              updatedAt: null,
+              onboardingCompleted: true,
+              legalVersion: LegalTexts.version,
+              legalAcceptedAt: DateTime(2026),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    await container.read(currentUserProfileProvider.future);
+    await container.pump();
+
+    expect(container.read(sessionLandingRouteProvider), AppRoutes.tutorial);
   });
 }

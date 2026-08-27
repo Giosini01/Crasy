@@ -61,6 +61,14 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
   }
 
   @override
+  Future<void> markTutorialSeen(String userId) {
+    return _users.doc(userId).update({
+      'tutorialSeen': true,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
   Future<void> saveConsent({
     required String userId,
     required String version,
@@ -92,6 +100,67 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
       });
 
     return batch.commit();
+  }
+
+  @override
+  Future<void> eraseUserData(String userId) async {
+    final user = _users.doc(userId);
+
+    // **Ogni pezzo per conto suo, e un errore non ferma gli altri.**
+    //
+    // Una cancellazione a blocco unico che si interrompe a meta' lascia la
+    // persona con meta' dei dati cancellati e l'account ancora in piedi: il
+    // peggiore dei mondi. Qui ogni pezzo che riesce e' un pezzo in meno, e
+    // quello che non riesce si riprova alla prossima.
+    for (final collezione in ['notifications', 'votes', 'friendRequests']) {
+      await _eraseCollection(user.collection(collezione));
+    }
+
+    // Le amicizie vanno tolte **da tutte e due le parti**: sparire lasciando il
+    // proprio nome nell'elenco degli altri non e' andarsene.
+    final amici = await user.collection('friends').get();
+
+    for (final amico in amici.docs) {
+      await _tryDelete(_users.doc(amico.id).collection('friends').doc(userId));
+      await _tryDelete(amico.reference);
+    }
+
+    // Le partecipazioni: si prova a cancellarle tutte, e le regole lasciano
+    // passare solo quelle delle gare gia' finite. Non e' una svista — e'
+    // scritto li' apposta, ed e' il motivo per cui qui non si controlla niente:
+    // il controllo che conta sta dalla parte del database, non di questo ciclo.
+    final partecipazioni = await _firestore
+        .collectionGroup('entries')
+        .where('userId', isEqualTo: userId)
+        .limit(200)
+        .get();
+
+    for (final partecipazione in partecipazioni.docs) {
+      await _tryDelete(partecipazione.reference);
+    }
+
+    try {
+      await _storage.ref('profiles/$userId/photo.jpg').delete();
+    } on Object {
+      // Chi non ha mai messo una foto profilo non ha niente da cancellare, e
+      // non e' un errore: e' il caso normale.
+    }
+
+    await _tryDelete(user);
+  }
+
+  Future<void> _eraseCollection(
+    CollectionReference<Map<String, dynamic>> collezione,
+  ) async {
+    final documenti = await collezione.limit(300).get();
+
+    for (final documento in documenti.docs) {
+      await _tryDelete(documento.reference);
+    }
+  }
+
+  Future<void> _tryDelete(DocumentReference<Map<String, dynamic>> riferimento) {
+    return riferimento.delete().catchError((Object _) {});
   }
 
   UserProfile? _mapSnapshot(DocumentSnapshot<Map<String, dynamic>> snapshot) {

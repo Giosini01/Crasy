@@ -34,10 +34,33 @@ abstract class UserProfileRepository {
   /// chiede solo di raccogliere il consenso ma di **dimostrarlo** — chi, a che
   /// cosa, quando. Un campo che si sovrascrive a ogni cambio non dimostra
   /// niente: cancella la storia mentre la aggiorna.
+  /// Segna che il giro di presentazione e' stato fatto.
+  ///
+  /// Un metodo suo invece di passare dal salvataggio del profilo: quello
+  /// riscrive nome, biografia e citta' tutti insieme, e usarlo qui vorrebbe
+  /// dire poter sovrascrivere il profilo con una copia vecchia solo per aver
+  /// finito il tutorial.
+  Future<void> markTutorialSeen(String userId);
+
   Future<void> saveConsent({
     required String userId,
     required String version,
     required bool marketing,
     required bool profiling,
   });
+
+  /// Cancella tutto quello che di [userId] si puo' cancellare da qui.
+  ///
+  /// **Non e' tutto, ed e' importante dirlo invece di far finta.** Le foto
+  /// mandate a gare ancora aperte restano fino alla fine della gara: sono in
+  /// mezzo a una competizione con dei soldi in palio, e toglierle mentre gli
+  /// altri stanno ancora giocando e' un patto rotto. Le cancella lo spazzino
+  /// poco dopo la chiusura, insieme a quelle di tutti gli altri.
+  ///
+  /// Resta anche la foto che ha **vinto** una gara: e' il trofeo di chi l'ha
+  /// commissionata, e non e' piu' solo un dato di chi se n'e' andato.
+  ///
+  /// Quello che sparisce subito: profilo, foto profilo, fiamme date, notifiche,
+  /// amicizie e richieste, e le partecipazioni alle gare gia' chiuse.
+  Future<void> eraseUserData(String userId);
 }
