@@ -52,12 +52,10 @@ final notificationsSeenAtProvider = StreamProvider<DateTime?>((ref) {
 final notificationsProvider = Provider<List<AppNotification>>((ref) {
   final stored = ref.watch(storedNotificationsProvider).valueOrNull ?? const [];
   final myEntries = ref.watch(myEntriesProvider).valueOrNull ?? const [];
-  final me = ref.watch(currentUserIdProvider);
   final ended = ref.watch(endedChallengesProvider).valueOrNull ?? const [];
-  final now = DateTime.now();
 
-  // Le gare finite che aspettano ancora una scelta. Una sola lettura per tutte
-  // e due le notizie qui sotto.
+  // Le gare finite che non hanno ancora un vincitore proclamato: dura un
+  // istante, perche' la chiude il primo che le apre.
   final aspettano = [
     for (final challenge in ended)
       if (challenge.winnerEntryId == null) challenge,
@@ -66,36 +64,20 @@ final notificationsProvider = Provider<List<AppNotification>>((ref) {
 
   final all = <AppNotification>[
     ...stored,
-    // **Chi ha partecipato sa che si sta decidendo.** Una gara che finisce e
-    // poi tace per un giorno intero e' il modo piu' rapido di far pensare che
-    // i soldi non arriveranno: qui si dice chi sta decidendo, e sulla scheda
-    // della gara c'e' anche entro quando.
+    // **Chi ha partecipato sa che la gara e' chiusa.**
+    //
+    // Una gara che finisce e poi tace e' il modo piu' rapido di far pensare che
+    // i soldi non arriveranno. Qui si dice che e' finita, e chi ha mandato una
+    // foto va a vedere com'e' andata — che e' anche il momento in cui una
+    // vittoria si scopre senza aspettare che qualcuno la comunichi.
     for (final challenge in aspettano)
-      if (partecipate.contains(challenge.id) && challenge.createdByUserId != me)
+      if (partecipate.contains(challenge.id))
         AppNotification(
-          id: 'scelta_${challenge.id}',
-          kind: NotificationKind.choosing,
-          actorId: challenge.createdByUserId,
-          actorUsername: challenge.createdByUsername,
+          id: 'finita_${challenge.id}',
+          kind: NotificationKind.ended,
           challengeId: challenge.id,
           challengeTitle: challenge.title,
           createdAt: challenge.endsAt,
-        ),
-    // **A chi deve scegliere si ricorda, e si ricorda di nuovo.**
-    //
-    // La data non e' quella in cui la gara e' finita: avanza di sei ore in sei
-    // ore. E' cio' che rende questo avviso **ripetuto** senza scrivere niente
-    // da nessuna parte — a ogni scatto torna a contare come non letto, il
-    // pallino rosso sulla campanella si riaccende, e smette da solo nel momento
-    // esatto in cui il premio viene assegnato.
-    for (final challenge in aspettano)
-      if (challenge.createdByUserId == me && me != null)
-        AppNotification(
-          id: 'devi_scegliere_${challenge.id}',
-          kind: NotificationKind.mustChoose,
-          challengeId: challenge.id,
-          challengeTitle: challenge.title,
-          createdAt: _reminderAt(challenge.endsAt, now),
         ),
     for (final entry in myEntries)
       if (entry.isWinner)
@@ -129,27 +111,6 @@ final notificationsProvider = Provider<List<AppNotification>>((ref) {
 
   return all;
 });
-
-/// Ogni quanto il promemoria di scegliere torna a farsi vivo.
-const _reminderEvery = Duration(hours: 6);
-
-/// Il momento a cui far risalire il promemoria.
-///
-/// Scatta a blocchi di sei ore dalla fine della gara: la data cambia, quindi
-/// chi ha gia' aperto la campanella se la ritrova **non letta** al giro dopo.
-/// Nessuna scrittura, nessuna coda di avvisi da spedire: e' la stessa cosa che
-/// dice il database, letta in un altro modo.
-DateTime _reminderAt(DateTime endsAt, DateTime now) {
-  final passate = now.difference(endsAt);
-
-  if (passate.isNegative) {
-    return endsAt;
-  }
-
-  final scatti = passate.inMinutes ~/ _reminderEvery.inMinutes;
-
-  return endsAt.add(_reminderEvery * scatti);
-}
 
 /// Quante notifiche sono arrivate dall'ultima occhiata.
 ///

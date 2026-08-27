@@ -52,7 +52,6 @@ void main() {
       winnerEntryId: entry.id,
       winnerUserId: entry.userId,
       winner: entry,
-      chosenByCreator: true,
     );
 
     final chiusa = await repository.watchChallenge(challenge.id).first;

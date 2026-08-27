@@ -158,17 +158,14 @@ class TrophyBack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.palette;
-
     return _Laminated(
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [palette.accent, palette.accentDeep],
-          ),
+        decoration: const BoxDecoration(
+          borderRadius: BorderRadius.all(Radius.circular(AppRadius.sm)),
+          // **Nero pieno.** Il retro di una figurina non compete con la foto
+          // davanti: e' il fondo su cui il marchio si stacca, e il nero e'
+          // l'unico che lo fa senza portare un colore nuovo nell'app.
+          color: Colors.black,
         ),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.sm),
@@ -176,17 +173,16 @@ class TrophyBack extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
-              // Il marchio ridipinto di bianco. Il file vero ha "cra" in nero e
-              // "sy" in rosso: su un fondo rosso la seconda meta' sparirebbe, e
-              // resterebbe un logo mutilato.
-              ColorFiltered(
-                colorFilter: const ColorFilter.mode(
-                  Colors.white,
-                  BlendMode.srcIn,
-                ),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: CrasyWordmark(size: 34, alignment: Alignment.center),
+              // Il marchio come va sul nero: **"cra" bianco, "sy" rosso**. E'
+              // il file vero ricolorato, non una scritta rifatta con un
+              // carattere — quelle lettere sono disegnate, e un font ne darebbe
+              // una imitazione.
+              const FittedBox(
+                fit: BoxFit.scaleDown,
+                child: CrasyWordmark(
+                  size: 34,
+                  alignment: Alignment.center,
+                  onDark: true,
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -194,7 +190,7 @@ class TrophyBack extends StatelessWidget {
                 kind.label,
                 textAlign: TextAlign.center,
                 style: context.texts.labelSmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: Colors.white.withValues(alpha: 0.55),
                   fontSize: 8,
                   letterSpacing: 2,
                 ),
@@ -237,17 +233,25 @@ class _Laminated extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.palette;
-
     return AspectRatio(
       aspectRatio: TrophyFront.ratio,
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          gradient: LinearGradient(
+          // **La cornice e' oro, e non e' un capriccio.** Il rosso qui dentro
+          // vuol dire *premio in palio*: e' il colore di una cosa che si puo'
+          // ancora vincere. Un trofeo e' il contrario — e' una cosa gia' vinta,
+          // e merita il colore che in ogni gara del mondo vuol dire quello.
+          //
+          // Tre toni e non uno: un oro a tinta unita e' senape. Sono la luce
+          // sullo spigolo, il corpo del metallo e l'ombra dal lato opposto,
+          // ed e' quello che lo fa sembrare una cosa e non un rettangolo
+          // giallo.
+          gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [palette.accent, palette.accentDeep, palette.accent],
+            colors: [Color(0xFFF6DFA0), Color(0xFFC9A227), Color(0xFF8C6D1F)],
+            stops: [0, 0.45, 1],
           ),
           boxShadow: [
             BoxShadow(
@@ -526,15 +530,6 @@ class _TrophyDetails extends StatelessWidget {
             _Line(
               label: 'Finita',
               value: AppDateUtils.formatItalianDate(challenge.endsAt),
-            ),
-            // **Assegnata o scaduta non e' la stessa cosa**, e chi ha in mano il
-            // trofeo ha diritto di saperlo: uno l'ha scelto una persona, l'altro
-            // l'ha deciso il tempo che passava.
-            _Line(
-              label: 'Il premio',
-              value: challenge.chosenByCreator
-                  ? 'scelto da chi l\'ha lanciata'
-                  : 'andato a chi aveva piu\' fiamme',
             ),
             const SizedBox(height: AppSpacing.sm),
           ],

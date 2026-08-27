@@ -84,7 +84,6 @@ abstract class ChallengeRepository {
     required String winnerEntryId,
     required String winnerUserId,
     ChallengeEntry? winner,
-    bool chosenByCreator = false,
   });
 
   /// Le gare che [userId] ha **vinto**. La sua bacheca dei trofei.

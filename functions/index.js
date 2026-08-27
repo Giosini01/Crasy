@@ -116,16 +116,8 @@ exports.moderateEntryPhoto = onDocumentCreated(
   }
 );
 
-/** Quante ore ha chi ha lanciato la gara per assegnare il premio da solo.
- *
- * Deve restare uguale a `Challenge.decisionWindow` nell'app: se qui fosse piu'
- * corto, il server strapperebbe di mano il verdetto a chi l'app dice che ha
- * ancora tempo per decidere.
- */
-const DECISION_WINDOW_HOURS = 24;
-
 /**
- * Assegna il premio alle challenge a cui nessuno l'ha assegnato in tempo.
+ * Assegna il premio alle challenge scadute.
  *
  * E' l'unica cosa che il client non puo' fare e che nessuno puo' fare a mano:
  * chiudere una gara con dei soldi in palio. La regola e' quella scritta nelle
@@ -136,19 +128,17 @@ const DECISION_WINDOW_HOURS = 24;
  * un'ora fa e non ha ancora un vincitore e' una challenge che sembra rotta.
  */
 exports.closeExpiredChallenges = onSchedule('every 5 minutes', async () => {
-  // **Non si chiude allo scadere della gara, ma allo scadere della scelta.**
+  // **Si chiude appena la gara finisce.**
   //
-  // A decidere chi vince e' chi ha lanciato la challenge, e ha ventiquattro ore
-  // per farlo: qui si arriva solo quando quelle ore passano senza che nessuno
-  // abbia deciso, e a quel punto il premio va a chi ha preso piu' fiamme.
-  // Chiudere prima vorrebbe dire togliergli il verdetto di mano.
-  const deadline = admin.firestore.Timestamp.fromMillis(
-    Date.now() - DECISION_WINDOW_HOURS * 60 * 60 * 1000,
-  );
+  // A decidere chi vince sono le fiamme, e le fiamme si fermano alla sirena:
+  // non c'e' niente da aspettare. C'e' stato un periodo in cui si aspettavano
+  // ventiquattro ore perche' chi aveva messo i soldi potesse scegliere, ed era
+  // un giorno intero di silenzio fra la fine e il verdetto.
+  const deadline = admin.firestore.Timestamp.now();
 
-  // Le candidate sono le challenge il cui tempo per scegliere e' finito e a cui
-  // non e' stato assegnato nessun vincitore. `winnerEntryId` nullo e' il segno
-  // che la proclamazione non e' stata fatta.
+  // Le candidate sono le challenge finite a cui non e' stato assegnato nessun
+  // vincitore. `winnerEntryId` nullo e' il segno che la proclamazione non e'
+  // stata fatta.
   const expired = await db
     .collection('challenges')
     .where('endsAt', '<=', deadline)

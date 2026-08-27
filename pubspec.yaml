@@ -40,3 +40,6 @@ flutter:
     # Il file d'origine ha attorno un margine bianco enorme: messo cosi' com'e'
     # avrebbe occupato tre volte lo spazio che si vede.
     - assets/brand/crasy-wordmark.png
+    # Lo stesso segno per i fondi scuri: le lettere bianche, le fiamme rosse.
+    # E' il file vero ricolorato, non una scritta rifatta con un carattere.
+    - assets/brand/crasy-wordmark-dark.png

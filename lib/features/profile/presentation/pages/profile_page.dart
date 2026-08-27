@@ -22,7 +22,6 @@ import 'package:crasy/features/profile/presentation/providers/user_profile_provi
 import 'package:crasy/features/profile/presentation/widgets/delete_account.dart';
 import 'package:crasy/features/profile/presentation/widgets/profile_shelf.dart';
 import 'package:crasy/features/profile/presentation/widgets/trophy_card.dart';
-import 'package:crasy/features/tutorial/presentation/pages/tutorial_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -160,24 +159,24 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         // uscire**, non sepolta in un menu: il GDPR chiede che
                         // togliere un consenso sia facile quanto darlo, e
                         // "facile" vuol dire trovabile senza cercare.
-                        Center(
-                          child: TextButton(
-                            onPressed: () => showHowItWorks(context),
-                            child: Text(
-                              'Come funziona',
-                              style: context.texts.titleMedium?.copyWith(
-                                color: palette.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ),
+                        // **Questa resta, e non e' una dimenticanza.**
+                        //
+                        // Il regolamento europeo chiede che revocare un
+                        // consenso sia facile quanto darlo: se per darlo basta
+                        // una spunta e per toglierlo bisogna scrivere una mail,
+                        // quel consenso non e' mai stato libero — e cade,
+                        // trascinandosi dietro il trattamento che reggeva.
+                        //
+                        // E' piccola e grigia, non una voce di menu: c'e' per
+                        // chi la cerca, non per chi sta guardando le proprie
+                        // foto.
                         Center(
                           child: TextButton(
                             onPressed: () => showPrivacySettings(context),
                             child: Text(
                               'Privacy e consensi',
-                              style: context.texts.titleMedium?.copyWith(
-                                color: palette.textSecondary,
+                              style: context.texts.bodySmall?.copyWith(
+                                color: palette.textFaint,
                               ),
                             ),
                           ),
@@ -320,7 +319,7 @@ class _Identity extends ConsumerWidget {
         confirmLabel: 'Salva',
         onConfirm: () => Navigator.of(sheetContext).pop(true),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.page),
+          padding: const EdgeInsets.only(bottom: AppSpacing.md),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

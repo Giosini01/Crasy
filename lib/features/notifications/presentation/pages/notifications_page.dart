@@ -507,14 +507,8 @@ class _Face extends StatelessWidget {
         palette.textPrimary,
       ),
       NotificationKind.win => (Icons.emoji_events, palette.accent),
-      // Il tempo che passa mentre qualcun altro decide.
-      NotificationKind.choosing => (
-        Icons.hourglass_bottom_rounded,
-        palette.textPrimary,
-      ),
-      // Questa non e' una notizia: e' una cosa da fare, e il rosso e' li' per
-      // dirlo.
-      NotificationKind.mustChoose => (Icons.gavel_rounded, palette.accent),
+      // La sirena: la gara e' chiusa, i conti sono fatti.
+      NotificationKind.ended => (Icons.flag_rounded, palette.textPrimary),
     };
 
     return SizedBox(

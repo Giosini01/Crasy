@@ -105,14 +105,10 @@ class ChallengeCloser {
       return false;
     }
 
-    // **Non basta che la gara sia finita: deve essere scaduto anche il tempo
-    // per scegliere.**
-    //
-    // A decidere chi vince e' chi ha lanciato la gara, e ha ventiquattro ore
-    // per farlo. Chiudere prima vorrebbe dire togliergli il verdetto di mano e
-    // darlo al conteggio delle fiamme — cioe' esattamente la cosa che non deve
-    // succedere finche' quelle ore non sono passate.
-    if (!challenge.choiceExpiredAt(DateTime.now())) {
+    // La gara e' finita: si chiude. **Nessuna attesa**, perche' non c'e' piu'
+    // niente da aspettare — a decidere sono le fiamme, e quelle si sono fermate
+    // alla sirena.
+    if (!challenge.hasEndedAt(DateTime.now())) {
       return false;
     }
 

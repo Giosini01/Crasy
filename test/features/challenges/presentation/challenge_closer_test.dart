@@ -121,10 +121,12 @@ void main() {
     },
   );
 
-  test('finita da poco non si chiude: sta ancora scegliendo', () async {
-    // **E' la regola nuova, e vale un premio.** Il verdetto e' di chi ha messo i
-    // soldi, e chiudere prima che il suo tempo scada vorrebbe dire toglierglielo
-    // di mano e darlo al conteggio delle fiamme.
+  test('finita da un istante si chiude gia\'', () async {
+    // **Non si aspetta piu' niente.** Era la regola di prima: un giorno di
+    // tempo perche' chi aveva messo i soldi scegliesse. Adesso decidono le
+    // fiamme, e le fiamme si sono fermate quando e' scaduto il tempo — quindi
+    // il verdetto c'e' gia', e tenerlo nascosto per ventiquattro ore sarebbe
+    // solo un giorno di silenzio.
     final (challenge, entries) = await endedChallenge(
       authors: ['a', 'b'],
       ago: const Duration(minutes: 10),
@@ -134,13 +136,16 @@ void main() {
         .read(challengeCloserProvider)
         .closeIfNeeded(challenge, entries, entriesLoaded: true);
 
-    expect((await reread(challenge.id)).winnerEntryId, isNull);
+    expect((await reread(challenge.id)).winnerEntryId, isNotNull);
   });
 
-  test('passate le ventiquattro ore vince chi ha piu\' fiamme', () async {
+  test('vince chi ha piu\' fiamme, appena la gara finisce', () async {
+    // **Cinque minuti, non venticinque ore.** C'e' stato un periodo in cui si
+    // aspettava un giorno perche' chi aveva messo i soldi potesse scegliere:
+    // adesso decidono le fiamme, e le fiamme si sono fermate alla sirena.
     final (challenge, entries) = await endedChallenge(
       authors: ['a', 'b'],
-      ago: const Duration(hours: 25),
+      ago: const Duration(minutes: 5),
     );
     final samples = container.read(sampleChallengeRepositoryProvider);
 
@@ -162,20 +167,18 @@ void main() {
     final closed = await reread(challenge.id);
 
     expect(closed.winnerEntryId, entries[1].id);
-    // E si vede che nessuno l'ha scelto: il premio e' scaduto, non assegnato.
-    expect(closed.chosenByCreator, isFalse);
   });
 
-  test('chi ha lanciato la gara sceglie chi vuole, anche subito', () async {
+  test('chi ha lanciato la gara non decide niente', () async {
+    // **La foto senza fiamme perde comunque.** E' la prova che il verdetto non
+    // dipende piu' da nessuna volonta': chi ha messo i soldi guarda il conteggio
+    // come tutti gli altri.
     final (challenge, entries) = await endedChallenge(
       authors: ['a', 'b'],
       ago: const Duration(minutes: 5),
     );
     final samples = container.read(sampleChallengeRepositoryProvider);
 
-    // La prima foto non ha nessuna fiamma: e' proprio il punto. Chi mette i
-    // soldi sta commissionando un'opera, e la piu' votata non e' sempre quella
-    // che aveva chiesto.
     await samples.setVote(
       challengeId: challenge.id,
       entryId: entries[1].id,
@@ -183,17 +186,15 @@ void main() {
       voted: true,
     );
 
-    await samples.proclaimWinner(
-      challengeId: challenge.id,
-      winnerEntryId: entries[0].id,
-      winnerUserId: entries[0].userId,
-      chosenByCreator: true,
-    );
+    await container
+        .read(challengeCloserProvider)
+        .closeIfNeeded(
+          challenge,
+          await samples.watchEntries(challenge.id).first,
+          entriesLoaded: true,
+        );
 
-    final closed = await reread(challenge.id);
-
-    expect(closed.winnerEntryId, entries[0].id);
-    expect(closed.chosenByCreator, isTrue);
+    expect((await reread(challenge.id)).winnerEntryId, entries[1].id);
   });
 
   test('una gara ancora aperta non si tocca', () async {

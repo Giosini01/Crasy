@@ -26,7 +26,6 @@ abstract final class ChallengeMapper {
       startsAt: _dateOr(data['startsAt'], _epoch),
       endsAt: _dateOr(data['endsAt'], _epoch),
       participantsCount: (data['participantsCount'] as num?)?.toInt() ?? 0,
-      chosenByCreator: data['chosenByCreator'] as bool? ?? false,
       winnerEntryId: data['winnerEntryId'] as String?,
       winnerUserId: data['winnerUserId'] as String? ?? '',
       winnerUsername: data['winnerUsername'] as String? ?? '',
@@ -51,8 +50,6 @@ abstract final class ChallengeMapper {
       'startsAt': Timestamp.fromDate(challenge.startsAt),
       'endsAt': Timestamp.fromDate(challenge.endsAt),
       'participantsCount': challenge.participantsCount,
-      // Nasce sempre falso: nessuno ha ancora scelto niente.
-      'chosenByCreator': false,
       'winnerEntryId': challenge.winnerEntryId,
       // **Nasce sempre non pagata, qualunque cosa dica chi la crea.**
       //

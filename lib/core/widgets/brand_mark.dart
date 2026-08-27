@@ -16,8 +16,16 @@ class CrasyWordmark extends StatelessWidget {
   const CrasyWordmark({
     this.size = header,
     this.alignment = Alignment.centerLeft,
+    this.onDark = false,
     super.key,
   });
+
+  /// Il segno per i fondi scuri: **lettere bianche, fiamme rosse**.
+  ///
+  /// E' un secondo file, non un filtro sul primo. Ridipingere tutto di bianco
+  /// spegnerebbe anche le fiamme, e le fiamme sono la meta' del marchio: quello
+  /// che resterebbe sarebbe la parola, non il segno.
+  final bool onDark;
 
   /// La misura del marchio in cima a una schermata.
   ///
@@ -41,7 +49,9 @@ class CrasyWordmark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Image.asset(
-      'assets/brand/crasy-wordmark.png',
+      onDark
+          ? 'assets/brand/crasy-wordmark-dark.png'
+          : 'assets/brand/crasy-wordmark.png',
       height: size,
       fit: BoxFit.contain,
       alignment: alignment,

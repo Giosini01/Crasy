@@ -257,7 +257,6 @@ class SampleChallengeRepository implements ChallengeRepository {
     required String winnerEntryId,
     required String winnerUserId,
     ChallengeEntry? winner,
-    bool chosenByCreator = false,
   }) async {
     final challenge = _challenges[challengeId];
 
@@ -268,7 +267,6 @@ class SampleChallengeRepository implements ChallengeRepository {
     _challenges[challengeId] = challenge.copyWith(
       winnerEntryId: winnerEntryId,
       winnerUserId: winnerUserId,
-      chosenByCreator: chosenByCreator,
       // Come nel repository vero: la foto vincente si ricopia sulla gara, e da
       // li' in poi il trofeo non dipende piu' dalla partecipazione.
       winnerUsername: winner?.authorName ?? '',

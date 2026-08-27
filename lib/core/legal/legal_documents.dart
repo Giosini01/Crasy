@@ -159,10 +159,10 @@ $draftWarning
 1. COS'E' CRASY
 CRASY e' un'applicazione in cui una persona lancia una missione mettendo in
 palio del denaro e altre persone vi partecipano con una foto o un video. Chi
-lancia la missione commissiona un'opera: sceglie chi ha fatto meglio e il premio
-va a quella persona. Non e' un gioco di sorte, non e' una scommessa e non e' un
-concorso a premi: il denaro e' il corrispettivo di un'opera, e non si paga nulla
-per partecipare.
+altre persone vi partecipano con una foto o un video. Alla scadenza il premio va
+all'opera che ha ricevuto piu' apprezzamenti dagli altri utenti. Non e' un gioco
+di sorte e non e' una scommessa: l'esito dipende dal valore riconosciuto
+all'opera, non dal caso, e non si paga nulla per partecipare.
 
 2. CHI PUO' ISCRIVERSI
 Solo chi ha compiuto 18 anni. Un account per persona, con dati veri. Un account
@@ -179,9 +179,9 @@ diffamatori o che mettano in pericolo chi li realizza.
 
 4. IL PREMIO
 Chi lancia la missione mette in palio una somma e la versa a CRASY, che la
-trattiene fino alla chiusura. Alla fine, chi ha lanciato la missione sceglie il
-vincitore entro il tempo indicato nell'app; se non sceglie, il premio va a chi
-ha ricevuto piu' fiamme. Sul premio CRASY trattiene una percentuale, indicata
+trattiene fino alla chiusura. Alla scadenza il premio va alla partecipazione che
+ha ricevuto piu' fiamme dagli altri utenti; a parita' di fiamme vince chi ha
+inviato per primo. Sul premio CRASY trattiene una percentuale, indicata
 nell'app prima del pagamento. Il resto viene accreditato al vincitore.
 Le somme sono corrispettivi per un'opera: possono avere rilevanza fiscale per
 chi le riceve, ed e' responsabilita' del percettore dichiararle secondo la
@@ -295,10 +295,10 @@ Garante per la protezione dei dati personali (www.garanteprivacy.it) o
 all'autorita' giudiziaria.
 
 DECISIONI AUTOMATIZZATE
-Non prendiamo decisioni che ti riguardano in modo esclusivamente automatizzato e
-con effetti giuridici. Il vincitore di una missione lo sceglie una persona; se
-non sceglie entro il tempo previsto, il premio va a chi ha ricevuto piu' fiamme
-dagli altri utenti.
+Il vincitore di una missione e' determinato dal conteggio delle preferenze
+espresse dagli altri utenti, non da un programma che valuta i tuoi dati
+personali. Non analizziamo il tuo comportamento per decidere l'esito di una
+missione.
 ''',
   );
 

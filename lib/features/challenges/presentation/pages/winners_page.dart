@@ -210,12 +210,7 @@ class _WinnerBlock extends ConsumerWidget {
               style: texts.bodyMedium,
             )
           else if (winner == null)
-            Text(
-              challenge.waitsForChoiceAt(DateTime.now())
-                  ? 'Sta scegliendo @${challenge.createdByUsername}.'
-                  : 'Vincitore in arrivo.',
-              style: texts.bodyMedium,
-            )
+            Text('Vincitore in arrivo.', style: texts.bodyMedium)
           else ...[
             // **Solo la foto del vincitore.** Le altre stanno dentro la gara,
             // per chi vuole andarle a rivedere; qui si racconta come e' finita,
@@ -242,15 +237,7 @@ class _WinnerBlock extends ConsumerWidget {
                     style: texts.titleMedium,
                   ),
                   TextSpan(
-                    // **Scelto o scaduto, si dice.** Chi guarda ha diritto di
-                    // sapere se quel premio e' stato assegnato da chi l'ha
-                    // messo o e' finito da solo a chi aveva piu' fiamme: sono
-                    // due storie diverse, e raccontarle uguali toglie valore
-                    // proprio a quella che ne ha di piu'.
-                    text: challenge.chosenByCreator
-                        ? ' ha vinto ${challenge.prizeLabel}, scelto da '
-                              '@${challenge.createdByUsername}'
-                        : ' ha vinto ${challenge.prizeLabel} con piu\' fiamme',
+                    text: ' ha vinto ${challenge.prizeLabel} con piu\' fiamme',
                     style: texts.bodyMedium,
                   ),
                 ],

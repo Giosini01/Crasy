@@ -19,13 +19,13 @@ enum NotificationKind {
   /// Hai vinto.
   win,
 
-  /// Una gara a cui hai partecipato e' finita, e chi l'ha lanciata sta
-  /// scegliendo.
-  choosing,
-
-  /// **Una gara tua e' finita e tocca a te scegliere.** Torna a farsi viva
-  /// finche' non lo fai: vedi `notificationsProvider`.
-  mustChoose,
+  /// Una gara a cui hai partecipato e' finita.
+  ///
+  /// Prima erano due — *sta scegliendo* e *scegli tu* — perche' il vincitore lo
+  /// decideva chi aveva messo i soldi. Adesso decidono le fiamme e la gara si
+  /// chiude appena finisce: resta una notizia sola, che serve a chi ha
+  /// partecipato per sapere che e' il momento di andare a vedere com'e' andata.
+  ended,
 }
 
 /// In quale sezione della campanella finisce una notizia.
@@ -101,8 +101,7 @@ class AppNotification {
     NotificationKind.friendRequest =>
       '@$actorUsername ti ha chiesto l\'amicizia',
     NotificationKind.win => 'Hai vinto',
-    NotificationKind.choosing => '@$actorUsername sta scegliendo il vincitore',
-    NotificationKind.mustChoose => 'Scegli chi ha vinto',
+    NotificationKind.ended => 'La missione e\' finita: guarda chi ha vinto',
   };
 
   /// La sezione in cui finisce.
@@ -115,8 +114,7 @@ class AppNotification {
     NotificationKind.fire => NotificationGroup.fires,
     NotificationKind.participation ||
     NotificationKind.win ||
-    NotificationKind.choosing ||
-    NotificationKind.mustChoose ||
+    NotificationKind.ended ||
     NotificationKind.friendRequest => NotificationGroup.missions,
   };
 

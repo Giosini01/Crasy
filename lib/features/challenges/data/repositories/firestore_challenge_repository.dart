@@ -343,16 +343,12 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     required String winnerEntryId,
     required String winnerUserId,
     ChallengeEntry? winner,
-    bool chosenByCreator = false,
   }) async {
     final challengeRef = _challenges.doc(challengeId);
     final batch = _firestore.batch()
       ..update(challengeRef, {
         'winnerEntryId': winnerEntryId,
         'winnerUserId': winnerUserId,
-        // Chi guarda ha diritto di sapere se quel premio e' stato **assegnato**
-        // o e' semplicemente scaduto in mano a chi aveva piu' fiamme.
-        'chosenByCreator': chosenByCreator,
         // **La foto che ha vinto si ricopia qui dentro.**
         //
         // E' lo stesso dato che sta nella partecipazione, e la duplicazione e'

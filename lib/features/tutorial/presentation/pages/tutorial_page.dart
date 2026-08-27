@@ -224,10 +224,10 @@ class _TutorialStep {
     ),
     const _TutorialStep(
       icon: Icons.emoji_events_rounded,
-      title: 'A scegliere chi vince\ne\' chi ha messo i soldi',
+      title: 'Vince chi ha piu\' fiamme\nquando scade il tempo',
       body:
-          'Quando la missione finisce decide lui, entro 24 ore. Se non decide, '
-          'il premio va da solo a chi ha piu\' fiamme. La foto che vince ti '
+          'Nessuno decide al posto degli altri: alla sirena si contano le '
+          'fiamme, e il premio va alla foto che ne ha di piu\'. Quella foto ti '
           'resta nel profilo come trofeo, con quanto ti ha fatto incassare.',
     ),
   ];

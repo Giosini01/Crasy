@@ -76,8 +76,7 @@ void main() {
       const casi = {
         NotificationKind.participation: NotificationGroup.missions,
         NotificationKind.win: NotificationGroup.missions,
-        NotificationKind.choosing: NotificationGroup.missions,
-        NotificationKind.mustChoose: NotificationGroup.missions,
+        NotificationKind.ended: NotificationGroup.missions,
         NotificationKind.fire: NotificationGroup.fires,
         // Le richieste d'amicizia non hanno una sezione qui: stanno nella
         // scheda Amici, con i comandi per accettare o rifiutare.
@@ -93,25 +92,17 @@ void main() {
       });
     });
 
-    test('chi ha partecipato legge chi sta scegliendo', () {
+    test('a gara finita si dice che e\' finita', () {
       const notification = AppNotification(
-        id: 'scelta_1',
-        kind: NotificationKind.choosing,
-        actorUsername: 'luca',
+        id: 'finita_1',
+        kind: NotificationKind.ended,
       );
 
-      expect(notification.message, contains('@luca'));
-      expect(notification.message, contains('sta scegliendo'));
-    });
-
-    test('a chi deve scegliere si dice cosa fare', () {
-      const notification = AppNotification(
-        id: 'devi_1',
-        kind: NotificationKind.mustChoose,
-      );
-
-      // Non e' una notizia, e' una cosa da fare: la frase e' un comando.
-      expect(notification.message, 'Scegli chi ha vinto');
+      // **Non nomina nessuno**, e non e' una svista: non c'e' piu' nessuno che
+      // decide, quindi non c'e' nessuno da nominare. C'e' solo un conteggio da
+      // andare a guardare.
+      expect(notification.message, contains('finita'));
+      expect(notification.message, isNot(contains('@')));
     });
   });
 }

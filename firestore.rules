@@ -367,7 +367,8 @@ service cloud.firestore {
       // gia': una funzione che gira ogni cinque minuti, e che richiede il piano
       // a pagamento di Firebase. Finche' quel piano non e' attivo **nessuna
       // challenge si chiude**: scadono e restano li' per sempre, e il giro del
-      // prodotto non si vede mai finire.
+      // prodotto non si vede mai finire. Cosi' invece la chiude il primo che la
+      // apre dopo la scadenza.
       //
       // Il permesso e' legato a `prizeStatus == 'unpaid'`, ed e' la parte che
       // conta: vale solo dove **CRASY non ha in cassa un centesimo**. Il giorno
@@ -375,26 +376,13 @@ service cloud.firestore {
       // non si proclama piu' niente — senza che nessuno debba ricordarsi di
       // cancellare questa regola.
       //
-      // Va detto cosa questo permette, oggi: chiunque puo' scrivere il nome di
-      // un vincitore diverso da quello vero. Non ci sono soldi di mezzo, e il
-      // costo di non chiudere mai una gara e' piu' alto.
-      // **Il premio lo assegna chi ha lanciato la gara.**
+      // Va detto cosa questo permette, oggi: **chiunque puo' scrivere il nome
+      // di un vincitore diverso da quello vero**, perche' il conto delle fiamme
+      // lo fa chi scrive e nessuna regola puo' rifarlo. Non ci sono soldi di
+      // mezzo, e il costo di non chiudere mai una gara e' piu' alto. E' una
+      // delle ragioni per cui questa strada deve sparire il giorno in cui il
+      // server si accende — cosa che succede da sola.
       //
-      // Non lo decide piu' il conteggio delle fiamme: chi mette i soldi sta
-      // commissionando un'opera, e la piu' votata non e' sempre quella che
-      // aveva chiesto. Ha ventiquattro ore dalla fine per farlo.
-      //
-      // Passate quelle, **chiude chiunque passi di li'** — e' la strada di
-      // riserva di prima, e resta necessaria per la stessa ragione di prima:
-      // la funzione che dovrebbe farlo dal server richiede il piano a pagamento.
-      // Una gara senza vincitore perche' chi l'ha lanciata si e' distratto e'
-      // la cosa che fa perdere fiducia a tutti gli altri.
-      //
-      // Quello che nessuna regola puo' controllare e' **che il vincitore
-      // automatico sia davvero il piu' votato**: quel conto lo fa chi scrive.
-      // Era vero anche prima, ed e' una delle ragioni per cui questa strada
-      // deve sparire il giorno in cui il server si accende — cosa che succede
-      // da sola, perche' vale solo finche' CRASY non ha un centesimo in cassa.
       // **La foto del trofeo dev'essere quella che ha davvero vinto.**
       //
       // Insieme al vincitore si scrive nella gara una copia della sua foto:
@@ -420,19 +408,14 @@ service cloud.firestore {
 
       allow update: if signedIn()
                     && changedOnly([
-                         'winnerEntryId', 'winnerUserId', 'chosenByCreator',
+                         'winnerEntryId', 'winnerUserId',
                          'winnerUsername', 'winnerMediaUrl',
                          'winnerMediaKind', 'winnerVotes'
                        ])
                     && winnerPhotoIsReal()
                     && resource.data.get('prizeStatus', 'unpaid') == 'unpaid'
                     && resource.data.get('winnerEntryId', null) == null
-                    && (
-                      (resource.data.createdByUserId == request.auth.uid
-                       && resource.data.endsAt <= request.time)
-                      || resource.data.endsAt
-                         < request.time - duration.value(24, 'h')
-                    );
+                    && resource.data.endsAt <= request.time;
 
       match /entries/{entryId} {
 
@@ -521,15 +504,7 @@ service cloud.firestore {
                       && changedOnly(['isWinner'])
                       && request.resource.data.isWinner == true
                       && challenge().get('prizeStatus', 'unpaid') == 'unpaid'
-                      // Le stesse due strade della proclamazione qui sopra: chi
-                      // ha lanciato la gara appena finisce, chiunque dopo le
-                      // ventiquattro ore.
-                      && (
-                        (challenge().createdByUserId == request.auth.uid
-                         && challenge().endsAt <= request.time)
-                        || challenge().endsAt
-                           < request.time - duration.value(24, 'h')
-                      );
+                      && challenge().endsAt <= request.time;
 
         allow update: if signedIn()
                       && changedOnly(['votes'])

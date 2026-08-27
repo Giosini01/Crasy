@@ -44,13 +44,20 @@ class ModalSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
 
-    return SafeArea(
-      top: false,
-      child: Padding(
-        // Lascia salire il foglio sopra la tastiera quando si scrive.
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(context).bottom,
-        ),
+    // **Il fondo pieno sta fuori, il margine di sicurezza sta dentro.**
+    //
+    // Erano al contrario, e si vedeva: sotto il foglio restava una striscia
+    // trasparente alta quanto la barra del telefono — quella dove sta la
+    // lineetta per tornare alla schermata iniziale — e il foglio sembrava non
+    // arrivare in fondo, come un'app disegnata per uno schermo piu' piccolo.
+    //
+    // Il margine per la tastiera invece resta fuori dal fondo: li' il foglio
+    // deve **salire davvero**, non allungare il proprio bianco dietro i tasti.
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(
+        top: false,
+        maintainBottomViewPadding: true,
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: palette.background,
@@ -92,7 +99,23 @@ class ModalSheet extends StatelessWidget {
                 ),
               ),
               Divider(color: palette.line, height: 0.5, thickness: 0.5),
-              Flexible(child: child),
+              // **Il margine laterale lo mette il foglio.**
+              //
+              // Prima lo doveva mettere ogni contenuto per conto suo, e
+              // indovinate quanti se lo ricordavano: le scritte arrivavano al
+              // bordo dello schermo in mezzo foglio su due. Messo qui, chi
+              // scrive un foglio nuovo non puo' piu' sbagliarlo.
+              Flexible(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.page,
+                    AppSpacing.md,
+                    AppSpacing.page,
+                    AppSpacing.md,
+                  ),
+                  child: child,
+                ),
+              ),
             ],
           ),
         ),
