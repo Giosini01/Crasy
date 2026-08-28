@@ -5,6 +5,7 @@ import 'package:crasy/features/challenges/data/mappers/challenge_mapper.dart';
 import 'package:crasy/features/challenges/domain/commissioned_order.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -187,6 +188,7 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     required Uint8List bytes,
     MediaKind mediaKind = MediaKind.photo,
     String? contentType,
+    String caption = '',
   }) async {
     final challengeRef = _challenges.doc(challengeId);
     final challengeSnapshot = await challengeRef.get();
@@ -251,6 +253,7 @@ class FirestoreChallengeRepository implements ChallengeRepository {
       mediaUrl: await reference.getDownloadURL(),
       storagePath: storagePath,
       mediaKind: mediaKind,
+      caption: caption.trim(),
     );
 
     // **Una foto sola, e non si cambia.** Il controllo sta dentro la
@@ -274,6 +277,73 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     });
 
     return entry;
+  }
+
+  CollectionReference<Map<String, dynamic>> _comments(
+    String challengeId,
+    String entryId,
+  ) => _entries(challengeId).doc(entryId).collection('comments');
+
+  @override
+  Stream<List<EntryComment>> watchComments({
+    required String challengeId,
+    required String entryId,
+  }) {
+    // L'ordine si fa in memoria, come ovunque qui dentro: una query ordinata
+    // per `createdAt` **salta i documenti a cui il server non ha ancora scritto
+    // l'ora**, e quello e' esattamente il commento appena mandato — che
+    // sparirebbe dagli occhi di chi l'ha scritto per il mezzo secondo in cui lo
+    // sta cercando.
+    return _comments(challengeId, entryId).limit(200).snapshots().map((
+      snapshot,
+    ) {
+      final comments = [
+        for (final document in snapshot.docs)
+          EntryCommentMapper.fromFirestore(
+            document.id,
+            challengeId,
+            entryId,
+            document.data(),
+          ),
+      ];
+
+      return comments..sort(EntryCommentMapper.oldestFirst);
+    });
+  }
+
+  @override
+  Future<EntryComment> addComment({
+    required String challengeId,
+    required String entryId,
+    required String userId,
+    required String authorName,
+    required String text,
+    List<EntryMention> mentions = const [],
+  }) async {
+    final comment = EntryComment(
+      id: '',
+      challengeId: challengeId,
+      entryId: entryId,
+      userId: userId,
+      authorName: authorName,
+      text: text.trim(),
+      mentions: mentions,
+    );
+
+    final document = await _comments(
+      challengeId,
+      entryId,
+    ).add(EntryCommentMapper.toCreateMap(comment));
+
+    return EntryComment(
+      id: document.id,
+      challengeId: challengeId,
+      entryId: entryId,
+      userId: userId,
+      authorName: authorName,
+      text: comment.text,
+      mentions: mentions,
+    );
   }
 
   @override

@@ -507,6 +507,11 @@ class _Face extends StatelessWidget {
         palette.textPrimary,
       ),
       NotificationKind.win => (Icons.emoji_events, palette.accent),
+      // La chiocciola: qualcuno ti ha chiamato per nome dentro un commento.
+      NotificationKind.mention => (
+        Icons.alternate_email_rounded,
+        palette.textPrimary,
+      ),
       // La sirena: la gara e' chiusa, i conti sono fatti.
       NotificationKind.ended => (Icons.flag_rounded, palette.textPrimary),
     };

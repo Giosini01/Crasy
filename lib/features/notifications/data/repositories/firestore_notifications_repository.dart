@@ -135,6 +135,18 @@ class FirestoreNotificationsRepository {
   static String fireId({required String voteKey, required String actorId}) =>
       'fiamma_${voteKey}_$actorId';
 
+  /// Il nome del documento di una nomina dentro un commento.
+  ///
+  /// Ci sono la gara, chi nomina e chi e' nominato — non **quale** commento.
+  /// Cosi' chi ti nomina dieci volte nella stessa gara ti fa squillare la
+  /// campanella una volta: le regole accettano una notifica sola per nome di
+  /// documento, e le altre nove vengono scartate senza far niente.
+  static String mentionId({
+    required String challengeId,
+    required String actorId,
+    required String toUserId,
+  }) => 'nomina_${challengeId}_${actorId}_$toUserId';
+
   /// Il nome del documento di una partecipazione.
   static String participationId({
     required String challengeId,

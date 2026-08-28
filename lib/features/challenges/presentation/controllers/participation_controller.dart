@@ -136,6 +136,7 @@ class ParticipationController extends AsyncNotifier<void> {
   Future<bool> submit({
     required String challengeId,
     required PickedMedia media,
+    String caption = '',
   }) async {
     final authState = ref.read(authStateProvider);
 
@@ -172,6 +173,11 @@ class ParticipationController extends AsyncNotifier<void> {
         authorName: profile?.username ?? 'anonimo',
         bytes: media.bytes,
         contentType: media.contentType,
+        // La didascalia viaggia con la foto e nasce con lei: le regole non
+        // danno all'autore nessun permesso di aggiornare la propria
+        // partecipazione, quindi non si potrebbe aggiungere dopo nemmeno
+        // volendo.
+        caption: caption,
       ),
     );
 

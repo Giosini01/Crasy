@@ -1,4 +1,5 @@
 import 'package:crasy/core/errors/error_message_mapper.dart';
+import 'package:crasy/core/moderation/content_policy.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
@@ -7,6 +8,7 @@ import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/presentation/controllers/participation_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
@@ -15,9 +17,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Partecipare: scatta, guarda, manda.
 ///
-/// Tre passi e nessuna decorazione in mezzo. Non c'e' un titolo da scrivere,
-/// non ci sono filtri, non c'e' una didascalia: il contenuto e' la foto, e ogni
-/// campo in piu' fra lo scatto e l'invio e' una partecipazione persa.
+/// Tre passi e nessuna decorazione in mezzo. Non c'e' un titolo da scrivere e
+/// non ci sono filtri: il contenuto e' la foto, e ogni campo in piu' fra lo
+/// scatto e l'invio e' una partecipazione persa.
+///
+/// L'unica cosa che si scrive e' la **didascalia**, e compare solo **dopo** lo
+/// scatto: prima sarebbe un campo da compilare davanti a una fotocamera ancora
+/// chiusa, cioe' un ostacolo. Dopo e' quello che viene naturale — la foto c'e'
+/// gia', e due parole sotto vengono da se'. Resta facoltativa: la maggior parte
+/// delle foto non ha niente da aggiungere.
 ///
 /// Due regole, e sono quelle che rendono la gara una gara: **si scatta sul
 /// momento**, niente galleria, e **si manda una foto sola**, senza ripensamenti.
@@ -32,7 +40,14 @@ class ParticipatePage extends ConsumerStatefulWidget {
 
 class _ParticipatePageState extends ConsumerState<ParticipatePage> {
   PickedMedia? _media;
+  final _caption = TextEditingController();
   String? _error;
+
+  @override
+  void dispose() {
+    _caption.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,9 +110,13 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
               error: _error,
               submitting: submitting,
               outOfLives: ref.watch(livesLeftProvider) <= 0,
+              caption: _caption,
               onCapture: () => _capture(challenge.mediaKind),
               onSubmit: () => _submit(challenge),
-              onClear: () => setState(() => _media = null),
+              onClear: () {
+                _caption.clear();
+                setState(() => _media = null);
+              },
             );
           },
         ),
@@ -134,11 +153,29 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
       return;
     }
 
+    // La didascalia passa dallo stesso controllo delle consegne: e' testo
+    // scritto da una persona e letto da tutte le altre, e non c'e' ragione per
+    // cui qui debba valere una regola piu' larga.
+    final didascalia = _caption.text.trim();
+    final rifiuto = didascalia.isEmpty
+        ? null
+        : ContentPolicy.validate(didascalia);
+
+    if (rifiuto != null) {
+      setState(() => _error = rifiuto);
+
+      return;
+    }
+
     setState(() => _error = null);
 
     final sent = await ref
         .read(participationControllerProvider.notifier)
-        .submit(challengeId: challenge.id, media: media);
+        .submit(
+          challengeId: challenge.id,
+          media: media,
+          caption: didascalia,
+        );
 
     if (!mounted) {
       return;
@@ -188,6 +225,7 @@ class _Form extends StatelessWidget {
     required this.error,
     required this.submitting,
     required this.outOfLives,
+    required this.caption,
     required this.onCapture,
     required this.onSubmit,
     required this.onClear,
@@ -200,6 +238,9 @@ class _Form extends StatelessWidget {
 
   /// Vero quando le cinque partecipazioni di oggi sono finite.
   final bool outOfLives;
+
+  /// Le due parole sotto la foto. Vuoto e' il caso normale.
+  final TextEditingController caption;
   final VoidCallback onCapture;
   final VoidCallback onSubmit;
   final VoidCallback onClear;
@@ -235,8 +276,25 @@ class _Form extends StatelessWidget {
                 : Icons.photo_camera_outlined,
             onPressed: onCapture,
           )
-        else
+        else ...[
           _Preview(media: picked, kind: challenge.mediaKind, onRetake: onClear),
+          const SizedBox(height: AppSpacing.md),
+          TextField(
+            controller: caption,
+            maxLength: ChallengeEntry.captionMaxLength,
+            maxLines: 2,
+            minLines: 1,
+            // Come nel modulo di creazione: il tasto in basso chiude la
+            // tastiera invece di andare a capo. Qui la tastiera copre proprio
+            // il bottone per mandare.
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => FocusScope.of(context).unfocus(),
+            decoration: const InputDecoration(
+              labelText: 'DIDASCALIA (FACOLTATIVA)',
+              hintText: 'Due parole su come e\' andata',
+            ),
+          ),
+        ],
         if (error != null) ...[
           const SizedBox(height: AppSpacing.md),
           InlineBanner(message: error!),

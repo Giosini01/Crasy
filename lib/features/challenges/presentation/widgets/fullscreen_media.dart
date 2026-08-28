@@ -6,6 +6,7 @@ import 'package:crasy/core/widgets/video_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/challenges/presentation/widgets/entry_comments.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -351,6 +352,47 @@ class _BottomBar extends ConsumerWidget {
               ),
             ],
           ),
+          // La didascalia sotto il nome, come sotto un'istantanea. Resta anche
+          // a gara finita: e' parte della foto, non della conversazione.
+          if (entry.hasCaption) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              entry.caption,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.paper.withValues(alpha: 0.85),
+              ),
+            ),
+          ],
+          // **I commenti spariscono alla sirena.**
+          //
+          // Non e' un permesso tolto: e' che un commento e' tifo, e il tifo si
+          // fa durante. Sotto la foto di una gara finita restano il numero
+          // delle fiamme e la didascalia, cioe' il risultato e quello che ha
+          // detto chi l'ha scattata. Quello che si erano detti gli altri era di
+          // quel momento, e li' resta.
+          if (live) ...[
+            const SizedBox(height: AppSpacing.sm),
+            GestureDetector(
+              onTap: () => showEntryComments(context, entry: entry),
+              behavior: HitTestBehavior.opaque,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.mode_comment_outlined,
+                    size: 18,
+                    color: AppColors.paper.withValues(alpha: 0.8),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    'Commenti',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.paper.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

@@ -19,6 +19,14 @@ enum NotificationKind {
   /// Hai vinto.
   win,
 
+  /// Qualcuno ti ha nominato in un commento sotto una foto.
+  ///
+  /// **Senza questa notizia il tag non servirebbe a niente.** Un commento sotto
+  /// la foto di una gara a cui non partecipi non lo va a leggere nessuno: chi
+  /// nomina qualcuno lo fa per chiamarlo, e chiamare senza far squillare non e'
+  /// chiamare.
+  mention,
+
   /// Una gara a cui hai partecipato e' finita.
   ///
   /// Prima erano due — *sta scegliendo* e *scegli tu* — perche' il vincitore lo
@@ -98,6 +106,8 @@ class AppNotification {
     NotificationKind.participation =>
       '@$actorUsername ha partecipato alla tua challenge',
     NotificationKind.fire => '@$actorUsername ha dato una fiamma alla tua foto',
+    NotificationKind.mention =>
+      '@$actorUsername ti ha nominato in un commento',
     NotificationKind.friendRequest =>
       '@$actorUsername ti ha chiesto l\'amicizia',
     NotificationKind.win => 'Hai vinto',
@@ -112,6 +122,9 @@ class AppNotification {
   /// della stessa cosa, e poi doverli tenere d'accordo.
   NotificationGroup get group => switch (kind) {
     NotificationKind.fire => NotificationGroup.fires,
+    // La nomina sta con le missioni e non con le fiamme: e' una cosa che
+    // qualcuno ha **detto**, e porta a una gara. Le fiamme sono un conteggio.
+    NotificationKind.mention ||
     NotificationKind.participation ||
     NotificationKind.win ||
     NotificationKind.ended ||

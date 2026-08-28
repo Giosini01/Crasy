@@ -16,6 +16,7 @@ class ChallengeEntry {
     this.isWinner = false,
     this.moderation = EntryModeration.approved,
     this.mediaKind = MediaKind.photo,
+    this.caption = '',
   });
 
   final String id;
@@ -37,6 +38,29 @@ class ChallengeEntry {
   final String mediaUrl;
 
   final String storagePath;
+
+  /// Due righe scritte da chi ha mandato la foto, come sotto un'istantanea.
+  ///
+  /// **Si scrive una volta e non si cambia piu'**, come la foto: e' la stessa
+  /// ragione: una didascalia riscritta dopo aver visto le fiamme e' cambiare la
+  /// propria mossa dopo aver guardato quelle degli altri.
+  ///
+  /// Vuota e' il caso normale, non un errore: la maggior parte delle foto non
+  /// ha niente da aggiungere, e un campo obbligatorio qui costringerebbe a
+  /// scrivere qualcosa pur di mandare.
+  ///
+  /// Sopravvive alla gara. I commenti no — quelli spariscono alla chiusura —
+  /// perche' sono una conversazione, e questa e' parte della foto.
+  final String caption;
+
+  bool get hasCaption => caption.trim().isNotEmpty;
+
+  /// Quanto puo' essere lunga una didascalia.
+  ///
+  /// Corta di proposito. Sotto una foto in gara serve una battuta — dove
+  /// eravamo, com'e' andata — non un racconto: la foto e' il contenuto, e una
+  /// didascalia che la supera in altezza se la mangia.
+  static const int captionMaxLength = 140;
 
   /// Istante dell'invio. Nullo finche' il server non ha risolto il proprio
   /// timestamp — Firestore lo scrive dopo, non al momento della chiamata.
@@ -98,6 +122,7 @@ class ChallengeEntry {
     bool? isWinner,
     EntryModeration? moderation,
     MediaKind? mediaKind,
+    String? caption,
   }) {
     return ChallengeEntry(
       id: id ?? this.id,
@@ -112,6 +137,7 @@ class ChallengeEntry {
       isWinner: isWinner ?? this.isWinner,
       moderation: moderation ?? this.moderation,
       mediaKind: mediaKind ?? this.mediaKind,
+      caption: caption ?? this.caption,
     );
   }
 
@@ -133,7 +159,8 @@ class ChallengeEntry {
         other.votes == votes &&
         other.isWinner == isWinner &&
         other.moderation == moderation &&
-        other.mediaKind == mediaKind;
+        other.mediaKind == mediaKind &&
+        other.caption == caption;
   }
 
   @override
@@ -150,5 +177,6 @@ class ChallengeEntry {
     isWinner,
     moderation,
     mediaKind,
+    caption,
   );
 }

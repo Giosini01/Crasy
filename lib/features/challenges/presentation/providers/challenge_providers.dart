@@ -5,6 +5,7 @@ import 'package:crasy/features/challenges/data/repositories/firestore_challenge_
 import 'package:crasy/features/challenges/data/repositories/sample_challenge_repository.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
@@ -139,6 +140,29 @@ final challengeCoverProvider = Provider.autoDispose.family<String?, String>(
   (ref, challengeId) =>
       ref.watch(challengeTopEntryProvider(challengeId))?.mediaUrl,
 );
+
+/// Sotto quale foto, di quale gara. Serve a chiedere i commenti.
+///
+/// E' un record e non due argomenti perche' le famiglie di Riverpod ne prendono
+/// uno solo — e un record sa gia' confrontarsi per contenuto, quindi due
+/// richieste per la stessa foto trovano lo stesso provider invece di aprirne
+/// due sullo stesso pezzo di database.
+typedef CommentTarget = ({String challengeId, String entryId});
+
+/// I commenti sotto una foto.
+///
+/// `autoDispose` e' obbligatorio: si aprono da una foto guardata a tutto
+/// schermo, e senza, ogni foto sfogliata lascerebbe dietro di se' un
+/// ascoltatore su Firestore aperto per sempre.
+final entryCommentsProvider = StreamProvider.autoDispose
+    .family<List<EntryComment>, CommentTarget>((ref, target) {
+      return ref
+          .watch(challengeRepositoryProvider)
+          .watchComments(
+            challengeId: target.challengeId,
+            entryId: target.entryId,
+          );
+    });
 
 /// Chi sono, se ho fatto l'accesso.
 final currentUserIdProvider = Provider<String?>((ref) {

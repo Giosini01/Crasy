@@ -193,8 +193,13 @@ service cloud.firestore {
         allow create: if signedIn()
                       && request.resource.data.actorId == request.auth.uid
                       && request.auth.uid != userId
+                      // `mention` sta qui insieme alle altre due perche' e'
+                      // scritta dallo stesso posto: chi commenta nominando
+                      // qualcuno gli scrive la notizia nella campanella. Le
+                      // altre — vittorie, amicizie, gare finite — non le scrive
+                      // nessuno: si ricavano dai dati che esistono gia'.
                       && request.resource.data.kind
-                         in ['participation', 'fire']
+                         in ['participation', 'fire', 'mention']
                       && request.resource.data.actorUsername is string;
 
         allow update: if false;
@@ -465,6 +470,13 @@ service cloud.firestore {
                          in ['pending', 'approved']
                       // La vittoria non si porta da casa: la scrive il server.
                       && !('isWinner' in request.resource.data)
+                      // La didascalia: facoltativa, corta, e scritta una volta
+                      // sola. Si legge con `get` perche' le app gia' installate
+                      // non la mandano, e una condizione che i telefoni vecchi
+                      // non sanno soddisfare fa rifiutare le loro foto con un
+                      // "non hai accesso" incomprensibile.
+                      && request.resource.data.get('caption', '') is string
+                      && request.resource.data.get('caption', '').size() <= 140
                       // IL GIORNO IN CUI I PAGAMENTI SI ACCENDONO, questa riga
                       // va tolta dal commento:
                       //
@@ -543,6 +555,43 @@ service cloud.firestore {
                       && request.auth.uid == entryId
                       && resource.data.userId == request.auth.uid
                       && !challengeIsLive();
+
+        // I commenti sotto una foto.
+        //
+        // **Si scrivono solo mentre la gara e' aperta.** E' la stessa riga che
+        // ferma le fiamme alla sirena, e per la stessa ragione: un commento e'
+        // tifo, e il tifo si fa durante. Dopo, sotto la foto restano le fiamme
+        // e basta — l'app smette di mostrarli, ed e' bene che smetta anche di
+        // poterne accettare di nuovi.
+        //
+        // **Restano scritti anche quando spariscono dalla vista.** Cancellarli
+        // davvero e' lavoro del server, che con l'SDK di amministrazione non
+        // passa da qui: dare a un telefono il permesso di cancellare i commenti
+        // altrui vorrebbe dire dare a chiunque il permesso di zittire chiunque.
+        match /comments/{commentId} {
+          allow read: if signedIn();
+
+          allow create: if signedIn()
+                        && request.resource.data.userId == request.auth.uid
+                        && request.resource.data.text is string
+                        && request.resource.data.text.size() > 0
+                        && request.resource.data.text.size() <= 300
+                        // Il nome di chi scrive viaggia con il commento: senza,
+                        // ogni riga costringerebbe a leggere anche il profilo
+                        // di chi l'ha scritta.
+                        && request.resource.data.authorName is string
+                        && challengeIsLive();
+
+          // **Un commento non si corregge.** Non e' rigore fine a se stesso: e'
+          // che nessuno rilegge una conversazione gia' letta, e un commento
+          // riscritto dopo che gli altri hanno risposto cambia il senso di
+          // quello che hanno detto loro. Chi ha sbagliato cancella e riscrive.
+          allow update: if false;
+
+          // Il proprio si toglie, quello degli altri no.
+          allow delete: if signedIn()
+                        && resource.data.userId == request.auth.uid;
+        }
       }
     }
   }

@@ -7,6 +7,7 @@ import 'package:crasy/features/challenges/data/repositories/firestore_challenge_
 import 'package:crasy/features/challenges/domain/commissioned_order.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 
@@ -171,6 +172,7 @@ class SampleChallengeRepository implements ChallengeRepository {
     required Uint8List bytes,
     MediaKind mediaKind = MediaKind.photo,
     String? contentType,
+    String caption = '',
   }) async {
     final challenge = _challenges[challengeId];
 
@@ -199,6 +201,7 @@ class SampleChallengeRepository implements ChallengeRepository {
       // repository che vive in memoria.
       mediaUrl: _dataUri(bytes, contentType),
       mediaKind: mediaKind,
+      caption: caption.trim(),
       createdAt: DateTime.now(),
     );
 
@@ -210,6 +213,48 @@ class SampleChallengeRepository implements ChallengeRepository {
     _emit();
 
     return entry;
+  }
+
+  final _comments = <String, List<EntryComment>>{};
+
+  static String _commentKey(String challengeId, String entryId) =>
+      '${challengeId}__$entryId';
+
+  @override
+  Stream<List<EntryComment>> watchComments({
+    required String challengeId,
+    required String entryId,
+  }) {
+    return _watch(() => [...?_comments[_commentKey(challengeId, entryId)]]);
+  }
+
+  @override
+  Future<EntryComment> addComment({
+    required String challengeId,
+    required String entryId,
+    required String userId,
+    required String authorName,
+    required String text,
+    List<EntryMention> mentions = const [],
+  }) async {
+    final key = _commentKey(challengeId, entryId);
+    final elenco = _comments.putIfAbsent(key, () => []);
+
+    final comment = EntryComment(
+      id: '${key}__${elenco.length + 1}',
+      challengeId: challengeId,
+      entryId: entryId,
+      userId: userId,
+      authorName: authorName,
+      text: text.trim(),
+      mentions: mentions,
+      createdAt: DateTime.now(),
+    );
+
+    elenco.add(comment);
+    _emit();
+
+    return comment;
   }
 
   @override
