@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
@@ -10,6 +11,7 @@ import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 /// Da che parte del tavolo si guarda un trofeo.
 ///
@@ -252,22 +254,45 @@ class _Laminated extends StatelessWidget {
           // sullo spigolo, il corpo del metallo e l'ombra dal lato opposto,
           // ed e' quello che lo fa sembrare una cosa e non un rettangolo
           // giallo.
+          // Cinque toni invece di tre. I due aggiunti sono il **colpo di luce**
+          // appena dopo lo spigolo e il **rimbalzo** in fondo: sono le due cose
+          // che un metallo fa e una tinta piatta no. Un oro a tre toni e' una
+          // sfumatura; a cinque comincia a sembrare una superficie curva.
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFF6DFA0), Color(0xFFC9A227), Color(0xFF8C6D1F)],
-            stops: [0, 0.45, 1],
+            colors: [
+              Color(0xFFFFF3CF),
+              Color(0xFFF6DFA0),
+              Color(0xFFC9A227),
+              Color(0xFF8C6D1F),
+              Color(0xFFB8912B),
+            ],
+            stops: [0, 0.18, 0.5, 0.86, 1],
           ),
+          // **Due ombre, non una.** Una sola ombra sfocata fa galleggiare
+          // l'oggetto senza appoggiarlo: manca la riga scura e stretta subito
+          // sotto il bordo, che e' quella che dice dove la cosa **tocca**. La
+          // prima e' il contatto, la seconda e' l'aria attorno.
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.16),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: Colors.black.withValues(alpha: 0.26),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
             ),
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(5),
+          // Un punto in piu' di cornice. Sembra niente scritto qui, e su una
+          // figurina larga due centimetri e' la differenza fra un bordo e una
+          // lastra: lo spessore e' cio' che si guarda per capire se una cosa e'
+          // fatta di qualcosa.
+          padding: const EdgeInsets.all(6),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.sm),
             child: Stack(
@@ -284,10 +309,41 @@ class _Laminated extends StatelessWidget {
                         end: Alignment.bottomRight,
                         stops: const [0, 0.42, 0.52, 1],
                         colors: [
-                          Colors.white.withValues(alpha: 0.22),
+                          Colors.white.withValues(alpha: 0.26),
                           Colors.white.withValues(alpha: 0.04),
-                          Colors.white.withValues(alpha: 0.10),
+                          Colors.white.withValues(alpha: 0.12),
                           Colors.white.withValues(alpha: 0),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                // **L'incavo: la foto sta sotto la cornice, non accanto.**
+                //
+                // E' il pezzo che mancava perche' la figurina sembrasse spessa.
+                // L'oro e la foto si toccavano su una linea netta, e due
+                // superfici che si toccano senza ombra stanno sullo stesso
+                // piano: sembravano due colori affiancati, non un vetro dentro
+                // un telaio.
+                //
+                // Qui c'e' un filetto scuro tutto attorno — il taglio — e una
+                // velatura che scende dal bordo di sopra, che e' l'ombra che la
+                // cornice fa cadere sulla foto. Basta quella per spostare la
+                // foto **sotto** l'oro, e con lei tutta la figurina prende
+                // spessore.
+                IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      border: Border.all(
+                        color: Colors.black.withValues(alpha: 0.32),
+                      ),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.center,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.24),
+                          Colors.black.withValues(alpha: 0),
                         ],
                       ),
                     ),
@@ -516,15 +572,27 @@ class _TrophyDetails extends StatelessWidget {
             ),
             // Chi ha vinto sa gia' chi e'. Chi ha commissionato spesso no: e' la
             // riga che trasforma "una foto" in "la foto di quella persona".
+            //
+            // **I due nomi si toccano e portano al profilo.** Un `@nome` scritto
+            // e non cliccabile e' il posto piu' facile dove far arenare
+            // qualcuno: si e' appena scoperto chi ha fatto quella foto o chi ha
+            // messo quei soldi, e l'unico modo di saperne di piu' sarebbe
+            // ricordarsi il nome, chiudere, aprire la ricerca e riscriverlo.
             if (!kind.isWon && challenge.winnerUsername.isNotEmpty)
               _Line(
                 label: 'L\'ha fatta',
                 value: '@${challenge.winnerUsername}',
+                onTap: challenge.winnerUserId.isEmpty
+                    ? null
+                    : () => _apriProfilo(context, challenge.winnerUserId),
               ),
             if (kind.isWon && challenge.hasCreator)
               _Line(
                 label: 'L\'aveva chiesta',
                 value: '@${challenge.createdByUsername}',
+                onTap: challenge.createdByUserId.isEmpty
+                    ? null
+                    : () => _apriProfilo(context, challenge.createdByUserId),
               ),
             _Line(label: 'Fiamme', value: '${challenge.winnerVotes}'),
             if (challenge.participantsCount > 0)
@@ -544,19 +612,46 @@ class _TrophyDetails extends StatelessWidget {
   }
 }
 
+/// Va al profilo di qualcuno **chiudendo prima la figurina**.
+///
+/// Il router si prende prima della chiusura, non dopo: dopo il `pop` il pezzo di
+/// albero a cui appartiene questo contesto e' gia' smontato, e cercarci dentro
+/// il router e' il modo classico di far esplodere una schermata che sembrava
+/// funzionare.
+///
+/// E si chiude, invece di aprire il profilo sopra: un profilo che spunta sotto
+/// una figurina rimasta aperta lascia due cose da chiudere per tornare indietro,
+/// e la seconda nessuno se l'aspetta.
+void _apriProfilo(BuildContext context, String userId) {
+  final router = GoRouter.of(context);
+
+  Navigator.of(context).pop();
+  router.push(AppRoutes.userProfileOf(userId));
+}
+
 /// Una riga del retro: l'etichetta a sinistra, il valore a destra.
 class _Line extends StatelessWidget {
-  const _Line({required this.label, required this.value, this.accent = false});
+  const _Line({
+    required this.label,
+    required this.value,
+    this.accent = false,
+    this.onTap,
+  });
 
   final String label;
   final String value;
   final bool accent;
 
+  /// Se c'e', la riga si tocca e il valore si colora: senza il colore, un nome
+  /// cliccabile e uno che non lo e' hanno lo stesso identico aspetto, e a
+  /// scoprire la differenza si arriva solo per caso.
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
 
-    return Padding(
+    final riga = Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -572,11 +667,23 @@ class _Line extends StatelessWidget {
               textAlign: TextAlign.right,
               style: accent
                   ? context.texts.titleMedium?.copyWith(color: palette.accent)
+                  : onTap != null
+                  ? context.texts.bodyMedium?.copyWith(color: palette.accent)
                   : context.texts.bodyMedium,
             ),
           ),
         ],
       ),
+    );
+
+    if (onTap == null) {
+      return riga;
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: riga,
     );
   }
 }
