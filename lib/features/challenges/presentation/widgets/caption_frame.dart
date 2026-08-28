@@ -19,7 +19,7 @@ class CaptionFrame extends StatelessWidget {
     required this.text,
     required this.child,
     this.style,
-    this.inset = 10,
+    this.sizeFactor = 0.085,
     super.key,
   });
 
@@ -29,27 +29,45 @@ class CaptionFrame extends StatelessWidget {
   /// La foto.
   final Widget child;
 
+  /// Da cui si prendono colore, peso e ombra. La **misura** la decide la foto:
+  /// vedi [sizeFactor].
   final TextStyle? style;
 
-  /// Quanto la scritta sta dentro dal bordo.
-  final double inset;
+  /// Quanto e' alta la scritta, in frazione del lato corto della foto.
+  ///
+  /// **Proporzionale e non in punti fissi.** Una misura fissa e' grande su
+  /// un'anteprima e minuscola sulla stessa foto a tutto schermo: la scritta fa
+  /// parte dell'immagine, quindi deve crescere con lei, come farebbe una scritta
+  /// vera stampata sopra.
+  final double sizeFactor;
 
-  /// Lo stile predefinito: bianco, piccolo, spaziato, con un'ombra sotto.
+  /// Sotto questa misura non si scende, nemmeno per far entrare tutto.
+  ///
+  /// Una didascalia rimpicciolita fino a diventare illeggibile non e' piu' una
+  /// didascalia. Da qui in giu' si preferisce tagliare la coda.
+  static const double minFontSize = 13;
+
+  /// Quanto la scritta sta dentro dal bordo, in frazione del lato corto.
+  static const double _insetFactor = 0.035;
+
+  /// Lo stile predefinito: bianco, grasso, spaziato, con un'ombra sotto.
   ///
   /// **L'ombra e' obbligatoria e non e' decorazione.** Questa scritta cade su
   /// una foto qualunque, e su una foto chiara il bianco sparisce. Un contorno
   /// scuro appena accennato la tiene leggibile su qualsiasi cosa ci finisca
   /// sotto, senza aggiungere un fondo che coprirebbe l'immagine.
+  ///
+  /// Il corpo scritto qui e' solo un ripiego: quello vero lo calcola [build]
+  /// sulla misura della foto.
   static TextStyle defaultStyle(BuildContext context) {
-    return TextStyle(
+    return const TextStyle(
       color: Colors.white,
-      fontSize: 11,
+      fontSize: minFontSize,
       height: 1,
-      letterSpacing: 1.2,
-      fontWeight: FontWeight.w600,
-      shadows: const [
-        Shadow(color: Colors.black54, blurRadius: 4),
-        Shadow(color: Colors.black26, blurRadius: 10),
+      fontWeight: FontWeight.w700,
+      shadows: [
+        Shadow(color: Colors.black87, blurRadius: 6),
+        Shadow(color: Colors.black45, blurRadius: 16),
       ],
     );
   }
@@ -62,7 +80,7 @@ class CaptionFrame extends StatelessWidget {
       return child;
     }
 
-    final stile = style ?? defaultStyle(context);
+    final base = style ?? defaultStyle(context);
     final scaler = MediaQuery.textScalerOf(context);
 
     return LayoutBuilder(
@@ -73,14 +91,47 @@ class CaptionFrame extends StatelessWidget {
           return child;
         }
 
-        // Il tratto verticale parte a meta' altezza e arriva all'angolo:
-        // e' mezza foto. Quello orizzontale e' tutto il lato alto.
+        final latoCorto = constraints.maxWidth < constraints.maxHeight
+            ? constraints.maxWidth
+            : constraints.maxHeight;
+        final inset = latoCorto * _insetFactor;
+
+        // **All'angolo le due scritte si darebbero addosso.**
+        //
+        // La fascia verticale e' larga quanto e' alta una riga di testo, cioe'
+        // quanto il corpo. Facendo partire quella orizzontale dallo stesso
+        // bordo sinistro, le prime lettere di sopra cadrebbero sulle ultime di
+        // lato: un groviglio proprio nel punto in cui l'occhio deve girare.
+        // Alla misura piccola erano dieci pixel e non si notava; ingrandendo il
+        // testo diventa la prima cosa che si vede.
+        //
+        // Quindi la riga di sopra comincia **dopo** la fascia, con un po' d'aria
+        // in mezzo. Quel vuoto e' l'angolo, ed e' giusto che ci sia: e' li' che
+        // la frase gira.
+        final corpoVoluto = latoCorto * sizeFactor;
+        final angolo = corpoVoluto * 1.35;
+
+        // Il tratto verticale parte a meta' altezza e arriva all'angolo: e'
+        // mezza foto. Quello orizzontale e' il lato alto meno l'angolo.
         final corsaSinistra = constraints.maxHeight / 2 - inset;
-        final corsaAlta = constraints.maxWidth - inset * 2;
+        final corsaAlta = constraints.maxWidth - inset * 2 - angolo;
 
         if (corsaSinistra <= 0 || corsaAlta <= 0) {
           return child;
         }
+
+        // L'angolo si toglie usando il corpo **voluto**, non quello che uscira'
+        // dal calcolo: se il testo poi rimpicciolisce, la corsa vera sara' un
+        // po' piu' lunga di quella su cui si e' deciso. Sbagliare da questa
+        // parte vuol dire un po' di spazio avanzato; dall'altra, una parola
+        // tagliata.
+        final stile = _stileCheEntra(
+          scritta,
+          base: base,
+          scaler: scaler,
+          corpoVoluto: corpoVoluto,
+          corsaTotale: corsaSinistra + corsaAlta,
+        );
 
         final (sinistra, alto) = _dividi(
           scritta,
@@ -115,7 +166,9 @@ class CaptionFrame extends StatelessWidget {
             ),
             if (alto.isNotEmpty)
               Positioned(
-                left: inset,
+                // Dopo l'angolo, non dal bordo: e' qui che si evita il
+                // groviglio con le ultime lettere del tratto che sale.
+                left: inset + angolo,
                 right: inset,
                 top: inset,
                 child: Text(
@@ -130,6 +183,55 @@ class CaptionFrame extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// Il corpo piu' grande con cui la frase ci sta ancora tutta.
+  ///
+  /// **Serve perche' la cornice ha una lunghezza fissa.** Il percorso e' mezza
+  /// altezza piu' una larghezza, e quel tanto e' quello: ingrandendo il testo si
+  /// arriva presto al punto in cui l'ultima parola cade oltre l'angolo in basso
+  /// a destra e sparisce senza dire niente. Una didascalia tagliata a meta' e'
+  /// peggio di una didascalia un po' piu' piccola.
+  ///
+  /// Si parte dal corpo voluto e si scende a scalini finche' entra, mai sotto
+  /// [minFontSize]: sotto quella misura non si legge piu' comunque, e a quel
+  /// punto tanto vale tagliare.
+  ///
+  /// La spaziatura fra le lettere segue il corpo: fissa, su un testo grande
+  /// diventa invisibile e su uno piccolo lo sfilaccia.
+  static TextStyle _stileCheEntra(
+    String testo, {
+    required TextStyle base,
+    required TextScaler scaler,
+    required double corpoVoluto,
+    required double corsaTotale,
+  }) {
+    var corpo = corpoVoluto < minFontSize ? minFontSize : corpoVoluto;
+
+    // Otto scalini bastano a dimezzare il corpo, e sono otto misurazioni: questo
+    // conto gira a ogni tasto mentre si scrive, e non deve pesare.
+    for (var scalino = 0; scalino < 8; scalino++) {
+      final stile = base.copyWith(
+        fontSize: corpo,
+        letterSpacing: corpo * 0.06,
+      );
+
+      // Il margine di sicurezza copre lo spazio che si perde tagliando la frase
+      // su una parola invece che su un carattere qualunque.
+      if (_larghezza(testo, stile, scaler) <= corsaTotale * 0.94) {
+        return stile;
+      }
+
+      final piuPiccolo = corpo * 0.9;
+
+      if (piuPiccolo < minFontSize) {
+        break;
+      }
+
+      corpo = piuPiccolo;
+    }
+
+    return base.copyWith(fontSize: corpo, letterSpacing: corpo * 0.06);
   }
 
   /// Spezza la frase fra il tratto che sale e quello che corre in alto.

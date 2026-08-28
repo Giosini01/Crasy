@@ -57,10 +57,19 @@ class ChallengeEntry {
 
   /// Quanto puo' essere lunga una didascalia.
   ///
-  /// Corta di proposito. Sotto una foto in gara serve una battuta — dove
-  /// eravamo, com'e' andata — non un racconto: la foto e' il contenuto, e una
-  /// didascalia che la supera in altezza se la mangia.
-  static const int captionMaxLength = 140;
+  /// Corta di proposito, e piu' corta di quanto sembri necessario. Sotto una
+  /// foto in gara serve una battuta — dove eravamo, com'e' andata — non un
+  /// racconto.
+  ///
+  /// **Ma la ragione vera e' la misura delle lettere.** La didascalia corre sul
+  /// bordo della foto, e quel bordo e' lungo quanto e': mezza altezza piu' una
+  /// larghezza, cinquecento punti scarsi su un telefono. Le lettere si
+  /// rimpiccioliscono per farci stare tutto, quindi **ogni carattere in piu'
+  /// rimpicciolisce quelli che ci sono gia'**. A centoquaranta caratteri la
+  /// scritta arrivava al minimo leggibile e la coda veniva tagliata; a ottanta
+  /// una frase intera ci sta comoda, e le didascalie corte — che sono quasi
+  /// tutte — restano grandi come vanno.
+  static const int captionMaxLength = 80;
 
   /// Istante dell'invio. Nullo finche' il server non ha risolto il proprio
   /// timestamp — Firestore lo scrive dopo, non al momento della chiamata.
