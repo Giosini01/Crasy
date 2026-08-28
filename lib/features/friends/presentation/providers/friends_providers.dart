@@ -1,4 +1,5 @@
 import 'package:crasy/core/services/firebase/firebase_providers.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/data/repositories/firestore_friends_repository.dart';
@@ -97,28 +98,30 @@ final entriesOfProvider = StreamProvider.autoDispose
 
 /// Quanto ha vinto una persona, in centesimi.
 ///
-/// Si ottiene incrociando le challenge concluse con le sue partecipazioni: il
-/// premio sta sulla challenge, la vittoria sulla partecipazione, e sommare
-/// serve tutte e due. Copre le ultime cinquanta challenge chiuse che l'app ha
-/// caricato — e' "quanto ha vinto di recente", non un estratto conto.
+/// Si somma sui suoi **trofei**, la stessa lista che riempie la bacheca appena
+/// sotto: il riquadro "HA VINTO" e le figurine che gli stanno sotto devono dire
+/// la stessa cosa, o una delle due sta mentendo.
+///
+/// **Prima passava dalle gare concluse, e per questo diceva quasi sempre zero.**
+/// Quell'elenco copre una finestra di quarantotto ore e ne carica al massimo
+/// cinquanta: una vittoria di tre giorni fa ne era gia' uscita, e si finiva con
+/// un profilo pieno di trofei sopra un totale a zero. La query dei trofei cerca
+/// per `winnerUserId`, campo che resta scritto sulla gara per sempre.
+///
+/// Si somma il **netto** — quello che finisce davvero in tasca — perche' e' la
+/// cifra scritta su ogni singola figurina. Vedi `myPrizeCentsProvider`, che fa
+/// lo stesso conto per chi sta guardando il proprio profilo.
 final prizeCentsOfProvider = Provider.autoDispose.family<int, String>((
   ref,
   userId,
 ) {
-  final ended = ref.watch(endedChallengesProvider).valueOrNull ?? const [];
-  final entries = ref.watch(entriesOfProvider(userId)).valueOrNull ?? const [];
-  final byChallenge = {
-    for (final entry in entries) entry.challengeId: entry.id,
-  };
+  final trophies =
+      ref.watch(trophiesOfProvider(userId)).valueOrNull ?? const <Challenge>[];
 
   var total = 0;
 
-  for (final challenge in ended) {
-    final winner = challenge.winnerEntryId;
-
-    if (winner != null && byChallenge[challenge.id] == winner) {
-      total += challenge.prizeCents;
-    }
+  for (final challenge in trophies) {
+    total += challenge.payoutCents;
   }
 
   return total;

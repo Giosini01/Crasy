@@ -314,28 +314,37 @@ final myWinsProvider = Provider<List<ChallengeEntry>>((ref) {
 
 /// Quanto ho vinto in tutto, in centesimi.
 ///
-/// Si ottiene incrociando le challenge concluse con le mie partecipazioni: il
-/// premio sta sulla challenge, la vittoria sulla partecipazione, e sommare
-/// serve entrambe le cose.
+/// Si somma sui **trofei**, cioe' sulle gare che portano scritto il mio nome
+/// come vincitore. E' la stessa lista che riempie la bacheca del profilo, ed e'
+/// questo il punto: quello che si vede in bacheca e quello che si legge nel
+/// portafoglio non possono raccontare due storie diverse.
 ///
-/// Il conto copre le challenge concluse che l'app ha caricato — le ultime
-/// cinquanta. E' un limite vero e va saputo: questo totale e' "quanto hai vinto
-/// di recente", non un estratto conto.
+/// **Prima passava dalle gare concluse, e per questo il saldo restava a zero.**
+/// Quell'elenco vive una finestra di quarantotto ore — la stessa entro cui si
+/// guardano i vincitori — e ne carica al massimo cinquanta: una vittoria di tre
+/// giorni fa ne era gia' uscita. Chi aveva vinto tre gare vedeva tre trofei e
+/// zero euro, che e' il modo piu' rapido di far pensare che l'app rubi. La
+/// query dei trofei invece non ha finestra: cerca per `winnerUserId`, e quel
+/// campo resta scritto sulla gara per sempre.
+///
+/// **E' un totale calcolato, non un saldo.** Il saldo vero e' `walletCents` sul
+/// database, lo scrive solo il server quando incassa davvero, e nessun telefono
+/// lo puo' toccare. Finche' i pagamenti sono spenti quel numero non esiste, e
+/// questo conto e' l'unico modo onesto di dire quanto si e' vinto senza
+/// scrivere da nessuna parte un numero che un domani varrebbe denaro vero.
+///
+/// Si somma il **netto**, non il premio in vetrina: e' la cifra che il server
+/// accrediterebbe davvero — `PrizeLedger.payoutCents` — ed e' gia' quella
+/// scritta sulla figurina del trofeo. Sommare il lordo qui vorrebbe dire un
+/// portafoglio che promette piu' di ogni singolo trofeo che lo compone.
 final myPrizeCentsProvider = Provider<int>((ref) {
-  final ended = ref.watch(endedChallengesProvider).valueOrNull ?? const [];
-  final mine = ref.watch(myEntriesProvider).valueOrNull ?? const [];
-  final mineByChallenge = {
-    for (final entry in mine) entry.challengeId: entry.id,
-  };
+  final trophies =
+      ref.watch(myTrophiesProvider).valueOrNull ?? const <Challenge>[];
 
   var total = 0;
 
-  for (final challenge in ended) {
-    final winner = challenge.winnerEntryId;
-
-    if (winner != null && mineByChallenge[challenge.id] == winner) {
-      total += challenge.prizeCents;
-    }
+  for (final challenge in trophies) {
+    total += challenge.payoutCents;
   }
 
   return total;
