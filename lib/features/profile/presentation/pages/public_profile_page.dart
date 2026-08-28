@@ -6,6 +6,7 @@ import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/core/widgets/media_gestures.dart';
+import 'package:crasy/core/widgets/photo_viewer.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
@@ -262,20 +263,39 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
+    final photoUrl = profile.photoUrl;
+
+    final tondo = ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.pill),
       child: SizedBox(
         width: _size,
         height: _size,
         child: profile.hasPhoto
             ? Image.network(
-                profile.photoUrl!,
+                photoUrl!,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) =>
                     _Initials(profile: profile),
               )
             : _Initials(profile: profile),
       ),
+    );
+
+    // **Senza foto non c'e' niente da ingrandire.** Le iniziali su fondo grigio
+    // a tutto schermo sono una schermata vuota che si e' aperta da sola, e chi
+    // l'ha aperta pensa di aver rotto qualcosa.
+    if (!profile.hasPhoto) {
+      return tondo;
+    }
+
+    return GestureDetector(
+      onTap: () => showPhotoViewer(
+        context,
+        url: photoUrl!,
+        caption: '@${profile.username}',
+      ),
+      behavior: HitTestBehavior.opaque,
+      child: tondo,
     );
   }
 }
