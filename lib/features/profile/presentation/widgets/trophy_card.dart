@@ -23,7 +23,12 @@ enum TrophyKind {
   won('VINTA', 'HAI VINTO'),
 
   /// L'ho fatta fare.
-  commissioned('COMANDATA', 'HAI FATTO FARE');
+  ///
+  /// La parola e' **lanciata**, che e' quella che l'app usa dappertutto —
+  /// "lancia una challenge", "chi l'ha lanciata". Prima c'era *comandata*, che
+  /// diceva la cosa giusta con il tono sbagliato: chi mette i soldi non comanda
+  /// nessuno, propone una cosa da fare e la paga.
+  commissioned('LANCIATA', 'HAI FATTO FARE');
 
   const TrophyKind(this.label, this.headline);
 

@@ -13,13 +13,12 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
-import 'package:crasy/features/legal/presentation/widgets/privacy_settings.dart';
 import 'package:crasy/features/onboarding/presentation/utils/onboarding_validators.dart';
 import 'package:crasy/features/payments/presentation/widgets/wallet_card.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/controllers/profile_edit_controller.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
-import 'package:crasy/features/profile/presentation/widgets/delete_account.dart';
+import 'package:crasy/features/profile/presentation/widgets/profile_settings.dart';
 import 'package:crasy/features/profile/presentation/widgets/profile_shelf.dart';
 import 'package:crasy/features/profile/presentation/widgets/trophy_card.dart';
 import 'package:flutter/material.dart';
@@ -66,7 +65,18 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const CrasyHeaderBar(),
+              // L'ingranaggio sta **qui e non in fondo alla schermata**: privacy
+              // e cancellazione dell'account sono le due porte che si aprono
+              // una volta nella vita, e in fondo alla pagina si allontanavano a
+              // ogni gara vinta, sotto una griglia di foto che cresce.
+              CrasyHeaderBar(
+                action: IconButton(
+                  onPressed: () => showProfileSettings(context),
+                  icon: const Icon(Icons.settings_outlined, size: 20),
+                  tooltip: 'Impostazioni',
+                  color: palette.textFaint,
+                ),
+              ),
               Expanded(
                 child: profileState.when(
                   loading: () => const SizedBox.shrink(),
@@ -146,41 +156,26 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                 ? const _EmptyShelf(
                                     title: 'Non hai ancora fatto fare niente',
                                     message:
-                                        'Lancia una challenge: la foto che sceglierai come '
-                                        'vincitrice resta qui, ed e\' roba che hai fatto fare tu.',
+                                        'Lancia una challenge: la vedi qui finche\' e\' '
+                                        'aperta, e quando finisce resta la foto che ha '
+                                        'vinto — roba che hai fatto fare tu.',
                                   )
-                                : TrophyGrid(
-                                    challenges: commissions,
-                                    kind: TrophyKind.commissioned,
-                                  ),
+                                : CommissionedShelf(challenges: commissions),
                         },
                         const SizedBox(height: AppSpacing.xl),
-                        // **La porta per revocare sta accanto a quella per
-                        // uscire**, non sepolta in un menu: il GDPR chiede che
-                        // togliere un consenso sia facile quanto darlo, e
-                        // "facile" vuol dire trovabile senza cercare.
-                        // **Questa resta, e non e' una dimenticanza.**
+                        // **Uscire resta in chiaro.** Non e' un'impostazione:
+                        // e' un gesto che si fa spesso e in fretta, e mettergli
+                        // davanti un menu vorrebbe dire due tocchi per una cosa
+                        // che ne chiede uno.
                         //
-                        // Il regolamento europeo chiede che revocare un
-                        // consenso sia facile quanto darlo: se per darlo basta
-                        // una spunta e per toglierlo bisogna scrivere una mail,
-                        // quel consenso non e' mai stato libero — e cade,
-                        // trascinandosi dietro il trattamento che reggeva.
-                        //
-                        // E' piccola e grigia, non una voce di menu: c'e' per
-                        // chi la cerca, non per chi sta guardando le proprie
-                        // foto.
-                        Center(
-                          child: TextButton(
-                            onPressed: () => showPrivacySettings(context),
-                            child: Text(
-                              'Privacy e consensi',
-                              style: context.texts.bodySmall?.copyWith(
-                                color: palette.textFaint,
-                              ),
-                            ),
-                          ),
-                        ),
+                        // Privacy e cancellazione dell'account stavano qui
+                        // sotto e ora stanno nell'ingranaggio in alto a destra.
+                        // Non sono state nascoste, e la differenza conta perche'
+                        // il GDPR chiede che revocare un consenso sia facile
+                        // quanto darlo: qui in fondo cadevano dopo una griglia
+                        // di foto che si allunga a ogni gara, cioe' **piu'
+                        // lontane ogni mese**. In cima stanno sempre allo
+                        // stesso posto.
                         Center(
                           child: TextButton(
                             onPressed: () => ref
@@ -190,22 +185,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               'Esci',
                               style: context.texts.titleMedium?.copyWith(
                                 color: palette.textFaint,
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Staccata dalle altre e rossa. **E' l'unica voce di
-                        // questa schermata che non si disfa**, e deve
-                        // sembrarlo: messa in fila con "Esci", prima o poi
-                        // qualcuno la tocca al posto suo.
-                        const SizedBox(height: AppSpacing.lg),
-                        Center(
-                          child: TextButton(
-                            onPressed: () => showDeleteAccount(context),
-                            child: Text(
-                              'Cancella account',
-                              style: context.texts.bodySmall?.copyWith(
-                                color: palette.accent,
                               ),
                             ),
                           ),

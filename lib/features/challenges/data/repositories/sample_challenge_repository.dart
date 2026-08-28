@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:crasy/features/challenges/data/repositories/firestore_challenge_repository.dart'
     show AlreadyParticipatingException;
+import 'package:crasy/features/challenges/domain/commissioned_order.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
@@ -303,12 +304,16 @@ class SampleChallengeRepository implements ChallengeRepository {
 
   @override
   Stream<List<Challenge>> watchCommissionedBy(String userId) {
+    // Le aperte prima, i trofei dopo: la stessa regola del repository vero, e
+    // per questo scritta una volta sola nel dominio. Due copie sarebbero due
+    // bacheche che si comportano diversamente a seconda che Firebase sia
+    // configurato o no, cioe' la differenza piu' difficile da vedere che ci
+    // sia.
     return _watch(
-      () => [
+      () => commissionedOrder([
         for (final challenge in _challenges.values)
-          if (challenge.hasTrophy && challenge.createdByUserId == userId)
-            challenge,
-      ],
+          if (challenge.createdByUserId == userId) challenge,
+      ], now: DateTime.now()),
     );
   }
 

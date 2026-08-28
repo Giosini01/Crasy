@@ -175,13 +175,11 @@ class _BodyState extends ConsumerState<_Body> {
                 ? const _EmptyShelf(
                     title: 'Non ha ancora fatto fare niente',
                     message:
-                        'Qui finiscono le foto che ha fatto fare mettendo dei '
-                        'soldi in palio.',
+                        'Qui trovi le challenge che ha lanciato: quelle ancora '
+                        'aperte, in cui puoi entrare adesso, e le foto che ha '
+                        'fatto fare mettendo dei soldi in palio.',
                   )
-                : TrophyGrid(
-                    challenges: commissions,
-                    kind: TrophyKind.commissioned,
-                  ),
+                : CommissionedShelf(challenges: commissions),
         },
       ],
     );

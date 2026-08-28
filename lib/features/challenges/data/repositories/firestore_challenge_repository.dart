@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crasy/features/challenges/data/mappers/challenge_mapper.dart';
+import 'package:crasy/features/challenges/domain/commissioned_order.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
@@ -437,10 +438,10 @@ class FirestoreChallengeRepository implements ChallengeRepository {
         .where('createdByUserId', isEqualTo: userId)
         .snapshots()
         .map(
-          (snapshot) => _mostRecentFirst([
-            for (final challenge in _challengesFrom(snapshot))
-              if (challenge.hasTrophy) challenge,
-          ]),
+          (snapshot) => commissionedOrder(
+            _challengesFrom(snapshot),
+            now: DateTime.now(),
+          ),
         );
   }
 
