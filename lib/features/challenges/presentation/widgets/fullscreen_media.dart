@@ -6,6 +6,7 @@ import 'package:crasy/core/widgets/video_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/challenges/presentation/widgets/caption_frame.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_comments.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -174,17 +175,11 @@ class _Slide extends ConsumerWidget {
     }
 
     final media = entry.isVideo
-        ? VideoFrame(url: url, immersive: true)
-        : InteractiveViewer(
-            minScale: 1,
-            maxScale: 4,
-            child: Image.network(
-              url,
-              fit: BoxFit.contain,
-              width: double.infinity,
-              height: double.infinity,
-            ),
-          );
+        ? CaptionFrame(
+            text: entry.caption,
+            child: VideoFrame(url: url, immersive: true),
+          )
+        : _PhotoWithCaption(url: url, caption: entry.caption);
 
     return GestureDetector(
       // Il doppio tocco vale anche qui, e a fiamma gia' accesa non fa niente:
@@ -195,6 +190,117 @@ class _Slide extends ConsumerWidget {
       // `giveFire` sa gia' che a gara finita non si vota, e sa anche che una
       // fiamma gia' accesa non si riaccende: la regola sta in un posto solo.
       child: Center(child: media),
+    );
+  }
+}
+
+/// La foto a tutto schermo, con la didascalia scritta sul **suo** bordo.
+///
+/// **Serve sapere quanto e' grande la foto davvero.** A tutto schermo l'immagine
+/// sta dentro con `contain`, quindi non riempie: sopra e sotto — o ai lati —
+/// resta del nero. Disegnando la cornice sui bordi dello schermo, la scritta
+/// finirebbe a galleggiare sul nero invece che sulla foto, e sarebbe la
+/// differenza fra una didascalia scritta sull'immagine e una scritta accanto,
+/// che e' esattamente la cosa che si sta cercando di evitare.
+///
+/// Le proporzioni vere si chiedono all'immagine mentre arriva. Finche' non si
+/// sanno la foto si vede lo stesso, senza cornice: un istante senza scritta e'
+/// molto meglio di una scritta nel posto sbagliato che poi salta.
+class _PhotoWithCaption extends StatefulWidget {
+  const _PhotoWithCaption({required this.url, required this.caption});
+
+  final String url;
+  final String caption;
+
+  @override
+  State<_PhotoWithCaption> createState() => _PhotoWithCaptionState();
+}
+
+class _PhotoWithCaptionState extends State<_PhotoWithCaption> {
+  ImageStream? _flusso;
+  ImageStreamListener? _ascoltatore;
+  double? _proporzione;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _misura();
+  }
+
+  @override
+  void didUpdateWidget(_PhotoWithCaption oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.url != widget.url) {
+      _proporzione = null;
+      _misura();
+    }
+  }
+
+  @override
+  void dispose() {
+    _stacca();
+    super.dispose();
+  }
+
+  void _stacca() {
+    final ascoltatore = _ascoltatore;
+
+    if (ascoltatore != null) {
+      _flusso?.removeListener(ascoltatore);
+      _ascoltatore = null;
+    }
+  }
+
+  void _misura() {
+    _stacca();
+
+    // La stessa immagine che disegna `Image.network`: la cache di Flutter e'
+    // una sola, quindi chiedere le misure non fa scaricare niente due volte.
+    final flusso = NetworkImage(
+      widget.url,
+    ).resolve(createLocalImageConfiguration(context));
+
+    final ascoltatore = ImageStreamListener((info, _) {
+      if (!mounted) {
+        return;
+      }
+
+      final larghezza = info.image.width;
+      final altezza = info.image.height;
+
+      if (altezza <= 0) {
+        return;
+      }
+
+      setState(() => _proporzione = larghezza / altezza);
+    });
+
+    _flusso = flusso;
+    _ascoltatore = ascoltatore;
+    flusso.addListener(ascoltatore);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final foto = Image.network(widget.url, fit: BoxFit.contain);
+    final proporzione = _proporzione;
+
+    return InteractiveViewer(
+      minScale: 1,
+      maxScale: 4,
+      child: Center(
+        child: proporzione == null
+            ? foto
+            // `AspectRatio` dentro un `Center` prende esattamente il riquadro
+            // che occupa la foto: e' quello il bordo su cui corre la scritta.
+            // E stando dentro l'ingranditore, la didascalia si allarga insieme
+            // alla foto — com'e' giusto, visto che ne fa parte.
+            : AspectRatio(
+                aspectRatio: proporzione,
+                child: CaptionFrame(text: widget.caption, child: foto),
+              ),
+      ),
     );
   }
 }
@@ -352,17 +458,11 @@ class _BottomBar extends ConsumerWidget {
               ),
             ],
           ),
-          // La didascalia sotto il nome, come sotto un'istantanea. Resta anche
-          // a gara finita: e' parte della foto, non della conversazione.
-          if (entry.hasCaption) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              entry.caption,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.paper.withValues(alpha: 0.85),
-              ),
-            ),
-          ],
+          // **La didascalia non si ripete qui.** Corre sul bordo della foto,
+          // sopra, ed e' li' che va letta: e' parte dell'immagine, non una riga
+          // di servizio. Scritta anche qui sarebbe la stessa cosa detta due
+          // volte, e la seconda toglierebbe forza alla prima.
+          //
           // **I commenti spariscono alla sirena.**
           //
           // Non e' un permesso tolto: e' che un commento e' tifo, e il tifo si
