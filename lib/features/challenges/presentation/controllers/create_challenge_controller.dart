@@ -1,4 +1,5 @@
 import 'package:crasy/core/moderation/content_policy.dart';
+import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
@@ -59,14 +60,24 @@ abstract final class ChallengeDraftValidators {
     return ContentPolicy.validate(brief);
   }
 
-  static String? validatePrize(String? value) {
-    final euro = int.tryParse(value?.trim() ?? '');
+  /// Il premio piu' piccolo che si possa mettere: **un centesimo**.
+  ///
+  /// Non c'e' un minimo di prodotto e non deve esserci — una gara da cinquanta
+  /// centesimi fra amici e' una gara — ma zero non e' un premio, e una
+  /// challenge senza premio e' un'altra cosa da quella che questa app promette.
+  static const int prizeMinCents = 1;
 
-    if (euro == null || euro <= 0) {
+  static String? validatePrize(String? value) {
+    // Il premio si scrive anche con i centesimi: `10,50`. Non e' un vezzo — a
+    // dividere una cifra fra due persone i centesimi escono da soli, e un
+    // campo che li rifiuta costringe ad arrotondare in favore di qualcuno.
+    final cents = AppMoney.centsFrom(value);
+
+    if (cents == null || cents < prizeMinCents) {
       return 'Inserisci il premio in euro.';
     }
 
-    if (euro > prizeMaxEuro) {
+    if (cents > prizeMaxEuro * 100) {
       return 'Troppo. Il massimo e\' $prizeMaxEuro euro.';
     }
 
@@ -127,7 +138,7 @@ class CreateChallengeController extends AsyncNotifier<void> {
   Future<String?> create({
     required String title,
     required String brief,
-    required int prizeEuro,
+    required int prizeCents,
     required ChallengeScope scope,
     required MediaKind mediaKind,
     required String place,
@@ -151,10 +162,13 @@ class CreateChallengeController extends AsyncNotifier<void> {
       id: '',
       title: title.trim(),
       brief: brief.trim(),
-      // Il premio viaggia in centesimi, sempre. Qui si moltiplica una volta
-      // sola, all'ingresso: da qui in poi nessuno deve piu' chiedersi se il
-      // numero che ha in mano sono euro o centesimi.
-      prizeCents: prizeEuro * 100,
+      // Il premio viaggia in centesimi, sempre. La conversione si fa una
+      // volta sola, dove si legge quello che e' stato scritto — vedi
+      // `AppMoney.centsFrom` — e da li' in poi nessuno deve piu' chiedersi se
+      // il numero che ha in mano sono euro o centesimi. Prima la
+      // moltiplicazione stava qui, e bastava perche' il campo accettava solo
+      // numeri interi.
+      prizeCents: prizeCents,
       scope: scope,
       mediaKind: mediaKind,
       place: scope == ChallengeScope.local ? place.trim().toUpperCase() : '',

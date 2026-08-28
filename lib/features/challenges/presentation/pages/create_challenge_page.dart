@@ -111,9 +111,25 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               _Field(
                 label: 'Premio in euro',
                 controller: _prize,
-                hint: '500',
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                // Il suggerimento porta i centesimi apposta: e' l'unico posto
+                // in cui il campo dice di accettarli. Un `500` li' dentro
+                // lascerebbe credere che si scrivano solo cifre tonde.
+                hint: '10,50',
+                // `decimal: true` e' quello che mette il tasto della virgola
+                // sulla tastiera dell'iPhone. Senza, i centesimi si possono
+                // accettare quanto si vuole: non c'e' modo di digitarli.
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                // Passano cifre, virgola e punto. Il punto perche' la tastiera
+                // di un telefono in inglese offre quello, e un campo che
+                // rifiuta il tasto che la tastiera stessa suggerisce sembra
+                // rotto. A dire se quello che ne esce e' un importo valido ci
+                // pensa il controllo, non il filtro: qui si decide solo cosa
+                // si puo' battere.
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                ],
                 validator: ChallengeDraftValidators.validatePrize,
               ),
               _Field(
@@ -261,7 +277,12 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
         .create(
           title: _title.text,
           brief: _brief.text,
-          prizeEuro: int.parse(_prize.text.trim()),
+          // Il controllo del modulo e' appena passato, quindi qui c'e' un
+          // importo valido. Lo zero di ripiego non serve a coprire un caso
+          // vero: serve a non avere un `!` su un campo di testo, che il giorno
+          // che qualcuno tocca il controllo diventa una schermata che si
+          // chiude da sola.
+          prizeCents: AppMoney.centsFrom(_prize.text) ?? 0,
           scope: _scope,
           mediaKind: _mediaKind,
           place: _place.text,
@@ -344,13 +365,14 @@ class _PaymentSummary extends StatelessWidget {
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: prize,
       builder: (context, value, child) {
-        final euro = int.tryParse(value.text.trim()) ?? 0;
+        final cents = AppMoney.centsFrom(value.text) ?? 0;
 
-        if (euro <= 0) {
+        // Finche' non c'e' un importo valido non c'e' niente da riepilogare, e
+        // un riepilogo di zeri mentre si sta ancora scrivendo la cifra e' un
+        // lampeggio, non un'informazione.
+        if (cents <= 0) {
           return const SizedBox.shrink();
         }
-
-        final cents = euro * 100;
 
         return Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.md),

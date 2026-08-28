@@ -55,6 +55,19 @@ void main() {
       expect(ChallengeDraftValidators.validatePrize('500'), isNull);
     });
 
+    test('accetta i centesimi', () {
+      // Dividere una cifra fra due persone fa uscire i centesimi da soli: un
+      // campo che li rifiuta costringe ad arrotondare in favore di qualcuno.
+      expect(ChallengeDraftValidators.validatePrize('10,50'), isNull);
+      expect(ChallengeDraftValidators.validatePrize('10.50'), isNull);
+      expect(ChallengeDraftValidators.validatePrize('0,01'), isNull);
+    });
+
+    test('sotto il centesimo non c\'e\' premio', () {
+      expect(ChallengeDraftValidators.validatePrize('0,00'), isNotNull);
+      expect(ChallengeDraftValidators.validatePrize('0,001'), isNotNull);
+    });
+
     test('ha un tetto contro le dita che scivolano', () {
       expect(
         ChallengeDraftValidators.validatePrize(
