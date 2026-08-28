@@ -59,6 +59,15 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
   final _brief = TextEditingController();
 
   final _prize = TextEditingController();
+
+  /// Serve solo a sapere **quando si esce dal campo del premio**.
+  ///
+  /// E' li' che l'importo si mette in ordine — `88` diventa `88,00` — e non
+  /// mentre si scrive: formattando a ogni tasto, il primo `1` diventerebbe
+  /// `1,00` e il cursore finirebbe dopo gli zeri, cioe' non si riuscirebbe piu'
+  /// a scrivere `10`.
+  final _prizeFocus = FocusNode();
+
   final _place = TextEditingController();
   int _minutes = 1440;
 
@@ -67,10 +76,48 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    _prizeFocus.addListener(_ordinaPremio);
+  }
+
+  /// Riscrive il premio con i due decimali, quando il campo perde il fuoco.
+  ///
+  /// Non tocca niente se quello che c'e' scritto non e' un importo: il campo
+  /// deve restare com'e' per far leggere l'errore accanto a quello che si e'
+  /// battuto davvero.
+  void _ordinaPremio() {
+    if (_prizeFocus.hasFocus) {
+      return;
+    }
+
+    final cents = AppMoney.centsFrom(_prize.text);
+
+    if (cents == null) {
+      return;
+    }
+
+    final ordinato = AppMoney.plain(cents);
+
+    if (_prize.text == ordinato) {
+      return;
+    }
+
+    _prize.value = TextEditingValue(
+      text: ordinato,
+      // Il cursore va in fondo. Senza dirlo resta dov'era, e su un testo
+      // diventato piu' lungo Flutter lo rimette all'inizio: si torna nel campo
+      // e si scrive prima della cifra invece che dopo.
+      selection: TextSelection.collapsed(offset: ordinato.length),
+    );
+  }
+
+  @override
   void dispose() {
     _title.dispose();
     _brief.dispose();
     _prize.dispose();
+    _prizeFocus.dispose();
     _place.dispose();
     super.dispose();
   }
@@ -111,6 +158,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               _Field(
                 label: 'Premio in euro',
                 controller: _prize,
+                focusNode: _prizeFocus,
                 // Il suggerimento porta i centesimi apposta: e' l'unico posto
                 // in cui il campo dice di accettarli. Un `500` li' dentro
                 // lascerebbe credere che si scrivano solo cifre tonde.
@@ -469,6 +517,7 @@ class _Field extends StatelessWidget {
     this.keyboardType,
     this.inputFormatters,
     this.validator,
+    this.focusNode,
   });
 
   final String label;
@@ -479,6 +528,7 @@ class _Field extends StatelessWidget {
   final TextInputType? keyboardType;
   final List<TextInputFormatter>? inputFormatters;
   final String? Function(String?)? validator;
+  final FocusNode? focusNode;
 
   @override
   Widget build(BuildContext context) {
@@ -486,11 +536,24 @@ class _Field extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: TextFormField(
         controller: controller,
+        focusNode: focusNode,
         maxLines: maxLines,
         maxLength: maxLength,
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
         validator: validator,
+        // **Il tasto in basso a destra chiude la tastiera, non va a capo.**
+        //
+        // Su un campo a piu' righe Flutter mette l'a-capo, che e' la scelta
+        // giusta per un editor di testo e sbagliata qui: la consegna di una
+        // challenge sta in tre righe e nessuno ci va a capo apposta, mentre
+        // tutti hanno bisogno di **togliere di mezzo la tastiera** — che qui
+        // copre meta' modulo e il bottone per pubblicare.
+        //
+        // Su iOS il tasto diventa "Fine". Un a-capo non si puo' piu' scrivere,
+        // ed e' esattamente cio' che si voleva.
+        textInputAction: TextInputAction.done,
+        onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
         decoration: InputDecoration(
           labelText: label.toUpperCase(),
           hintText: hint,

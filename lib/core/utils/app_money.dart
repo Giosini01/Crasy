@@ -72,6 +72,30 @@ abstract final class AppMoney {
     return units * 100 + decimals;
   }
 
+  /// L'importo come si scrive **dentro un campo**: `88,00`, `1250,00`.
+  ///
+  /// Due differenze da [format], e sono tutte e due obbligatorie.
+  ///
+  /// **I centesimi ci sono sempre**, anche su una cifra tonda. In vetrina
+  /// `€500` e' meglio di `€500,00` — e' il numero piu' grande della schermata e
+  /// due zeri lo allungano per niente — ma dentro un campo che si sta
+  /// compilando i due decimali dicono una cosa che serve: *qui i centesimi si
+  /// possono scrivere*.
+  ///
+  /// **Niente punto delle migliaia**, e questa e' la parte che non si vede.
+  /// [format] scriverebbe `1.250,00`, che rimesso nel campo non tornerebbe piu'
+  /// indietro: [centsFrom] rifiuta il separatore delle migliaia di proposito,
+  /// perche' `1.250` da solo e' ambiguo. Il campo si ritroverebbe con dentro un
+  /// testo che l'app stessa non sa piu' rileggere, e il premio partirebbe a
+  /// zero.
+  static String plain(int cents) {
+    final absolute = cents.abs();
+    final segno = cents < 0 ? '-' : '';
+    final decimals = absolute.remainder(100).toString().padLeft(2, '0');
+
+    return '$segno${absolute ~/ 100},$decimals';
+  }
+
   /// Inserisce il punto ogni tre cifre partendo da destra.
   static String _grouped(int units) {
     final digits = units.toString();

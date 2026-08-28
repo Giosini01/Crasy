@@ -73,4 +73,32 @@ void main() {
       expect(AppMoney.format(AppMoney.centsFrom('500')!), '€500');
     });
   });
+
+  group('l\'importo dentro un campo', () {
+    test('i centesimi ci sono sempre', () {
+      expect(AppMoney.plain(8800), '88,00');
+      expect(AppMoney.plain(1050), '10,50');
+      expect(AppMoney.plain(5), '0,05');
+      expect(AppMoney.plain(0), '0,00');
+    });
+
+    test('niente punto delle migliaia', () {
+      // `1.250,00` rimesso nel campo non tornerebbe piu' indietro: `centsFrom`
+      // rifiuta il separatore delle migliaia, e il premio partirebbe a zero.
+      expect(AppMoney.plain(125000), '1250,00');
+    });
+
+    test('quello che esce si rilegge', () {
+      // E' la proprieta' che conta davvero: il campo si riscrive da solo
+      // quando perde il fuoco, e cio' che ci finisce dentro deve poter essere
+      // riletto al momento dell'invio.
+      for (final cents in [1, 5, 99, 100, 1050, 8800, 125000, 100000000]) {
+        expect(
+          AppMoney.centsFrom(AppMoney.plain(cents)),
+          cents,
+          reason: 'andata e ritorno su $cents centesimi',
+        );
+      }
+    });
+  });
 }
