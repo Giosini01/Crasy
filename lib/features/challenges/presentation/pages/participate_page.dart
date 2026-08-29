@@ -446,10 +446,34 @@ class _CaptionEditor extends StatelessWidget {
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: controller,
       builder: (context, value, _) {
+        final scritto = value.text.trim();
+
         return Stack(
           fit: StackFit.expand,
           children: [
-            CaptionFrame(text: value.text, child: child),
+            // **Finche' non c'e' niente, l'invito prende il posto della
+            // didascalia.**
+            //
+            // Una scritta che corre sul bordo della foto e' un posto in cui
+            // nessuno pensa di poter scrivere: non c'e' un campo, non c'e' un
+            // cursore, non c'e' niente che assomigli a una casella di testo.
+            // Chi non lo sa gia' manda la foto muta e scopre a cose fatte che
+            // si poteva dire qualcosa.
+            //
+            // L'invito sta **esattamente dove finira' il testo**, con la stessa
+            // curva e la stessa misura: e' l'unico modo di spiegarlo senza
+            // spiegarlo. In rosso, perche' qui il rosso vuol dire *si puo'
+            // fare* — e perche' sparendo al primo carattere non resta a
+            // gridare accanto a quello che uno sta scrivendo.
+            CaptionFrame(
+              text: scritto.isEmpty ? 'tocca e scrivi una didascalia' : scritto,
+              style: scritto.isEmpty
+                  ? CaptionFrame.defaultStyle(
+                      context,
+                    ).copyWith(color: context.palette.accent)
+                  : null,
+              child: child,
+            ),
             // Il campo invisibile, steso su tutta la foto. `expands` con
             // `maxLines: null` gli fa prendere tutta l'area: serve a
             // raccogliere il testo e a offrire una superficie da toccare, non a
