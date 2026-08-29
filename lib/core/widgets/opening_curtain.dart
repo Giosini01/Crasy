@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:crasy/core/theme/app_palette.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -101,16 +102,19 @@ class _Curtain extends StatelessWidget {
     final lato = MediaQuery.sizeOf(context).shortestSide;
 
     return ColoredBox(
-      // Lo stesso nero dell'icona sulla schermata iniziale del telefono: chi
-      // apre l'app vede continuare la cosa che ha appena toccato, non
-      // cominciarne un'altra.
-      color: Colors.black,
+      // **Bianco, come tutta l'app.** L'icona sulla schermata del telefono e'
+      // nera, e per un attimo si e' pensato di continuarla — ma quello che si
+      // apre subito dopo e' bianco, e un nero di due secondi in mezzo diventa
+      // un lampo scuro fra due schermate chiare. Il colore lo porta la fiamma.
+      color: context.palette.background,
       child: Center(
         child: Icon(
           Icons.local_fire_department_rounded,
-          // La stessa proporzione che ha dentro l'icona vera.
-          size: lato * 0.38,
-          color: const Color(0xFFFA0000),
+          // Piu' piccola di quanto sta dentro l'icona quadrata: li' e' chiusa
+          // in un bordo che la contiene, qui ha tutto lo schermo attorno e
+          // alla stessa misura sembrerebbe enorme.
+          size: lato * 0.22,
+          color: context.palette.accent,
         ),
       ),
     );
