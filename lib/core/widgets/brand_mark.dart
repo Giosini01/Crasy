@@ -76,17 +76,18 @@ class CrasyWordmark extends StatelessWidget {
       return segno;
     }
 
-    return Row(
+    return Column(
       mainAxisSize: MainAxisSize.min,
-      // In alto, all'altezza della testa delle lettere: appoggiata in basso
-      // sembrerebbe una parola in fila con le altre, e "crasy beta" non e' il
-      // nome dell'app.
-      crossAxisAlignment: CrossAxisAlignment.start,
+      // **Sotto, allineata a destra**, cioe' sotto la coda della "y". Accanto
+      // sarebbe una parola in fila con le altre — "crasy beta" non e' il nome
+      // dell'app — e a sinistra spingerebbe il marchio fuori posto rispetto a
+      // tutte le altre schermate.
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         segno,
         Padding(
-          padding: EdgeInsets.only(left: size * 0.16, top: size * 0.08),
-          child: _BetaTag(size: size * 0.42),
+          padding: EdgeInsets.only(top: size * 0.04, right: size * 0.02),
+          child: _BetaWord(size: size * 0.3),
         ),
       ],
     );
@@ -311,49 +312,49 @@ class CrasyHeaderBar extends StatelessWidget {
   }
 }
 
-/// La targhetta: **be** bianco, **ta** rosso, su fondo scuro.
+/// La parola sotto il marchio: **be** nero, **ta** rosso.
 ///
-/// I due colori ripetono la regola del marchio — una meta' neutra e una meta'
-/// in fiamme — e il fondo scuro serve a tutte e due: sul bianco della pagina un
-/// "be" bianco non si vedrebbe, e senza il fondo la targhetta sarebbe una
-/// parola qualunque appiccicata al logo invece di un'etichetta.
-class _BetaTag extends StatelessWidget {
-  const _BetaTag({required this.size});
+/// Ripete la regola del logotipo — una meta' neutra e una in fiamme — e la
+/// ripete sulle stesse due lettere finali, cosi' la seconda meta' rossa cade
+/// sotto la "sy" rossa che le sta sopra. Non e' un caso che si legga come una
+/// firma: e' la stessa cosa scritta due volte, in piccolo.
+///
+/// **Niente fondo colorato e niente riquadro.** Una pillola scura accanto a un
+/// logotipo su fondo bianco e' un secondo oggetto che compete con il primo; qui
+/// invece la parola appartiene al marchio, e per farlo deve essere fatta della
+/// stessa sostanza — inchiostro su carta, e basta.
+///
+/// Il carattere e' quello di sistema al peso piu' grasso che ha, con la
+/// spaziatura stretta. Le lettere del logotipo sono **disegnate** e nessun font
+/// le riproduce; questo e' quanto ci si avvicina senza portarsi dietro un file
+/// di caratteri solo per quattro lettere.
+class _BetaWord extends StatelessWidget {
+  const _BetaWord({required this.size});
 
-  /// L'altezza della targhetta. Il resto — corpo, margini, raggio — si ricava
-  /// da qui, cosi' la targhetta cresce **intera** con il marchio.
+  /// L'altezza delle lettere. Tutto il resto si ricava da qui, cosi' la parola
+  /// cresce **insieme** al marchio invece di avere una misura sua.
   final double size;
 
   @override
   Widget build(BuildContext context) {
-    final corpo = size * 0.62;
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: size * 0.3,
-        vertical: size * 0.14,
+    return Text.rich(
+      TextSpan(
+        children: [
+          const TextSpan(text: 'be'),
+          TextSpan(
+            text: 'ta',
+            style: TextStyle(color: context.palette.accent),
+          ),
+        ],
       ),
-      decoration: BoxDecoration(
+      style: TextStyle(
+        fontSize: size,
+        height: 1,
+        fontWeight: FontWeight.w900,
+        // Stretta: il logotipo ha le lettere quasi attaccate, e una parola
+        // spaziata sotto di lui sembrerebbe di un'altra famiglia.
+        letterSpacing: -size * 0.02,
         color: context.palette.textPrimary,
-        borderRadius: BorderRadius.circular(size * 0.32),
-      ),
-      child: Text.rich(
-        TextSpan(
-          children: [
-            const TextSpan(text: 'be'),
-            TextSpan(
-              text: 'ta',
-              style: TextStyle(color: context.palette.accent),
-            ),
-          ],
-        ),
-        style: TextStyle(
-          fontSize: corpo,
-          height: 1,
-          fontWeight: FontWeight.w800,
-          letterSpacing: corpo * 0.04,
-          color: Colors.white,
-        ),
       ),
     );
   }
