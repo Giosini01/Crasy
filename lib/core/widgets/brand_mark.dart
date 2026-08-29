@@ -17,8 +17,21 @@ class CrasyWordmark extends StatelessWidget {
     this.size = header,
     this.alignment = Alignment.centerLeft,
     this.onDark = false,
+    this.beta = true,
     super.key,
   });
+
+  /// L'etichetta **beta** accanto al segno.
+  ///
+  /// **Sta attaccata al marchio e non in un angolo dello schermo**, ed e' il
+  /// punto: chi apre l'app deve sapere che sta usando una cosa non finita
+  /// **mentre** legge come si chiama, non dopo averla cercata. Una scritta in
+  /// fondo alla schermata delle impostazioni non l'ha mai letta nessuno.
+  ///
+  /// Si spegne su un trofeo: li' il marchio non e' l'intestazione di una
+  /// schermata, e' il retro di una figurina — un oggetto che si tiene, e su cui
+  /// una targhetta provvisoria non ha senso.
+  final bool beta;
 
   /// Il segno per i fondi scuri: **lettere bianche, fiamme rosse**.
   ///
@@ -48,7 +61,7 @@ class CrasyWordmark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
+    final segno = Image.asset(
       onDark
           ? 'assets/brand/crasy-wordmark-dark.png'
           : 'assets/brand/crasy-wordmark.png',
@@ -57,6 +70,25 @@ class CrasyWordmark extends StatelessWidget {
       alignment: alignment,
       filterQuality: FilterQuality.medium,
       semanticLabel: 'CRASY',
+    );
+
+    if (!beta || onDark) {
+      return segno;
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      // In alto, all'altezza della testa delle lettere: appoggiata in basso
+      // sembrerebbe una parola in fila con le altre, e "crasy beta" non e' il
+      // nome dell'app.
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        segno,
+        Padding(
+          padding: EdgeInsets.only(left: size * 0.16, top: size * 0.08),
+          child: _BetaTag(size: size * 0.42),
+        ),
+      ],
     );
   }
 }
@@ -275,6 +307,54 @@ class CrasyHeaderBar extends StatelessWidget {
         AppSpacing.sm,
       ),
       child: CrasyHeader(middle: middle, action: action),
+    );
+  }
+}
+
+/// La targhetta: **be** bianco, **ta** rosso, su fondo scuro.
+///
+/// I due colori ripetono la regola del marchio — una meta' neutra e una meta'
+/// in fiamme — e il fondo scuro serve a tutte e due: sul bianco della pagina un
+/// "be" bianco non si vedrebbe, e senza il fondo la targhetta sarebbe una
+/// parola qualunque appiccicata al logo invece di un'etichetta.
+class _BetaTag extends StatelessWidget {
+  const _BetaTag({required this.size});
+
+  /// L'altezza della targhetta. Il resto — corpo, margini, raggio — si ricava
+  /// da qui, cosi' la targhetta cresce **intera** con il marchio.
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final corpo = size * 0.62;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: size * 0.3,
+        vertical: size * 0.14,
+      ),
+      decoration: BoxDecoration(
+        color: context.palette.textPrimary,
+        borderRadius: BorderRadius.circular(size * 0.32),
+      ),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            const TextSpan(text: 'be'),
+            TextSpan(
+              text: 'ta',
+              style: TextStyle(color: context.palette.accent),
+            ),
+          ],
+        ),
+        style: TextStyle(
+          fontSize: corpo,
+          height: 1,
+          fontWeight: FontWeight.w800,
+          letterSpacing: corpo * 0.04,
+          color: Colors.white,
+        ),
+      ),
     );
   }
 }
