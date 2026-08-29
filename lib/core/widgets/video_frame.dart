@@ -65,10 +65,6 @@ class _VideoFrameState extends State<VideoFrame> {
   /// Quanto restano i comandi dopo l'ultimo tocco.
   static const _linger = Duration(seconds: 3);
 
-  /// Quanto si salta con una freccia. Dieci secondi sono il salto che tutti
-  /// conoscono, e su un video da trenta e' gia' un terzo della gara.
-  static const _step = Duration(seconds: 10);
-
   VideoPlayerController? _controller;
   Timer? _hide;
   bool _failed = false;
@@ -140,8 +136,8 @@ class _VideoFrameState extends State<VideoFrame> {
     }
 
     // A schermo intero i comandi si fanno vedere subito e poi si tolgono da
-    // soli: chi ha appena aperto deve sapere che la barra dei secondi c'e',
-    // senza doverla cercare con un tocco alla cieca.
+    // soli: chi ha appena aperto deve sapere che si puo' fermare, senza doverlo
+    // scoprire con un tocco alla cieca.
     if (widget.immersive) {
       _keepControls();
     }
@@ -201,27 +197,6 @@ class _VideoFrameState extends State<VideoFrame> {
       await controller.play();
     }
 
-    _keepControls();
-  }
-
-  /// Avanti o indietro di [by], senza uscire dal video.
-  Future<void> _seek(Duration by) async {
-    final controller = _controller;
-
-    if (controller == null) {
-      return;
-    }
-
-    final end = controller.value.duration;
-    var target = controller.value.position + by;
-
-    if (target < Duration.zero) {
-      target = Duration.zero;
-    } else if (target > end) {
-      target = end;
-    }
-
-    await controller.seekTo(target);
     _keepControls();
   }
 
@@ -320,47 +295,45 @@ class _VideoFrameState extends State<VideoFrame> {
               color: Colors.white,
             ),
           ),
+        // **Si ferma e si riprende, non si scorre.**
+        //
+        // C'erano i dieci secondi avanti, i dieci indietro e la barra da
+        // trascinare. Sono spariti tutti e tre, ed e' una scelta sul prodotto:
+        // una partecipazione dura pochi secondi e va guardata **come e' stata
+        // girata**. Potendo saltare, si salta — si va al punto in cui succede
+        // la cosa, si vede quella e si passa oltre — e chi ha girato quel video
+        // ha lavorato anche sui secondi prima.
+        //
+        // C'e' anche una ragione piu' seria: con dei soldi in palio, il tempo
+        // che una foto o un video si prende e' l'unica cosa che si avvicina a
+        // un'attenzione vera. Una barra che permette di arrivare in fondo in
+        // mezzo secondo trasforma il guardare in uno sfogliare, e sfogliando si
+        // vota a caso.
+        //
+        // La barra bianca sotto resta, ma **non si trascina**: dice a che punto
+        // si e', che e' un'informazione, non un comando.
         if (_controls) ...[
           Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _Command(
-                  icon: Icons.replay_10_rounded,
-                  onTap: () => _seek(-_step),
-                ),
-                const SizedBox(width: 24),
-                _Command(
-                  icon: playing
-                      ? Icons.pause_rounded
-                      : Icons.play_arrow_rounded,
-                  size: 32,
-                  onTap: _tap,
-                ),
-                const SizedBox(width: 24),
-                _Command(
-                  icon: Icons.forward_10_rounded,
-                  onTap: () => _seek(_step),
-                ),
-              ],
+            child: _Command(
+              icon: playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+              size: 32,
+              onTap: _tap,
             ),
           ),
-          // La barra si trascina: e' l'"indietro di preciso" che i dieci
-          // secondi non sanno fare. Bianca, non rossa: il rosso qui dentro e'
-          // del premio e della fiamma, e speso su una barra di avanzamento
-          // smette di significare quelle due cose.
           Positioned(
             left: 8,
             right: 8,
             bottom: 26,
-            child: VideoProgressIndicator(
-              controller,
-              allowScrubbing: true,
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              colors: const VideoProgressColors(
-                playedColor: Colors.white,
-                bufferedColor: Color(0x59FFFFFF),
-                backgroundColor: Color(0x40FFFFFF),
+            child: IgnorePointer(
+              child: VideoProgressIndicator(
+                controller,
+                allowScrubbing: false,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                colors: const VideoProgressColors(
+                  playedColor: Colors.white,
+                  bufferedColor: Color(0x59FFFFFF),
+                  backgroundColor: Color(0x40FFFFFF),
+                ),
               ),
             ),
           ),

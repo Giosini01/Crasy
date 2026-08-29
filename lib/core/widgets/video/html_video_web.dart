@@ -97,13 +97,17 @@ void _playAloud(web.HTMLVideoElement element) {
 /// non si puo' partire senza un dito compaiono i comandi del sistema, con il
 /// loro play in mezzo allo schermo.
 ///
-/// ## A schermo intero: comandi, audio, e la barra dei secondi
+/// ## A schermo intero: audio, e il tocco per fermare
 ///
 /// Un tocco apre la partecipazione a schermo intero, e li' [immersive] e' vero:
-/// il video diventa una cosa che si guarda. Comandi del browser — quindi **la
-/// barra per andare avanti e indietro al secondo**, e su iPhone l'unico
-/// pulsante che sa aprire il lettore di sistema a tutto schermo — e audio
-/// acceso.
+/// il video diventa una cosa che si guarda, con l'audio acceso.
+///
+/// **I comandi del browser restano spenti anche li'**, e con loro la barra per
+/// andare avanti e indietro. Una partecipazione dura pochi secondi e va
+/// guardata come e' stata girata: potendo saltare si salta al punto in cui
+/// succede la cosa, e chi l'ha girata ha lavorato anche sui secondi prima. Non
+/// esiste un modo di tenere la barra togliendo solo il salto, quindi si toglie
+/// tutto — a fermare e riprendere ci pensa il tocco.
 ///
 /// ## Un tocco e due tocchi
 ///
@@ -175,7 +179,15 @@ Widget? buildHtmlVideo(
       ..autoplay = true
       ..loop = true
       ..playsInline = true
-      ..controls = immersive
+      // **Niente comandi del browser, nemmeno a schermo intero.**
+      //
+      // La barra nativa porta con se' il trascinamento, e su una
+      // partecipazione andare avanti non si deve: dura pochi secondi e va
+      // guardata come e' stata girata. Non esiste un modo di tenere la barra
+      // togliendo solo il salto — `controlsList` sa dire "niente scarica" e
+      // "niente velocita'", non "niente scorrimento" — quindi si toglie tutto,
+      // e a fermare e riprendere ci pensa il tocco.
+      ..controls = false
       ..muted = !immersive
       ..preload = 'metadata'
       // Per ultimo: da qui parte il caricamento, e da qui in poi cambiare le
@@ -183,7 +195,7 @@ Widget? buildHtmlVideo(
       ..src = url;
 
     // Il menu contestuale si nega qui, e vale anche dove i comandi ci sono: a
-    // schermo intero servono la barra dei secondi e il volume, non "scarica".
+    // schermo intero non serve nessuna delle voci di quel menu.
     element.oncontextmenu = ((web.Event event) {
       event.preventDefault();
 
