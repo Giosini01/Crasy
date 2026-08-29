@@ -508,10 +508,8 @@ class FirestoreChallengeRepository implements ChallengeRepository {
         .where('createdByUserId', isEqualTo: userId)
         .snapshots()
         .map(
-          (snapshot) => commissionedOrder(
-            _challengesFrom(snapshot),
-            now: DateTime.now(),
-          ),
+          (snapshot) =>
+              commissionedOrder(_challengesFrom(snapshot), now: DateTime.now()),
         );
   }
 

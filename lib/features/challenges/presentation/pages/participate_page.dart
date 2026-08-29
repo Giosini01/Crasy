@@ -180,11 +180,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
 
     final sent = await ref
         .read(participationControllerProvider.notifier)
-        .submit(
-          challengeId: challenge.id,
-          media: media,
-          caption: didascalia,
-        );
+        .submit(challengeId: challenge.id, media: media, caption: didascalia);
 
     if (!mounted) {
       return;

@@ -222,9 +222,7 @@ class _CommentsSheetState extends ConsumerState<_CommentsSheet> {
     return Padding(
       // La tastiera spinge il foglio invece di coprirlo: senza, si scrive alla
       // cieca sotto i tasti.
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.viewInsetsOf(context).bottom,
-      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: palette.background,

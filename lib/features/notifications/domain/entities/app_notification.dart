@@ -106,8 +106,7 @@ class AppNotification {
     NotificationKind.participation =>
       '@$actorUsername ha partecipato alla tua challenge',
     NotificationKind.fire => '@$actorUsername ha dato una fiamma alla tua foto',
-    NotificationKind.mention =>
-      '@$actorUsername ti ha nominato in un commento',
+    NotificationKind.mention => '@$actorUsername ti ha nominato in un commento',
     NotificationKind.friendRequest =>
       '@$actorUsername ti ha chiesto l\'amicizia',
     NotificationKind.win => 'Hai vinto',

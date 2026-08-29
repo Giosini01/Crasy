@@ -158,7 +158,8 @@ class CommissionedShelf extends StatelessWidget {
             ),
             child: EyebrowLabel('APERTE ADESSO'),
           ),
-          for (final challenge in live) _LiveCommissionRow(challenge: challenge),
+          for (final challenge in live)
+            _LiveCommissionRow(challenge: challenge),
         ],
         if (trophies.isNotEmpty) ...[
           // L'occhiello sulle concluse compare **solo se ci sono anche delle

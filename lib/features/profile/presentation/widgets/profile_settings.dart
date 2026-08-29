@@ -131,7 +131,10 @@ class _SettingsRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: texts.titleMedium?.copyWith(color: colore)),
+                  Text(
+                    label,
+                    style: texts.titleMedium?.copyWith(color: colore),
+                  ),
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
                     note,
@@ -143,7 +146,11 @@ class _SettingsRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            Icon(Icons.chevron_right_rounded, size: 20, color: palette.textFaint),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: palette.textFaint,
+            ),
           ],
         ),
       ),

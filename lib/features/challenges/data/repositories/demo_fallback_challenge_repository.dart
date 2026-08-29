@@ -108,10 +108,9 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
     required String challengeId,
     required String entryId,
   }) {
-    return _forChallenge(challengeId).watchComments(
-      challengeId: challengeId,
-      entryId: entryId,
-    );
+    return _forChallenge(
+      challengeId,
+    ).watchComments(challengeId: challengeId, entryId: entryId);
   }
 
   @override
