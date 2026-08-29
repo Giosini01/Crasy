@@ -299,6 +299,54 @@ final myCommissionsProvider = StreamProvider<List<Challenge>>((ref) {
       .watchCommissionedBy(authState.user.id);
 });
 
+/// Cosa stanno facendo adesso le persone che seguo.
+///
+/// **La schermata degli amici lo prometteva e non lo diceva.** In cima c'e'
+/// scritto "cosa stanno combinando", e sotto c'era un elenco di nomi: la stessa
+/// cosa che si vedrebbe in una rubrica del telefono. Questo e' il dato che
+/// mancava — chi e' in gara adesso, e in quale.
+///
+/// Torna il **titolo della gara aperta** a cui ognuno sta partecipando, o
+/// niente per chi in questo momento non e' in nessuna. Chi partecipa a piu'
+/// gare compare con l'ultima: una riga sola per persona, o l'elenco degli
+/// amici diventa l'elenco delle partecipazioni.
+final friendsInGameProvider =
+    Provider.family<Map<String, String>, List<String>>((ref, userIds) {
+      if (userIds.isEmpty) {
+        return const {};
+      }
+
+      final entries = ref.watch(entriesOfManyProvider(userIds)).valueOrNull;
+      final live = ref.watch(liveChallengesProvider).valueOrNull;
+
+      if (entries == null || live == null) {
+        return const {};
+      }
+
+      final titoli = {
+        for (final challenge in live) challenge.id: challenge.title,
+      };
+      final risultato = <String, String>{};
+
+      for (final entry in entries) {
+        final titolo = titoli[entry.challengeId];
+
+        if (titolo != null) {
+          risultato[entry.userId] = titolo;
+        }
+      }
+
+      return risultato;
+    });
+
+/// Le partecipazioni di un gruppo di persone, in una lettura sola.
+final entriesOfManyProvider = StreamProvider.autoDispose
+    .family<List<ChallengeEntry>, List<String>>((ref, userIds) {
+      return ref
+          .watch(challengeRepositoryProvider)
+          .watchEntriesByUsers(userIds);
+    });
+
 /// A quante gare posso ancora partecipare oggi.
 ///
 /// Si conta su quello che l'app ha gia' in mano — le mie partecipazioni — senza

@@ -1,5 +1,6 @@
 import 'package:crasy/core/services/refresh/auto_refresh.dart';
 import 'package:crasy/core/theme/app_theme.dart';
+import 'package:crasy/core/widgets/opening_curtain.dart';
 import 'package:crasy/routing/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -30,8 +31,9 @@ class CrasyApp extends ConsumerWidget {
       // Le liste con una data dentro si rifanno da sole ogni pochi secondi.
       // Sta qui e non dentro una schermata perche' vale per tutte, e perche'
       // deve continuare a girare anche mentre si cambia scheda.
-      builder: (context, child) =>
-          AutoRefresh(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => OpeningCurtain(
+        child: AutoRefresh(child: child ?? const SizedBox.shrink()),
+      ),
     );
   }
 }

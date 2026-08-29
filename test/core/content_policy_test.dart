@@ -8,6 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 /// chiesto la nostra app, in cambio di soldi nostri. Ogni riga qui sotto e' una
 /// frase che **non deve poter essere pubblicata**.
 void main() {
+  _casiDettiAVoce();
+
   group('autolesionismo', () {
     const forbidden = [
       'Tagliati le vene e fotografa il risultato',
@@ -187,6 +189,80 @@ void main() {
     for (final text in allowed) {
       test('lascia passare: "$text"', () {
         expect(ContentPolicy.check(text), isNull);
+      });
+    }
+  });
+}
+
+/// I casi nominati a voce, messi per iscritto.
+///
+/// **La seconda meta' conta quanto la prima.** Un filtro che ferma tutto e'
+/// facile da scrivere e inutile da usare: CRASY esiste per far fare alla gente
+/// cose assurde, e "doppio backflip" e' esattamente il genere di cosa per cui
+/// l'app e' stata fatta. Ogni riga qui sotto che passa e' una challenge vera
+/// che non viene rifiutata per sbaglio.
+void _casiDettiAVoce() {
+  group('quello che non deve passare', () {
+    const vietate = [
+      'tagliati le vene',
+      'tagliati il braccio',
+      'tagliati con una lametta',
+      'salta nel vuoto',
+      'buttati nel vuoto',
+      'lanciati nel vuoto dal ponte',
+      'ucciditi',
+      'u c c i d i t i',
+      'ucc1d1t1',
+      'picchia il tuo amico',
+      'spogliati davanti alla telecamera',
+      'ruba qualcosa al supermercato',
+    ];
+
+    for (final testo in vietate) {
+      test('"$testo" viene rifiutata', () {
+        expect(ContentPolicy.validate(testo), isNotNull, reason: testo);
+      });
+    }
+  });
+
+  group('i commenti sporchi', () {
+    const vietati = [
+      'sei uno stronzo',
+      'che cazzo hai fatto',
+      'vaffanculo',
+      'v a f f a n c u l o',
+      'porco dio che foto',
+      'sei un idiota',
+      'negro di merda',
+    ];
+
+    for (final testo in vietati) {
+      test('"$testo" viene rifiutato', () {
+        expect(ContentPolicy.validate(testo), isNotNull, reason: testo);
+      });
+    }
+  });
+
+  group('quello che deve passare', () {
+    const permesse = [
+      'fammi un doppio backflip',
+      'salto mortale sul divano',
+      'balla in cucina per quindici secondi',
+      'la cosa piu\' vecchia che hai in casa',
+      'fatti una foto con uno sconosciuto',
+      'mangia il piatto piu\' strano che trovi',
+      'foto al frigo alle undici di sera',
+      'bella questa, complimenti',
+      'sei un grande, hai spaccato',
+      'che figurati, tranquillo',
+      // Il verbo da solo resta buono: e' il modo piu' comune in cui compare.
+      'tagliati i capelli davanti allo specchio',
+      'tagliati le unghie con i guanti',
+    ];
+
+    for (final testo in permesse) {
+      test('"$testo" passa', () {
+        expect(ContentPolicy.validate(testo), isNull, reason: testo);
       });
     }
   });

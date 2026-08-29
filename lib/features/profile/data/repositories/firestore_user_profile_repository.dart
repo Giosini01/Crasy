@@ -61,6 +61,25 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
   }
 
   @override
+  Future<Set<String>> takenUsernames(List<String> candidates) async {
+    final cercati = candidates.take(30).toList();
+
+    if (cercati.isEmpty) {
+      return const {};
+    }
+
+    // `whereIn` accetta trenta valori per volta: qui ne arrivano cinque, e il
+    // taglio sopra e' li' perche' un domani non ci arrivino trentuno senza che
+    // nessuno se ne accorga.
+    final trovati = await _users.where('username', whereIn: cercati).get();
+
+    return {
+      for (final documento in trovati.docs)
+        (documento.data()['username'] as String? ?? '').toLowerCase(),
+    };
+  }
+
+  @override
   Future<void> markTutorialSeen(String userId) {
     return _users.doc(userId).update({
       'tutorialSeen': true,

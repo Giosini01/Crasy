@@ -34,6 +34,14 @@ abstract class UserProfileRepository {
   /// chiede solo di raccogliere il consenso ma di **dimostrarlo** — chi, a che
   /// cosa, quando. Un campo che si sovrascrive a ogni cambio non dimostra
   /// niente: cancella la storia mentre la aggiorna.
+  /// Quali fra [candidates] sono gia' di qualcuno.
+  ///
+  /// **Tutti insieme, in una lettura sola.** Chiedere uno per uno costerebbe
+  /// una lettura per candidato a ogni tasto premuto mentre si scrive il proprio
+  /// nome, ed e' esattamente il tipo di conto che non si vede finche' non
+  /// arriva la bolletta.
+  Future<Set<String>> takenUsernames(List<String> candidates);
+
   /// Segna che il giro di presentazione e' stato fatto.
   ///
   /// Un metodo suo invece di passare dal salvataggio del profilo: quello

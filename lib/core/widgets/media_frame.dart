@@ -24,7 +24,7 @@ class MediaFrame extends StatelessWidget {
   const MediaFrame({
     required this.url,
     this.aspectRatio = 4 / 5,
-    this.radius = AppRadius.md,
+    this.radius = AppRadius.media,
     this.caption,
     this.overlay,
     this.video = false,

@@ -1,4 +1,5 @@
 import 'package:crasy/app.dart';
+import 'package:crasy/core/widgets/opening_curtain.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,7 +17,12 @@ void main() {
   Future<void> apri(WidgetTester tester) async {
     authRepository = FakeAuthRepository();
     final container = ProviderContainer(
-      overrides: [authRepositoryProvider.overrideWithValue(authRepository)],
+      overrides: [
+        authRepositoryProvider.overrideWithValue(authRepository),
+        // Il sipario dell'apertura non si alza nelle prove: coprirebbe
+        // lo schermo per due secondi e i tocchi finirebbero su di lui.
+        openingCurtainProvider.overrideWithValue(false),
+      ],
     );
 
     addTearDown(() {

@@ -11,6 +11,7 @@ import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/onboarding/presentation/controllers/onboarding_controller.dart';
+import 'package:crasy/features/onboarding/presentation/providers/username_check.dart';
 import 'package:crasy/features/onboarding/presentation/utils/onboarding_validators.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -35,6 +36,13 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   final _username = TextEditingController();
   final _bio = TextEditingController();
   final _city = TextEditingController();
+
+  /// Quello che c'e' scritto adesso nel campo del nome.
+  ///
+  /// Sta qui e non si legge dal controller perche' serve a **ricostruire**: il
+  /// segno di spunta e i suggerimenti dipendono da questo, e un controller non
+  /// avvisa nessuno quando cambia.
+  String _digitato = '';
 
   DateTime? _birthDate;
   String? _birthDateError;
@@ -90,11 +98,25 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                   // corretta dopo: vedersi cambiare il nome al momento del
                   // salvataggio e' peggio che non poterlo scrivere maiuscolo.
                   inputFormatters: [_LowercaseFormatter()],
-                  decoration: const InputDecoration(
+                  onChanged: (valore) =>
+                      setState(() => _digitato = valore.trim().toLowerCase()),
+                  decoration: InputDecoration(
                     prefixText: '@',
                     labelText: 'NOME UTENTE',
                     hintText: 'martina',
+                    // **La risposta arriva mentre si scrive, non al salvataggio.**
+                    // Scoprire che il nome e' preso dopo aver riempito tutto il
+                    // resto vuol dire tornare su, cancellare, inventare e
+                    // ricontrollare — e a quel punto molti chiudono l'app.
+                    suffixIcon: _UsernameMark(username: _digitato),
                   ),
+                ),
+                _UsernameHint(
+                  username: _digitato,
+                  onPick: (scelto) {
+                    _username.text = scelto;
+                    setState(() => _digitato = scelto);
+                  },
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 _BirthDateField(
@@ -390,6 +412,114 @@ class _PhotoPicker extends StatelessWidget {
             chosen == null ? 'FOTO — FACOLTATIVA' : 'CAMBIA FOTO',
             style: context.texts.labelSmall?.copyWith(color: palette.textFaint),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Il segno accanto al nome: spunta se e' libero, croce se e' di qualcuno.
+///
+/// **Niente durante l'attesa se non un filo che gira.** Un segno rosso mostrato
+/// mentre la risposta e' ancora in viaggio dice una cosa falsa per mezzo
+/// secondo, e mezzo secondo basta a far cancellare un nome che andava bene.
+class _UsernameMark extends ConsumerWidget {
+  const _UsernameMark({required this.username});
+
+  final String username;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+
+    // Sotto il minimo non si chiede niente: il campo ha gia' il suo errore, e
+    // due segnalazioni diverse sulla stessa riga si contraddicono.
+    if (OnboardingValidators.validateUsername(username) != null) {
+      return const SizedBox.shrink();
+    }
+
+    return ref
+        .watch(usernameCheckProvider(username))
+        .when(
+          loading: () => const Padding(
+            padding: EdgeInsets.all(AppSpacing.sm),
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+          // Se la lettura non riesce non si dice ne' si' ne' no: il nome verra'
+          // controllato comunque al salvataggio, e una croce per un problema di
+          // rete accusa la persona sbagliata.
+          error: (_, _) => const SizedBox.shrink(),
+          data: (esito) => Icon(
+            esito.free ? Icons.check_rounded : Icons.close_rounded,
+            color: esito.free ? const Color(0xFF1B9E4B) : palette.accent,
+          ),
+        );
+  }
+}
+
+/// Quando il nome e' preso: tre alternative da toccare.
+class _UsernameHint extends ConsumerWidget {
+  const _UsernameHint({required this.username, required this.onPick});
+
+  final String username;
+  final ValueChanged<String> onPick;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (OnboardingValidators.validateUsername(username) != null) {
+      return const SizedBox.shrink();
+    }
+
+    final esito = ref.watch(usernameCheckProvider(username)).valueOrNull;
+
+    if (esito == null || esito.free) {
+      return const SizedBox.shrink();
+    }
+
+    final palette = context.palette;
+    final texts = context.texts;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Gia\' preso.',
+            style: texts.bodySmall?.copyWith(color: palette.accent),
+          ),
+          if (esito.suggestions.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: [
+                for (final proposta in esito.suggestions)
+                  GestureDetector(
+                    onTap: () => onPick(proposta),
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                        vertical: AppSpacing.xxs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: palette.accentTint,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                      ),
+                      child: Text(
+                        '@$proposta',
+                        style: texts.bodySmall?.copyWith(color: palette.accent),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );

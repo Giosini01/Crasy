@@ -555,7 +555,7 @@ class _EntryGrid extends StatelessWidget {
                   url: entry.mediaUrl,
                   video: entry.isVideo,
                   aspectRatio: 1,
-                  radius: AppRadius.xs,
+                  radius: AppRadius.media,
                   caption: entry.challengeTitle,
                 ),
               ),

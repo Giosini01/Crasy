@@ -76,6 +76,18 @@ abstract final class ContentPolicy {
     'Questa challenge chiede di commettere un reato. Non si puo\'.',
   );
 
+  /// Volgarita' e bestemmie.
+  ///
+  /// **Separata dagli insulti**, e non e' pignoleria: sono due cose che si
+  /// fermano per due ragioni diverse, e chi si vede rifiutare un commento ha
+  /// diritto di sapere quale delle due ha toccato. Una parolaccia buttata li'
+  /// non fa male a nessuno in particolare; un insulto ha un bersaglio.
+  static const profanity = ContentViolation._(
+    'volgarita',
+    'Riscrivilo senza parolacce. Qui sotto ci passano tutti, e non e\' il '
+        'posto.',
+  );
+
   /// I frammenti che fanno scattare ogni categoria.
   ///
   /// Sono frammenti e non parole intere perche' l'italiano coniuga: `ammazzat`
@@ -97,6 +109,24 @@ abstract final class ContentPolicy {
       'tagliati i polsi',
       'tagliati le braccia',
       'taglia le vene',
+      // **"Tagliati" da solo resta permesso, e non e' una svista.** "Tagliati i
+      // capelli" e "tagliati le unghie" sono due challenge perfettamente
+      // normali, e sono anche il modo piu' comune in cui quella parola compare.
+      // Bocciarle per prendere un caso raro vorrebbe dire un filtro che si
+      // arrabbia con chi non ha fatto niente — e quello, dopo tre volte, viene
+      // disattivato da chi lo gestisce. Si nominano invece le parti del corpo
+      // su cui quel verbo non ha nessun uso innocuo.
+      'tagliati il braccio',
+      'tagliati la gamba',
+      'tagliati la mano',
+      'tagliati le dita',
+      'tagliati la pelle',
+      'tagliati la faccia',
+      'tagliati con un coltello',
+      'tagliati con una lametta',
+      'tagliati con il vetro',
+      'tagliarsi la pelle',
+      'incidersi la pelle',
       'incidersi',
       'inciditi',
       'fine alla tua vita',
@@ -127,6 +157,16 @@ abstract final class ContentPolicy {
       'salta dal balcone',
       'salta dalla finestra',
       'salta dal ponte',
+      // **Il vuoto senza dire da dove.** Mancavano, e sono i modi piu' comuni
+      // di dirlo: "salta nel vuoto" non nomina ne' un balcone ne' una finestra,
+      // quindi passava attraverso le tre righe qui sopra.
+      'salta nel vuoto',
+      'saltare nel vuoto',
+      'buttati nel vuoto',
+      'buttarsi nel vuoto',
+      'lanciati nel vuoto',
+      'gettati nel vuoto',
+      'nel vuoto senza',
       'sotto il treno',
       'davanti al treno',
       'overdose',
@@ -321,6 +361,80 @@ abstract final class ContentPolicy {
       'porn',
     ],
     violence: ['stab', 'uccidi', 'ammazza', 'spara', 'sgozza'],
+    // **Parole intere, mai frammenti.** Sono le piu' corte dell'elenco e le
+    // piu' facili da trovare per sbaglio dentro un'altra: `cazzo` come pezzo
+    // starebbe dentro parole innocue, `figa` dentro "figurati", `merda`
+    // dentro niente ma la regola vale lo stesso. Cercandole isolate — con uno
+    // spazio davanti e dietro — un filtro che si arrabbia con chi non ha fatto
+    // niente non nasce nemmeno.
+    profanity: [
+      'cazzo',
+      'cazzi',
+      'cazzata',
+      'cazzate',
+      'incazzato',
+      'minchia',
+      'stronzo',
+      'stronza',
+      'stronzi',
+      'stronzate',
+      'coglione',
+      'coglioni',
+      'merda',
+      'merdoso',
+      'vaffanculo',
+      'fanculo',
+      'affanculo',
+      'puttana',
+      'puttane',
+      'troia',
+      'troie',
+      'zoccola',
+      'mignotta',
+      'figa',
+      'fica',
+      'sticazzi',
+      'porcodio',
+      'dioporco',
+      'diocane',
+      'madonna puttana',
+      'porca madonna',
+      'porco dio',
+      'fuck',
+      'fucking',
+      'shit',
+      'bitch',
+      'asshole',
+    ],
+    // Gli insulti hanno un bersaglio, e sotto la foto di qualcuno e' sempre
+    // quella persona. Restano fuori i mezzi insulti da bar — scemo, stupido —
+    // perche' fra amici si dicono per scherzo, e un filtro che li ferma
+    // trasforma una presa in giro in un errore rosso.
+    hate: [
+      'negro',
+      'negri',
+      'frocio',
+      'froci',
+      'ricchione',
+      'terrone',
+      'terroni',
+      'zingaro',
+      'zingari',
+      'handicappato',
+      'mongoloide',
+      'ritardato',
+      'ritardata',
+      'infame',
+      'bastardo',
+      'bastarda',
+      'bastardi',
+      'idiota',
+      'cretino',
+      'imbecille',
+      'deficiente',
+      'faggot',
+      'retard',
+    ],
     selfHarm: ['vene', 'polsi'],
     crime: ['droga', 'ruba', 'rubare'],
   };
@@ -356,6 +470,20 @@ abstract final class ContentPolicy {
       'attosessuale',
     ],
     crime: ['pedofilia', 'spacciare'],
+    // Attaccate non capitano per caso dentro una frase italiana, quindi si
+    // possono cercare anche nel testo riletto senza spazi: e' il trucco del
+    // `v a f f a n c u l o` e del `porco.dio`.
+    profanity: [
+      'vaffanculo',
+      'porcodio',
+      'diocane',
+      'dioporco',
+      'porcamadonna',
+      'madonnaputtana',
+      'stronzo',
+      'coglione',
+    ],
+    hate: ['negrodimerda', 'frociodimerda', 'pezzodimerda'],
   };
 
   /// Gli stessi frammenti, con le lettere ripetute schiacciate a una.

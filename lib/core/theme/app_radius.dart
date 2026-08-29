@@ -13,6 +13,16 @@ abstract final class AppRadius {
   static const double md = 8;
   static const double lg = 12;
 
+  /// Le foto, e solo quelle.
+  ///
+  /// **Molto piu' tondo del resto, ed e' voluto.** I comandi restano quasi
+  /// squadrati perche' devono sembrare netti; una foto no — e' un oggetto che
+  /// si guarda, e l'angolo molto tondo e' quello che la fa sembrare una cosa
+  /// posata li' invece che un riquadro ritagliato nella pagina. E' anche la
+  /// curva su cui corre la didascalia: con un angolo vivo la scritta girerebbe
+  /// uno spigolo, che e' un'altra cosa e non e' bella.
+  static const double media = 20;
+
   /// Solo per cio' che e' davvero circolare.
   static const double pill = 999;
 }

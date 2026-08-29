@@ -332,6 +332,19 @@ class SampleChallengeRepository implements ChallengeRepository {
   }
 
   @override
+  Stream<List<ChallengeEntry>> watchEntriesByUsers(List<String> userIds) {
+    final cercati = userIds.toSet();
+
+    return _watch(
+      () => [
+        for (final lista in _entries.values)
+          for (final entry in lista)
+            if (cercati.contains(entry.userId)) entry,
+      ],
+    );
+  }
+
+  @override
   Stream<Set<String>> watchVotedEntryIds(String userId) {
     return _watch(() => {...?_votes[userId]});
   }

@@ -1,6 +1,7 @@
 import 'package:crasy/app.dart';
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/legal/legal_documents.dart';
+import 'package:crasy/core/widgets/opening_curtain.dart';
 import 'package:crasy/features/auth/domain/entities/app_user.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
@@ -50,6 +51,9 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         authRepositoryProvider.overrideWithValue(authRepository),
+        // Il sipario dell'apertura non si alza nelle prove: coprirebbe
+        // lo schermo per due secondi e i tocchi finirebbero su di lui.
+        openingCurtainProvider.overrideWithValue(false),
         ...overrides,
       ],
     );
@@ -141,7 +145,11 @@ void main() {
       ],
     );
 
-    expect(find.text('NESSUNA CHALLENGE APERTA'), findsOneWidget);
+    // `textContaining` e non `text`: il titolo di una sezione vuota adesso
+    // finisce con il punto rosso del marchio, quindi il testo per esteso e'
+    // "NESSUNA CHALLENGE APERTA." — cercarlo esatto lo mancherebbe per un
+    // carattere.
+    expect(find.textContaining('NESSUNA CHALLENGE APERTA'), findsOneWidget);
 
     final now = DateTime.now();
     await container

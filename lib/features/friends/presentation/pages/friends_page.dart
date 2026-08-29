@@ -4,6 +4,7 @@ import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
@@ -43,6 +44,11 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
     final requests =
         ref.watch(incomingRequestsProvider).valueOrNull ?? const [];
     final friends = ref.watch(myFriendsProvider).valueOrNull ?? const [];
+    // Una lettura sola per tutti: chiedendo amico per amico sarebbero venti
+    // richieste ogni volta che questa scheda si apre.
+    final inGara = ref.watch(
+      friendsInGameProvider([for (final amico in friends) amico.userId]),
+    );
 
     return Scaffold(
       body: AppBackground(
@@ -151,7 +157,17 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
                             'chi l\'ha mandata, e da li\' chiedigli l\'amicizia.',
                       )
                     else
-                      for (final friend in friends) _FriendRow(friend: friend),
+                      for (final friend in friends)
+                        _FriendRow(
+                          friend: friend,
+                          // **Cosa sta combinando adesso.** In cima a questa
+                          // scheda c'e' scritto proprio quello, e sotto c'era
+                          // un elenco di nomi: la stessa cosa che si vede nella
+                          // rubrica del telefono. Questa riga e' la differenza
+                          // fra una rubrica e una scheda che vale la pena
+                          // aprire.
+                          inGame: inGara[friend.userId],
+                        ),
                   ],
                 ),
               ),
@@ -221,9 +237,12 @@ class _RequestRow extends ConsumerWidget {
 }
 
 class _FriendRow extends StatelessWidget {
-  const _FriendRow({required this.friend});
+  const _FriendRow({required this.friend, this.inGame});
 
   final Friend friend;
+
+  /// Il titolo della gara aperta a cui sta partecipando, se ce n'e' una.
+  final String? inGame;
 
   @override
   Widget build(BuildContext context) {
@@ -237,10 +256,38 @@ class _FriendRow extends StatelessWidget {
             FriendAvatar(userId: friend.userId, username: friend.username),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
-              child: Text(
-                '@${friend.username}',
-                style: context.texts.titleMedium,
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '@${friend.username}',
+                    style: context.texts.titleMedium,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (inGame case final gara?) ...[
+                    const SizedBox(height: 1),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.local_fire_department_rounded,
+                          size: 12,
+                          color: context.palette.accent,
+                        ),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Text(
+                            'IN GARA  ·  ${gara.toUpperCase()}',
+                            style: context.texts.labelSmall?.copyWith(
+                              color: context.palette.accent,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
               ),
             ),
             Icon(

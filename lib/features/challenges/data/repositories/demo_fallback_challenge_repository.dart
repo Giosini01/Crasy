@@ -197,6 +197,15 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
   }
 
   @override
+  Stream<List<ChallengeEntry>> watchEntriesByUsers(List<String> userIds) {
+    return _insieme(
+      _remote.watchEntriesByUsers(userIds),
+      _samples.watchEntriesByUsers(userIds),
+      (remote, demo) => [...remote, ...demo],
+    );
+  }
+
+  @override
   Stream<Set<String>> watchVotedEntryIds(String userId) {
     // I voti dati alle challenge vere e a quelle di esempio convivono: sono
     // insiemi di identificativi che non si sovrappongono mai, e all'interfaccia

@@ -87,8 +87,19 @@ class CaptionFrame extends StatelessWidget {
 
     final base = style ?? defaultStyle(context);
 
+    // **Lo Stack prende la misura dalla foto, non dallo spazio disponibile.**
+    //
+    // Con `StackFit.expand` la pretendeva dal genitore, e dentro una colonna —
+    // dove l'altezza non e' decisa da nessuno — collassava a zero: la foto
+    // spariva del tutto. Succedeva nella griglia dentro la missione e
+    // nell'elenco, mentre nel profilo no, perche' li' la cella della griglia
+    // un'altezza la impone. Un difetto che si vede in due schermate su tre e'
+    // il peggiore da cercare.
+    //
+    // Cosi' invece la foto detta la misura e la scritta le si posa sopra
+    // riempiendo esattamente quella: funziona sia dove l'altezza c'e' sia dove
+    // non c'e'.
     return Stack(
-      fit: StackFit.expand,
       children: [
         child,
         // Disegnare del testo lettera per lettera non e' gratis, e questo sta

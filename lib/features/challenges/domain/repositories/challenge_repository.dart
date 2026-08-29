@@ -27,6 +27,13 @@ abstract class ChallengeRepository {
   /// Le partecipazioni di una persona, per il suo profilo.
   Stream<List<ChallengeEntry>> watchEntriesByUser(String userId);
 
+  /// Le partecipazioni di **piu' persone insieme**, in una lettura sola.
+  ///
+  /// Serve alla schermata degli amici, che deve dire cosa sta facendo ognuno:
+  /// chiedendo una persona per volta sarebbero venti richieste per venti
+  /// amici, ogni volta che quella scheda si apre.
+  Stream<List<ChallengeEntry>> watchEntriesByUsers(List<String> userIds);
+
   /// Lancia una challenge. Torna quella creata, con il suo identificativo.
   ///
   /// L'oggetto passato arriva senza `id` — lo assegna chi scrive.

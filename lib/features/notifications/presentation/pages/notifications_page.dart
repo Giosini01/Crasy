@@ -102,35 +102,38 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
             ? const Padding(
                 padding: EdgeInsets.symmetric(horizontal: AppSpacing.page),
                 child: EmptyState(
-                  title: 'Ancora niente',
+                  title: 'Non ci sono notifiche',
                   message:
                       'Qui finisce quello che fanno gli altri: chi partecipa '
-                      'alle tue challenge, chi accende una fiamma sulle tue '
-                      'foto, chi ti chiede l\'amicizia.',
+                      'alle tue missioni, chi accende una fiamma sulle tue '
+                      'foto, chi commenta e chi ti nomina.',
                 ),
               )
             : Column(
                 children: [
                   _Filters(notifications: notifications, seenAt: seenAt),
                   Expanded(
-                    child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(
-                        // Meno margine del solito, e non e' una dimenticanza:
-                        // il velo rosso delle righe non lette ha bisogno di
-                        // respiro attorno, e alla pagina piena resterebbe
-                        // stretto.
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.sm,
-                      ),
-                      itemCount: recenti.length + (vecchie.isEmpty ? 0 : 1),
-                      itemBuilder: (context, index) {
-                        if (index < recenti.length) {
-                          return _Row(notification: recenti[index]);
-                        }
+                    child: visibili.isEmpty
+                        ? const _NothingHere()
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(
+                              // Meno margine del solito, e non e' una dimenticanza:
+                              // il velo rosso delle righe non lette ha bisogno di
+                              // respiro attorno, e alla pagina piena resterebbe
+                              // stretto.
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.sm,
+                            ),
+                            itemCount:
+                                recenti.length + (vecchie.isEmpty ? 0 : 1),
+                            itemBuilder: (context, index) {
+                              if (index < recenti.length) {
+                                return _Row(notification: recenti[index]);
+                              }
 
-                        return _Older(notifications: vecchie);
-                      },
-                    ),
+                              return _Older(notifications: vecchie);
+                            },
+                          ),
                   ),
                 ],
               ),
@@ -656,6 +659,53 @@ class _Thumb extends ConsumerWidget {
                       ColoredBox(color: palette.surfaceMuted),
                 ),
         ),
+      ),
+    );
+  }
+}
+
+/// La sezione scelta e' vuota, ma le altre no.
+///
+/// **Non e' lo stesso vuoto della campanella senza niente dentro**, e va detto
+/// in modo diverso: li' non e' ancora successo niente, qui non e' successo
+/// niente **di questo tipo** — e la differenza e' che basta toccare una parola
+/// accanto per trovare qualcosa.
+class _NothingHere extends ConsumerWidget {
+  const _NothingHere();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+    final scelta = ref.watch(notificationFilterProvider);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.page,
+        AppSpacing.xl,
+        AppSpacing.page,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text.rich(
+            TextSpan(
+              children: [
+                const TextSpan(text: 'Niente in '),
+                TextSpan(
+                  text: scelta.label,
+                  style: TextStyle(color: palette.accent),
+                ),
+              ],
+            ),
+            style: context.texts.titleMedium,
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            'Guarda nelle altre sezioni qui sopra.',
+            style: context.texts.bodySmall?.copyWith(color: palette.textFaint),
+          ),
+        ],
       ),
     );
   }

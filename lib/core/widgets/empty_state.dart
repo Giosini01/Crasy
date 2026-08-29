@@ -32,7 +32,24 @@ class EmptyState extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(title.toUpperCase(), style: context.texts.headlineMedium),
+          // **Il punto rosso anche qui.** E' lo stesso segno che chiude il
+          // logotipo e i titoli delle schermate, e in una sezione vuota fa una
+          // cosa in piu': una pagina bianca con due righe grigie sembra un
+          // errore di caricamento, non un posto che si riempira'. Un tocco del
+          // colore dell'app dice che la schermata e' quella giusta ed e'
+          // semplicemente ancora vuota.
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: title.toUpperCase()),
+                TextSpan(
+                  text: '.',
+                  style: TextStyle(color: palette.accent),
+                ),
+              ],
+            ),
+            style: context.texts.headlineMedium,
+          ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             message,

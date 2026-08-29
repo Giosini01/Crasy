@@ -466,6 +466,26 @@ class FirestoreChallengeRepository implements ChallengeRepository {
   static int _clampVotes(int value) => value < 0 ? 0 : value;
 
   @override
+  Stream<List<ChallengeEntry>> watchEntriesByUsers(List<String> userIds) {
+    final cercati = userIds.take(30).toList();
+
+    if (cercati.isEmpty) {
+      return Stream.value(const []);
+    }
+
+    // Trenta e' il massimo che Firestore accetta in un `whereIn`. Oltre quel
+    // numero di amici la riga "in gara" non compare per gli ultimi: e' una
+    // perdita accettabile per una cosa di contorno, e molto meglio di trenta
+    // richieste separate.
+    return _firestore
+        .collectionGroup('entries')
+        .where('userId', whereIn: cercati)
+        .limit(200)
+        .snapshots()
+        .map(_entriesFrom);
+  }
+
+  @override
   Stream<Set<String>> watchVotedEntryIds(String userId) {
     return _votes(userId).snapshots().map((snapshot) {
       return {for (final document in snapshot.docs) _voteKeyOf(document)};
