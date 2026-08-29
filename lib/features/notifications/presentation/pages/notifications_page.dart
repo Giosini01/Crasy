@@ -147,7 +147,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
 /// per accettare o rifiutare, e tenerne due elenchi vuol dire doverli tenere
 /// d'accordo.
 final notificationFilterProvider = StateProvider.autoDispose<NotificationGroup>(
-  (ref) => NotificationGroup.missions,
+  (ref) => NotificationGroup.wins,
 );
 
 /// Le due parole in cima.
@@ -181,52 +181,58 @@ class _Filters extends ConsumerWidget {
         AppSpacing.sm,
         AppSpacing.sm,
       ),
-      child: Row(
-        children: [
-          for (final group in NotificationGroup.values)
-            GestureDetector(
-              onTap: () =>
-                  ref.read(notificationFilterProvider.notifier).state = group,
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.md),
-                child: Row(
-                  children: [
-                    Text(
-                      group.label,
-                      style: texts.labelSmall?.copyWith(
-                        color: group == selected
-                            ? palette.accent
-                            : palette.textFaint,
+      // **Scorre di lato.** Quattro parole, e una si chiama PARTECIPAZIONI: su
+      // un telefono stretto l'ultima finirebbe fuori dallo schermo, e un filtro
+      // che non si vede non lo usa nessuno.
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final group in NotificationGroup.values)
+              GestureDetector(
+                onTap: () =>
+                    ref.read(notificationFilterProvider.notifier).state = group,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.md),
+                  child: Row(
+                    children: [
+                      Text(
+                        group.label,
+                        style: texts.labelSmall?.copyWith(
+                          color: group == selected
+                              ? palette.accent
+                              : palette.textFaint,
+                        ),
                       ),
-                    ),
-                    if (nuove(group) > 0) ...[
-                      const SizedBox(width: 5),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: palette.accent,
-                          borderRadius: BorderRadius.circular(AppRadius.pill),
-                        ),
-                        child: Text(
-                          '${nuove(group)}',
-                          style: texts.labelSmall?.copyWith(
-                            color: palette.onAccent,
-                            fontSize: 9,
-                            height: 1.3,
-                            letterSpacing: 0,
+                      if (nuove(group) > 0) ...[
+                        const SizedBox(width: 5),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: palette.accent,
+                            borderRadius: BorderRadius.circular(AppRadius.pill),
+                          ),
+                          child: Text(
+                            '${nuove(group)}',
+                            style: texts.labelSmall?.copyWith(
+                              color: palette.onAccent,
+                              fontSize: 9,
+                              height: 1.3,
+                              letterSpacing: 0,
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -514,6 +520,10 @@ class _Face extends StatelessWidget {
       ),
       // La sirena: la gara e' chiusa, i conti sono fatti.
       NotificationKind.ended => (Icons.flag_rounded, palette.textPrimary),
+      NotificationKind.comment => (
+        Icons.mode_comment_outlined,
+        palette.textPrimary,
+      ),
     };
 
     return SizedBox(

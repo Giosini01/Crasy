@@ -19,6 +19,15 @@ enum NotificationKind {
   /// Hai vinto.
   win,
 
+  /// Qualcuno ha commentato la tua foto.
+  ///
+  /// Diversa dalla nomina: li' qualcuno ti **chiama** in una gara qualunque,
+  /// qui qualcuno ha detto qualcosa **sotto la roba tua**. Sono due cose che
+  /// capitano a persone diverse e per motivi diversi, e schiacciarle sulla
+  /// stessa riga vorrebbe dire non far capire a nessuno dei due cos'e'
+  /// successo.
+  comment,
+
   /// Qualcuno ti ha nominato in un commento sotto una foto.
   ///
   /// **Senza questa notizia il tag non servirebbe a niente.** Un commento sotto
@@ -43,8 +52,17 @@ enum NotificationKind {
 /// si scorreva piu' — e la cosa che si stava cercando era sempre in mezzo a
 /// tre che non c'entravano.
 enum NotificationGroup {
-  missions('MISSIONI'),
-  fires('FIAMME');
+  /// Hai vinto, o una gara a cui eri dentro si e' chiusa.
+  wins('VITTORIE'),
+
+  /// Qualcuno ha dato una fiamma alla tua foto.
+  fires('LIKE'),
+
+  /// Qualcuno e' entrato in una gara che hai lanciato tu.
+  participations('PARTECIPAZIONI'),
+
+  /// Qualcuno ha scritto sotto la tua foto, o ti ha nominato.
+  comments('COMMENTI');
 
   const NotificationGroup(this.label);
 
@@ -111,6 +129,7 @@ class AppNotification {
       '@$actorUsername ti ha chiesto l\'amicizia',
     NotificationKind.win => 'Hai vinto',
     NotificationKind.ended => 'La missione e\' finita: guarda chi ha vinto',
+    NotificationKind.comment => '@\$actorUsername ha commentato la tua foto',
   };
 
   /// La sezione in cui finisce.
@@ -119,15 +138,23 @@ class AppNotification {
   /// richieste ricevute stanno gia' nella scheda Amici, con i due comandi per
   /// accettare o rifiutare. Ripeterle in campanella vuol dire farsi due elenchi
   /// della stessa cosa, e poi doverli tenere d'accordo.
+  /// In quale delle quattro finisce.
+  ///
+  /// **La gara finita sta con le vittorie**, e non e' una forzatura: quella
+  /// notizia serve a una cosa sola — andare a vedere chi ha vinto — quindi
+  /// arriva dove uno andrebbe a cercarla.
+  ///
+  /// Le richieste di amicizia non hanno una sezione loro perche' **non
+  /// compaiono qui**: stanno nella scheda Amici, con i due comandi per
+  /// accettare o rifiutare. Il ramo resta perche' il tipo esiste ancora, non
+  /// perche' ci arrivi qualcosa.
   NotificationGroup get group => switch (kind) {
     NotificationKind.fire => NotificationGroup.fires,
-    // La nomina sta con le missioni e non con le fiamme: e' una cosa che
-    // qualcuno ha **detto**, e porta a una gara. Le fiamme sono un conteggio.
-    NotificationKind.mention ||
+    NotificationKind.comment ||
+    NotificationKind.mention => NotificationGroup.comments,
+    NotificationKind.win || NotificationKind.ended => NotificationGroup.wins,
     NotificationKind.participation ||
-    NotificationKind.win ||
-    NotificationKind.ended ||
-    NotificationKind.friendRequest => NotificationGroup.missions,
+    NotificationKind.friendRequest => NotificationGroup.participations,
   };
 
   static NotificationKind kindFromName(String? value) {

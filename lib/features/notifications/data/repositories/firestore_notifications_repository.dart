@@ -147,6 +147,18 @@ class FirestoreNotificationsRepository {
     required String toUserId,
   }) => 'nomina_${challengeId}_${actorId}_$toUserId';
 
+  /// Il nome del documento di un commento sotto una foto.
+  ///
+  /// Ci sono la foto e chi ha scritto — non **quale** commento. Cosi' una
+  /// conversazione di venti righe fra due persone fa squillare la campanella
+  /// una volta: le regole accettano una notifica sola per nome di documento, e
+  /// le altre diciannove vengono scartate senza fare niente.
+  static String commentId({
+    required String challengeId,
+    required String entryId,
+    required String actorId,
+  }) => 'commento_${challengeId}_${entryId}_$actorId';
+
   /// Il nome del documento di una partecipazione.
   static String participationId({
     required String challengeId,

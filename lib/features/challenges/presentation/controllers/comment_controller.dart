@@ -95,7 +95,52 @@ class CommentSender {
       ),
     );
 
+    // **E chi la foto l'ha mandata.** Un commento sotto la roba di qualcuno che
+    // non se ne accorge non e' una conversazione, e' un messaggio lasciato su
+    // un muro. Il nome della partecipazione **e'** l'identificativo di chi
+    // l'ha mandata — e' la regola "una foto a testa" scritta nella forma dei
+    // dati — quindi qui non serve leggere niente per sapere a chi scrivere.
+    unawaited(
+      _avvisaAutore(
+        entryId,
+        actorId: authState.user.id,
+        actorUsername: autore,
+        challengeId: challengeId,
+        challengeTitle: challengeTitle,
+      ),
+    );
+
     return null;
+  }
+
+  Future<void> _avvisaAutore(
+    String entryId, {
+    required String actorId,
+    required String actorUsername,
+    required String challengeId,
+    required String challengeTitle,
+  }) async {
+    final notifications = _ref.read(notificationsRepositoryProvider);
+
+    // Commentare sotto la propria foto non fa squillare niente: sarebbe
+    // l'unica notifica dell'app che si manda da soli.
+    if (notifications == null || entryId == actorId) {
+      return;
+    }
+
+    await notifications.push(
+      toUserId: entryId,
+      id: FirestoreNotificationsRepository.commentId(
+        challengeId: challengeId,
+        entryId: entryId,
+        actorId: actorId,
+      ),
+      kind: NotificationKind.comment,
+      actorId: actorId,
+      actorUsername: actorUsername,
+      challengeId: challengeId,
+      challengeTitle: challengeTitle,
+    );
   }
 
   Future<void> _avvisaNominati(

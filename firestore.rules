@@ -199,7 +199,7 @@ service cloud.firestore {
                       // altre — vittorie, amicizie, gare finite — non le scrive
                       // nessuno: si ricavano dai dati che esistono gia'.
                       && request.resource.data.kind
-                         in ['participation', 'fire', 'mention']
+                         in ['participation', 'fire', 'mention', 'comment']
                       && request.resource.data.actorUsername is string;
 
         allow update: if false;

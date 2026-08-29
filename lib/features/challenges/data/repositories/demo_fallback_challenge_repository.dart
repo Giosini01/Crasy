@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:crasy/features/challenges/data/repositories/sample_challenge_repository.dart';
@@ -34,20 +35,20 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
 
   @override
   Stream<List<Challenge>> watchLiveChallenges() {
-    return _remote.watchLiveChallenges().asyncExpand((remote) {
-      return remote.isEmpty
-          ? _samples.watchLiveChallenges()
-          : Stream.value(remote);
-    });
+    return _insieme(
+      _remote.watchLiveChallenges(),
+      _samples.watchLiveChallenges(),
+      (remote, demo) => remote.isEmpty ? demo : remote,
+    );
   }
 
   @override
   Stream<List<Challenge>> watchEndedChallenges() {
-    return _remote.watchEndedChallenges().asyncExpand((remote) {
-      return remote.isEmpty
-          ? _samples.watchEndedChallenges()
-          : Stream.value(remote);
-    });
+    return _insieme(
+      _remote.watchEndedChallenges(),
+      _samples.watchEndedChallenges(),
+      (remote, demo) => remote.isEmpty ? demo : remote,
+    );
   }
 
   @override
@@ -67,11 +68,11 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
     // mandato una foto a una challenge di esempio quella foto e' sua davvero.
     // Nasconderla perche' la challenge era finta sarebbe l'unica risposta
     // sbagliata possibile.
-    return _remote.watchEntriesByUser(userId).asyncExpand((remote) {
-      return _samples
-          .watchEntriesByUser(userId)
-          .map((demo) => [...remote, ...demo]);
-    });
+    return _insieme(
+      _remote.watchEntriesByUser(userId),
+      _samples.watchEntriesByUser(userId),
+      (remote, demo) => [...remote, ...demo],
+    );
   }
 
   @override
@@ -187,12 +188,12 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
     Stream<List<Challenge>> vere,
     Stream<List<Challenge>> esempi,
   ) {
-    return vere.asyncExpand((remote) {
-      return esempi.map(
-        (demo) =>
-            [...remote, ...demo]..sort((a, b) => b.endsAt.compareTo(a.endsAt)),
-      );
-    });
+    return _insieme(
+      vere,
+      esempi,
+      (remote, demo) =>
+          [...remote, ...demo]..sort((a, b) => b.endsAt.compareTo(a.endsAt)),
+    );
   }
 
   @override
@@ -200,10 +201,75 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
     // I voti dati alle challenge vere e a quelle di esempio convivono: sono
     // insiemi di identificativi che non si sovrappongono mai, e all'interfaccia
     // serve un solo insieme per sapere quali cuori accendere.
-    return _remote.watchVotedEntryIds(userId).asyncExpand((remote) {
-      return _samples
-          .watchVotedEntryIds(userId)
-          .map((demo) => {...remote, ...demo});
-    });
+    return _insieme(
+      _remote.watchVotedEntryIds(userId),
+      _samples.watchVotedEntryIds(userId),
+      (remote, demo) => {...remote, ...demo},
+    );
+  }
+
+  /// Tiene insieme due flussi, e **rimane in ascolto di tutti e due**.
+  ///
+  /// ## Il difetto che questo sostituisce
+  ///
+  /// Prima queste unioni erano scritte con `asyncExpand`: per ogni novita' che
+  /// arrivava da Firestore si apriva il flusso degli esempi. Sembra la cosa
+  /// giusta e non lo e', per un motivo che non si vede leggendo:
+  /// **`asyncExpand` mette in pausa la sorgente finche' il flusso interno non
+  /// finisce** — e quello degli esempi non finisce mai, perche' e' un ascolto
+  /// permanente.
+  ///
+  /// Il risultato: **Firestore veniva ascoltato una volta sola.** La prima
+  /// risposta arrivava, e da quel momento in poi tutte le altre restavano in
+  /// coda per sempre. Una gara che finiva mentre l'app era aperta non compariva
+  /// fra i vincitori; una foto mandata da un altro non appariva; una fiamma
+  /// data altrove non si aggiornava. Sembravano tre difetti diversi, ed era
+  /// una riga sola.
+  ///
+  /// Qui invece i due flussi si ascoltano **in parallelo** e si emette a ogni
+  /// novita' dell'uno o dell'altro, tenendo l'ultimo valore di ciascuno. Il
+  /// primo risultato esce quando tutti e due hanno parlato almeno una volta:
+  /// emettere prima vorrebbe dire mostrare meta' dei dati e poi correggersi,
+  /// che a schermo si vede come un salto.
+  Stream<R> _insieme<A, B, R>(
+    Stream<A> primo,
+    Stream<B> secondo,
+    R Function(A, B) unisci,
+  ) {
+    late StreamController<R> uscita;
+    StreamSubscription<A>? ascoltoPrimo;
+    StreamSubscription<B>? ascoltoSecondo;
+
+    late A ultimoPrimo;
+    late B ultimoSecondo;
+    var hoIlPrimo = false;
+    var hoIlSecondo = false;
+
+    void manda() {
+      if (hoIlPrimo && hoIlSecondo) {
+        uscita.add(unisci(ultimoPrimo, ultimoSecondo));
+      }
+    }
+
+    uscita = StreamController<R>(
+      onListen: () {
+        ascoltoPrimo = primo.listen((valore) {
+          ultimoPrimo = valore;
+          hoIlPrimo = true;
+          manda();
+        }, onError: uscita.addError);
+        ascoltoSecondo = secondo.listen((valore) {
+          ultimoSecondo = valore;
+          hoIlSecondo = true;
+          manda();
+        }, onError: uscita.addError);
+      },
+      onCancel: () async {
+        await ascoltoPrimo?.cancel();
+        await ascoltoSecondo?.cancel();
+      },
+    );
+
+    return uscita.stream;
   }
 }

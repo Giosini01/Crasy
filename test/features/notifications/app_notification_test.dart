@@ -74,13 +74,22 @@ void main() {
   group('le sezioni e gli avvisi della scelta', () {
     test('ogni tipo finisce nella sua sezione', () {
       const casi = {
-        NotificationKind.participation: NotificationGroup.missions,
-        NotificationKind.win: NotificationGroup.missions,
-        NotificationKind.ended: NotificationGroup.missions,
+        // **Ogni tipo ha la sua sezione, e nessuna e' un ripostiglio.** Era la
+        // sezione unica "MISSIONI" a raccogliere vittorie, partecipazioni e
+        // nomine tutte insieme: un elenco in cui la cosa che si cercava stava
+        // sempre in mezzo a due che non c'entravano.
+        NotificationKind.win: NotificationGroup.wins,
+        // La gara finita sta con le vittorie: quella notizia serve a una cosa
+        // sola, andare a vedere chi ha vinto.
+        NotificationKind.ended: NotificationGroup.wins,
         NotificationKind.fire: NotificationGroup.fires,
-        // Le richieste d'amicizia non hanno una sezione qui: stanno nella
-        // scheda Amici, con i comandi per accettare o rifiutare.
-        NotificationKind.friendRequest: NotificationGroup.missions,
+        NotificationKind.participation: NotificationGroup.participations,
+        NotificationKind.comment: NotificationGroup.comments,
+        NotificationKind.mention: NotificationGroup.comments,
+        // Le richieste d'amicizia non compaiono qui: stanno nella scheda
+        // Amici, con i comandi per accettare o rifiutare. Il ramo esiste
+        // perche' il tipo esiste, non perche' ci arrivi qualcosa.
+        NotificationKind.friendRequest: NotificationGroup.participations,
       };
 
       casi.forEach((kind, gruppo) {
