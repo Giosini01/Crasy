@@ -60,12 +60,20 @@ abstract final class ChallengeDraftValidators {
     return ContentPolicy.validate(brief);
   }
 
-  /// Il premio piu' piccolo che si possa mettere: **un centesimo**.
+  /// Il premio piu' piccolo che si possa mettere: **un euro**.
   ///
-  /// Non c'e' un minimo di prodotto e non deve esserci — una gara da cinquanta
-  /// centesimi fra amici e' una gara — ma zero non e' un premio, e una
-  /// challenge senza premio e' un'altra cosa da quella che questa app promette.
-  static const int prizeMinCents = 1;
+  /// Un centesimo non e' un premio, e' una presa in giro — e con dei premi in
+  /// denaro la presa in giro non e' un dettaglio estetico: una gara da un
+  /// centesimo occupa in home lo stesso spazio di una da cinquanta euro, si
+  /// mangia una delle cinque partecipazioni di chi ci casca, e insegna a tutti
+  /// gli altri che il numero rosso in cima non vuol dire niente. Basta che
+  /// succeda tre volte perche' nessuno guardi piu' quel numero.
+  ///
+  /// Un euro e' basso apposta: una gara fra amici deve restare possibile, e
+  /// alzare l'asticella per fare i seri terrebbe fuori proprio le gare che
+  /// riempiono l'app all'inizio. E' la soglia sotto la quale un premio smette
+  /// di essere un premio, non un filtro sul valore.
+  static const int prizeMinCents = 100;
 
   static String? validatePrize(String? value) {
     // Il premio si scrive anche con i centesimi: `10,50`. Non e' un vezzo — a
@@ -73,8 +81,15 @@ abstract final class ChallengeDraftValidators {
     // campo che li rifiuta costringe ad arrotondare in favore di qualcuno.
     final cents = AppMoney.centsFrom(value);
 
-    if (cents == null || cents < prizeMinCents) {
+    if (cents == null) {
       return 'Inserisci il premio in euro.';
+    }
+
+    // Il messaggio dice **il numero**, non "importo non valido": chi ha scritto
+    // cinquanta centesimi deve sapere subito quanto deve alzare, non che ha
+    // sbagliato qualcosa.
+    if (cents < prizeMinCents) {
+      return 'Il premio minimo e\' ${AppMoney.format(prizeMinCents)}.';
     }
 
     if (cents > prizeMaxEuro * 100) {

@@ -180,6 +180,18 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                 ],
                 validator: ChallengeDraftValidators.validatePrize,
               ),
+              // **La regola si legge prima, non dopo.** Un minimo che si scopre
+              // premendo "pubblica" e' un errore rosso preso in faccia dopo
+              // aver riempito tutto il resto; scritto qui e' un'informazione.
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                child: Text(
+                  'Almeno ${AppMoney.format(ChallengeDraftValidators.prizeMinCents)}.',
+                  style: context.texts.bodySmall?.copyWith(
+                    color: context.palette.textFaint,
+                  ),
+                ),
+              ),
               _Field(
                 label: 'Come si chiama',
                 controller: _title,

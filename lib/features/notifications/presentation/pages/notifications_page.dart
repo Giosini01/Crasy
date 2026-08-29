@@ -54,6 +54,23 @@ class NotificationsPage extends ConsumerStatefulWidget {
 }
 
 class _NotificationsPageState extends ConsumerState<NotificationsPage> {
+  /// L'ultima occhiata **di prima di questa**.
+  ///
+  /// **Va congelata appena si entra, o i numeri spariscono mentre li guardi.**
+  /// Aprendo questa schermata si segna tutto come visto — e' giusto, altrimenti
+  /// il pallino rosso sulla campanella non si spegnerebbe mai — ma da quel
+  /// momento "non lette" diventa zero, e i conti accanto alle quattro sezioni
+  /// si azzerano nello stesso istante in cui uno li sta leggendo.
+  ///
+  /// Tenendo il valore di quando si e' entrati, i numeri restano quelli che
+  /// erano sulla campanella un secondo prima: e' quello che si e' venuti a
+  /// vedere.
+  DateTime? _apertoCon;
+  bool _congelato = false;
+
+  /// Se la sezione di partenza e' gia' stata scelta.
+  bool _sezioneScelta = false;
+
   @override
   void initState() {
     super.initState();
@@ -71,10 +88,61 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
     });
   }
 
+  /// Apre sulla sezione dove c'e' qualcosa di nuovo.
+  ///
+  /// **E' la risposta alla domanda che ci si fa toccando la campanella**: non
+  /// "quante notifiche ho" — quello lo dice gia' il pallino — ma *dove sono*.
+  /// Atterrando sempre su VITTORIE, chi aveva due commenti nuovi trovava una
+  /// schermata vuota e doveva cercarli sezione per sezione.
+  ///
+  /// Una volta sola, e prima che qualcuno tocchi: da li' in poi comanda chi
+  /// guarda, e una schermata che si sposta sotto il dito e' peggio di una
+  /// schermata che parte dal posto sbagliato.
+  void _scegliLaSezione(List<AppNotification> notifiche, DateTime? seenAt) {
+    if (_sezioneScelta || notifiche.isEmpty) {
+      return;
+    }
+
+    _sezioneScelta = true;
+
+    final conNovita = [
+      for (final gruppo in NotificationGroup.values)
+        if (notifiche.any(
+          (riga) => riga.group == gruppo && riga.isUnreadSince(seenAt),
+        ))
+          gruppo,
+    ];
+
+    if (conNovita.isEmpty) {
+      return;
+    }
+
+    final prima = conNovita.first;
+
+    // Dopo la frame: cambiare lo stato di un provider mentre l'albero si sta
+    // costruendo e' il modo classico di prendersi un errore che non nomina la
+    // causa.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(notificationFilterProvider.notifier).state = prima;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final notifications = ref.watch(notificationsProvider);
-    final seenAt = ref.watch(notificationsSeenAtProvider).valueOrNull;
+    final letteFinoA = ref.watch(notificationsSeenAtProvider);
+
+    if (!_congelato && letteFinoA.hasValue) {
+      _congelato = true;
+      _apertoCon = letteFinoA.value;
+    }
+
+    final seenAt = _congelato ? _apertoCon : letteFinoA.valueOrNull;
+
+    _scegliLaSezione(notifications, seenAt);
+
     final filtro = ref.watch(notificationFilterProvider);
     final visibili = [
       for (final riga in notifications)

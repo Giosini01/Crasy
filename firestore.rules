@@ -324,7 +324,12 @@ service cloud.firestore {
                     && request.resource.data.get('mediaKind', 'photo')
                        in ['photo', 'video']
                     && request.resource.data.prizeCents is int
-                    && request.resource.data.prizeCents > 0
+                    // Almeno un euro, come nell'app. Un centesimo non e' un
+                    // premio: occuperebbe in home lo stesso spazio di una gara
+                    // vera e si mangerebbe una delle cinque partecipazioni di
+                    // chi ci casca. La soglia sta anche qui perche' l'app si
+                    // puo' saltare, il database no.
+                    && request.resource.data.prizeCents >= 100
                     && request.resource.data.prizeCents <= 100000000
                     // Nasce vuota e senza vincitore: i partecipanti li porta
                     // il tempo, il vincitore lo proclama il server.

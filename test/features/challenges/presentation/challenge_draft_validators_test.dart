@@ -60,12 +60,21 @@ void main() {
       // campo che li rifiuta costringe ad arrotondare in favore di qualcuno.
       expect(ChallengeDraftValidators.validatePrize('10,50'), isNull);
       expect(ChallengeDraftValidators.validatePrize('10.50'), isNull);
-      expect(ChallengeDraftValidators.validatePrize('0,01'), isNull);
+      expect(ChallengeDraftValidators.validatePrize('1,50'), isNull);
     });
 
-    test('sotto il centesimo non c\'e\' premio', () {
+    test('sotto un euro non e\' un premio', () {
+      // **Un centesimo non e' un premio, e' una presa in giro.** Occuperebbe in
+      // home lo stesso spazio di una gara da cinquanta euro e si mangerebbe una
+      // delle cinque partecipazioni di chi ci casca.
       expect(ChallengeDraftValidators.validatePrize('0,00'), isNotNull);
-      expect(ChallengeDraftValidators.validatePrize('0,001'), isNotNull);
+      expect(ChallengeDraftValidators.validatePrize('0,01'), isNotNull);
+      expect(ChallengeDraftValidators.validatePrize('0,99'), isNotNull);
+
+      // Un euro tondo si': la soglia tiene fuori la presa in giro, non le gare
+      // fra amici.
+      expect(ChallengeDraftValidators.validatePrize('1'), isNull);
+      expect(ChallengeDraftValidators.validatePrize('1,00'), isNull);
     });
 
     test('ha un tetto contro le dita che scivolano', () {
