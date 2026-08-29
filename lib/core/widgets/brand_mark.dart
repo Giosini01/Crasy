@@ -76,18 +76,28 @@ class CrasyWordmark extends StatelessWidget {
       return segno;
     }
 
-    return Column(
+    // **La riga esterna serve, e non e' un involucro di troppo.**
+    //
+    // La colonna qui dentro allinea a destra — "beta" va sotto la coda della
+    // "y" — ma una colonna dentro un elenco prende **tutta** la larghezza della
+    // pagina, e allineare a destra vuol dire mandare a destra anche il
+    // logotipo. E' successo: nella schermata di accesso il marchio e' finito
+    // dall'altra parte. La riga stretta attorno tiene la colonna larga quanto
+    // il segno, cosi' "a destra" vuol dire *a destra del marchio* e non *a
+    // destra dello schermo*.
+    return Row(
       mainAxisSize: MainAxisSize.min,
-      // **Sotto, allineata a destra**, cioe' sotto la coda della "y". Accanto
-      // sarebbe una parola in fila con le altre — "crasy beta" non e' il nome
-      // dell'app — e a sinistra spingerebbe il marchio fuori posto rispetto a
-      // tutte le altre schermate.
-      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        segno,
-        Padding(
-          padding: EdgeInsets.only(top: size * 0.04, right: size * 0.02),
-          child: _BetaWord(size: size * 0.3),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            segno,
+            Padding(
+              padding: EdgeInsets.only(top: size * 0.04, right: size * 0.02),
+              child: _BetaWord(size: size * 0.3),
+            ),
+          ],
         ),
       ],
     );
