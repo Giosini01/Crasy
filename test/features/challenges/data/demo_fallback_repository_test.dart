@@ -41,6 +41,8 @@ Challenge _gara(String id) {
 }
 
 void main() {
+  _ripiegoAppiccicoso();
+
   test(
     'le gare che finiscono dopo la prima risposta arrivano lo stesso',
     () async {
@@ -109,5 +111,46 @@ void main() {
     final demo = await esempi.watchEndedChallenges().first;
 
     expect(visti.last.length, demo.length);
+  });
+}
+
+/// Il ripiego non torna indietro.
+void _ripiegoAppiccicoso() {
+  test('viste le gare vere, gli esempi non tornano piu\'', () async {
+    // **E' il difetto per cui la lista saltava in cima mentre si scorreva.**
+    //
+    // Le liste con una data dentro si rifanno ogni pochi secondi, e rifarle
+    // vuol dire riaprire l'ascolto su Firestore: la prima risposta di un
+    // ascolto appena aperto puo' essere vuota per un istante. Senza questa
+    // regola, in quell'istante si scivolava sulle gare di esempio — tre righe
+    // al posto di dieci — la posizione veniva riportata dentro quello che
+    // restava, e un decimo di secondo dopo tornavano le dieci righe con lo
+    // scorrimento gia' azzerato.
+    final firestore = StreamController<List<Challenge>>();
+    final esempi = SampleChallengeRepository();
+    addTearDown(esempi.dispose);
+    addTearDown(firestore.close);
+
+    final repository = DemoFallbackChallengeRepository(
+      _FakeRemote(firestore.stream),
+      esempi,
+    );
+
+    final visti = <List<Challenge>>[];
+    final ascolto = repository.watchEndedChallenges().listen(visti.add);
+    addTearDown(ascolto.cancel);
+
+    firestore.add([_gara('vera')]);
+    await Future<void>.delayed(Duration.zero);
+
+    // Il respiro dell'ascolto che si riapre.
+    firestore.add(const []);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(
+      visti.last,
+      isEmpty,
+      reason: 'gli esempi sono tornati e la lista si e\' accorciata',
+    );
   });
 }

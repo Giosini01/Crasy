@@ -38,7 +38,7 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
     return _insieme(
       _remote.watchLiveChallenges(),
       _samples.watchLiveChallenges(),
-      (remote, demo) => remote.isEmpty ? demo : remote,
+      _sceltaAppiccicosa(),
     );
   }
 
@@ -47,8 +47,43 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
     return _insieme(
       _remote.watchEndedChallenges(),
       _samples.watchEndedChallenges(),
-      (remote, demo) => remote.isEmpty ? demo : remote,
+      _sceltaAppiccicosa(),
     );
+  }
+
+  /// Le gare vere se ce ne sono, quelle di esempio finche' non ne arrivano —
+  /// e **una volta arrivate, non si torna piu' indietro**.
+  ///
+  /// ## Il difetto che questo chiude
+  ///
+  /// Le liste con una data dentro si rifanno ogni pochi secondi, e rifarle vuol
+  /// dire riaprire l'ascolto su Firestore. La prima risposta di un ascolto
+  /// appena aperto puo' essere vuota per un istante — e in quell'istante,
+  /// senza questa regola, si scivolava sulle gare di esempio: tre righe al
+  /// posto di dieci.
+  ///
+  /// Chi stava scorrendo se lo sentiva sotto il dito. La lista si accorciava,
+  /// la posizione veniva riportata dentro quello che restava — cioe' in cima —
+  /// e un decimo di secondo dopo tornavano le dieci righe, con lo scorrimento
+  /// gia' azzerato. Scorrendo piano non si notava; scorrendo veloce si era
+  /// sempre lontani dall'inizio, quindi il salto era di mezza schermata.
+  ///
+  /// **Il ripiego serve a chi apre l'app la prima volta**, non a coprire il
+  /// respiro di un ascolto che si riapre. Una volta viste delle gare vere, di
+  /// esempi non se ne parla piu'.
+  List<Challenge> Function(List<Challenge>, List<Challenge>)
+  _sceltaAppiccicosa() {
+    var arrivateDavvero = false;
+
+    return (remote, demo) {
+      if (remote.isNotEmpty) {
+        arrivateDavvero = true;
+
+        return remote;
+      }
+
+      return arrivateDavvero ? remote : demo;
+    };
   }
 
   @override

@@ -143,7 +143,23 @@ class _FullscreenMediaState extends ConsumerState<FullscreenMedia> {
                   position: '${_index + 1} / ${entries.length}',
                   onClose: () => Navigator.of(context).pop(),
                 ),
-                const Spacer(),
+                // **I comandi stanno di lato, all'altezza del pollice.**
+                //
+                // Erano una fila di righe impilate in fondo — titolo,
+                // didascalia, nome, e sotto tutto il resto i commenti: l'ultima
+                // cosa dell'ultima riga, cioe' il posto peggiore in cui mettere
+                // la cosa che si tocca di piu' dopo la fiamma.
+                //
+                // In colonna a destra ognuno e' un bersaglio grande, sono tutti
+                // alla stessa distanza dalla mano, e soprattutto **non stanno
+                // sotto la foto**: guardando un'immagine a tutto schermo non si
+                // legge nulla in fondo, si guarda l'immagine.
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: _ActionRail(entry: current),
+                  ),
+                ),
                 _BottomBar(entry: current),
               ],
             ),
@@ -258,10 +274,6 @@ class _BottomBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final voted = ref.watch(entryVotedProvider(entry.voteKey));
-    final votes = visibleVotes(ref, entry);
-    final live = ref.watch(challengeIsLiveProvider(entry.challengeId));
-
     return Container(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.page,
@@ -333,58 +345,6 @@ class _BottomBar extends ConsumerWidget {
                   ),
                 ),
               ),
-              // Condividere sta accanto alla fiamma, non nascosto in un menu: e' il
-              // gesto con cui chi e' in gara si porta dentro i voti, ed e' anche il
-              // modo in cui CRASY incontra gente che non la conosce.
-              IconButton(
-                onPressed: () => ShareEntry.send(
-                  context,
-                  challengeId: entry.challengeId,
-                  entryId: entry.id,
-                  challengeTitle: entry.challengeTitle,
-                  ended: !live,
-                ),
-                tooltip: 'Condividi',
-                icon: const Icon(
-                  Icons.ios_share_rounded,
-                  color: AppColors.paper,
-                ),
-              ),
-              InkWell(
-                // A gara finita il numero resta, ma non e' piu' un comando: quelle
-                // fiamme hanno gia' deciso chi si prende i soldi.
-                onTap: live
-                    ? () => giveFire(context, ref, entry, voted: !voted)
-                    : null,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.xs,
-                    vertical: AppSpacing.xxs,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        voted
-                            ? Icons.local_fire_department
-                            : Icons.local_fire_department_outlined,
-                        size: 22,
-                        color: voted ? AppColors.crasyRed : AppColors.paper,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '$votes',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: voted
-                                  ? AppColors.crasyRed
-                                  : AppColors.paper,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ),
           // **La didascalia non si ripete qui.** Corre sul bordo della foto,
@@ -399,30 +359,154 @@ class _BottomBar extends ConsumerWidget {
           // delle fiamme e la didascalia, cioe' il risultato e quello che ha
           // detto chi l'ha scattata. Quello che si erano detti gli altri era di
           // quel momento, e li' resta.
-          if (live) ...[
-            const SizedBox(height: AppSpacing.sm),
-            GestureDetector(
-              onTap: () => showEntryComments(context, entry: entry),
-              behavior: HitTestBehavior.opaque,
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.mode_comment_outlined,
-                    size: 18,
-                    color: AppColors.paper.withValues(alpha: 0.8),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(
-                    'Commenti',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.paper.withValues(alpha: 0.8),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ],
+      ),
+    );
+  }
+}
+
+/// I comandi in colonna, sul lato destro.
+///
+/// **Uno sopra l'altro e non in fila in fondo.** Su una foto a tutto schermo il
+/// fondo e' il posto in cui si mettono le cose da leggere, non quelle da
+/// toccare: una riga di icone li' sotto e' lontana dal pollice quanto il bordo
+/// opposto, e l'ultima della riga — che era proprio "commenti" — e' la piu'
+/// lontana di tutte.
+///
+/// In colonna hanno tutti la stessa distanza dalla mano, il bersaglio e' grande
+/// quanto un dito, e il numero sta sotto l'icona invece che accanto: si legge
+/// con un'occhiata sola senza allargare la fila.
+class _ActionRail extends ConsumerWidget {
+  const _ActionRail({required this.entry});
+
+  final ChallengeEntry entry;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final voted = ref.watch(entryVotedProvider(entry.voteKey));
+    final votes = visibleVotes(ref, entry);
+    final live = ref.watch(challengeIsLiveProvider(entry.challengeId));
+    final comments = ref
+        .watch(
+          entryCommentsProvider((
+            challengeId: entry.challengeId,
+            entryId: entry.id,
+          )),
+        )
+        .valueOrNull;
+
+    return Padding(
+      padding: const EdgeInsets.only(
+        right: AppSpacing.sm,
+        bottom: AppSpacing.md,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _RailButton(
+            // A gara finita il numero resta, ma non e' piu' un comando: quelle
+            // fiamme hanno gia' deciso chi si prende i soldi.
+            onTap: live
+                ? () => giveFire(context, ref, entry, voted: !voted)
+                : null,
+            icon: voted
+                ? Icons.local_fire_department
+                : Icons.local_fire_department_outlined,
+            color: voted ? AppColors.crasyRed : AppColors.paper,
+            label: '$votes',
+            tooltip: voted ? 'Togli la fiamma' : 'Dai la fiamma',
+          ),
+          // **I commenti spariscono alla sirena.** Non e' un permesso tolto:
+          // un commento e' tifo, e il tifo si fa durante.
+          if (live)
+            _RailButton(
+              onTap: () => showEntryComments(context, entry: entry),
+              icon: Icons.mode_comment_outlined,
+              color: AppColors.paper,
+              label: comments == null || comments.isEmpty
+                  ? ''
+                  : '${comments.length}',
+              tooltip: 'Commenti',
+            ),
+          // Condividere non sta nascosto in un menu: e' il gesto con cui chi e'
+          // in gara si porta dentro i voti, ed e' anche il modo in cui CRASY
+          // incontra gente che non la conosce.
+          _RailButton(
+            onTap: () => ShareEntry.send(
+              context,
+              challengeId: entry.challengeId,
+              entryId: entry.id,
+              challengeTitle: entry.challengeTitle,
+              ended: !live,
+            ),
+            icon: Icons.ios_share_rounded,
+            color: AppColors.paper,
+            label: '',
+            tooltip: 'Condividi',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Un comando della colonna: l'icona, e sotto il suo numero.
+class _RailButton extends StatelessWidget {
+  const _RailButton({
+    required this.onTap,
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.tooltip,
+  });
+
+  final VoidCallback? onTap;
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.sm,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // L'ombra sotto le icone: cadono su una foto qualunque, e su uno
+              // scatto chiaro il bianco sparirebbe. E' la stessa ragione per
+              // cui la didascalia ha il suo alone.
+              Icon(
+                icon,
+                size: 30,
+                color: color,
+                shadows: const [Shadow(color: Colors.black54, blurRadius: 8)],
+              ),
+              if (label.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: color,
+                    shadows: const [
+                      Shadow(color: Colors.black54, blurRadius: 8),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
