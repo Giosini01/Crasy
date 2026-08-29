@@ -142,14 +142,28 @@ class _CurvedCaption extends CustomPainter {
   ///
   /// Le lettere stanno **fuori** dal percorso — cioe' verso il bordo della
   /// foto — quindi questo e' anche lo spazio che occupano.
-  static const double _insetInLines = 1.2;
+  ///
+  /// **Poco piu' di una lettera, non una lettera e un quinto.** Con il margine
+  /// di prima la scritta galleggiava a mezza distanza fra il bordo e il centro,
+  /// e li' non e' ne' una cornice ne' una didascalia: e' testo appoggiato sopra
+  /// una foto. Appoggiata quasi al bordo diventa il contorno dell'immagine, che
+  /// e' l'unico posto in cui una scritta puo' stare senza coprire niente.
+  ///
+  /// Non zero: le lettere tonde — la O, la S — sporgono un capello oltre la
+  /// riga di base, e a filo esatto verrebbero tagliate dall'angolo tondo.
+  static const double _insetInLines = 1.06;
 
   /// Quanto sono tondi gli angoli, in frazione del lato corto.
   ///
   /// Molto: e' la curva che si vede nel giro della scritta, ed e' tutto il
   /// motivo per cui questa cornice si nota. Un raggio piccolo darebbe un testo
   /// che gira uno spigolo, che e' un'altra cosa e non e' bella.
-  static const double _radiusFactor = 0.17;
+  ///
+  /// Va tenuto **piu' largo dell'angolo della foto**, non uguale: la scritta
+  /// corre dentro l'angolo, e una curva identica a quella del bordo le farebbe
+  /// toccare il taglio proprio nel punto in cui gira. Un po' piu' aperta e le
+  /// lettere seguono l'angolo restandone dentro.
+  static const double _radiusFactor = 0.21;
 
   /// Le lettere gia' misurate, per non rifarlo a ogni fotogramma.
   final List<TextPainter> _glifi = [];

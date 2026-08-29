@@ -21,7 +21,7 @@ abstract final class AppRadius {
   /// posata li' invece che un riquadro ritagliato nella pagina. E' anche la
   /// curva su cui corre la didascalia: con un angolo vivo la scritta girerebbe
   /// uno spigolo, che e' un'altra cosa e non e' bella.
-  static const double media = 20;
+  static const double media = 30;
 
   /// Solo per cio' che e' davvero circolare.
   static const double pill = 999;
