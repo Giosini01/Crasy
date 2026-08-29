@@ -77,6 +77,17 @@ class CaptionFrame extends StatelessWidget {
     );
   }
 
+  /// Quanto rientra la foto per far posto alla scritta.
+  ///
+  /// E' la stessa distanza a cui corre il percorso delle lettere: cosi' la
+  /// riga di base cade **sul bordo della foto** e le lettere stanno tutte
+  /// fuori, nel vuoto attorno.
+  static double bandFor(double shortestSide, double sizeFactor) {
+    final corpo = (shortestSide * sizeFactor).clamp(minFontSize, maxFontSize);
+
+    return corpo * _CurvedCaption.insetInLines;
+  }
+
   @override
   Widget build(BuildContext context) {
     final scritta = text.trim();
@@ -99,27 +110,56 @@ class CaptionFrame extends StatelessWidget {
     // Cosi' invece la foto detta la misura e la scritta le si posa sopra
     // riempiendo esattamente quella: funziona sia dove l'altezza c'e' sia dove
     // non c'e'.
-    return Stack(
-      children: [
-        child,
-        // Disegnare del testo lettera per lettera non e' gratis, e questo sta
-        // dentro un elenco che scorre: il confine impedisce che il resto della
-        // riga si ridisegni insieme a lui.
-        Positioned.fill(
-          child: RepaintBoundary(
-            child: IgnorePointer(
-              child: CustomPaint(
-                painter: _CurvedCaption(
-                  text: scritta,
-                  style: base,
-                  sizeFactor: sizeFactor,
-                  scaler: MediaQuery.textScalerOf(context),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Il lato corto: dentro una colonna l'altezza non e' decisa da
+        // nessuno, quindi in quel caso comanda la larghezza. E' lo stesso
+        // numero che usera' il pittore, perche' la foto occupa esattamente la
+        // larghezza che le viene data.
+        final latoCorto = constraints.maxHeight.isFinite
+            ? (constraints.maxWidth < constraints.maxHeight
+                  ? constraints.maxWidth
+                  : constraints.maxHeight)
+            : constraints.maxWidth;
+
+        return Stack(
+          children: [
+            // **La foto si stringe di quanto serve alla scritta.**
+            //
+            // Prima le lettere cadevano *sopra* l'immagine: leggibili grazie
+            // all'alone scuro, ma restavano una cosa appoggiata su un'altra.
+            // Con la foto rientrata di una banda, la scritta corre nel vuoto
+            // attorno e la tocca esattamente sul bordo — come la scritta a
+            // pennarello sul bianco di una polaroid, che la fotografia non la
+            // copre mai.
+            //
+            // La banda e' larga quanto la distanza a cui corre il percorso
+            // delle lettere, quindi le due misure non possono scollarsi:
+            // cambiando una cambia l'altra.
+            Padding(
+              padding: EdgeInsets.all(bandFor(latoCorto, sizeFactor)),
+              child: child,
+            ),
+            // Disegnare del testo lettera per lettera non e' gratis, e questo sta
+            // dentro un elenco che scorre: il confine impedisce che il resto della
+            // riga si ridisegni insieme a lui.
+            Positioned.fill(
+              child: RepaintBoundary(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _CurvedCaption(
+                      text: scritta,
+                      style: base,
+                      sizeFactor: sizeFactor,
+                      scaler: MediaQuery.textScalerOf(context),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 }
@@ -151,7 +191,7 @@ class _CurvedCaption extends CustomPainter {
   ///
   /// Non zero: le lettere tonde — la O, la S — sporgono un capello oltre la
   /// riga di base, e a filo esatto verrebbero tagliate dall'angolo tondo.
-  static const double _insetInLines = 1.06;
+  static const double insetInLines = 1.06;
 
   /// Quanto sono tondi gli angoli, in frazione del lato corto.
   ///
@@ -180,7 +220,7 @@ class _CurvedCaption extends CustomPainter {
       CaptionFrame.minFontSize,
       CaptionFrame.maxFontSize,
     );
-    final inset = corpo * _insetInLines;
+    final inset = corpo * insetInLines;
     final raggio = latoCorto * _radiusFactor;
 
     final percorso = _percorso(size, inset: inset, raggio: raggio);

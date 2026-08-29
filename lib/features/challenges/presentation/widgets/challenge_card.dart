@@ -8,6 +8,7 @@ import 'package:crasy/core/widgets/media_gestures.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/challenges/presentation/widgets/caption_frame.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -178,10 +179,22 @@ class ChallengeShowcase extends StatelessWidget {
           FireTap(
             entry: entry,
             onTap: onOpen,
-            child: MediaFrame(
-              url: entry.mediaUrl,
-              video: entry.isVideo,
-              caption: entry.authorName,
+            // **Quadrata e non piu' alta che larga.** A quattro quinti la foto
+            // in testa si prendeva quasi tutto lo schermo, e scorrendo le gare
+            // se ne vedeva una alla volta: un'anteprima che occupa quanto la
+            // cosa che anticipa smette di essere un'anteprima.
+            //
+            // E con la didascalia attorno, come ovunque: e' quello che dice
+            // **cosa** ha fatto chi sta vincendo, ed e' l'unica informazione
+            // che qui mancava.
+            child: CaptionFrame(
+              text: entry.caption,
+              child: MediaFrame(
+                url: entry.mediaUrl,
+                video: entry.isVideo,
+                aspectRatio: 1,
+                caption: entry.authorName,
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
