@@ -10,6 +10,7 @@ import 'package:crasy/core/widgets/photo_viewer.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/challenges/presentation/widgets/caption_frame.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
@@ -432,12 +433,15 @@ class _EntryGrid extends StatelessWidget {
           // Un tocco apre il contenuto grande, come nel proprio profilo.
           onTap: () =>
               FullscreenMedia.open(context, entries: entries, entry: entry),
-          child: MediaFrame(
-            url: entry.mediaUrl,
-            video: entry.isVideo,
-            aspectRatio: 1,
-            radius: AppRadius.xs,
-            caption: entry.challengeTitle,
+          child: CaptionFrame(
+            text: entry.caption,
+            child: MediaFrame(
+              url: entry.mediaUrl,
+              video: entry.isVideo,
+              aspectRatio: 1,
+              radius: AppRadius.xs,
+              caption: entry.challengeTitle,
+            ),
           ),
         );
       },
