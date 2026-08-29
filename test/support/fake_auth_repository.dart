@@ -61,6 +61,16 @@ class FakeAuthRepository implements AuthRepository {
     _controller.add(null);
   }
 
+  /// Quante volte e' stato buttato un account non confermato.
+  int discarded = 0;
+
+  @override
+  Future<void> discardUnverifiedAccount() async {
+    discarded += 1;
+    currentUser = null;
+    _controller.add(null);
+  }
+
   /// Le password con cui e' stata chiesta la cancellazione dell'account.
   final deleteAttempts = <String>[];
 

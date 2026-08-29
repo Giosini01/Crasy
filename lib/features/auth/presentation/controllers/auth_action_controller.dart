@@ -27,6 +27,12 @@ class AuthActionController extends AsyncNotifier<void> {
     );
   }
 
+  /// Butta l'account non confermato e torna all'ingresso.
+  Future<void> discardUnverified() async {
+    state = const AsyncLoading<void>();
+    state = await AsyncValue.guard(_authRepository.discardUnverifiedAccount);
+  }
+
   Future<void> signOut() async {
     state = const AsyncLoading<void>();
     state = await AsyncValue.guard(_authRepository.signOut);

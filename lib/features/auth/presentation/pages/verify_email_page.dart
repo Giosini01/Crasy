@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
@@ -29,6 +31,40 @@ class VerifyEmailPage extends ConsumerStatefulWidget {
 class _VerifyEmailPageState extends ConsumerState<VerifyEmailPage> {
   String? _notice;
   bool _checking = false;
+
+  /// **Quanto dura un account non confermato.**
+  ///
+  /// Un'ora, e poi si butta. Non e' una punizione: e' l'unico modo di
+  /// **liberare l'indirizzo**. Chi non riceve il messaggio — spam, indirizzo
+  /// scritto storto, un fornitore che blocca la posta di Firebase — resta con
+  /// un account che esiste e non entra, e con un indirizzo che risulta gia'
+  /// usato: non puo' rifare la registrazione e non puo' fare nient'altro. E'
+  /// un vicolo cieco costruito da noi, e questo lo apre.
+  static const Duration _window = Duration(hours: 1);
+
+  Timer? _orologio;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Al minuto, non al secondo: l'unica cosa che deve succedere e' che allo
+    // scadere dell'ora la schermata se ne accorga da sola, senza che nessuno
+    // tocchi niente.
+    _orologio = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _buttaSeScaduto(),
+    );
+
+    // E subito, perche' si puo' arrivare qui riaprendo l'app il giorno dopo.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _buttaSeScaduto());
+  }
+
+  @override
+  void dispose() {
+    _orologio?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,11 +124,15 @@ class _VerifyEmailPageState extends ConsumerState<VerifyEmailPage> {
                 onPressed: _resend,
                 child: const Text('Rimanda il messaggio'),
               ),
+              // **Ricomincia, non esci.** Uscendo, l'indirizzo resta occupato
+              // da un account che non entrera' mai: e' proprio la trappola da
+              // cui questa schermata deve avere una via d'uscita.
               TextButton(
-                onPressed: () =>
-                    ref.read(authActionControllerProvider.notifier).signOut(),
+                onPressed: () => ref
+                    .read(authActionControllerProvider.notifier)
+                    .discardUnverified(),
                 child: Text(
-                  'Esci',
+                  'Ricomincia con un altro indirizzo',
                   style: texts.titleMedium?.copyWith(color: palette.textFaint),
                 ),
               ),
@@ -127,6 +167,26 @@ class _VerifyEmailPageState extends ConsumerState<VerifyEmailPage> {
           : 'Non risulta ancora confermata. Controlla la posta, anche fra lo '
                 'spam, e riprova.';
     });
+  }
+
+  /// Se l'ora e' passata, butta l'account e riporta all'ingresso.
+  Future<void> _buttaSeScaduto() async {
+    final authState = ref.read(authStateProvider);
+
+    if (authState is! AuthenticatedAuthState || authState.user.emailVerified) {
+      return;
+    }
+
+    final eta = authState.user.ageAt(DateTime.now());
+
+    // Senza sapere quando e' nato non si butta niente: nel dubbio si lascia
+    // dov'e'. Buttare un account per un dato mancante e' molto peggio che
+    // tenerne uno in piu'.
+    if (eta == null || eta < _window) {
+      return;
+    }
+
+    await ref.read(authActionControllerProvider.notifier).discardUnverified();
   }
 
   Future<void> _resend() async {

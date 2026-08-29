@@ -388,3 +388,57 @@ async function dropLosingMedia(challenge, losers) {
 
   logger.info(`Challenge ${challenge.id}: liberati ${removed} file.`);
 }
+
+/**
+ * Butta gli account rimasti senza conferma dell'email.
+ *
+ * **Serve a liberare l'indirizzo, non a fare pulizia.** Chi si registra e non
+ * riceve il messaggio — spam, indirizzo scritto storto, un fornitore di posta
+ * che blocca quella di Firebase — resta con un account che esiste e non entra,
+ * e con un indirizzo che da quel momento risulta gia' usato: non puo' rifare la
+ * registrazione, non puo' recuperare niente, non puo' fare nient'altro. E' un
+ * vicolo cieco che abbiamo costruito noi, e chi ci finisce dentro se ne va.
+ *
+ * L'app fa gia' la stessa cosa quando quella persona e' ferma sulla schermata
+ * della conferma. Questo copre il caso in cui non ci torna piu': l'account
+ * resterebbe li' per sempre a tenere occupato un indirizzo.
+ *
+ * Un'ora, ed e' la stessa scritta nell'app (`_window` in `verify_email_page`):
+ * se le due misure divergessero, l'app direbbe che il tempo e' scaduto mentre
+ * il server la pensa diversamente, o il contrario.
+ *
+ * **Non tocca chi ha confermato**, e non tocca chi si e' appena registrato: le
+ * due condizioni sono in `and`, e nessuna delle due e' facoltativa.
+ */
+const UNVERIFIED_WINDOW_HOURS = 1;
+
+exports.purgeUnverifiedAccounts = onSchedule('every 60 minutes', async () => {
+  const cutoff = Date.now() - UNVERIFIED_WINDOW_HOURS * 60 * 60 * 1000;
+  const daButtare = [];
+  let pagina;
+
+  do {
+    const elenco = await admin.auth().listUsers(1000, pagina);
+
+    for (const persona of elenco.users) {
+      const nato = Date.parse(persona.metadata.creationTime);
+
+      if (!persona.emailVerified && nato < cutoff) {
+        daButtare.push(persona.uid);
+      }
+    }
+
+    pagina = elenco.pageToken;
+  } while (pagina);
+
+  if (daButtare.length === 0) {
+    return;
+  }
+
+  // A blocchi di mille, che e' il massimo che l'API accetta per volta.
+  for (let i = 0; i < daButtare.length; i += 1000) {
+    await admin.auth().deleteUsers(daButtare.slice(i, i + 1000));
+  }
+
+  logger.info(`Buttati ${daButtare.length} account mai confermati.`);
+});

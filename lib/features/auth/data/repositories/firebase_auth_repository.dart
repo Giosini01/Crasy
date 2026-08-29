@@ -132,7 +132,27 @@ class FirebaseAuthRepository implements AuthRepository {
       id: user.uid,
       email: user.email,
       emailVerified: user.emailVerified,
+      createdAt: user.metadata.creationTime,
     );
+  }
+
+  @override
+  Future<void> discardUnverifiedAccount() async {
+    final user = _firebaseAuth.currentUser;
+
+    if (user == null || user.emailVerified) {
+      return;
+    }
+
+    try {
+      await user.delete();
+    } on Object {
+      // Se Firebase pretende un accesso piu' recente non si insiste: si esce e
+      // basta. L'account resta li' e verra' buttato al prossimo tentativo — e
+      // nel frattempo la persona non e' bloccata su una schermata che non le
+      // fa fare niente.
+      await _firebaseAuth.signOut();
+    }
   }
 
   @override

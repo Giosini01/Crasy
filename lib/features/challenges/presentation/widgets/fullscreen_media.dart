@@ -297,6 +297,25 @@ class _BottomBar extends ConsumerWidget {
                 ),
               ),
             ),
+          // **La didascalia qui sotto, dritta.** Sulla miniatura corre curva sul
+          // bordo della foto perche' li' e' un'anteprima: dice cosa c'e'
+          // dentro senza rubare l'immagine. Aperta a tutto schermo la foto e'
+          // la cosa che si sta guardando, e una scritta che le gira attorno si
+          // mette in mezzo — quindi scende qui, in riga, dove si legge e basta.
+          if (entry.caption.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Text(
+                entry.caption.trim(),
+                // Tre righe: piu' in la' non e' piu' una didascalia, e in
+                // fondo a una foto a schermo intero coprirebbe la foto.
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppColors.paper),
+              ),
+            ),
           Row(
             children: [
               Expanded(

@@ -5,6 +5,7 @@ import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/utils/app_date_utils.dart';
 import 'package:crasy/core/widgets/app_background.dart';
+import 'package:crasy/core/widgets/birth_date_picker.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
@@ -182,22 +183,14 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     });
   }
 
-  /// Il selettore della data parte gia' fermo alla soglia dei diciotto anni.
+  /// Il selettore della data, quello del telefono su cui l'app sta girando.
   ///
-  /// `lastDate` e' l'ultima data che risulta maggiorenne oggi: chi e' minorenne
-  /// **non riesce nemmeno a scegliere** una data che poi verrebbe rifiutata. Un
-  /// limite che si vede prima e' molto meglio di un errore che arriva dopo.
+  /// **Si apriva su una data gia' maggiorenne**, e bastava confermare senza
+  /// toccare niente per registrarsi con un'eta' che nessuno aveva dichiarato:
+  /// un muro che si passa premendo due volte "fatto" non e' un muro. Adesso non
+  /// c'e' niente di preselezionato — i dettagli stanno in `pickBirthDate`.
   Future<void> _pickBirthDate() async {
-    final latest = AgePolicy.latestAdultBirthDate();
-
-    final picked = await showDatePicker(
-      context: context,
-      initialDate:
-          _birthDate ?? DateTime(latest.year - 7, latest.month, latest.day),
-      firstDate: DateTime(1920),
-      lastDate: latest,
-      helpText: 'QUANDO SEI NATO',
-    );
+    final picked = await pickBirthDate(context, current: _birthDate);
 
     if (picked == null || !mounted) {
       return;

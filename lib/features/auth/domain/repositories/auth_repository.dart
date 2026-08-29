@@ -30,6 +30,20 @@ abstract class AuthRepository {
   /// che lo e'.
   Future<AppUser?> reload();
 
+  /// Butta l'account in attesa di conferma.
+  ///
+  /// **Serve a liberare l'indirizzo.** Chi si registra e non riceve il
+  /// messaggio — finisce nello spam, l'ha scritto storto, il suo fornitore lo
+  /// blocca — resta con un account che esiste ma non entra, e con un indirizzo
+  /// che da quel momento risulta gia' usato: non puo' rifare la registrazione
+  /// e non puo' rifare niente. E' un vicolo cieco creato da noi.
+  ///
+  /// Non chiede la password: qui non si sta cancellando la vita di nessuno, si
+  /// sta buttando un account vuoto — nessuna foto, nessun premio, nemmeno un
+  /// profilo — e chi lo fa e' l'unico che potrebbe averlo creato, perche' e'
+  /// dentro la sessione appena aperta.
+  Future<void> discardUnverifiedAccount();
+
   /// Cancella l'account, per sempre.
   ///
   /// **La password si richiede davvero**, e non e' una formalita': Firebase
