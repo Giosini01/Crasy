@@ -11,7 +11,6 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/controllers/challenge_closer.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
-import 'package:crasy/features/challenges/presentation/widgets/caption_frame.dart';
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
@@ -393,18 +392,12 @@ class _EntryGridTile extends ConsumerWidget {
           // e' un indice, non il contenuto.
           onTap: () =>
               FullscreenMedia.open(context, entries: entries, entry: entry),
-          // La didascalia corre sul bordo anche qui, ed e' il posto in cui
-          // serve di piu': in una griglia di quadrati tutti uguali e' l'unica
-          // cosa che dice **cosa** ha fatto ognuno, senza aprirli uno per uno.
-          child: CaptionFrame(
-            text: entry.caption,
-            child: MediaFrame(
-              url: entry.mediaUrl,
-              video: entry.isVideo,
-              aspectRatio: 1,
-              caption: entry.authorName,
-              mine: entry.userId == ref.watch(currentUserIdProvider),
-            ),
+          child: MediaFrame(
+            url: entry.mediaUrl,
+            video: entry.isVideo,
+            aspectRatio: 1,
+            caption: entry.authorName,
+            mine: entry.userId == ref.watch(currentUserIdProvider),
           ),
         ),
         const SizedBox(height: AppSpacing.xxs),

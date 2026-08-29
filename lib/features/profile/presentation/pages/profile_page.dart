@@ -11,7 +11,6 @@ import 'package:crasy/features/auth/presentation/controllers/auth_action_control
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
-import 'package:crasy/features/challenges/presentation/widgets/caption_frame.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/onboarding/presentation/utils/onboarding_validators.dart';
@@ -547,17 +546,12 @@ class _EntryGrid extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Anche sul quadratino: e' piccola, ma e' l'unica cosa che
-              // distingue due scatti simili senza aprirli.
-              CaptionFrame(
-                text: entry.caption,
-                child: MediaFrame(
-                  url: entry.mediaUrl,
-                  video: entry.isVideo,
-                  aspectRatio: 1,
-                  radius: AppRadius.media,
-                  caption: entry.challengeTitle,
-                ),
+              MediaFrame(
+                url: entry.mediaUrl,
+                video: entry.isVideo,
+                aspectRatio: 1,
+                radius: AppRadius.media,
+                caption: entry.challengeTitle,
               ),
               Positioned(
                 left: 4,

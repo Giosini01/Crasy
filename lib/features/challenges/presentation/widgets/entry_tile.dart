@@ -7,7 +7,6 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
-import 'package:crasy/features/challenges/presentation/widgets/caption_frame.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:flutter/material.dart';
@@ -56,22 +55,17 @@ class EntryTile extends ConsumerWidget {
             entries: siblings ?? [entry],
             entry: entry,
           ),
-          // La didascalia corre sul bordo della miniatura: e' qui che dice
-          // cosa c'e' dentro la foto a chi non l'ha ancora aperta.
-          child: CaptionFrame(
-            text: entry.caption,
-            child: MediaFrame(
-              url: entry.mediaUrl,
-              video: entry.isVideo,
-              caption: entry.authorName,
-              mine: entry.userId == ref.watch(currentUserIdProvider),
-              // La propria foto in attesa si vede, con scritto che e' in coda:
-              // sapere che sta per essere controllata e' molto meglio che
-              // vederla sparire senza spiegazioni.
-              overlay: entry.moderation == EntryModeration.pending
-                  ? const _PendingOverlay()
-                  : null,
-            ),
+          child: MediaFrame(
+            url: entry.mediaUrl,
+            video: entry.isVideo,
+            caption: entry.authorName,
+            mine: entry.userId == ref.watch(currentUserIdProvider),
+            // La propria foto in attesa si vede, con scritto che e' in coda:
+            // sapere che sta per essere controllata e' molto meglio che vederla
+            // sparire senza spiegazioni.
+            overlay: entry.moderation == EntryModeration.pending
+                ? const _PendingOverlay()
+                : null,
           ),
         ),
         const SizedBox(height: AppSpacing.sm),

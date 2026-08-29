@@ -8,7 +8,6 @@ import 'package:crasy/core/widgets/media_gestures.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
-import 'package:crasy/features/challenges/presentation/widgets/caption_frame.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -170,7 +169,12 @@ class ChallengeShowcase extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
+          // **Quattro punti sopra e sotto, non otto.** Il conto delle fiamme
+          // e il nome di chi sta vincendo appartengono a quella foto: staccati
+          // di otto punti diventavano due righe che galleggiano, una troppo in
+          // alto e una troppo in basso. Vicini si leggono come le due
+          // didascalie della stessa immagine.
+          const SizedBox(height: AppSpacing.xxs),
           // **Sulla foto vale la fiamma, come ovunque.** Il resto della scheda
           // apre la challenge; qui sopra no: un tocco apre lo stesso, ma due
           // accendono la fiamma. Prima questo pezzo non ascoltava il doppio
@@ -179,25 +183,19 @@ class ChallengeShowcase extends StatelessWidget {
           FireTap(
             entry: entry,
             onTap: onOpen,
-            // **Quadrata e non piu' alta che larga.** A quattro quinti la foto
-            // in testa si prendeva quasi tutto lo schermo, e scorrendo le gare
-            // se ne vedeva una alla volta: un'anteprima che occupa quanto la
-            // cosa che anticipa smette di essere un'anteprima.
-            //
-            // E con la didascalia attorno, come ovunque: e' quello che dice
-            // **cosa** ha fatto chi sta vincendo, ed e' l'unica informazione
-            // che qui mancava.
-            child: CaptionFrame(
-              text: entry.caption,
-              child: MediaFrame(
-                url: entry.mediaUrl,
-                video: entry.isVideo,
-                aspectRatio: 1,
-                caption: entry.authorName,
-              ),
+            // **Piu' bassa di quattro quinti, ma non quadrata.** A quattro
+            // quinti l'anteprima si prendeva quasi tutto lo schermo e scorrendo
+            // le gare se ne vedeva una alla volta; quadrata perdeva l'aria che
+            // serve a una foto verticale, che e' come le fa quasi tutti. Nove
+            // decimi sta in mezzo: si accorcia di un sesto e resta una foto.
+            child: MediaFrame(
+              url: entry.mediaUrl,
+              video: entry.isVideo,
+              aspectRatio: 0.9,
+              caption: entry.authorName,
             ),
           ),
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: AppSpacing.xxs),
           Row(
             children: [
               Expanded(

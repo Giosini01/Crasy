@@ -8,11 +8,9 @@ import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
-import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/presentation/controllers/participation_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
-import 'package:crasy/features/challenges/presentation/widgets/caption_frame.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -369,8 +367,6 @@ class _Preview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.palette;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -384,32 +380,18 @@ class _Preview extends StatelessWidget {
             // Del video non si vede l'anteprima ma una conferma: riprodurre un
             // file locale vuole strade diverse su telefono e su web, e non vale
             // la complicazione per i due secondi che sta li'.
-            child: _CaptionEditor(
-              controller: caption,
-              child: media.isVideo
-                  ? const _VideoReady()
-                  : Image.memory(media.bytes, fit: BoxFit.cover),
-            ),
+            //
+            // **La didascalia e' in pausa.** La scritta curva attorno alla foto
+            // e' rimasta a meta' strada — si appoggiava bene sull'anteprima e
+            // male sulla foto grande, e rimpiccioliva l'immagine per farsi
+            // spazio. Meglio spenta che sbagliata: il campo invisibile che
+            // stava steso qui sopra e' stato tolto insieme a lei, o resterebbe
+            // a mangiarsi i tocchi e ad aprire la tastiera per scrivere una
+            // cosa che nessuno vedrebbe.
+            child: media.isVideo
+                ? const _VideoReady()
+                : Image.memory(media.bytes, fit: BoxFit.cover),
           ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        // La riga che dice **come** si scrive, e sparisce appena si e' scritto.
-        //
-        // Serve, e non e' pigrizia di design: una scritta che corre sul bordo
-        // di una foto non la si trova da soli. Non c'e' nessun campo da
-        // riempire, e nessuno prova a toccare un'immagine per vedere se ci si
-        // puo' scrivere sopra.
-        ValueListenableBuilder<TextEditingValue>(
-          valueListenable: caption,
-          builder: (context, value, child) => value.text.trim().isEmpty
-              ? Text(
-                  'Tocca la foto per scriverci sopra',
-                  textAlign: TextAlign.center,
-                  style: context.texts.bodySmall?.copyWith(
-                    color: palette.textFaint,
-                  ),
-                )
-              : const SizedBox.shrink(),
         ),
         const SizedBox(height: AppSpacing.xs),
         // Rifare lo scatto prima di mandarlo si puo': il patto e' che non si
@@ -419,87 +401,6 @@ class _Preview extends StatelessWidget {
           child: Text(kind.isVideo ? 'Registra di nuovo' : 'Scatta di nuovo'),
         ),
       ],
-    );
-  }
-}
-
-/// La foto su cui si scrive.
-///
-/// **Il campo di testo c'e' ma non si vede**, ed e' l'unico modo per far
-/// sembrare che si stia scrivendo davvero sull'immagine. Sta steso sopra tutta
-/// la foto, trasparente, senza cursore e senza selezione: toccare la foto vuol
-/// dire dargli il fuoco, la tastiera sale, e le lettere compaiono lungo il
-/// bordo mentre si battono.
-///
-/// L'alternativa — un campo sotto la foto, con l'anteprima che si aggiorna
-/// sopra — funzionerebbe identica e racconterebbe un'altra cosa: che il testo
-/// e' una didascalia scritta accanto, non una scritta sulla foto. La differenza
-/// fra le due e' tutto il punto.
-class _CaptionEditor extends StatelessWidget {
-  const _CaptionEditor({required this.controller, required this.child});
-
-  final TextEditingController controller;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<TextEditingValue>(
-      valueListenable: controller,
-      builder: (context, value, _) {
-        final scritto = value.text.trim();
-
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            // **Finche' non c'e' niente, l'invito prende il posto della
-            // didascalia.**
-            //
-            // Una scritta che corre sul bordo della foto e' un posto in cui
-            // nessuno pensa di poter scrivere: non c'e' un campo, non c'e' un
-            // cursore, non c'e' niente che assomigli a una casella di testo.
-            // Chi non lo sa gia' manda la foto muta e scopre a cose fatte che
-            // si poteva dire qualcosa.
-            //
-            // L'invito sta **esattamente dove finira' il testo**, con la stessa
-            // curva e la stessa misura: e' l'unico modo di spiegarlo senza
-            // spiegarlo. In rosso, perche' qui il rosso vuol dire *si puo'
-            // fare* — e perche' sparendo al primo carattere non resta a
-            // gridare accanto a quello che uno sta scrivendo.
-            CaptionFrame(
-              text: scritto.isEmpty ? 'tocca e scrivi una didascalia' : scritto,
-              style: scritto.isEmpty
-                  ? CaptionFrame.defaultStyle(
-                      context,
-                    ).copyWith(color: context.palette.accent)
-                  : null,
-              child: child,
-            ),
-            // Il campo invisibile, steso su tutta la foto. `expands` con
-            // `maxLines: null` gli fa prendere tutta l'area: serve a
-            // raccogliere il testo e a offrire una superficie da toccare, non a
-            // mostrarlo — quello lo fa la cornice qui sopra.
-            Positioned.fill(
-              child: TextField(
-                controller: controller,
-                maxLength: ChallengeEntry.captionMaxLength,
-                maxLines: null,
-                expands: true,
-                showCursor: false,
-                enableInteractiveSelection: false,
-                cursorColor: Colors.transparent,
-                style: const TextStyle(color: Colors.transparent),
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => FocusScope.of(context).unfocus(),
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  counterText: '',
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }
