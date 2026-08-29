@@ -201,8 +201,21 @@ class _NavBar extends StatelessWidget {
         color: palette.background,
         border: Border(top: BorderSide(color: palette.line, width: 0.5)),
       ),
-      child: SafeArea(
-        top: false,
+      // **La barra scende fino in fondo.**
+      //
+      // Il margine di sicurezza pieno — trentaquattro punti su un iPhone con la
+      // lineetta — lasciava sotto le icone una fascia bianca alta quanto mezza
+      // barra: uno scalino che faceva sembrare tutta l'app spinta in su di due
+      // millimetri. Non era un errore di calcolo, era la regola applicata alla
+      // lettera in un posto dove non serviva: sotto le etichette non c'e'
+      // niente da toccare, e la lineetta di sistema puo' passarci sopra.
+      //
+      // Se ne tiene un terzo: abbastanza perche' il dito non prema sull'etichetta
+      // proprio mentre sfiora la lineetta, poco perche' lo scalino sparisca.
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.paddingOf(context).bottom * 0.34,
+        ),
         child: SizedBox(
           height: 56,
           child: Row(

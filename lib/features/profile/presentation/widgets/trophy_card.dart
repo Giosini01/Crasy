@@ -169,10 +169,20 @@ class TrophyBack extends StatelessWidget {
       child: DecoratedBox(
         decoration: const BoxDecoration(
           borderRadius: BorderRadius.all(Radius.circular(AppRadius.sm)),
-          // **Nero pieno.** Il retro di una figurina non compete con la foto
-          // davanti: e' il fondo su cui il marchio si stacca, e il nero e'
-          // l'unico che lo fa senza portare un colore nuovo nell'app.
-          color: Colors.black,
+          // **Oro come la cornice, non nero.** Il retro e la cornice sono la
+          // stessa cosa vista da due parti: fatti di due materiali diversi
+          // sembrano due oggetti incollati insieme. Qui il metallo continua,
+          // e la figurina diventa una cosa sola.
+          //
+          // Gli stessi tre toni della cornice ma girati al contrario — chiaro
+          // in basso a destra invece che in alto a sinistra: e' il dietro, e la
+          // luce che lo colpisce viene dall'altra parte.
+          gradient: LinearGradient(
+            begin: Alignment.bottomRight,
+            end: Alignment.topLeft,
+            colors: [Color(0xFFF6DFA0), Color(0xFFC9A227), Color(0xFF8C6D1F)],
+            stops: [0, 0.45, 1],
+          ),
         ),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.sm),

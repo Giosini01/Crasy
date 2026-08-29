@@ -1,80 +1,79 @@
 import 'package:flutter/material.dart';
 
-/// La didascalia come una **nuvoletta** posata sulla foto.
+/// La didascalia scritta **lungo il bordo arrotondato della foto**.
 ///
-/// E' la forma delle istantanee di Instagram: un rettangolo bianco con gli
-/// angoli tondissimi, il testo scuro dentro, e sotto a sinistra due bollicine
-/// che scendono verso chi l'ha detta.
+/// Parte dal lato sinistro, sale, gira sopra l'angolo tondo, corre lungo il
+/// lato alto e ridiscende dall'altra parte: le lettere seguono la curva una per
+/// una, ognuna girata quanto serve. E' la forma delle istantanee di Instagram.
 ///
-/// ## Perche' una nuvoletta e non una riga sotto la foto
+/// ## Perche' sul bordo e non sotto la foto
 ///
 /// Una didascalia messa sotto e' una riga di testo **accanto** a un'immagine:
-/// due cose separate, che si guardano una alla volta. Dentro la foto invece
-/// diventa parte dell'oggetto, e si legge insieme. E la forma della nuvoletta
-/// aggiunge la cosa che nessun rettangolo dice: che quelle parole le ha **dette
-/// qualcuno**. Non e' una didascalia da catalogo, e' una voce.
+/// due cose separate, che si guardano una alla volta. Scritta sul bordo diventa
+/// parte dell'oggetto — come la scritta a pennarello sul bianco di una polaroid
+/// — e si legge insieme alla foto invece che dopo.
 ///
-/// Prima correva sul bordo a elle — su per il lato sinistro e poi lungo quello
-/// alto. Era bello e sbagliato: su una foto verticale la frase girava l'angolo
-/// e l'occhio doveva girare con lei, quindi si leggeva **dopo** aver deciso di
-/// leggerla. Una nuvoletta si legge senza deciderlo.
+/// ## E perche' solo sulla foto piccola
+///
+/// Perche' li' serve. Nell'elenco la foto e' un rettangolo fra tanti, e la
+/// scritta attorno e' l'unica cosa che dice **cosa sta succedendo li' dentro**
+/// prima di aprirla. Aperta a tutto schermo la foto si guarda e basta: quella
+/// stessa scritta diventerebbe una cornice messa fra l'occhio e l'immagine, nel
+/// momento esatto in cui l'immagine e' l'unica cosa che si voleva vedere.
 ///
 /// ## Il testo resta un dato, non diventa pixel
 ///
 /// L'app lo disegna sopra l'immagine ogni volta che la mostra. Cotto dentro il
 /// file sarebbe immodificabile e si vedrebbe sgranato su ogni schermo diverso
 /// da quello su cui e' stato scritto; cosi' invece resta nitido a qualunque
-/// ingrandimento, e la foto originale resta pulita.
+/// misura, e la foto originale resta pulita.
 class CaptionFrame extends StatelessWidget {
   const CaptionFrame({
     required this.text,
     required this.child,
     this.style,
-    this.sizeFactor = 0.045,
+    this.sizeFactor = 0.052,
     super.key,
   });
 
-  /// Cosa c'e' scritto. Vuoto vuol dire nessuna nuvoletta.
+  /// Cosa c'e' scritto. Vuoto vuol dire nessuna scritta.
   final String text;
 
   /// La foto.
   final Widget child;
 
-  /// Da cui si prendono colore e peso. La **misura** la decide la foto: vedi
-  /// [sizeFactor].
+  /// Da cui si prendono colore, peso e ombra. La **misura** la decide la foto:
+  /// vedi [sizeFactor].
   final TextStyle? style;
 
   /// Quanto e' alta la scritta, in frazione del lato corto della foto.
   ///
-  /// **Proporzionale e non in punti fissi.** Una misura fissa e' grande su
-  /// un'anteprima e minuscola sulla stessa foto a tutto schermo: la nuvoletta
-  /// fa parte dell'immagine, quindi cresce con lei — come farebbe un adesivo
-  /// appiccicato sopra.
+  /// **Proporzionale e non in punti fissi.** Una misura fissa e' enorme su
+  /// un'anteprima e minuscola sulla stessa foto piu' grande: la scritta fa
+  /// parte dell'immagine, quindi cresce con lei.
   final double sizeFactor;
 
-  /// Sotto e sopra questi due non si va.
-  ///
-  /// Il minimo perche' una scritta piu' piccola non si legge; il massimo perche'
-  /// su una foto molto grande la nuvoletta smetterebbe di essere un dettaglio e
-  /// diventerebbe un cartello.
-  static const double minFontSize = 12;
-  static const double maxFontSize = 20;
+  /// Sotto e sopra questi due non si va: piu' piccola non si legge, piu' grande
+  /// smette di essere una cornice e diventa un cartello.
+  static const double minFontSize = 9;
+  static const double maxFontSize = 18;
 
-  /// Quanto la nuvoletta sta dentro dal bordo, in frazione del lato corto.
-  static const double _insetFactor = 0.045;
-
-  /// Lo stile predefinito: scuro su bianco, come su Instagram.
+  /// Lo stile predefinito: bianco, grasso, spaziato, con un'ombra sotto.
   ///
-  /// **Niente bianco su foto.** La scritta bianca senza fondo obbliga a
-  /// un'ombra per restare leggibile su un'immagine chiara, e un'ombra su una
-  /// lettera bianca e' sempre un compromesso che si vede. Con il fondo pieno la
-  /// leggibilita' non dipende piu' da cosa c'e' sotto.
+  /// **L'ombra e' obbligatoria e non e' decorazione.** Questa scritta cade su
+  /// una foto qualunque, e su una foto chiara il bianco sparisce. Un alone
+  /// scuro appena accennato la tiene leggibile su qualsiasi cosa ci finisca
+  /// sotto, senza aggiungere un fondo che coprirebbe l'immagine.
   static TextStyle defaultStyle(BuildContext context) {
     return const TextStyle(
-      color: Color(0xFF141414),
+      color: Colors.white,
       fontSize: minFontSize,
-      height: 1.25,
-      fontWeight: FontWeight.w600,
+      height: 1,
+      fontWeight: FontWeight.w800,
+      shadows: [
+        Shadow(color: Colors.black87, blurRadius: 5),
+        Shadow(color: Colors.black45, blurRadius: 14),
+      ],
     );
   }
 
@@ -88,147 +87,216 @@ class CaptionFrame extends StatelessWidget {
 
     final base = style ?? defaultStyle(context);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Senza sapere quanto e' grande la foto non si sa quanto fare grande la
-        // nuvoletta, e una misura indovinata sarebbe sbagliata su meta' degli
-        // schermi.
-        if (!constraints.hasBoundedWidth || !constraints.hasBoundedHeight) {
-          return child;
-        }
-
-        final latoCorto = constraints.maxWidth < constraints.maxHeight
-            ? constraints.maxWidth
-            : constraints.maxHeight;
-        final inset = latoCorto * _insetFactor;
-        final corpo = (latoCorto * sizeFactor).clamp(minFontSize, maxFontSize);
-
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            child,
-            // **In basso a sinistra, non in mezzo.** E' il posto in cui su
-            // Instagram sta la nuvoletta rispetto a chi parla, ed e' anche il
-            // posto che copre meno la foto: il soggetto di uno scatto sta quasi
-            // sempre al centro o in alto.
-            Positioned(
-              left: inset,
-              bottom: inset,
-              right: inset,
-              child: Align(
-                alignment: Alignment.bottomLeft,
-                child: _Bubble(
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        child,
+        // Disegnare del testo lettera per lettera non e' gratis, e questo sta
+        // dentro un elenco che scorre: il confine impedisce che il resto della
+        // riga si ridisegni insieme a lui.
+        Positioned.fill(
+          child: RepaintBoundary(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _CurvedCaption(
                   text: scritta,
-                  style: base.copyWith(fontSize: corpo),
-                  maxWidth: (constraints.maxWidth - inset * 2) * 0.82,
+                  style: base,
+                  sizeFactor: sizeFactor,
+                  scaler: MediaQuery.textScalerOf(context),
                 ),
               ),
             ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-/// La nuvoletta vera e propria, con la sua coda di bollicine.
-class _Bubble extends StatelessWidget {
-  const _Bubble({
-    required this.text,
-    required this.style,
-    required this.maxWidth,
-  });
-
-  final String text;
-  final TextStyle style;
-  final double maxWidth;
-
-  @override
-  Widget build(BuildContext context) {
-    final corpo = style.fontSize ?? CaptionFrame.minFontSize;
-
-    // Tutto in proporzione al corpo: cosi' la nuvoletta cresce **intera** con
-    // la foto. Con margini fissi, ingrandendo il testo la scritta finirebbe
-    // contro il bordo bianco.
-    final orizzontale = corpo * 0.95;
-    final verticale = corpo * 0.62;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxWidth),
-          child: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: orizzontale,
-              vertical: verticale,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              // **Il raggio segue l'altezza, quindi su una riga sola e' una
-              // pillola.** E' quello che rende la forma *curvata* invece che
-              // "un rettangolo con gli angoli smussati": la differenza fra le
-              // due sta tutta in quanto il raggio si avvicina a mezza altezza.
-              borderRadius: BorderRadius.circular(corpo * 1.6),
-              boxShadow: [
-                // Appena accennata, e serve: una nuvoletta bianca su una foto
-                // molto chiara sparirebbe nel fondo, e quello che resterebbe
-                // sarebbe del testo scuro sospeso nel nulla.
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
-                  blurRadius: corpo * 0.7,
-                  offset: Offset(0, corpo * 0.15),
-                ),
-              ],
-            ),
-            child: Text(
-              text,
-              // Quattro righe e poi si taglia. Una nuvoletta che copre mezza
-              // foto ha smesso di essere un commento alla foto.
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-              style: style,
-            ),
           ),
-        ),
-        // **La coda: due bollicine che scendono.** E' il segno che trasforma un
-        // riquadro in una cosa detta da qualcuno. Sono due e di misura diversa
-        // perche' una sola sembra un errore di allineamento, e tre sembrano un
-        // caricamento in corso.
-        Padding(
-          padding: EdgeInsets.only(left: corpo * 0.9, top: corpo * 0.22),
-          child: _Dot(size: corpo * 0.42),
-        ),
-        Padding(
-          padding: EdgeInsets.only(left: corpo * 0.7, top: corpo * 0.16),
-          child: _Dot(size: corpo * 0.24),
         ),
       ],
     );
   }
 }
 
-class _Dot extends StatelessWidget {
-  const _Dot({required this.size});
+/// Il disegno vero: le lettere posate una a una lungo il percorso.
+class _CurvedCaption extends CustomPainter {
+  _CurvedCaption({
+    required this.text,
+    required this.style,
+    required this.sizeFactor,
+    required this.scaler,
+  });
 
-  final double size;
+  final String text;
+  final TextStyle style;
+  final double sizeFactor;
+  final TextScaler scaler;
+
+  /// Quanto il percorso sta dentro dal bordo, in altezze di lettera.
+  ///
+  /// Le lettere stanno **fuori** dal percorso — cioe' verso il bordo della
+  /// foto — quindi questo e' anche lo spazio che occupano.
+  static const double _insetInLines = 1.2;
+
+  /// Quanto sono tondi gli angoli, in frazione del lato corto.
+  ///
+  /// Molto: e' la curva che si vede nel giro della scritta, ed e' tutto il
+  /// motivo per cui questa cornice si nota. Un raggio piccolo darebbe un testo
+  /// che gira uno spigolo, che e' un'altra cosa e non e' bella.
+  static const double _radiusFactor = 0.17;
+
+  /// Le lettere gia' misurate, per non rifarlo a ogni fotogramma.
+  final List<TextPainter> _glifi = [];
+  Size? _misurateSu;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: size * 0.8,
-          ),
-        ],
-      ),
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) {
+      return;
+    }
+
+    final latoCorto = size.shortestSide;
+    final corpo = (latoCorto * sizeFactor).clamp(
+      CaptionFrame.minFontSize,
+      CaptionFrame.maxFontSize,
     );
+    final inset = corpo * _insetInLines;
+    final raggio = latoCorto * _radiusFactor;
+
+    final percorso = _percorso(size, inset: inset, raggio: raggio);
+    final metriche = percorso.computeMetrics().toList();
+
+    if (metriche.isEmpty || metriche.first.length <= 0) {
+      return;
+    }
+
+    final tracciato = metriche.first;
+
+    _misura(size, corpo: corpo, lunghezzaPercorso: tracciato.length);
+
+    if (_glifi.isEmpty) {
+      return;
+    }
+
+    final larghezze = [for (final glifo in _glifi) glifo.width];
+    final totale = larghezze.fold<double>(0, (somma, w) => somma + w);
+
+    // **Centrata sul percorso**, cioe' a cavallo del lato alto: le due code
+    // scendono uguali sui due fianchi. Facendola partire dall'inizio, una frase
+    // corta resterebbe tutta appesa al fianco sinistro e sembrerebbe caduta li'.
+    var distanza = (tracciato.length - totale) / 2;
+
+    for (var i = 0; i < _glifi.length; i++) {
+      final glifo = _glifi[i];
+      final larghezza = larghezze[i];
+      final tangente = tracciato.getTangentForOffset(distanza + larghezza / 2);
+
+      distanza += larghezza;
+
+      if (tangente == null) {
+        continue;
+      }
+
+      canvas
+        ..save()
+        ..translate(tangente.position.dx, tangente.position.dy)
+        // La lettera si gira quanto e' girato il percorso sotto di lei. Senza
+        // questo sarebbero lettere dritte messe lungo una curva — il segno che
+        // si e' provato a fare la cosa senza farla.
+        ..rotate(-tangente.angle);
+
+      // Meta' larghezza indietro perche' la tangente si e' presa al **centro**
+      // della lettera; e tutta l'altezza in su perche' il testo si disegna
+      // verso il basso, e qui la riga di base deve stare sul percorso.
+      glifo.paint(canvas, Offset(-larghezza / 2, -glifo.height));
+
+      canvas.restore();
+    }
   }
+
+  /// Il percorso: su per il fianco sinistro, sopra i due angoli tondi, giu' per
+  /// il destro.
+  ///
+  /// **Non e' un rettangolo chiuso.** Un giro completo farebbe partire la
+  /// scritta da un punto qualunque e la porterebbe a girare anche sotto, dove
+  /// le lettere risulterebbero capovolte.
+  Path _percorso(Size size, {required double inset, required double raggio}) {
+    final sinistra = inset;
+    final destra = size.width - inset;
+    final alto = inset;
+    // I fianchi arrivano poco oltre meta' altezza e non piu' giu': sotto c'e'
+    // quasi sempre il soggetto della foto, e una scritta che scende fino in
+    // fondo lo imprigiona invece di accompagnarlo.
+    final basso = size.height * 0.62;
+
+    return Path()
+      ..moveTo(sinistra, basso)
+      ..lineTo(sinistra, alto + raggio)
+      ..arcToPoint(
+        Offset(sinistra + raggio, alto),
+        radius: Radius.circular(raggio),
+      )
+      ..lineTo(destra - raggio, alto)
+      ..arcToPoint(
+        Offset(destra, alto + raggio),
+        radius: Radius.circular(raggio),
+      )
+      ..lineTo(destra, basso);
+  }
+
+  /// Misura le lettere una per una, e taglia la frase se non ci sta.
+  ///
+  /// **Si taglia invece di rimpicciolire.** Il corpo lo decide la foto, ed e'
+  /// quello che tiene la scritta della stessa taglia su tutte: rimpicciolirla
+  /// per far entrare una frase lunga vorrebbe dire una cornice diversa per ogni
+  /// didascalia, e in un elenco si vedrebbe subito.
+  void _misura(
+    Size size, {
+    required double corpo,
+    required double lunghezzaPercorso,
+  }) {
+    if (_misurateSu == size && _glifi.isNotEmpty) {
+      return;
+    }
+
+    for (final glifo in _glifi) {
+      glifo.dispose();
+    }
+
+    _glifi.clear();
+    _misurateSu = size;
+
+    final stile = style.copyWith(
+      fontSize: corpo,
+      // La spaziatura segue il corpo: fissa, su un testo grande sparisce e su
+      // uno piccolo lo sfilaccia. E su una curva serve piu' che su una riga
+      // dritta, perche' girando, le lettere si stringono fra loro dal lato
+      // interno.
+      letterSpacing: corpo * 0.14,
+    );
+
+    // **In maiuscolo.** Le minuscole hanno le code che scendono sotto la riga
+    // di base — la "g", la "p" — e su una curva quelle code puntano verso
+    // l'interno della foto ognuna con la sua inclinazione: si legge peggio, e
+    // si vede che e' storto. Le maiuscole stanno tutte fra due righe.
+    final lettere = text.toUpperCase().characters.toList();
+    var usato = 0.0;
+
+    for (final lettera in lettere) {
+      final pittore = TextPainter(
+        text: TextSpan(text: lettera, style: stile),
+        textDirection: TextDirection.ltr,
+        textScaler: scaler,
+      )..layout();
+
+      // Il margine tiene le due code lontane dal fondo dei fianchi: arrivarci
+      // in punta vorrebbe dire una lettera mezza dentro e mezza fuori.
+      if (usato + pittore.width > lunghezzaPercorso * 0.94) {
+        pittore.dispose();
+        break;
+      }
+
+      usato += pittore.width;
+      _glifi.add(pittore);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_CurvedCaption old) =>
+      old.text != text || old.style != style || old.sizeFactor != sizeFactor;
 }

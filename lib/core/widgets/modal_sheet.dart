@@ -55,9 +55,13 @@ class ModalSheet extends StatelessWidget {
     // deve **salire davvero**, non allungare il proprio bianco dietro i tasti.
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SafeArea(
-        top: false,
-        maintainBottomViewPadding: true,
+      // Un terzo del margine di sicurezza, come nella barra in fondo: quello
+      // pieno lasciava sotto il foglio una fascia vuota che sembrava uno
+      // scalino, e sopra a un foglio bianco si vede ancora di piu'.
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.paddingOf(context).bottom * 0.34,
+        ),
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: palette.background,

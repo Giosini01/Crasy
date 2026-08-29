@@ -6,7 +6,6 @@ import 'package:crasy/core/widgets/video_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
-import 'package:crasy/features/challenges/presentation/widgets/caption_frame.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_comments.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -174,12 +173,14 @@ class _Slide extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
+    // **Niente didascalia qui.** Sulla miniatura la scritta attorno dice cosa
+    // sta succedendo dentro la foto prima di aprirla, ed e' la sua ragione di
+    // esistere. Aperta a tutto schermo la foto si guarda e basta: la stessa
+    // scritta diventerebbe una cornice messa fra l'occhio e l'immagine, nel
+    // momento esatto in cui l'immagine e' l'unica cosa che si voleva vedere.
     final media = entry.isVideo
-        ? CaptionFrame(
-            text: entry.caption,
-            child: VideoFrame(url: url, immersive: true),
-          )
-        : _PhotoWithCaption(url: url, caption: entry.caption);
+        ? VideoFrame(url: url, immersive: true)
+        : _Photo(url: url);
 
     return GestureDetector(
       // Il doppio tocco vale anche qui, e a fiamma gia' accesa non fa niente:
@@ -194,113 +195,22 @@ class _Slide extends ConsumerWidget {
   }
 }
 
-/// La foto a tutto schermo, con la didascalia scritta sul **suo** bordo.
+/// La foto a tutto schermo, e nient'altro.
 ///
-/// **Serve sapere quanto e' grande la foto davvero.** A tutto schermo l'immagine
-/// sta dentro con `contain`, quindi non riempie: sopra e sotto — o ai lati —
-/// resta del nero. Disegnando la cornice sui bordi dello schermo, la scritta
-/// finirebbe a galleggiare sul nero invece che sulla foto, e sarebbe la
-/// differenza fra una didascalia scritta sull'immagine e una scritta accanto,
-/// che e' esattamente la cosa che si sta cercando di evitare.
-///
-/// Le proporzioni vere si chiedono all'immagine mentre arriva. Finche' non si
-/// sanno la foto si vede lo stesso, senza cornice: un istante senza scritta e'
-/// molto meglio di una scritta nel posto sbagliato che poi salta.
-class _PhotoWithCaption extends StatefulWidget {
-  const _PhotoWithCaption({required this.url, required this.caption});
+/// **Si ingrandisce con due dita.** Una foto mandata a una gara si guarda per
+/// il dettaglio — cos'ha in mano, cosa c'e' scritto dietro — e senza
+/// l'ingranditore quel dettaglio non c'e' modo di vederlo.
+class _Photo extends StatelessWidget {
+  const _Photo({required this.url});
 
   final String url;
-  final String caption;
-
-  @override
-  State<_PhotoWithCaption> createState() => _PhotoWithCaptionState();
-}
-
-class _PhotoWithCaptionState extends State<_PhotoWithCaption> {
-  ImageStream? _flusso;
-  ImageStreamListener? _ascoltatore;
-  double? _proporzione;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _misura();
-  }
-
-  @override
-  void didUpdateWidget(_PhotoWithCaption oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    if (oldWidget.url != widget.url) {
-      _proporzione = null;
-      _misura();
-    }
-  }
-
-  @override
-  void dispose() {
-    _stacca();
-    super.dispose();
-  }
-
-  void _stacca() {
-    final ascoltatore = _ascoltatore;
-
-    if (ascoltatore != null) {
-      _flusso?.removeListener(ascoltatore);
-      _ascoltatore = null;
-    }
-  }
-
-  void _misura() {
-    _stacca();
-
-    // La stessa immagine che disegna `Image.network`: la cache di Flutter e'
-    // una sola, quindi chiedere le misure non fa scaricare niente due volte.
-    final flusso = NetworkImage(
-      widget.url,
-    ).resolve(createLocalImageConfiguration(context));
-
-    final ascoltatore = ImageStreamListener((info, _) {
-      if (!mounted) {
-        return;
-      }
-
-      final larghezza = info.image.width;
-      final altezza = info.image.height;
-
-      if (altezza <= 0) {
-        return;
-      }
-
-      setState(() => _proporzione = larghezza / altezza);
-    });
-
-    _flusso = flusso;
-    _ascoltatore = ascoltatore;
-    flusso.addListener(ascoltatore);
-  }
 
   @override
   Widget build(BuildContext context) {
-    final foto = Image.network(widget.url, fit: BoxFit.contain);
-    final proporzione = _proporzione;
-
     return InteractiveViewer(
       minScale: 1,
       maxScale: 4,
-      child: Center(
-        child: proporzione == null
-            ? foto
-            // `AspectRatio` dentro un `Center` prende esattamente il riquadro
-            // che occupa la foto: e' quello il bordo su cui corre la scritta.
-            // E stando dentro l'ingranditore, la didascalia si allarga insieme
-            // alla foto — com'e' giusto, visto che ne fa parte.
-            : AspectRatio(
-                aspectRatio: proporzione,
-                child: CaptionFrame(text: widget.caption, child: foto),
-              ),
-      ),
+      child: Center(child: Image.network(url, fit: BoxFit.contain)),
     );
   }
 }
