@@ -143,23 +143,7 @@ class _FullscreenMediaState extends ConsumerState<FullscreenMedia> {
                   position: '${_index + 1} / ${entries.length}',
                   onClose: () => Navigator.of(context).pop(),
                 ),
-                // **I comandi stanno di lato, all'altezza del pollice.**
-                //
-                // Erano una fila di righe impilate in fondo — titolo,
-                // didascalia, nome, e sotto tutto il resto i commenti: l'ultima
-                // cosa dell'ultima riga, cioe' il posto peggiore in cui mettere
-                // la cosa che si tocca di piu' dopo la fiamma.
-                //
-                // In colonna a destra ognuno e' un bersaglio grande, sono tutti
-                // alla stessa distanza dalla mano, e soprattutto **non stanno
-                // sotto la foto**: guardando un'immagine a tutto schermo non si
-                // legge nulla in fondo, si guarda l'immagine.
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: _ActionRail(entry: current),
-                  ),
-                ),
+                const Spacer(),
                 _BottomBar(entry: current),
               ],
             ),
@@ -309,11 +293,10 @@ class _BottomBar extends ConsumerWidget {
                 ),
               ),
             ),
-          // **La didascalia qui sotto, dritta.** Sulla miniatura corre curva sul
-          // bordo della foto perche' li' e' un'anteprima: dice cosa c'e'
-          // dentro senza rubare l'immagine. Aperta a tutto schermo la foto e'
-          // la cosa che si sta guardando, e una scritta che le gira attorno si
-          // mette in mezzo — quindi scende qui, in riga, dove si legge e basta.
+          // **La didascalia sta qui, in riga.** E' l'unico posto in cui si
+          // vede: sulla foto piccola la scritta curva attorno al bordo e' in
+          // pausa, e comunque sull'immagine aperta si metterebbe fra l'occhio e
+          // la cosa che si e' venuti a guardare.
           if (entry.caption.trim().isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -328,56 +311,44 @@ class _BottomBar extends ConsumerWidget {
                 ).textTheme.bodyMedium?.copyWith(color: AppColors.paper),
               ),
             ),
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    context.push(AppRoutes.userProfileOf(entry.userId));
-                  },
-                  child: Text(
-                    '@${entry.authorName}',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.titleMedium?.copyWith(color: AppColors.paper),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-            ],
+          GestureDetector(
+            onTap: () {
+              Navigator.of(context).pop();
+              context.push(AppRoutes.userProfileOf(entry.userId));
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Text(
+              '@${entry.authorName}',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: AppColors.paper),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-          // **La didascalia non si ripete qui.** Corre sul bordo della foto,
-          // sopra, ed e' li' che va letta: e' parte dell'immagine, non una riga
-          // di servizio. Scritta anche qui sarebbe la stessa cosa detta due
-          // volte, e la seconda toglierebbe forza alla prima.
+          const SizedBox(height: AppSpacing.sm),
+          // **I comandi su una riga sola, in fondo.**
           //
-          // **I commenti spariscono alla sirena.**
+          // Sono passati per due posti sbagliati prima di arrivare qui. Erano
+          // righe impilate — titolo, didascalia, nome, e sotto tutto il resto i
+          // commenti: l'ultima cosa dell'ultima riga, cioe' il posto peggiore
+          // per quello che si tocca di piu' dopo la fiamma. Poi una colonna a
+          // destra, che risolveva la distanza ma tagliava l'immagine in due.
           //
-          // Non e' un permesso tolto: e' che un commento e' tifo, e il tifo si
-          // fa durante. Sotto la foto di una gara finita restano il numero
-          // delle fiamme e la didascalia, cioe' il risultato e quello che ha
-          // detto chi l'ha scattata. Quello che si erano detti gli altri era di
-          // quel momento, e li' resta.
+          // Su una riga sola stanno tutti alla stessa altezza, il pollice ci
+          // arriva senza spostarsi, e **i lati della foto restano liberi**:
+          // guardando un'immagine a tutto schermo non deve esserci niente
+          // appoggiato sopra. Condividi sta staccato, all'altro capo: gli altri
+          // due parlano alla gara, quello parla a chi sta fuori.
+          _Actions(entry: entry),
         ],
       ),
     );
   }
 }
 
-/// I comandi in colonna, sul lato destro.
-///
-/// **Uno sopra l'altro e non in fila in fondo.** Su una foto a tutto schermo il
-/// fondo e' il posto in cui si mettono le cose da leggere, non quelle da
-/// toccare: una riga di icone li' sotto e' lontana dal pollice quanto il bordo
-/// opposto, e l'ultima della riga — che era proprio "commenti" — e' la piu'
-/// lontana di tutte.
-///
-/// In colonna hanno tutti la stessa distanza dalla mano, il bersaglio e' grande
-/// quanto un dito, e il numero sta sotto l'icona invece che accanto: si legge
-/// con un'occhiata sola senza allargare la fila.
-class _ActionRail extends ConsumerWidget {
-  const _ActionRail({required this.entry});
+/// La riga dei comandi: fiamma, commenti, e in fondo condividi.
+class _Actions extends ConsumerWidget {
+  const _Actions({required this.entry});
 
   final ChallengeEntry entry;
 
@@ -395,65 +366,60 @@ class _ActionRail extends ConsumerWidget {
         )
         .valueOrNull;
 
-    return Padding(
-      padding: const EdgeInsets.only(
-        right: AppSpacing.sm,
-        bottom: AppSpacing.md,
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _RailButton(
-            // A gara finita il numero resta, ma non e' piu' un comando: quelle
-            // fiamme hanno gia' deciso chi si prende i soldi.
-            onTap: live
-                ? () => giveFire(context, ref, entry, voted: !voted)
-                : null,
-            icon: voted
-                ? Icons.local_fire_department
-                : Icons.local_fire_department_outlined,
-            color: voted ? AppColors.crasyRed : AppColors.paper,
-            label: '$votes',
-            tooltip: voted ? 'Togli la fiamma' : 'Dai la fiamma',
-          ),
-          // **I commenti spariscono alla sirena.** Non e' un permesso tolto:
-          // un commento e' tifo, e il tifo si fa durante.
-          if (live)
-            _RailButton(
-              onTap: () => showEntryComments(context, entry: entry),
-              icon: Icons.mode_comment_outlined,
-              color: AppColors.paper,
-              label: comments == null || comments.isEmpty
-                  ? ''
-                  : '${comments.length}',
-              tooltip: 'Commenti',
-            ),
-          // Condividere non sta nascosto in un menu: e' il gesto con cui chi e'
-          // in gara si porta dentro i voti, ed e' anche il modo in cui CRASY
-          // incontra gente che non la conosce.
-          _RailButton(
-            onTap: () => ShareEntry.send(
-              context,
-              challengeId: entry.challengeId,
-              entryId: entry.id,
-              challengeTitle: entry.challengeTitle,
-              ended: !live,
-            ),
-            icon: Icons.ios_share_rounded,
+    return Row(
+      children: [
+        _Action(
+          // A gara finita il numero resta, ma non e' piu' un comando: quelle
+          // fiamme hanno gia' deciso chi si prende i soldi.
+          onTap: live
+              ? () => giveFire(context, ref, entry, voted: !voted)
+              : null,
+          icon: voted
+              ? Icons.local_fire_department
+              : Icons.local_fire_department_outlined,
+          color: voted ? AppColors.crasyRed : AppColors.paper,
+          label: '$votes',
+          tooltip: voted ? 'Togli la fiamma' : 'Dai la fiamma',
+        ),
+        // **I commenti spariscono alla sirena.** Non e' un permesso tolto: un
+        // commento e' tifo, e il tifo si fa durante.
+        if (live) ...[
+          const SizedBox(width: AppSpacing.lg),
+          _Action(
+            onTap: () => showEntryComments(context, entry: entry),
+            icon: Icons.mode_comment_outlined,
             color: AppColors.paper,
-            label: '',
-            tooltip: 'Condividi',
+            label: comments == null || comments.isEmpty
+                ? ''
+                : '${comments.length}',
+            tooltip: 'Commenti',
           ),
         ],
-      ),
+        const Spacer(),
+        // Condividere non sta nascosto in un menu: e' il gesto con cui chi e'
+        // in gara si porta dentro i voti, ed e' anche il modo in cui CRASY
+        // incontra gente che non la conosce.
+        _Action(
+          onTap: () => ShareEntry.send(
+            context,
+            challengeId: entry.challengeId,
+            entryId: entry.id,
+            challengeTitle: entry.challengeTitle,
+            ended: !live,
+          ),
+          icon: Icons.ios_share_rounded,
+          color: AppColors.paper,
+          label: '',
+          tooltip: 'Condividi',
+        ),
+      ],
     );
   }
 }
 
-/// Un comando della colonna: l'icona, e sotto il suo numero.
-class _RailButton extends StatelessWidget {
-  const _RailButton({
+/// Un comando della riga: l'icona e, accanto, il suo numero.
+class _Action extends StatelessWidget {
+  const _Action({
     required this.onTap,
     required this.icon,
     required this.color,
@@ -476,32 +442,21 @@ class _RailButton extends StatelessWidget {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.sm,
-          ),
-          child: Column(
+          // Il bersaglio e' piu' grande dell'icona: sotto i quarantaquattro
+          // punti un comando si manca, e mancarlo qui vuol dire togliere una
+          // fiamma per sbaglio.
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // L'ombra sotto le icone: cadono su una foto qualunque, e su uno
-              // scatto chiaro il bianco sparirebbe. E' la stessa ragione per
-              // cui la didascalia ha il suo alone.
-              Icon(
-                icon,
-                size: 30,
-                color: color,
-                shadows: const [Shadow(color: Colors.black54, blurRadius: 8)],
-              ),
+              Icon(icon, size: 26, color: color),
               if (label.isNotEmpty) ...[
-                const SizedBox(height: 2),
+                const SizedBox(width: 6),
                 Text(
                   label,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: color,
-                    shadows: const [
-                      Shadow(color: Colors.black54, blurRadius: 8),
-                    ],
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(color: color),
                 ),
               ],
             ],
