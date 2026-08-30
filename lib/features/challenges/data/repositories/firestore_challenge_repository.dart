@@ -511,6 +511,11 @@ class FirestoreChallengeRepository implements ChallengeRepository {
   }
 
   @override
+  Future<void> deleteChallenge(String challengeId) {
+    return _challenges.doc(challengeId).delete();
+  }
+
+  @override
   Stream<List<Challenge>> watchTrophiesOf(String userId) {
     // Senza `orderBy`: incrociare un filtro e un ordinamento su campi diversi
     // costringe Firestore a un indice composto, e un indice mancante non e' un

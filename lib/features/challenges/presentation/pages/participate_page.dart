@@ -153,6 +153,81 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
     }
   }
 
+  /// L'ultima domanda prima che lo scatto entri in gara.
+  ///
+  /// **Non e' una finestra di cortesia.** Qui dentro si spendono due cose che
+  /// non tornano indietro: una delle cinque partecipazioni del giorno, e
+  /// l'unico scatto che quella gara accettera' da te. Da qui in poi la foto non
+  /// si cambia e non si toglie — e' il patto con chi la vota e con gli altri
+  /// concorrenti, che altrimenti potrebbero rifare la propria dopo aver visto
+  /// le fiamme.
+  ///
+  /// Nessuno di questi due fatti si vede guardando la schermata, ed e' proprio
+  /// il tipo di cosa che si scopre subito dopo averla fatta. Vale l'attimo che
+  /// costa.
+  Future<bool> _conferma(Challenge challenge) async {
+    final palette = context.palette;
+    final texts = context.texts;
+
+    final risposta = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text.rich(
+          TextSpan(
+            children: [
+              const TextSpan(text: 'La mandi'),
+              TextSpan(
+                text: '?',
+                style: TextStyle(color: palette.accent),
+              ),
+            ],
+          ),
+          style: texts.titleLarge,
+        ),
+        content: Text.rich(
+          TextSpan(
+            children: [
+              const TextSpan(text: 'Hai '),
+              TextSpan(
+                text: 'un solo scatto',
+                style: TextStyle(
+                  color: palette.accent,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const TextSpan(
+                text:
+                    ' per questa missione: da adesso non si cambia e non si '
+                    'cancella. E ti toglie una delle ',
+              ),
+              TextSpan(
+                text: 'partecipazioni di oggi',
+                style: TextStyle(
+                  color: palette.accent,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const TextSpan(text: '.'),
+            ],
+          ),
+          style: texts.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('ASPETTA'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('MANDA', style: TextStyle(color: palette.accent)),
+          ),
+        ],
+      ),
+    );
+
+    return risposta ?? false;
+  }
+
   Future<void> _submit(Challenge challenge) async {
     final media = _media;
 
@@ -175,6 +250,14 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
     }
 
     setState(() => _error = null);
+
+    if (!await _conferma(challenge)) {
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
 
     final sent = await ref
         .read(participationControllerProvider.notifier)

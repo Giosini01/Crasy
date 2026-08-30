@@ -199,6 +199,10 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
   }
 
   @override
+  Future<void> deleteChallenge(String challengeId) =>
+      _forChallenge(challengeId).deleteChallenge(challengeId);
+
+  @override
   Stream<List<Challenge>> watchTrophiesOf(String userId) {
     return _unione(
       _remote.watchTrophiesOf(userId),

@@ -39,6 +39,18 @@ abstract class ChallengeRepository {
   /// L'oggetto passato arriva senza `id` — lo assegna chi scrive.
   Future<Challenge> createChallenge(Challenge challenge);
 
+  /// Cancella una gara a cui non ha partecipato nessuno.
+  ///
+  /// **Dalla prima foto in poi non si puo' piu'**, e non e' una limitazione
+  /// tecnica: chi ha mandato uno scatto ha speso una delle sue partecipazioni
+  /// del giorno, e cancellargliela sotto vorrebbe dire prendergliela senza
+  /// dargli niente in cambio. A quel punto la gara non e' piu' solo di chi
+  /// l'ha lanciata.
+  ///
+  /// Il controllo vero sta nelle regole del database: qui si chiede, li' si
+  /// decide.
+  Future<void> deleteChallenge(String challengeId);
+
   /// Invia una partecipazione: carica la foto e registra il documento.
   ///
   /// Prende i byte e non un percorso perche' su web `XFile.path` e' un blob url

@@ -355,9 +355,24 @@ service cloud.firestore {
                     && request.resource.data.endsAt > request.resource.data.startsAt
                     && request.resource.data.endsAt > request.time;
 
-      // Una challenge lanciata non si cancella: c'e' gente che ci ha gia'
-      // mandato le proprie foto.
-      allow delete: if false;
+      // **Si cancella finche' e' vuota, e solo da chi l'ha lanciata.**
+      //
+      // Il divieto di prima era assoluto — "c'e' gente che ci ha gia' mandato le
+      // proprie foto" — e valeva per la ragione giusta applicata a un caso solo.
+      // Se nessuno ha ancora partecipato non c'e' nessuna foto da difendere:
+      // c'e' una gara scritta male, con il premio sbagliato o il titolo storto,
+      // che chi l'ha lanciata guarda senza poterci fare niente. Restava li' fino
+      // alla scadenza, occupando la home.
+      //
+      // Le tre condizioni non sono facoltative. **Zero partecipanti**, perche'
+      // dalla prima foto in poi la gara non e' piu' solo di chi l'ha lanciata.
+      // **Premio non incassato**, perche' cancellare una gara con dei soldi in
+      // cassa vorrebbe dire perderne le tracce. E **solo il proprietario**, che
+      // e' ovvio e va scritto lo stesso.
+      allow delete: if signedIn()
+                    && resource.data.createdByUserId == request.auth.uid
+                    && resource.data.get('participantsCount', 0) == 0
+                    && resource.data.get('prizeStatus', 'unpaid') == 'unpaid';
 
       // L'unica cosa che il client puo' toccare e' il contatore dei
       // partecipanti, e solo per farlo salire di uno: e' la transazione con cui

@@ -200,19 +200,20 @@ void main() {
     await tester.drag(find.byType(PageView), const Offset(-600, 0));
     await tester.pumpAndSettle();
 
-    expect(where(), AppRoutes.friends);
+    // **Gli amici non sono piu' una scheda**: dopo le challenge viene la lente.
+    // Si aprono dal numero sul profilo, come una pagina qualunque.
+    expect(where(), AppRoutes.search);
 
     await tester.drag(find.byType(PageView), const Offset(-600, 0));
     await tester.pumpAndSettle();
 
-    // La lente sta fra gli amici e i vincitori.
-    expect(where(), AppRoutes.search);
+    expect(where(), AppRoutes.winners);
 
     // E si torna indietro dall'altra parte.
     await tester.drag(find.byType(PageView), const Offset(600, 0));
     await tester.pumpAndSettle();
 
-    expect(where(), AppRoutes.friends);
+    expect(where(), AppRoutes.search);
 
     // Toccando l'icona in fondo si arriva allo stesso posto: le due strade
     // devono raccontare la stessa storia, altrimenti l'indirizzo e la schermata

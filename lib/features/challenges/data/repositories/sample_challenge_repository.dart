@@ -350,6 +350,13 @@ class SampleChallengeRepository implements ChallengeRepository {
   }
 
   @override
+  Future<void> deleteChallenge(String challengeId) async {
+    _challenges.remove(challengeId);
+    _entries.remove(challengeId);
+    _emit();
+  }
+
+  @override
   Stream<List<Challenge>> watchTrophiesOf(String userId) {
     return _watch(
       () => [

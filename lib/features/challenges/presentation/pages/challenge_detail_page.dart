@@ -448,7 +448,17 @@ class _BottomAction extends ConsumerWidget {
       ),
       child: switch ((ended, isMine, myEntry)) {
         (true, _, _) => ChallengeMetaRow(challenge: challenge),
-        (false, true, _) => const OwnChallengeNote(),
+        (false, true, _) => Row(
+          children: [
+            const Expanded(child: OwnChallengeNote()),
+            // **Si cancella solo finche' e' vuota.** Dalla prima foto in poi la
+            // gara non e' piu' solo di chi l'ha lanciata: chi ha partecipato ha
+            // speso una delle sue cinque del giorno, e toglierla da sotto
+            // vorrebbe dire prendergliela senza dargli niente in cambio.
+            if (challenge.participantsCount == 0)
+              _DeleteChallenge(challenge: challenge),
+          ],
+        ),
         (false, false, final entry?) => Row(
           children: [
             const AlreadyJoinedNote(),
@@ -558,5 +568,97 @@ class _Verdict extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Cancella la gara, finche' non ci ha partecipato nessuno.
+///
+/// **Serve a un caso solo, ed e' quello che capita davvero**: il premio
+/// sbagliato, il titolo con l'errore di battitura, la consegna che rileggendola
+/// non si capisce. Senza, quella gara resta in home fino alla scadenza e chi
+/// l'ha scritta la guarda senza poterci fare niente — e la seconda, quella
+/// giusta, si somma alla prima invece di sostituirla.
+class _DeleteChallenge extends ConsumerStatefulWidget {
+  const _DeleteChallenge({required this.challenge});
+
+  final Challenge challenge;
+
+  @override
+  ConsumerState<_DeleteChallenge> createState() => _DeleteChallengeState();
+}
+
+class _DeleteChallengeState extends ConsumerState<_DeleteChallenge> {
+  bool _working = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: _working ? null : _ask,
+      child: Text(
+        'Cancella',
+        style: context.texts.bodySmall?.copyWith(color: context.palette.accent),
+      ),
+    );
+  }
+
+  Future<void> _ask() async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+
+    final conferma = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancellare la missione?'),
+        content: const Text(
+          'Non ha ancora partecipato nessuno, quindi si puo\'. Sparisce dalla '
+          'home e non si recupera.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('ANNULLA'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              'CANCELLA',
+              style: TextStyle(color: context.palette.accent),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (conferma != true || !mounted) {
+      return;
+    }
+
+    setState(() => _working = true);
+
+    try {
+      await ref
+          .read(challengeRepositoryProvider)
+          .deleteChallenge(widget.challenge.id);
+    } on Object {
+      // **Quasi sempre vuol dire che qualcuno ha appena partecipato.** Fra il
+      // momento in cui il comando e' comparso e quello in cui e' stato toccato
+      // puo' essere arrivata una foto, e da li' in poi le regole non lasciano
+      // piu' cancellare — giustamente.
+      if (mounted) {
+        setState(() => _working = false);
+        messenger?.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Non si puo\' piu\': qualcuno ha appena partecipato.',
+            ),
+          ),
+        );
+      }
+
+      return;
+    }
+
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 }

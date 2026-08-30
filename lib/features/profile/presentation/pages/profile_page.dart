@@ -1,3 +1,4 @@
+import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
@@ -23,6 +24,7 @@ import 'package:crasy/features/profile/presentation/widgets/profile_shelf.dart';
 import 'package:crasy/features/profile/presentation/widgets/trophy_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 /// Il profilo: quello che hai fatto, non quello che sei.
@@ -70,11 +72,33 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               // una volta nella vita, e in fondo alla pagina si allontanavano a
               // ogni gara vinta, sotto una griglia di foto che cresce.
               CrasyHeaderBar(
-                action: IconButton(
-                  onPressed: () => showProfileSettings(context),
-                  icon: const Icon(Icons.settings_outlined, size: 20),
-                  tooltip: 'Impostazioni',
-                  color: palette.textFaint,
+                action: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // **La modifica sale qui, accanto all'ingranaggio.**
+                    //
+                    // Stava dentro il profilo, accanto alla foto: un'icona in
+                    // mezzo al contenuto, che scorreva via appena si guardavano
+                    // le proprie foto. I due comandi che riguardano *te* — cosa
+                    // scrivi di te e cosa hai accettato — sono la stessa
+                    // famiglia e stanno bene insieme, in cima e sempre ferme.
+                    //
+                    // Si vedono solo qui perche' la barra con l'azione ce l'ha
+                    // solo questa scheda: sulle altre il marchio sta da solo.
+                    if (profileState.valueOrNull case final mio?)
+                      IconButton(
+                        onPressed: () => editProfile(context, ref, mio),
+                        icon: const Icon(Icons.tune_rounded, size: 20),
+                        tooltip: 'Modifica profilo',
+                        color: palette.textFaint,
+                      ),
+                    IconButton(
+                      onPressed: () => showProfileSettings(context),
+                      icon: const Icon(Icons.settings_outlined, size: 20),
+                      tooltip: 'Impostazioni',
+                      color: palette.textFaint,
+                    ),
+                  ],
                 ),
               ),
               Expanded(
@@ -118,6 +142,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           friends:
                               ref
                                   .watch(myFriendsProvider)
+                                  .valueOrNull
+                                  ?.length ??
+                              0,
+                          pending:
+                              ref
+                                  .watch(incomingRequestsProvider)
                                   .valueOrNull
                                   ?.length ??
                               0,
@@ -220,16 +250,6 @@ class _Identity extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _Avatar(profile: profile, onTap: () => _changePhoto(context, ref)),
-            const Spacer(),
-            // La modifica e' un'icona e non un bottone: si usa due volte in
-            // tutta la vita del profilo, e un bottone a tutta larghezza qui
-            // peserebbe quanto il nome.
-            IconButton(
-              onPressed: () => _edit(context, ref, profile),
-              icon: const Icon(Icons.tune_rounded, size: 20),
-              tooltip: 'Modifica profilo',
-              color: palette.textFaint,
-            ),
           ],
         ),
         const SizedBox(height: AppSpacing.md),
@@ -281,58 +301,6 @@ class _Identity extends ConsumerWidget {
     await ref
         .read(profileEditControllerProvider.notifier)
         .pickAndUploadPhoto(profile, source);
-  }
-
-  Future<void> _edit(
-    BuildContext context,
-    WidgetRef ref,
-    UserProfile profile,
-  ) async {
-    final bio = TextEditingController(text: profile.bio);
-    final city = TextEditingController(text: profile.city);
-
-    final saved = await ModalSheet.show<bool>(
-      context: context,
-      builder: (sheetContext) => ModalSheet(
-        title: 'Il tuo profilo',
-        confirmLabel: 'Salva',
-        onConfirm: () => Navigator.of(sheetContext).pop(true),
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: bio,
-                maxLength: OnboardingValidators.bioMaxLength,
-                decoration: const InputDecoration(
-                  labelText: 'UNA RIGA SU DI TE',
-                  hintText: 'Faccio cose assurde.',
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
-                controller: city,
-                maxLength: OnboardingValidators.cityMaxLength,
-                decoration: const InputDecoration(
-                  labelText: 'CITTA\'',
-                  hintText: 'Napoli',
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    if (saved ?? false) {
-      await ref
-          .read(profileEditControllerProvider.notifier)
-          .updateDetails(profile, bio: bio.text, city: city.text);
-    }
-
-    bio.dispose();
-    city.dispose();
   }
 }
 
@@ -433,11 +401,15 @@ class _Stats extends StatelessWidget {
     required this.entries,
     required this.wins,
     required this.friends,
+    this.pending = 0,
   });
 
   final int entries;
   final int wins;
   final int friends;
+
+  /// Le richieste di amicizia che aspettano una risposta.
+  final int pending;
 
   @override
   Widget build(BuildContext context) {
@@ -458,7 +430,16 @@ class _Stats extends StatelessWidget {
               _Divider(color: palette.line),
               _Stat(label: 'VINTE', value: '$wins'),
               _Divider(color: palette.line),
-              _Stat(label: 'AMICI', value: '$friends'),
+              // **Da qui si entra.** Il conto degli amici era gia' li' e
+              // adesso e' anche la porta: si tocca il numero e si apre
+              // l'elenco. E' il posto in cui uno li cerca — quello in cui sono
+              // contati — e non ne serviva un altro.
+              _Stat(
+                label: 'AMICI',
+                value: '$friends',
+                onTap: () => context.push(AppRoutes.friends),
+                waiting: pending,
+              ),
             ],
           ),
         ),
@@ -480,10 +461,26 @@ class _Divider extends StatelessWidget {
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value});
+  const _Stat({
+    required this.label,
+    required this.value,
+    this.onTap,
+    this.waiting = 0,
+  });
 
   final String label;
   final String value;
+
+  /// Se questo numero porta da qualche parte.
+  final VoidCallback? onTap;
+
+  /// Quante cose stanno aspettando una risposta la' dentro.
+  ///
+  /// **E' il pallino che stava sulla scheda in fondo.** Una richiesta di
+  /// amicizia e' l'unica cosa dell'app che aspetta qualcosa da te: togliendo la
+  /// scheda senza portarsi dietro il numero, quelle richieste sarebbero
+  /// diventate invisibili — e chi le manda aspetterebbe per sempre.
+  final int waiting;
 
   @override
   Widget build(BuildContext context) {
@@ -491,20 +488,57 @@ class _Stat extends StatelessWidget {
     final texts = context.texts;
 
     return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: texts.headlineMedium,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            label,
-            style: texts.labelSmall?.copyWith(color: palette.textFaint),
-          ),
-        ],
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: texts.headlineMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (waiting > 0) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: palette.accent,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                    child: Text(
+                      '$waiting',
+                      style: texts.labelSmall?.copyWith(
+                        color: palette.onAccent,
+                        fontSize: 9,
+                        height: 1.3,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              label,
+              style: texts.labelSmall?.copyWith(
+                color: onTap == null
+                    ? palette.textFaint
+                    : palette.textSecondary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -626,4 +660,62 @@ class _EmptyShelf extends StatelessWidget {
       child: EmptyState(title: title, message: message),
     );
   }
+}
+
+/// Apre il foglio con cui si cambiano biografia e citta'.
+///
+/// **Sta fuori da qualunque widget**, e serve: il comando che la apre si e'
+/// spostato dal corpo del profilo alla barra in cima, che e' un altro pezzo
+/// dell'albero. Una funzione libera la possono chiamare tutti e due senza che
+/// nessuno debba passare l'altro un riferimento a se stesso.
+Future<void> editProfile(
+  BuildContext context,
+  WidgetRef ref,
+  UserProfile profile,
+) async {
+  final bio = TextEditingController(text: profile.bio);
+  final city = TextEditingController(text: profile.city);
+
+  final saved = await ModalSheet.show<bool>(
+    context: context,
+    builder: (sheetContext) => ModalSheet(
+      title: 'Il tuo profilo',
+      confirmLabel: 'Salva',
+      onConfirm: () => Navigator.of(sheetContext).pop(true),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: bio,
+              maxLength: OnboardingValidators.bioMaxLength,
+              decoration: const InputDecoration(
+                labelText: 'UNA RIGA SU DI TE',
+                hintText: 'Faccio cose assurde.',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextField(
+              controller: city,
+              maxLength: OnboardingValidators.cityMaxLength,
+              decoration: const InputDecoration(
+                labelText: 'CITTA\'',
+                hintText: 'Napoli',
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  if (saved ?? false) {
+    await ref
+        .read(profileEditControllerProvider.notifier)
+        .updateDetails(profile, bio: bio.text, city: city.text);
+  }
+
+  bio.dispose();
+  city.dispose();
 }
