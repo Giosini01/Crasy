@@ -52,16 +52,23 @@ abstract final class AppRoutes {
   static String participateOf(String id) => '/challenge/$id/partecipa';
 
   /// Le schede in fondo, nell'ordine in cui compaiono.
-  /// Le schede in fondo. **Gli amici non ci sono piu'.**
+  /// Le schede in fondo.
   ///
-  /// Erano cinque, ed e' una in piu' di quante ne regga una barra: cinque
-  /// bersagli su una riga sono cinque cose strette, e la scheda degli amici era
-  /// quella che si apriva meno di tutte — si va a vedere chi si conosce ogni
-  /// tanto, non ogni volta che si apre l'app.
+  /// Al secondo posto ci sono di nuovo gli amici, ma **non e' l'elenco che
+  /// c'era prima**: e' quello che stanno facendo. La differenza e' tutta li'.
+  /// Un elenco di nomi si guarda ogni tanto e non merita un posto nella barra;
+  /// le gare che hanno lanciato e le foto con cui sono in gara adesso cambiano
+  /// ogni giorno, e sono il motivo per riaprire l'app.
   ///
-  /// Adesso si aprono dal profilo, toccando il numero degli amici: e' il posto
-  /// in cui uno li cerca, perche' e' li' che sono contati.
-  static const tabs = <String>[challenges, search, winners, profile];
+  /// L'elenco vero — le richieste da accettare, chi hai gia' — sta dietro
+  /// [friends], che si apre da qui e dal numero sul profilo.
+  static const tabs = <String>[
+    challenges,
+    friendsActivity,
+    search,
+    winners,
+    profile,
+  ];
 
   /// Le sole schermate raggiungibili senza una sessione completa.
   ///

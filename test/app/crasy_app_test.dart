@@ -200,20 +200,20 @@ void main() {
     await tester.drag(find.byType(PageView), const Offset(-600, 0));
     await tester.pumpAndSettle();
 
-    // **Gli amici non sono piu' una scheda**: dopo le challenge viene la lente.
-    // Si aprono dal numero sul profilo, come una pagina qualunque.
-    expect(where(), AppRoutes.search);
+    // Al secondo posto ci sono gli amici, ma non l'elenco dei nomi: quello che
+    // stanno facendo. L'elenco si apre da li' dentro e dal profilo.
+    expect(where(), AppRoutes.friendsActivity);
 
     await tester.drag(find.byType(PageView), const Offset(-600, 0));
     await tester.pumpAndSettle();
 
-    expect(where(), AppRoutes.winners);
+    expect(where(), AppRoutes.search);
 
     // E si torna indietro dall'altra parte.
     await tester.drag(find.byType(PageView), const Offset(600, 0));
     await tester.pumpAndSettle();
 
-    expect(where(), AppRoutes.search);
+    expect(where(), AppRoutes.friendsActivity);
 
     // Toccando l'icona in fondo si arriva allo stesso posto: le due strade
     // devono raccontare la stessa storia, altrimenti l'indirizzo e la schermata

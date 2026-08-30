@@ -1,5 +1,6 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
@@ -55,64 +56,139 @@ class FriendsActivityPage extends ConsumerWidget {
     final entries = ref.watch(friendEntriesProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        leading: const BackButton(),
-        title: const Text('Attivita\' amici'),
-      ),
       body: AppBackground(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.page,
-            AppSpacing.sm,
-            AppSpacing.page,
-            AppSpacing.xxl,
-          ),
-          children: [
-            const HighlightedText(
-              'Quello che stanno combinando. Entra nelle loro missioni, o '
-              'accendi una fiamma per farli vincere.',
-              highlight: 'per farli vincere',
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            _Switch(missions: missions.length, entries: entries.length),
-            const SizedBox(height: AppSpacing.lg),
-            if (view == FriendActivityView.missions)
-              if (missions.isEmpty)
-                const EmptyState(
-                  title: 'Nessuno ha lanciato niente',
-                  message:
-                      'Quando un amico lancia una missione la trovi qui, e '
-                      'puoi partecipare prima di tutti gli altri.',
-                )
-              else
-                for (final challenge in missions)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-                    child: ChallengeCard(
-                      challenge: challenge,
-                      onOpen: () => context.push(
-                        AppRoutes.challengeDetailOf(challenge.id),
-                      ),
-                      onParticipate: () =>
-                          context.push(AppRoutes.participateOf(challenge.id)),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // **In cima il marchio, come sulle altre schede.** Questa e' una
+              // delle cinque, non una pagina in cui si e' entrati: una freccia
+              // per tornare indietro qui non porterebbe da nessuna parte.
+              //
+              // A destra la porta per l'elenco vero — chi ti ha chiesto
+              // l'amicizia, chi hai gia' — con sopra il numero delle richieste
+              // che aspettano. Sono l'unica cosa dell'app che aspetta una
+              // risposta da te, e da qualche parte si devono vedere.
+              const CrasyHeaderBar(action: _ListButton()),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.page,
+                    AppSpacing.sm,
+                    AppSpacing.page,
+                    AppSpacing.xxl,
+                  ),
+                  children: [
+                    const HighlightedText(
+                      'Quello che stanno combinando. Entra nelle loro missioni, o '
+                      'accendi una fiamma per farli vincere.',
+                      highlight: 'per farli vincere',
                     ),
-                  )
-            else if (entries.isEmpty)
-              const EmptyState(
-                title: 'Nessuno e\' in gara adesso',
-                message:
-                    'Appena un amico manda uno scatto lo vedi qui, e una tua '
-                    'fiamma puo\' essere quella che lo fa vincere.',
-              )
-            else
-              for (final entry in entries)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-                  // Doppio tocco per la fiamma, tocco singolo per aprirla
-                  // grande: gli stessi due gesti della home. Qui non si impara
-                  // niente di nuovo, cambia solo di chi sono le foto.
-                  child: EntryTile(entry: entry),
+                    const SizedBox(height: AppSpacing.lg),
+                    _Switch(missions: missions.length, entries: entries.length),
+                    const SizedBox(height: AppSpacing.lg),
+                    if (view == FriendActivityView.missions)
+                      if (missions.isEmpty)
+                        const EmptyState(
+                          title: 'Nessuno ha lanciato niente',
+                          message:
+                              'Quando un amico lancia una missione la trovi qui, e '
+                              'puoi partecipare prima di tutti gli altri.',
+                        )
+                      else
+                        for (final challenge in missions)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpacing.xl,
+                            ),
+                            child: ChallengeCard(
+                              challenge: challenge,
+                              onOpen: () => context.push(
+                                AppRoutes.challengeDetailOf(challenge.id),
+                              ),
+                              onParticipate: () => context.push(
+                                AppRoutes.participateOf(challenge.id),
+                              ),
+                            ),
+                          )
+                    else if (entries.isEmpty)
+                      const EmptyState(
+                        title: 'Nessuno e\' in gara adesso',
+                        message:
+                            'Appena un amico manda uno scatto lo vedi qui, e una tua '
+                            'fiamma puo\' essere quella che lo fa vincere.',
+                      )
+                    else
+                      for (final entry in entries)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+                          // Doppio tocco per la fiamma, tocco singolo per aprirla
+                          // grande: gli stessi due gesti della home. Qui non si impara
+                          // niente di nuovo, cambia solo di chi sono le foto.
+                          child: EntryTile(entry: entry),
+                        ),
+                  ],
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// La porta per l'elenco degli amici, con le richieste che aspettano.
+class _ListButton extends ConsumerWidget {
+  const _ListButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+    final aspettano =
+        ref.watch(incomingRequestsProvider).valueOrNull?.length ?? 0;
+
+    return Semantics(
+      button: true,
+      label: aspettano > 0
+          ? 'I tuoi amici, $aspettano richieste'
+          : 'I tuoi amici',
+      child: IconButton(
+        onPressed: () => context.push(AppRoutes.friends),
+        tooltip: 'I tuoi amici',
+        icon: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Icon(
+              Icons.format_list_bulleted_rounded,
+              size: 20,
+              color: palette.textFaint,
+            ),
+            if (aspettano > 0)
+              Positioned(
+                top: -5,
+                right: -7,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: palette.accent,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: Text(
+                    '$aspettano',
+                    style: context.texts.labelSmall?.copyWith(
+                      color: palette.onAccent,
+                      fontSize: 9,
+                      height: 1.3,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

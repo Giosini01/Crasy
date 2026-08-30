@@ -3,6 +3,7 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/features/challenges/presentation/pages/challenges_page.dart';
 import 'package:crasy/features/challenges/presentation/pages/winners_page.dart';
+import 'package:crasy/features/friends/presentation/pages/friends_activity_page.dart';
 import 'package:crasy/features/profile/presentation/pages/profile_page.dart';
 import 'package:crasy/features/search/presentation/pages/search_page.dart';
 import 'package:flutter/gestures.dart';
@@ -46,6 +47,18 @@ class HomePage extends StatefulWidget {
       icon: Icons.local_fire_department_outlined,
       activeIcon: Icons.local_fire_department,
       page: ChallengesPage(),
+    ),
+    // **Gli amici, ma quello che stanno facendo.** Erano gia' stati in questa
+    // barra come elenco di nomi, e da li' erano usciti: una rubrica non merita
+    // un quinto dello spazio che il pollice raggiunge. Quello che c'e' adesso
+    // dietro questa icona cambia ogni giorno — le gare che hanno lanciato, le
+    // foto con cui sono in gara — ed e' una ragione per riaprire l'app.
+    HomeTab(
+      route: AppRoutes.friendsActivity,
+      label: 'Amici',
+      icon: Icons.people_outline_rounded,
+      activeIcon: Icons.people_rounded,
+      page: FriendsActivityPage(),
     ),
     // La lente sta in mezzo, dove sta su tutte le app che la gente usa gia': e'
     // il posto in cui il pollice la cerca senza guardare.

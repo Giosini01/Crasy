@@ -1,6 +1,5 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
-import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
@@ -171,26 +170,6 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
                   // aprire.
                   inGame: inGara[friend.userId],
                 ),
-            if (friends.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.xl),
-              Divider(color: palette.line),
-              const SizedBox(height: AppSpacing.lg),
-              // **Da qui si va a vedere cosa stanno facendo.**
-              //
-              // Sta in fondo e non in cima, ed e' voluto: chi apre
-              // questa schermata quasi sempre ha una richiesta da
-              // accettare o un nome da cercare, e quello viene prima.
-              // L'attivita' e' la cosa che si scopre dopo aver fatto
-              // quello per cui si era entrati.
-              //
-              // Non e' un elenco qui dentro perche' diventerebbe la
-              // coda di una lista gia' lunga: sotto trenta amici non
-              // ci arriva nessuno.
-              _ActivityLink(
-                missions: ref.watch(friendChallengesProvider).length,
-                entries: ref.watch(friendEntriesProvider).length,
-              ),
-            ],
           ],
         ),
       ),
@@ -314,77 +293,6 @@ class _FriendRow extends StatelessWidget {
               size: 20,
               color: context.palette.textFaint,
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Il richiamo in fondo: cosa stanno combinando gli amici.
-///
-/// Dice **quante** cose ci sono la' dentro, non solo che ci sono: "3 missioni,
-/// 8 foto" e' un motivo per toccare, "attivita' amici" e' un'etichetta. E se
-/// non c'e' niente lo dice lo stesso, perche' una riga che sparisce e ricompare
-/// e' una riga che non si impara mai dove sta.
-class _ActivityLink extends StatelessWidget {
-  const _ActivityLink({required this.missions, required this.entries});
-
-  final int missions;
-  final int entries;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-    final texts = context.texts;
-    final vuoto = missions == 0 && entries == 0;
-
-    String pezzo(int quanti, String uno, String tanti) =>
-        '$quanti ${quanti == 1 ? uno : tanti}';
-
-    return GestureDetector(
-      onTap: () => context.push(AppRoutes.friendsActivity),
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          border: Border.all(color: palette.line),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text.rich(
-                    TextSpan(
-                      style: texts.titleMedium,
-                      children: [
-                        const TextSpan(text: 'ATTIVITA\' '),
-                        TextSpan(
-                          text: 'AMICI',
-                          style: TextStyle(color: palette.accent),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xxs),
-                  Text(
-                    vuoto
-                        ? 'Per adesso non sta giocando nessuno.'
-                        : '${pezzo(missions, 'missione', 'missioni')} lanciate '
-                              'da loro, ${pezzo(entries, 'foto', 'foto')} in '
-                              'gara adesso.',
-                    style: texts.bodySmall?.copyWith(
-                      color: palette.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Icon(Icons.chevron_right_rounded, color: palette.textFaint),
           ],
         ),
       ),
