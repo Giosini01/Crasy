@@ -24,6 +24,7 @@ class ChallengesPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final challenges = ref.watch(liveChallengesProvider);
+    final oggi = ref.watch(dailyChallengeProvider);
 
     return Scaffold(
       body: AppBackground(
@@ -71,6 +72,17 @@ class ChallengesPage extends ConsumerWidget {
                   onRefresh: () async => ref.invalidate(liveChallengesProvider),
                   child: CustomScrollView(
                     slivers: [
+                      // **La sfida del giorno sta prima di tutto.**
+                      //
+                      // Non e' una gara di CRASY: e' la gara di qualcuno messa
+                      // in cima per ventiquattro ore. A mezzanotte cambia da
+                      // sola.
+                      //
+                      // Sta in cima alla lista e non incollata allo schermo, ed
+                      // e' una scelta: una scheda di gara e' alta mezzo
+                      // telefono, e mezzo telefono che non si sposta mai
+                      // significa scorrere la home dentro una finestrella.
+                      if (oggi != null) _Daily(challenge: oggi),
                       challenges.when(
                         loading: () =>
                             const SliverToBoxAdapter(child: SizedBox.shrink()),
@@ -87,7 +99,15 @@ class ChallengesPage extends ConsumerWidget {
                                     'Appena ne parte una la trovi qui, con quanto '
                                     'c\'e\' in palio e quanto tempo hai.',
                               )
-                            : _ChallengeList(challenges: items),
+                            : _ChallengeList(
+                                // Senza la sfida del giorno, che sta gia'
+                                // sopra: la stessa gara due volte nella stessa
+                                // schermata fa dubitare di tutte le altre.
+                                challenges: [
+                                  for (final challenge in items)
+                                    if (challenge.id != oggi?.id) challenge,
+                                ],
+                              ),
                       ),
                     ],
                   ),
@@ -158,6 +178,81 @@ class _Lives extends StatelessWidget {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// La sfida del giorno: una riga rossa, la gara, e un filetto che la stacca.
+///
+/// **Perche' esiste.** Un'app che si ricorda si apre quando uno se ne ricorda,
+/// e nessuno se ne ricorda tutti i giorni. Un appuntamento fisso — una sfida
+/// sola, uguale per tutti, che cambia a mezzanotte — e' l'unica cosa che
+/// trasforma "ci penso" in "guardo cosa c'e' oggi".
+///
+/// **Il premio non lo mette CRASY.** La gara e' di chi l'ha lanciata, e in cima
+/// ci sale per un giorno. Una societa' che promette un premio fa un concorso a
+/// premi — comunicazione al ministero, cauzione, verbale, ritenuta — e non e'
+/// una cosa che si fa per sbaglio in una schermata. Qui non si promette niente
+/// a nessuno: si mette in evidenza la gara di un altro.
+class _Daily extends StatelessWidget {
+  const _Daily({required this.challenge});
+
+  final Challenge challenge;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.page,
+        AppSpacing.lg,
+        AppSpacing.page,
+        0,
+      ),
+      sliver: SliverToBoxAdapter(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.local_fire_department,
+                  size: 16,
+                  color: palette.accent,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'SFIDA DEL GIORNO',
+                  style: texts.labelSmall?.copyWith(color: palette.accent),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                // Quanto manca alla prossima, non quanto manca alla fine della
+                // gara: sono due orologi diversi e quello che conta qui e' il
+                // primo — dice fra quanto questa esce dalla cima.
+                Expanded(
+                  child: Text(
+                    'cambia a mezzanotte',
+                    style: texts.labelSmall?.copyWith(color: palette.textFaint),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            ChallengeCard(
+              challenge: challenge,
+              onOpen: () =>
+                  context.push(AppRoutes.challengeDetailOf(challenge.id)),
+              onParticipate: () =>
+                  context.push(AppRoutes.participateOf(challenge.id)),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Divider(color: palette.line),
+          ],
         ),
       ),
     );

@@ -466,6 +466,17 @@ class FirestoreChallengeRepository implements ChallengeRepository {
   static int _clampVotes(int value) => value < 0 ? 0 : value;
 
   @override
+  Stream<String?> watchDailyPick(String day) {
+    // Un documento per giorno, con dentro l'identificativo di una gara. Lo
+    // scrive chi tiene l'app, non l'app: dalle regole nessuno lo puo' toccare.
+    return _firestore.collection('daily').doc(day).snapshots().map((snapshot) {
+      final scelta = snapshot.data()?['challengeId'];
+
+      return scelta is String && scelta.isNotEmpty ? scelta : null;
+    });
+  }
+
+  @override
   Stream<List<ChallengeEntry>> watchEntriesByUsers(List<String> userIds) {
     final cercati = userIds.take(30).toList();
 

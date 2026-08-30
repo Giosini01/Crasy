@@ -55,6 +55,18 @@ service cloud.firestore {
       allow read: if signedIn();
     }
 
+    // **La sfida del giorno: si legge, non si scrive.**
+    //
+    // Un documento per giorno — `2026-08-30` — con dentro l'identificativo
+    // della gara messa in cima per quel giorno. Nessun utente lo puo' scrivere,
+    // nemmeno il proprietario della gara che ci finisce dentro: se lo potesse
+    // fare, la prima cosa che succederebbe e' che tutti si metterebbero la
+    // propria in cima.
+    match /daily/{giorno} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
     // Il profilo.
     //
     // **Lo legge chiunque abbia fatto l'accesso, lo scrive solo il diretto

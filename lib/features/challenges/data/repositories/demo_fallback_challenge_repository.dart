@@ -34,6 +34,9 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
       _isDemo(challengeId) ? _samples : _remote;
 
   @override
+  Stream<String?> watchDailyPick(String day) => _remote.watchDailyPick(day);
+
+  @override
   Stream<List<Challenge>> watchLiveChallenges() {
     return _insieme(
       _remote.watchLiveChallenges(),

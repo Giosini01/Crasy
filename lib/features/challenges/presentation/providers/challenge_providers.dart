@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:crasy/core/services/firebase/firebase_providers.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/data/repositories/demo_fallback_challenge_repository.dart';
@@ -449,3 +451,146 @@ final myPrizeCentsProvider = Provider<int>((ref) {
 
   return total;
 });
+
+// --- La sfida del giorno ----------------------------------------------------
+
+/// Il giorno di oggi, `AAAA-MM-GG`, che **cambia da solo a mezzanotte**.
+///
+/// Senza questo l'app resterebbe a ieri: chi tiene il telefono acceso la sera e
+/// lo riguarda alle 00:30 vedrebbe ancora la sfida del giorno prima, e a
+/// mezzanotte non succederebbe niente. Il flusso dorme fino allo scoccare
+/// dell'ora e poi manda il giorno nuovo, che si porta dietro tutto il resto.
+final todayKeyProvider = StreamProvider<String>((ref) {
+  String scritto(DateTime giorno) {
+    final mese = giorno.month.toString().padLeft(2, '0');
+    final numero = giorno.day.toString().padLeft(2, '0');
+
+    return '${giorno.year}-$mese-$numero';
+  }
+
+  // **La sveglia si spegne insieme al provider**, e non e' un dettaglio: scritto
+  // con un `await` dentro un ciclo, l'attesa fino a mezzanotte resta appesa
+  // anche dopo che non la guarda piu' nessuno — nelle prove il framework se ne
+  // accorge e si ferma, nell'app resta un timer di sei ore che non serve a
+  // niente. Con un `Timer` in mano lo si puo' annullare.
+  Timer? sveglia;
+  final uscita = StreamController<String>();
+
+  void mandaEriprogramma() {
+    final adesso = DateTime.now();
+
+    uscita.add(scritto(adesso));
+
+    final domani = DateTime(adesso.year, adesso.month, adesso.day + 1);
+
+    // Un secondo in piu' della mezzanotte: svegliarsi *esattamente* allo
+    // scoccare vuol dire, ogni tanto, svegliarsi un millesimo prima e calcolare
+    // ancora il giorno vecchio.
+    sveglia = Timer(
+      domani.difference(adesso) + const Duration(seconds: 1),
+      mandaEriprogramma,
+    );
+  }
+
+  mandaEriprogramma();
+
+  ref.onDispose(() {
+    sveglia?.cancel();
+    uscita.close();
+  });
+
+  return uscita.stream;
+});
+
+/// La gara scelta a mano per un certo giorno, se c'e'.
+final dailyPickProvider = StreamProvider.autoDispose.family<String?, String>((
+  ref,
+  day,
+) {
+  return ref.watch(challengeRepositoryProvider).watchDailyPick(day);
+});
+
+/// **La sfida del giorno.**
+///
+/// E' una gara di qualcuno messa in cima per ventiquattro ore, non una gara di
+/// CRASY: il premio lo mette chi l'ha lanciata, come sempre. La differenza
+/// conta piu' di quanto sembri — una societa' che promette un premio fa un
+/// concorso a premi, con l'iter che comporta; mettere in evidenza la gara di un
+/// altro e' una scelta editoriale, e non promette niente a nessuno.
+///
+/// La scelta puo' essere scritta a mano nel documento del giorno. Se non c'e',
+/// **decide l'app**, e decide allo stesso modo su tutti i telefoni: si mescola
+/// l'identificativo della gara con la data e si prende il numero piu' basso.
+/// Non e' un caso vero — e' una funzione — e per questo tutti vedono la stessa
+/// sfida senza che nessuno debba dirgliela.
+final dailyChallengeProvider = Provider<Challenge?>((ref) {
+  final oggi = ref.watch(todayKeyProvider).valueOrNull;
+
+  if (oggi == null) {
+    return null;
+  }
+
+  final aperte = ref.watch(liveChallengesProvider).valueOrNull ?? const [];
+
+  if (aperte.isEmpty) {
+    return null;
+  }
+
+  final scelta = ref.watch(dailyPickProvider(oggi)).valueOrNull;
+
+  if (scelta != null) {
+    for (final challenge in aperte) {
+      if (challenge.id == scelta) {
+        return challenge;
+      }
+    }
+  }
+
+  // Nessuna scelta a mano, o una gara che nel frattempo e' finita: decide la
+  // funzione. Deve durare fino a stasera, o alle nove di sera la sfida del
+  // giorno sarebbe una gara chiusa.
+  final stanotte = DateTime.now();
+  final mezzanotte = DateTime(stanotte.year, stanotte.month, stanotte.day + 1);
+
+  Challenge? migliore;
+  var minimo = 0;
+
+  for (final challenge in aperte) {
+    if (challenge.endsAt.isBefore(mezzanotte)) {
+      continue;
+    }
+
+    final numero = _mescola('$oggi:${challenge.id}');
+
+    if (migliore == null || numero < minimo) {
+      migliore = challenge;
+      minimo = numero;
+    }
+  }
+
+  return migliore;
+});
+
+/// Un numero sempre uguale a partire dallo stesso testo.
+///
+/// Non serve che sia solido: serve che **due telefoni diversi ottengano lo
+/// stesso numero**, e che cambiando giorno cambi anche la gara scelta.
+int _mescola(String testo) {
+  // **Somma e moltiplica non basta.** La prima versione faceva
+  // `valore * 31 + lettera`, che e' il modo classico di mescolare una parola —
+  // e qui non funzionava: la data sta davanti a tutte le gare, quindi aggiunge
+  // a tutte lo stesso numero, e l'ordine finiva per dipendere solo
+  // dall'identificativo. Risultato: la stessa gara in cima ogni santo giorno.
+  // Un test lo ha preso.
+  //
+  // Questa mette in mezzo uno `xor` a ogni passo, e quello rompe la
+  // proporzione: cambiare una cifra della data cambia tutto il numero, e quindi
+  // rimescola la classifica.
+  var valore = 0x811C9DC5;
+
+  for (final unita in testo.codeUnits) {
+    valore = ((valore ^ unita) * 0x01000193) & 0x3FFFFFFF;
+  }
+
+  return valore;
+}

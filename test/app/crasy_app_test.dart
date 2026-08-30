@@ -54,6 +54,9 @@ void main() {
         // Il sipario dell'apertura non si alza nelle prove: coprirebbe
         // lo schermo per due secondi e i tocchi finirebbero su di lui.
         openingCurtainProvider.overrideWithValue(false),
+        // Il giorno e' fisso: quello vero si porta dietro una sveglia puntata
+        // sulla mezzanotte, e una prova non deve dipendere da che ore sono.
+        todayKeyProvider.overrideWith((ref) => Stream.value('2026-08-30')),
         ...overrides,
       ],
     );

@@ -81,6 +81,9 @@ class SampleChallengeRepository implements ChallengeRepository {
   bool owns(String challengeId) => _challenges.containsKey(challengeId);
 
   @override
+  Stream<String?> watchDailyPick(String day) => Stream.value(null);
+
+  @override
   Stream<List<Challenge>> watchLiveChallenges() {
     return _watch(() {
       final now = DateTime.now();

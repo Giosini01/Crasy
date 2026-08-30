@@ -15,6 +15,18 @@ abstract class ChallengeRepository {
   /// Le challenge aperte, dalla piu' vicina alla scadenza.
   Stream<List<Challenge>> watchLiveChallenges();
 
+  /// La gara scelta per la sfida del giorno, per il giorno `AAAA-MM-GG`.
+  ///
+  /// Torna **l'identificativo di una gara che esiste gia'**, non una gara
+  /// nuova, e la differenza non e' tecnica: CRASY non mette premi in palio.
+  /// Una societa' che promette un premio fa un concorso a premi, con tutto
+  /// quello che comporta; qui la sfida del giorno e' una gara di qualcuno,
+  /// messa in cima per un giorno. I soldi restano di chi l'ha lanciata.
+  ///
+  /// Nullo quando per oggi non e' stato scelto niente: in quel caso decide
+  /// l'app, sempre allo stesso modo per tutti.
+  Stream<String?> watchDailyPick(String day);
+
   /// Le challenge chiuse, dalla piu' recente. E' la sezione dei vincitori.
   Stream<List<Challenge>> watchEndedChallenges();
 
