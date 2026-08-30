@@ -1,5 +1,6 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
@@ -47,132 +48,150 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
     // Una lettura sola per tutti: chiedendo amico per amico sarebbero venti
     // richieste ogni volta che questa scheda si apre.
     final inGara = ref.watch(
-      friendsInGameProvider([for (final amico in friends) amico.userId]),
+      friendsInGameProvider(
+        usersKey([for (final amico in friends) amico.userId]),
+      ),
     );
 
     return Scaffold(
+      // **In cima c'e' una freccia, non il marchio.**
+      //
+      // Il marchio sta sulle quattro schede, e vuol dire "sei a casa": qui non
+      // ci si arriva scorrendo la barra in fondo, ci si entra da un numero sul
+      // profilo. Una pagina in cui si e' entrati deve dire da subito **come si
+      // torna indietro**, e il logo, li' sopra, quella domanda la lasciava
+      // aperta.
+      appBar: AppBar(leading: const BackButton(), title: const Text('Amici')),
       body: AppBackground(
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const CrasyHeaderBar(),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.page,
-                    AppSpacing.sm,
-                    AppSpacing.page,
-                    AppSpacing.xxl,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.page,
+            AppSpacing.sm,
+            AppSpacing.page,
+            AppSpacing.xxl,
+          ),
+          children: [
+            const HighlightedText(
+              'Le persone che conosci, e cosa stanno combinando.',
+              highlight: 'cosa stanno combinando',
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            if (requests.isNotEmpty) ...[
+              Row(
+                children: [
+                  Text(
+                    'TI HANNO CHIESTO',
+                    style: context.texts.labelSmall?.copyWith(
+                      color: palette.accent,
+                    ),
                   ),
-                  children: [
-                    const HighlightedText(
-                      'Le persone che conosci, e cosa stanno combinando.',
-                      highlight: 'cosa stanno combinando',
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    '${requests.length}',
+                    style: context.texts.labelSmall?.copyWith(
+                      color: palette.accent,
                     ),
-                    const SizedBox(height: AppSpacing.xl),
-                    if (requests.isNotEmpty) ...[
-                      Row(
-                        children: [
-                          Text(
-                            'TI HANNO CHIESTO',
-                            style: context.texts.labelSmall?.copyWith(
-                              color: palette.accent,
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
-                          Text(
-                            '${requests.length}',
-                            style: context.texts.labelSmall?.copyWith(
-                              color: palette.accent,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      // **Non tutte, se sono tante.** Con cento richieste in attesa
-                      // l'elenco degli amici finisce due schermate piu' giu', e la
-                      // scheda smette di servire a quello per cui esiste. Se ne
-                      // vedono tre, e le altre stanno dietro un tocco.
-                      for (final request in requests.take(_requestsShown))
-                        _RequestRow(request: request),
-                      if (requests.length > _requestsShown) ...[
-                        const SizedBox(height: AppSpacing.xs),
-                        GestureDetector(
-                          onTap: () =>
-                              setState(() => _requestsShown = requests.length),
-                          behavior: HitTestBehavior.opaque,
-                          child: Text(
-                            'VEDI LE ALTRE ${requests.length - _requestsShown}',
-                            style: context.texts.labelSmall?.copyWith(
-                              color: palette.accent,
-                            ),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: AppSpacing.lg),
-                      Divider(color: palette.line),
-                      const SizedBox(height: AppSpacing.lg),
-                    ],
-                    // Il titolo della sezione e' grande e rosso, non una scritta
-                    // grigia in punta di piedi. E' la schermata delle persone che
-                    // uno conosce: senza il rosso e' un elenco di nomi, con il rosso
-                    // e' la parte di CRASY che gli appartiene.
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        // Due parole, due pesi: "I TUOI" e' la premessa, "AMICI" e'
-                        // la cosa. Il rosso sta sulla seconda, come il punto rosso in
-                        // fondo ai titoli dell'app — un accento, non una vernice.
-                        Text.rich(
-                          TextSpan(
-                            style: context.texts.headlineSmall,
-                            children: [
-                              const TextSpan(text: 'I TUOI '),
-                              TextSpan(
-                                text: 'AMICI',
-                                style: TextStyle(color: palette.accent),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        if (friends.isNotEmpty)
-                          Text(
-                            '${friends.length}',
-                            style: context.texts.titleMedium?.copyWith(
-                              color: palette.textFaint,
-                            ),
-                          ),
-                      ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              // **Non tutte, se sono tante.** Con cento richieste in attesa
+              // l'elenco degli amici finisce due schermate piu' giu', e la
+              // scheda smette di servire a quello per cui esiste. Se ne
+              // vedono tre, e le altre stanno dietro un tocco.
+              for (final request in requests.take(_requestsShown))
+                _RequestRow(request: request),
+              if (requests.length > _requestsShown) ...[
+                const SizedBox(height: AppSpacing.xs),
+                GestureDetector(
+                  onTap: () => setState(() => _requestsShown = requests.length),
+                  behavior: HitTestBehavior.opaque,
+                  child: Text(
+                    'VEDI LE ALTRE ${requests.length - _requestsShown}',
+                    style: context.texts.labelSmall?.copyWith(
+                      color: palette.accent,
                     ),
-                    const SizedBox(height: AppSpacing.md),
-                    if (friends.isEmpty)
-                      const EmptyState(
-                        title: 'Ancora nessun amico',
-                        message:
-                            'Tocca il nome sotto una foto per aprire il profilo di '
-                            'chi l\'ha mandata, e da li\' chiedigli l\'amicizia.',
-                      )
-                    else
-                      for (final friend in friends)
-                        _FriendRow(
-                          friend: friend,
-                          // **Cosa sta combinando adesso.** In cima a questa
-                          // scheda c'e' scritto proprio quello, e sotto c'era
-                          // un elenco di nomi: la stessa cosa che si vede nella
-                          // rubrica del telefono. Questa riga e' la differenza
-                          // fra una rubrica e una scheda che vale la pena
-                          // aprire.
-                          inGame: inGara[friend.userId],
-                        ),
-                  ],
+                  ),
                 ),
+              ],
+              const SizedBox(height: AppSpacing.lg),
+              Divider(color: palette.line),
+              const SizedBox(height: AppSpacing.lg),
+            ],
+            // Il titolo della sezione e' grande e rosso, non una scritta
+            // grigia in punta di piedi. E' la schermata delle persone che
+            // uno conosce: senza il rosso e' un elenco di nomi, con il rosso
+            // e' la parte di CRASY che gli appartiene.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                // Due parole, due pesi: "I TUOI" e' la premessa, "AMICI" e'
+                // la cosa. Il rosso sta sulla seconda, come il punto rosso in
+                // fondo ai titoli dell'app — un accento, non una vernice.
+                Text.rich(
+                  TextSpan(
+                    style: context.texts.headlineSmall,
+                    children: [
+                      const TextSpan(text: 'I TUOI '),
+                      TextSpan(
+                        text: 'AMICI',
+                        style: TextStyle(color: palette.accent),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                if (friends.isNotEmpty)
+                  Text(
+                    '${friends.length}',
+                    style: context.texts.titleMedium?.copyWith(
+                      color: palette.textFaint,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            if (friends.isEmpty)
+              const EmptyState(
+                title: 'Ancora nessun amico',
+                message:
+                    'Tocca il nome sotto una foto per aprire il profilo di '
+                    'chi l\'ha mandata, e da li\' chiedigli l\'amicizia.',
+              )
+            else
+              for (final friend in friends)
+                _FriendRow(
+                  friend: friend,
+                  // **Cosa sta combinando adesso.** In cima a questa
+                  // scheda c'e' scritto proprio quello, e sotto c'era
+                  // un elenco di nomi: la stessa cosa che si vede nella
+                  // rubrica del telefono. Questa riga e' la differenza
+                  // fra una rubrica e una scheda che vale la pena
+                  // aprire.
+                  inGame: inGara[friend.userId],
+                ),
+            if (friends.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xl),
+              Divider(color: palette.line),
+              const SizedBox(height: AppSpacing.lg),
+              // **Da qui si va a vedere cosa stanno facendo.**
+              //
+              // Sta in fondo e non in cima, ed e' voluto: chi apre
+              // questa schermata quasi sempre ha una richiesta da
+              // accettare o un nome da cercare, e quello viene prima.
+              // L'attivita' e' la cosa che si scopre dopo aver fatto
+              // quello per cui si era entrati.
+              //
+              // Non e' un elenco qui dentro perche' diventerebbe la
+              // coda di una lista gia' lunga: sotto trenta amici non
+              // ci arriva nessuno.
+              _ActivityLink(
+                missions: ref.watch(friendChallengesProvider).length,
+                entries: ref.watch(friendEntriesProvider).length,
               ),
             ],
-          ),
+          ],
         ),
       ),
     );
@@ -295,6 +314,77 @@ class _FriendRow extends StatelessWidget {
               size: 20,
               color: context.palette.textFaint,
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Il richiamo in fondo: cosa stanno combinando gli amici.
+///
+/// Dice **quante** cose ci sono la' dentro, non solo che ci sono: "3 missioni,
+/// 8 foto" e' un motivo per toccare, "attivita' amici" e' un'etichetta. E se
+/// non c'e' niente lo dice lo stesso, perche' una riga che sparisce e ricompare
+/// e' una riga che non si impara mai dove sta.
+class _ActivityLink extends StatelessWidget {
+  const _ActivityLink({required this.missions, required this.entries});
+
+  final int missions;
+  final int entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+    final vuoto = missions == 0 && entries == 0;
+
+    String pezzo(int quanti, String uno, String tanti) =>
+        '$quanti ${quanti == 1 ? uno : tanti}';
+
+    return GestureDetector(
+      onTap: () => context.push(AppRoutes.friendsActivity),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          border: Border.all(color: palette.line),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text.rich(
+                    TextSpan(
+                      style: texts.titleMedium,
+                      children: [
+                        const TextSpan(text: 'ATTIVITA\' '),
+                        TextSpan(
+                          text: 'AMICI',
+                          style: TextStyle(color: palette.accent),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    vuoto
+                        ? 'Per adesso non sta giocando nessuno.'
+                        : '${pezzo(missions, 'missione', 'missioni')} lanciate '
+                              'da loro, ${pezzo(entries, 'foto', 'foto')} in '
+                              'gara adesso.',
+                    style: texts.bodySmall?.copyWith(
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Icon(Icons.chevron_right_rounded, color: palette.textFaint),
           ],
         ),
       ),

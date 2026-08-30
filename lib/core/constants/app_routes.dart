@@ -21,6 +21,9 @@ abstract final class AppRoutes {
   /// Gli amici: le richieste da decidere e chi hai gia'.
   static const friends = '/amici';
 
+  /// Cosa stanno combinando: le loro missioni, le loro foto in gara.
+  static const friendsActivity = '/amici/attivita';
+
   /// I vincitori delle challenge concluse.
   static const winners = '/winners';
 

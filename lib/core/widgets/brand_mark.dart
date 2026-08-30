@@ -95,7 +95,9 @@ class CrasyWordmark extends StatelessWidget {
             segno,
             Padding(
               padding: EdgeInsets.only(top: size * 0.04, right: size * 0.02),
-              child: _BetaWord(size: size * 0.3),
+              // Un terzo del marchio: sotto, la parola si leggeva come una
+              // macchia e non come una parola.
+              child: _BetaWord(size: size * 0.36),
             ),
           ],
         ),

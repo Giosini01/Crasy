@@ -310,41 +310,69 @@ final myCommissionsProvider = StreamProvider<List<Challenge>>((ref) {
 /// niente per chi in questo momento non e' in nessuna. Chi partecipa a piu'
 /// gare compare con l'ultima: una riga sola per persona, o l'elenco degli
 /// amici diventa l'elenco delle partecipazioni.
-final friendsInGameProvider =
-    Provider.family<Map<String, String>, List<String>>((ref, userIds) {
-      if (userIds.isEmpty) {
-        return const {};
+/// **La chiave e' una stringa, non una lista.** Due liste con dentro le stesse
+/// persone, in Dart, non sono uguali fra loro: sono uguali solo a se stesse. Una
+/// famiglia con una lista per chiave nasceva quindi **nuova a ogni ridisegno**
+/// della schermata — con dentro un ascoltatore nuovo su Firestore, aperto sopra
+/// quello di prima. Con una stringa la chiave e' la stessa e il provider e' lo
+/// stesso: vedi [usersKey].
+final friendsInGameProvider = Provider.family<Map<String, String>, String>((
+  ref,
+  userIds,
+) {
+  {
+    if (userIds.isEmpty) {
+      return const {};
+    }
+
+    final entries = ref.watch(entriesOfManyProvider(userIds)).valueOrNull;
+    final live = ref.watch(liveChallengesProvider).valueOrNull;
+
+    if (entries == null || live == null) {
+      return const {};
+    }
+
+    final titoli = {
+      for (final challenge in live) challenge.id: challenge.title,
+    };
+    final risultato = <String, String>{};
+
+    for (final entry in entries) {
+      final titolo = titoli[entry.challengeId];
+
+      if (titolo != null) {
+        risultato[entry.userId] = titolo;
       }
+    }
 
-      final entries = ref.watch(entriesOfManyProvider(userIds)).valueOrNull;
-      final live = ref.watch(liveChallengesProvider).valueOrNull;
+    return risultato;
+  }
+});
 
-      if (entries == null || live == null) {
-        return const {};
-      }
+/// Le persone di un gruppo, scritte come una chiave sola.
+///
+/// Ordinate e attaccate con una virgola: cosi' gli stessi amici, in qualunque
+/// ordine arrivino, danno sempre la stessa chiave — e quindi lo stesso
+/// provider, con lo stesso ascoltatore su Firestore.
+String usersKey(Iterable<String> userIds) {
+  final ordinati = userIds.toList()..sort();
 
-      final titoli = {
-        for (final challenge in live) challenge.id: challenge.title,
-      };
-      final risultato = <String, String>{};
-
-      for (final entry in entries) {
-        final titolo = titoli[entry.challengeId];
-
-        if (titolo != null) {
-          risultato[entry.userId] = titolo;
-        }
-      }
-
-      return risultato;
-    });
+  return ordinati.join(',');
+}
 
 /// Le partecipazioni di un gruppo di persone, in una lettura sola.
+///
+/// La chiave e' quella di [usersKey], non la lista: guarda [friendsInGameProvider]
+/// per il perche'.
 final entriesOfManyProvider = StreamProvider.autoDispose
-    .family<List<ChallengeEntry>, List<String>>((ref, userIds) {
+    .family<List<ChallengeEntry>, String>((ref, userIds) {
+      if (userIds.isEmpty) {
+        return Stream.value(const <ChallengeEntry>[]);
+      }
+
       return ref
           .watch(challengeRepositoryProvider)
-          .watchEntriesByUsers(userIds);
+          .watchEntriesByUsers(userIds.split(','));
     });
 
 /// A quante gare posso ancora partecipare oggi.

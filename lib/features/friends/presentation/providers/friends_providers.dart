@@ -211,3 +211,84 @@ class FriendActions {
     await repository.removeFriend(meId: meId, otherId: otherId);
   }
 }
+
+/// Le gare aperte **lanciate dai miei amici**.
+///
+/// Non costa una lettura in piu': le gare aperte l'app ce le ha gia' tutte in
+/// mano per la home, e qui si tengono solo quelle scritte da qualcuno che
+/// conosco. Filtrare in memoria evita una query per amico — con trenta amici
+/// sarebbero trenta interrogazioni per riempire una schermata sola.
+final friendChallengesProvider = Provider<List<Challenge>>((ref) {
+  final friends = ref.watch(myFriendsProvider).valueOrNull ?? const <Friend>[];
+
+  if (friends.isEmpty) {
+    return const <Challenge>[];
+  }
+
+  final loro = {for (final amico in friends) amico.userId};
+  final live = ref.watch(liveChallengesProvider).valueOrNull ?? const [];
+
+  return [
+    for (final challenge in live)
+      if (loro.contains(challenge.createdByUserId)) challenge,
+  ];
+});
+
+/// Le foto con cui i miei amici sono **in gara adesso**.
+///
+/// Solo quelle nelle gare ancora aperte, e la ragione e' quello che uno ci fa:
+/// da qui si accende una fiamma. Su una gara chiusa la fiamma non si puo' piu'
+/// dare — i soldi sono gia' andati a qualcuno — e mostrare una foto su cui non
+/// si puo' fare niente sarebbe una promessa non mantenuta.
+///
+/// Le piu' recenti in cima: e' l'ordine in cui si guarda cosa e' successo da
+/// quando non si apriva l'app.
+final friendEntriesProvider = Provider<List<ChallengeEntry>>((ref) {
+  final friends = ref.watch(myFriendsProvider).valueOrNull ?? const <Friend>[];
+
+  if (friends.isEmpty) {
+    return const <ChallengeEntry>[];
+  }
+
+  final entries =
+      ref
+          .watch(
+            entriesOfManyProvider(
+              usersKey([for (final amico in friends) amico.userId]),
+            ),
+          )
+          .valueOrNull ??
+      const <ChallengeEntry>[];
+
+  final aperte = {
+    for (final challenge
+        in ref.watch(liveChallengesProvider).valueOrNull ?? const <Challenge>[])
+      challenge.id,
+  };
+
+  final loro = {for (final amico in friends) amico.userId};
+
+  // Si controlla **anche di chi e' la foto**, non solo in che gara sta. La
+  // query chiede gia' soltanto le partecipazioni di queste persone, e questa
+  // riga sembra quindi di troppo: serve perche' la garanzia stia qui dentro e
+  // non dentro un `whereIn` scritto in un altro file. Il giorno in cui quella
+  // query cambia, questa lista continua a contenere solo amici.
+  final foto =
+      [
+        for (final entry in entries)
+          if (loro.contains(entry.userId) && aperte.contains(entry.challengeId))
+            entry,
+      ]..sort((a, b) {
+        // Una partecipazione senza data e' una che Firestore non ha ancora
+        // timbrato: e' appena partita, e sta in cima con le piu' recenti.
+        final quando = a.createdAt;
+        final altra = b.createdAt;
+
+        if (quando == null) return altra == null ? 0 : -1;
+        if (altra == null) return 1;
+
+        return altra.compareTo(quando);
+      });
+
+  return foto;
+});
