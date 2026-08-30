@@ -388,12 +388,26 @@ final livesLeftProvider = Provider<int>((ref) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
 
+  // **La sfida del giorno non conta.** Le cinque servono a far scegliere fra
+  // gare in cui girano soldi; quella e' gratis e sta li' per divertimento, e
+  // farla pesare quanto le altre vorrebbe dire far pagare in occasioni vere una
+  // cosa fatta per giocare.
+  final gratis = <String>{
+    for (final challenge in [
+      ...?ref.watch(liveChallengesProvider).valueOrNull,
+      ...?ref.watch(endedChallengesProvider).valueOrNull,
+    ])
+      if (challenge.isDaily) challenge.id,
+  };
+
   var used = 0;
 
   for (final entry in entries) {
     final when = entry.createdAt;
 
-    if (when != null && !when.isBefore(today)) {
+    if (when != null &&
+        !when.isBefore(today) &&
+        !gratis.contains(entry.challengeId)) {
       used++;
     }
   }
@@ -536,6 +550,26 @@ final dailyChallengeProvider = Provider<Challenge?>((ref) {
     return null;
   }
 
+  // **Prima di tutto, quella di CRASY.** E' gratis, non toglie una delle cinque
+  // e cambia ogni giorno: e' *la* sfida del giorno, e non c'e' niente da
+  // scegliere. Se per sbaglio ce ne fossero due aperte insieme, vince quella
+  // che finisce prima — cioe' quella di oggi.
+  Challenge? diCrasy;
+
+  for (final challenge in aperte) {
+    if (challenge.isDaily &&
+        (diCrasy == null || challenge.endsAt.isBefore(diCrasy.endsAt))) {
+      diCrasy = challenge;
+    }
+  }
+
+  if (diCrasy != null) {
+    return diCrasy;
+  }
+
+  // Nessuna sfida di CRASY per oggi — finite quelle scritte in anticipo, o un
+  // giorno saltato. Allora si mette in cima una gara di qualcuno, scelta a mano
+  // nel documento del giorno.
   final scelta = ref.watch(dailyPickProvider(oggi)).valueOrNull;
 
   if (scelta != null) {

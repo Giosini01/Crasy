@@ -116,7 +116,10 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
               media: _media,
               error: _error,
               submitting: submitting,
-              outOfLives: ref.watch(livesLeftProvider) <= 0,
+              // Sulla sfida del giorno il bottone non si spegne mai: non
+              // costa una delle cinque, quindi non c'e' niente da finire.
+              outOfLives:
+                  !challenge.isDaily && ref.watch(livesLeftProvider) <= 0,
               caption: _caption,
               onCapture: () => _capture(challenge.mediaKind),
               onSubmit: () => _submit(challenge),
@@ -198,16 +201,33 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
               const TextSpan(
                 text:
                     ' per questa missione: da adesso non si cambia e non si '
-                    'cancella. E ti toglie una delle ',
+                    'cancella.',
               ),
-              TextSpan(
-                text: 'partecipazioni di oggi',
-                style: TextStyle(
-                  color: palette.accent,
-                  fontWeight: FontWeight.w700,
+              // Sulla sfida del giorno la seconda meta' della frase e' falsa, e
+              // in un avviso che serve a far pensare due volte una frase falsa
+              // e' peggio di nessun avviso: quella non toglie niente, e chi la
+              // legge deve saperlo prima di rinunciare.
+              if (challenge.isDaily) ...[
+                const TextSpan(text: ' Ma e\' la sfida del giorno: '),
+                TextSpan(
+                  text: 'non ti costa nessuna partecipazione',
+                  style: TextStyle(
+                    color: palette.accent,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              const TextSpan(text: '.'),
+                const TextSpan(text: '.'),
+              ] else ...[
+                const TextSpan(text: ' E ti toglie una delle '),
+                TextSpan(
+                  text: 'partecipazioni di oggi',
+                  style: TextStyle(
+                    color: palette.accent,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const TextSpan(text: '.'),
+              ],
             ],
           ),
           style: texts.bodyMedium,
@@ -261,7 +281,12 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
 
     final sent = await ref
         .read(participationControllerProvider.notifier)
-        .submit(challengeId: challenge.id, media: media, caption: didascalia);
+        .submit(
+          challengeId: challenge.id,
+          media: media,
+          caption: didascalia,
+          daily: challenge.isDaily,
+        );
 
     if (!mounted) {
       return;

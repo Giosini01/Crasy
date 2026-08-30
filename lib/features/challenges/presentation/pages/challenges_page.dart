@@ -1,5 +1,6 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
@@ -217,38 +218,74 @@ class _Daily extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.local_fire_department,
-                  size: 16,
-                  color: palette.accent,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'SFIDA DEL GIORNO',
-                  style: texts.labelSmall?.copyWith(color: palette.accent),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                // Quanto manca alla prossima, non quanto manca alla fine della
-                // gara: sono due orologi diversi e quello che conta qui e' il
-                // primo — dice fra quanto questa esce dalla cima.
-                Expanded(
-                  child: Text(
-                    'cambia a mezzanotte',
-                    style: texts.labelSmall?.copyWith(color: palette.textFaint),
-                    overflow: TextOverflow.ellipsis,
+            // **Cerchiata di rosso.** In una lista in cui ogni gara comincia
+            // con una cifra rossa, il rosso da solo non la distingue piu': e'
+            // il colore di tutta la schermata. La cornice si', perche' e'
+            // l'unica cosa dell'app che ha un bordo attorno — e un bordo dice
+            // "questo blocco e' un'altra cosa" prima che uno legga una parola.
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                border: Border.all(color: palette.accent, width: 1.5),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.local_fire_department,
+                        size: 16,
+                        color: palette.accent,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'SFIDA DEL GIORNO',
+                        style: texts.labelSmall?.copyWith(
+                          color: palette.accent,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      // Quanto manca alla prossima, non alla fine della gara:
+                      // sono due orologi diversi, e qui conta il primo — dice
+                      // fra quanto questa esce dalla cima.
+                      Expanded(
+                        child: Text(
+                          'cambia a mezzanotte',
+                          style: texts.labelSmall?.copyWith(
+                            color: palette.textFaint,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            ChallengeCard(
-              challenge: challenge,
-              onOpen: () =>
-                  context.push(AppRoutes.challengeDetailOf(challenge.id)),
-              onParticipate: () =>
-                  context.push(AppRoutes.participateOf(challenge.id)),
+                  if (challenge.isDaily) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    // **Le due cose che la rendono diversa, scritte.** Che sia
+                    // gratis si vede dalla parola al posto della cifra; che non
+                    // costi una delle cinque non si vede da nessuna parte, e
+                    // senza saperlo chi ne ha una sola in mano non la spende
+                    // qui — che e' esattamente il contrario di quello per cui
+                    // esiste.
+                    Text(
+                      'Gratis, e non ti toglie una delle cinque di oggi.',
+                      style: texts.bodySmall?.copyWith(
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.md),
+                  ChallengeCard(
+                    challenge: challenge,
+                    onOpen: () =>
+                        context.push(AppRoutes.challengeDetailOf(challenge.id)),
+                    onParticipate: () =>
+                        context.push(AppRoutes.participateOf(challenge.id)),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: AppSpacing.xl),
             Divider(color: palette.line),

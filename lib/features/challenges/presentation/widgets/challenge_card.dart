@@ -9,6 +9,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
+import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -266,34 +267,47 @@ class ChallengeAuthor extends StatelessWidget {
   }) {
     return Row(
       children: [
-        Container(
-          width: 20,
-          height: 20,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: official ? palette.accentTint : palette.surfaceMuted,
-            shape: BoxShape.circle,
-          ),
-          child: official
-              ? Icon(
-                  Icons.local_fire_department,
-                  size: 12,
-                  color: palette.accent,
-                )
-              : Text(
-                  // Il nome puo' arrivare vuoto da una challenge scritta male:
-                  // `substring` su una stringa vuota fa saltare l'intera lista.
-                  challenge.createdByUsername.isEmpty
-                      ? '?'
-                      : challenge.createdByUsername
-                            .substring(0, 1)
-                            .toUpperCase(),
-                  style: texts.labelSmall?.copyWith(
-                    color: palette.textSecondary,
-                    letterSpacing: 0,
+        // **CRASY ha una faccia come tutti gli altri.**
+        //
+        // Le sfide del giorno sono sue, e una gara senza volto sembra arrivata
+        // da un ufficio. Con la sua fotografia — l'icona dell'app — la sfida
+        // del giorno diventa una cosa che qualcuno ti ha chiesto di fare, che
+        // e' la stessa promessa delle altre gare.
+        if (challenge.byCrasy)
+          FriendAvatar(
+            userId: challenge.createdByUserId,
+            username: challenge.createdByUsername,
+            size: 20,
+          )
+        else
+          Container(
+            width: 20,
+            height: 20,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: official ? palette.accentTint : palette.surfaceMuted,
+              shape: BoxShape.circle,
+            ),
+            child: official
+                ? Icon(
+                    Icons.local_fire_department,
+                    size: 12,
+                    color: palette.accent,
+                  )
+                : Text(
+                    // Il nome puo' arrivare vuoto da una challenge scritta male:
+                    // `substring` su una stringa vuota fa saltare l'intera lista.
+                    challenge.createdByUsername.isEmpty
+                        ? '?'
+                        : challenge.createdByUsername
+                              .substring(0, 1)
+                              .toUpperCase(),
+                    style: texts.labelSmall?.copyWith(
+                      color: palette.textSecondary,
+                      letterSpacing: 0,
+                    ),
                   ),
-                ),
-        ),
+          ),
         const SizedBox(width: AppSpacing.xs),
         Flexible(
           child: Text(

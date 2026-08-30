@@ -137,6 +137,7 @@ class ParticipationController extends AsyncNotifier<void> {
     required String challengeId,
     required PickedMedia media,
     String caption = '',
+    bool daily = false,
   }) async {
     final authState = ref.read(authStateProvider);
 
@@ -153,7 +154,11 @@ class ParticipationController extends AsyncNotifier<void> {
     // e non solo sul bottone: la schermata puo' restare aperta mentre le altre
     // quattro si consumano altrove, e a quel punto il bottone direbbe una cosa
     // che non e' piu' vera.
-    if (ref.read(livesLeftProvider) <= 0) {
+    //
+    // La sfida del giorno passa sempre: e' gratis, non consuma niente, e deve
+    // restare aperta anche a chi ha finito le cinque — anzi, soprattutto a lui,
+    // perche' e' l'unica cosa che gli resta da fare fino a domani.
+    if (!daily && ref.read(livesLeftProvider) <= 0) {
       state = AsyncError<void>(const OutOfLivesException(), StackTrace.current);
 
       return false;

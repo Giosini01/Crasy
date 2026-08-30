@@ -14,15 +14,22 @@ void main() {
   final adesso = DateTime.now();
   final domani = DateTime(adesso.year, adesso.month, adesso.day + 1);
 
-  Challenge challenge({required String id, DateTime? fine}) {
+  Challenge challenge({
+    required String id,
+    DateTime? fine,
+    bool diCrasy = false,
+  }) {
     return Challenge(
       id: id,
       title: 'Gara $id',
       brief: 'Fai qualcosa.',
-      prizeCents: 50000,
+      prizeCents: diCrasy ? 0 : 50000,
       scope: ChallengeScope.global,
       startsAt: adesso.subtract(const Duration(hours: 1)),
       endsAt: fine ?? domani.add(const Duration(hours: 6)),
+      isDaily: diCrasy,
+      createdByUserId: diCrasy ? Challenge.crasyUserId : 'qualcuno',
+      createdByUsername: diCrasy ? 'crasy' : 'qualcuno',
     );
   }
 
@@ -138,5 +145,50 @@ void main() {
 
   test('senza gare aperte non c\'e\' sfida del giorno', () async {
     expect(await sfida(containerWith(live: const []), '2026-08-30'), isNull);
+  });
+
+  test(
+    'la sfida gratis di CRASY viene prima di qualunque scelta a mano',
+    () async {
+      final container = containerWith(
+        live: [
+          challenge(id: 'di-qualcuno'),
+          challenge(id: 'daily-oggi', diCrasy: true),
+        ],
+        scelta: 'di-qualcuno',
+      );
+
+      // Anche con una scelta scritta a mano: la sfida del giorno di CRASY e'
+      // gratis e non consuma una partecipazione, e nessuna gara di qualcun altro
+      // puo' prendere quel posto mentre lei e' aperta.
+      expect((await sfida(container, '2026-08-30'))?.id, 'daily-oggi');
+    },
+  );
+
+  test(
+    'fra due sfide di CRASY aperte vince quella che finisce prima',
+    () async {
+      final container = containerWith(
+        live: [
+          challenge(
+            id: 'domani',
+            diCrasy: true,
+            fine: domani.add(const Duration(days: 1)),
+          ),
+          challenge(
+            id: 'oggi',
+            diCrasy: true,
+            fine: domani.add(const Duration(minutes: 1)),
+          ),
+        ],
+      );
+
+      expect((await sfida(container, '2026-08-30'))?.id, 'oggi');
+    },
+  );
+
+  test('la sfida di CRASY dice GRATIS al posto della cifra', () {
+    expect(challenge(id: 'x', diCrasy: true).prizeLabel, 'GRATIS');
+    expect(challenge(id: 'y').prizeLabel, isNot('GRATIS'));
   });
 }

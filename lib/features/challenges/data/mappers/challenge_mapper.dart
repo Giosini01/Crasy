@@ -34,6 +34,10 @@ abstract final class ChallengeMapper {
       winnerMediaKind: MediaKind.fromName(data['winnerMediaKind'] as String?),
       winnerVotes: (data['winnerVotes'] as num?)?.toInt() ?? 0,
       prizeStatus: PrizeStatus.fromName(data['prizeStatus'] as String?),
+      // La sfida del giorno di CRASY si riconosce da qui. Il campo lo scrive
+      // solo chi tiene l'app, con l'SDK di amministrazione: dalle regole una
+      // gara con questo dentro non la puo' creare nessuno.
+      isDaily: (data['kind'] as String?) == 'daily',
     );
   }
 

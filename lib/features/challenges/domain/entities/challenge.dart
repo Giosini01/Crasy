@@ -33,7 +33,16 @@ class Challenge {
     this.winnerMediaKind = MediaKind.photo,
     this.winnerVotes = 0,
     this.prizeStatus = PrizeStatus.unpaid,
+    this.isDaily = false,
   });
+
+  /// L'identificativo dell'account di CRASY.
+  ///
+  /// Non e' un utente vero e **non esiste nessuna password che ci entri**: e'
+  /// un nome scritto dentro le sfide del giorno perche' abbiano una faccia e un
+  /// profilo come tutti gli altri. Il documento del profilo lo scrive lo
+  /// strumento che genera le sfide, con l'icona dell'app come fotografia.
+  static const String crasyUserId = 'crasy';
 
   /// A quante gare si puo' partecipare **in un giorno**.
   ///
@@ -104,6 +113,20 @@ class Challenge {
   /// La consegna per esteso: cosa bisogna fare, in una frase.
   final String brief;
 
+  /// **La sfida del giorno di CRASY: gratis, e non consuma una partecipazione.**
+  ///
+  /// E' l'unica gara che non nasce da una persona. Non ha un premio in denaro, e
+  /// non e' una scelta di risparmio: **una societa' che promette un premio fa un
+  /// concorso a premi**, con comunicazione al ministero, cauzione, verbale e
+  /// ritenuta. Senza premio non c'e' niente da notificare, e resta quello per
+  /// cui esiste — un appuntamento, uguale per tutti, che cambia a mezzanotte.
+  ///
+  /// Non toglie nessuna delle cinque del giorno, e anche questo e' voluto: le
+  /// cinque servono a far scegliere fra gare in cui girano soldi. Questa non e'
+  /// una di quelle, e farla pesare quanto loro vorrebbe dire far pagare in
+  /// occasioni vere una cosa fatta per divertimento.
+  final bool isDaily;
+
   /// Il premio in **centesimi**.
   ///
   /// Interi e non decimali: un premio in denaro tenuto in `double` prima o poi
@@ -138,6 +161,9 @@ class Challenge {
   final String createdByUserId;
 
   bool get hasCreator => createdByUsername.isNotEmpty;
+
+  /// L'ha lanciata CRASY.
+  bool get byCrasy => createdByUserId == crasyUserId;
 
   final DateTime startsAt;
   final DateTime endsAt;
@@ -196,8 +222,12 @@ class Challenge {
   /// parte — nemmeno a chi l'ha scritta, che la ritrova solo pagando.
   bool get isPayable => !paymentsEnabled || prizeStatus.isVisible;
 
-  /// Il premio gia' scritto: `€500`.
-  String get prizeLabel => AppMoney.format(prizeCents);
+  /// Il premio gia' scritto: `€500`, o `GRATIS` per la sfida del giorno.
+  ///
+  /// Sta al posto della cifra e non accanto: quel numero rosso e' la prima cosa
+  /// che si legge di una gara, e su questa la risposta alla domanda "quanto si
+  /// vince" e' che non si vince niente — si gioca.
+  String get prizeLabel => isDaily ? 'GRATIS' : AppMoney.format(prizeCents);
 
   /// L'etichetta dell'ambito: il luogo se c'e', altrimenti la parola di
   /// ripiego dell'ambito.
@@ -255,6 +285,7 @@ class Challenge {
     MediaKind? winnerMediaKind,
     int? winnerVotes,
     PrizeStatus? prizeStatus,
+    bool? isDaily,
   }) {
     return Challenge(
       id: id ?? this.id,
@@ -277,6 +308,7 @@ class Challenge {
       winnerMediaKind: winnerMediaKind ?? this.winnerMediaKind,
       winnerVotes: winnerVotes ?? this.winnerVotes,
       prizeStatus: prizeStatus ?? this.prizeStatus,
+      isDaily: isDaily ?? this.isDaily,
     );
   }
 
