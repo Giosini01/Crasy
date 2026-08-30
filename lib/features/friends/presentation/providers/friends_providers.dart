@@ -292,3 +292,37 @@ final friendEntriesProvider = Provider<List<ChallengeEntry>>((ref) {
 
   return foto;
 });
+
+/// Cosa non ha funzionato, se non ha funzionato.
+///
+/// **Serve perche' il guasto si veda.** Le due liste qui sopra leggono con
+/// `valueOrNull`: se la query fallisce — un indice che manca, una regola che
+/// rifiuta, la rete che non c'e' — non tornano un errore, tornano **niente**, e
+/// una lista vuota si legge come "i tuoi amici non stanno facendo niente".
+/// Sono due frasi diverse, e l'utente ha diritto di sapere quale delle due sta
+/// leggendo.
+final friendActivityProblemProvider = Provider<Object?>((ref) {
+  final friends = ref.watch(myFriendsProvider);
+
+  if (friends.hasError) {
+    return friends.error;
+  }
+
+  final loro = friends.valueOrNull ?? const <Friend>[];
+
+  if (loro.isEmpty) {
+    return null;
+  }
+
+  final entries = ref.watch(
+    entriesOfManyProvider(usersKey([for (final amico in loro) amico.userId])),
+  );
+
+  if (entries.hasError) {
+    return entries.error;
+  }
+
+  final live = ref.watch(liveChallengesProvider);
+
+  return live.hasError ? live.error : null;
+});

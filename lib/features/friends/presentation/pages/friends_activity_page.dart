@@ -5,6 +5,7 @@ import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
@@ -46,14 +47,49 @@ final friendActivityViewProvider = StateProvider<FriendActivityView>(
 /// che ha mandato sono due inviti diversi: la prima chiede di mettersi in gioco,
 /// la seconda chiede una fiamma. Mescolate in una lista sola diventano un flusso
 /// da scorrere; separate da una scelta restano due cose che si fanno.
-class FriendsActivityPage extends ConsumerWidget {
+class FriendsActivityPage extends ConsumerStatefulWidget {
   const FriendsActivityPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FriendsActivityPage> createState() =>
+      _FriendsActivityPageState();
+}
+
+class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
+  /// Se la scelta l'ha fatta chi guarda.
+  ///
+  /// Finche' e' falso la pagina si sposta da sola sulla parte che ha qualcosa
+  /// dentro. Dopo il primo tocco non lo fa piu': una schermata che cambia da
+  /// sola sotto le dita di chi l'ha appena scelta e' una schermata rotta.
+  var _scelto = false;
+
+  @override
+  Widget build(BuildContext context) {
     final view = ref.watch(friendActivityViewProvider);
     final missions = ref.watch(friendChallengesProvider);
     final entries = ref.watch(friendEntriesProvider);
+    final problema = ref.watch(friendActivityProblemProvider);
+
+    // **Si apre su quella che ha qualcosa da mostrare.**
+    //
+    // Aprire sempre sulle missioni e' giusto quando ce ne sono: e' la cosa in
+    // cui uno puo' entrare. Ma se nessun amico ne ha lanciata una, quella
+    // scelta mostra una schermata vuota mentre l'altra e' piena di foto — e chi
+    // guarda conclude che non funziona, non che ha guardato dalla parte
+    // sbagliata. E' successo davvero.
+    if (!_scelto &&
+        view == FriendActivityView.missions &&
+        missions.isEmpty &&
+        entries.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _scelto) {
+          return;
+        }
+
+        ref.read(friendActivityViewProvider.notifier).state =
+            FriendActivityView.entries;
+      });
+    }
 
     return Scaffold(
       body: AppBackground(
@@ -86,8 +122,21 @@ class FriendsActivityPage extends ConsumerWidget {
                       highlight: 'per farli vincere',
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    _Switch(missions: missions.length, entries: entries.length),
+                    _Switch(
+                      missions: missions.length,
+                      entries: entries.length,
+                      onPicked: () => _scelto = true,
+                    ),
                     const SizedBox(height: AppSpacing.lg),
+                    if (problema != null) ...[
+                      const InlineBanner(
+                        message:
+                            'Non riusciamo a leggere cosa stanno facendo i tuoi '
+                            'amici. Riprova fra poco: se resta cosi\', non e\' '
+                            'colpa tua.',
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
                     if (view == FriendActivityView.missions)
                       if (missions.isEmpty)
                         const EmptyState(
@@ -198,10 +247,17 @@ class _ListButton extends ConsumerWidget {
 
 /// La scelta fra le due: due parole e il loro numero.
 class _Switch extends ConsumerWidget {
-  const _Switch({required this.missions, required this.entries});
+  const _Switch({
+    required this.missions,
+    required this.entries,
+    required this.onPicked,
+  });
 
   final int missions;
   final int entries;
+
+  /// Da qui in poi la pagina non si sposta piu' da sola.
+  final VoidCallback onPicked;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -216,8 +272,10 @@ class _Switch extends ConsumerWidget {
       children: [
         for (final view in FriendActivityView.values)
           GestureDetector(
-            onTap: () =>
-                ref.read(friendActivityViewProvider.notifier).state = view,
+            onTap: () {
+              onPicked();
+              ref.read(friendActivityViewProvider.notifier).state = view;
+            },
             behavior: HitTestBehavior.opaque,
             child: Padding(
               padding: const EdgeInsets.only(right: AppSpacing.lg),

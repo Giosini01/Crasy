@@ -19,5 +19,17 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "comment": "Le partecipazioni di un gruppo di amici si chiedono con un 'whereIn' su userId, senza ordinamento: e' una query sul gruppo di collezioni, e per quelle Firestore l'indice a campo singolo NON lo crea da se'. Senza questa riga la query non fallisce a schermo, torna un errore che l'app ingoia — e la sezione degli amici resta vuota mentre le stesse foto, dentro la loro challenge, si vedono benissimo. Le tre voci con scope COLLECTION sono quelle che Firestore creerebbe da solo: vanno ripetute qui, perche' un fieldOverride sostituisce l'automatismo invece di aggiungersi.",
+      "collectionGroup": "entries",
+      "fieldPath": "userId",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" },
+        { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION" },
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    }
+  ]
 }

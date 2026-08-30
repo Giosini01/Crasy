@@ -44,84 +44,85 @@ class ModalSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
 
-    // **Il fondo pieno sta fuori, il margine di sicurezza sta dentro.**
+    // **Il foglio arriva al bordo dello schermo. Sotto non c'e' piu' niente.**
     //
-    // Erano al contrario, e si vedeva: sotto il foglio restava una striscia
-    // trasparente alta quanto la barra del telefono — quella dove sta la
-    // lineetta per tornare alla schermata iniziale — e il foglio sembrava non
-    // arrivare in fondo, come un'app disegnata per uno schermo piu' piccolo.
+    // Ci e' arrivato in tre passaggi. Prima il margine di sicurezza stava fuori
+    // dal fondo pieno, e sotto il foglio restava una striscia trasparente alta
+    // quanto la barra del telefono. Poi quella striscia e' diventata un terzo
+    // di se' stessa: piu' piccola, e per questo peggio — una fascia sottile
+    // sembra uno sbaglio di un millimetro, non una scelta.
     //
-    // Il margine per la tastiera invece resta fuori dal fondo: li' il foglio
-    // deve **salire davvero**, non allungare il proprio bianco dietro i tasti.
+    // Adesso il bianco scende fino in fondo e lo spazio della lineetta di casa
+    // sta **dentro** il foglio, come margine sotto l'ultima riga: serve a non
+    // metterci un bottone sotto il dito che scorre, non a lasciare un vuoto.
+    //
+    // Il margine per la tastiera invece resta fuori: li' il foglio deve
+    // **salire davvero**, non allungare il proprio bianco dietro i tasti.
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      // Un terzo del margine di sicurezza, come nella barra in fondo: quello
-      // pieno lasciava sotto il foglio una fascia vuota che sembrava uno
-      // scalino, e sopra a un foglio bianco si vede ancora di piu'.
-      child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.paddingOf(context).bottom * 0.34,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: palette.background,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppRadius.lg),
+          ),
         ),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: palette.background,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(AppRadius.lg),
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xs,
-                  vertical: AppSpacing.xxs,
-                ),
-                child: Row(
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Annulla'),
-                    ),
-                    Expanded(
-                      child: Text(
-                        title,
-                        textAlign: TextAlign.center,
-                        style: context.texts.titleLarge,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: onConfirm,
-                      child: Text(
-                        confirmLabel,
-                        style: context.texts.labelLarge?.copyWith(
-                          color: palette.accent,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs,
+                vertical: AppSpacing.xxs,
               ),
-              Divider(color: palette.line, height: 0.5, thickness: 0.5),
-              // **Il margine laterale lo mette il foglio.**
-              //
-              // Prima lo doveva mettere ogni contenuto per conto suo, e
-              // indovinate quanti se lo ricordavano: le scritte arrivavano al
-              // bordo dello schermo in mezzo foglio su due. Messo qui, chi
-              // scrive un foglio nuovo non puo' piu' sbagliarlo.
-              Flexible(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.page,
-                    AppSpacing.md,
-                    AppSpacing.page,
-                    AppSpacing.md,
+              child: Row(
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Annulla'),
                   ),
-                  child: child,
-                ),
+                  Expanded(
+                    child: Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: context.texts.titleLarge,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: onConfirm,
+                    child: Text(
+                      confirmLabel,
+                      style: context.texts.labelLarge?.copyWith(
+                        color: palette.accent,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+            Divider(color: palette.line, height: 0.5, thickness: 0.5),
+            // **Il margine laterale lo mette il foglio.**
+            //
+            // Prima lo doveva mettere ogni contenuto per conto suo, e
+            // indovinate quanti se lo ricordavano: le scritte arrivavano al
+            // bordo dello schermo in mezzo foglio su due. Messo qui, chi
+            // scrive un foglio nuovo non puo' piu' sbagliarlo.
+            Flexible(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.page,
+                  AppSpacing.md,
+                  AppSpacing.page,
+                  // Sotto l'ultima riga: il margine normale, e in piu' lo
+                  // spazio della lineetta di casa quando c'e'. Su un telefono
+                  // senza — o con la tastiera aperta — quel numero e' zero, e
+                  // resta il margine normale.
+                  AppSpacing.md + MediaQuery.paddingOf(context).bottom,
+                ),
+                child: child,
+              ),
+            ),
+          ],
         ),
       ),
     );
