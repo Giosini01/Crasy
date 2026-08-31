@@ -364,7 +364,21 @@ service cloud.firestore {
       // campo esistesse resta pubblica, come e' sempre stata.
       allow read: if signedIn()
                   && (
-                       '*' in resource.data.get('audience', ['*'])
+                       // **Un documento che non esiste si puo' leggere.**
+                       //
+                       // Sembra strano detto cosi', e invece e' la riga che
+                       // ripara un guasto vero: chiedendo una gara cancellata —
+                       // da una notifica vecchia, da un trofeo, da un
+                       // collegamento condiviso — `resource` e' nullo, e
+                       // chiedergli `audience` faceva fallire la regola. Il
+                       // risultato non era "questa gara non c'e' piu'": era
+                       // **"non riusciamo a caricarla, riprova"**, cioe' un
+                       // errore di rete per una cosa che non e' un errore.
+                       //
+                       // Senza documento non c'e' niente da proteggere: si
+                       // lascia passare, e l'app trova il vuoto che si aspetta.
+                       resource == null
+                       || '*' in resource.data.get('audience', ['*'])
                        || request.auth.uid in resource.data.get('audience', ['*'])
                      );
 

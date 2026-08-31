@@ -672,3 +672,35 @@ int _mescola(String testo) {
 
   return valore;
 }
+
+/// Una gara **fra quelle che l'app ha gia' in mano**, senza chiedere niente.
+///
+/// Le gare aperte e quelle appena finite sono gia' caricate e vive: cercare li'
+/// dentro costa zero. Serve dove si ha in mano una partecipazione e si vuole
+/// dire da che gara viene e quanto vale — sotto la foto di un amico, per dirne
+/// una — e dove aprire un ascolto per ogni foto vorrebbe dire una lettura a
+/// testa per scrivere una riga.
+///
+/// Nullo per le gare piu' vecchie della finestra: chi lo usa deve saper stare
+/// senza, e in cambio non paga niente.
+final knownChallengeProvider = Provider.autoDispose.family<Challenge?, String>((
+  ref,
+  challengeId,
+) {
+  for (final challenge
+      in ref.watch(liveChallengesProvider).valueOrNull ?? const <Challenge>[]) {
+    if (challenge.id == challengeId) {
+      return challenge;
+    }
+  }
+
+  for (final challenge
+      in ref.watch(endedChallengesProvider).valueOrNull ??
+          const <Challenge>[]) {
+    if (challenge.id == challengeId) {
+      return challenge;
+    }
+  }
+
+  return null;
+});

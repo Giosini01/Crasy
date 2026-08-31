@@ -59,17 +59,25 @@ class CrasyCamera extends StatefulWidget {
     );
   }
 
-  /// Se su questa piattaforma possiamo aprire la nostra fotocamera.
+  /// Se per questo tipo di scatto possiamo aprire la nostra fotocamera.
   ///
-  /// Su web no: il pacchetto c'e', ma la registrazione video ha limiti diversi
-  /// da browser a browser e il permesso si chiede in un modo che non
-  /// controlliamo. Li' si continua con il selettore di sistema — ed e' un
-  /// ripiego onesto, perche' sul web l'app e' un'anteprima, non il posto in cui
-  /// si gioca.
-  static bool get available =>
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.iOS ||
-          defaultTargetPlatform == TargetPlatform.android);
+  /// **Sul web vale per le foto, non per i video.** Lo specchio e' il motivo:
+  /// passando dal selettore del browser, l'anteprima e' ribaltata — lo fa il
+  /// browser — ma il file che ne esce non lo e', e quello che si manda in gara
+  /// non e' quello che si e' visto. Con la nostra fotocamera le due cose
+  /// tornano d'accordo ovunque.
+  ///
+  /// I video sul web restano al selettore di sistema: durata massima e formati
+  /// cambiano da un browser all'altro, e li' un ripiego che funziona vale piu'
+  /// di una cosa nostra che funziona a meta'.
+  static bool availableFor({required bool video}) {
+    if (kIsWeb) {
+      return !video;
+    }
+
+    return defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.android;
+  }
 
   @override
   State<CrasyCamera> createState() => _CrasyCameraState();

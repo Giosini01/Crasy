@@ -29,7 +29,21 @@ import 'package:go_router/go_router.dart';
 /// la mettono i partecipanti. Ed e' anche chi paga il premio — CRASY non fa da
 /// garante, e la schermata lo dice invece di lasciarlo capire dopo.
 class CreateChallengePage extends ConsumerStatefulWidget {
-  const CreateChallengePage({super.key});
+  const CreateChallengePage({this.forFriends = false, super.key});
+
+  /// **Due schermate, non una con un interruttore.**
+  ///
+  /// Sono la stessa pagina nel codice e due cose diverse per chi le usa, e la
+  /// differenza non e' l'ambito: e' il premio. In una si mettono dei soldi e il
+  /// minimo e' un euro; nell'altra la scelta e' **gratis oppure almeno un
+  /// euro**, senza vie di mezzo — perche' lasciato libero, quel campo si
+  /// riempie di dieci centesimi, che non sono un premio ne' uno scherzo e fanno
+  /// sembrare piccola tutta l'app.
+  ///
+  /// Tenerle in un modulo solo avrebbe voluto dire una voce "solo amici" in
+  /// fondo a una fila, dove non la sceglie nessuno, e un campo del premio che
+  /// cambia regola a seconda di cosa hai toccato tre righe sopra.
+  final bool forFriends;
 
   @override
   ConsumerState<CreateChallengePage> createState() =>
@@ -71,7 +85,16 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
   final _place = TextEditingController();
   int _minutes = 1440;
 
-  ChallengeScope _scope = ChallengeScope.global;
+  late ChallengeScope _scope = widget.forFriends
+      ? ChallengeScope.friends
+      : ChallengeScope.global;
+
+  /// Nella gara fra amici: senza premio.
+  ///
+  /// Parte **acceso**, e il valore di partenza e' il consiglio: fra amici la
+  /// sfida vale gia' per conto suo, e chi vuole metterci dei soldi lo sa gia' e
+  /// tocca l'altro tasto.
+  var _gratis = true;
   MediaKind _mediaKind = MediaKind.photo;
   String? _error;
 
@@ -129,7 +152,9 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     final creating = ref.watch(createChallengeControllerProvider).isLoading;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Crea')),
+      appBar: AppBar(
+        title: Text(widget.forFriends ? 'Sfida i tuoi amici' : 'Crea'),
+      ),
       body: AppBackground(
         child: Form(
           key: _formKey,
@@ -141,7 +166,11 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               AppSpacing.xxl,
             ),
             children: [
-              const DisplayTitle('DAI UN ORDINE\nAL MONDO'),
+              DisplayTitle(
+                widget.forFriends
+                    ? 'SFIDA\nI TUOI AMICI'
+                    : 'DAI UN ORDINE\nAL MONDO',
+              ),
               const SizedBox(height: AppSpacing.sm),
               // Chi apre questa schermata deve capire in tre secondi che qui
               // non si racconta una cosa propria: **si dice agli altri cosa
@@ -149,55 +178,98 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               // ordine e decide se eseguirlo. Se le due schermate si
               // somigliassero, nessuno capirebbe di essere passato dall'altra
               // parte del tavolo.
-              const HighlightedText(
-                'Metti un premio e decidi tu cosa deve fare la gente. Chi lo '
-                'fa meglio si prende i soldi.',
-                highlight: 'decidi tu cosa deve fare la gente',
-              ),
+              if (widget.forFriends)
+                const HighlightedText(
+                  'La vedono soltanto i tuoi amici. Nessun altro, nemmeno con '
+                  'il link.',
+                  highlight: 'soltanto i tuoi amici',
+                )
+              else
+                const HighlightedText(
+                  'Metti un premio e decidi tu cosa deve fare la gente. Chi lo '
+                  'fa meglio si prende i soldi.',
+                  highlight: 'decidi tu cosa deve fare la gente',
+                ),
               const SizedBox(height: AppSpacing.xl),
-              _Field(
-                label: 'Premio in euro',
-                controller: _prize,
-                focusNode: _prizeFocus,
-                // Il suggerimento porta i centesimi apposta: e' l'unico posto
-                // in cui il campo dice di accettarli. Un `500` li' dentro
-                // lascerebbe credere che si scrivano solo cifre tonde.
-                hint: '10,50',
-                // `decimal: true` e' quello che mette il tasto della virgola
-                // sulla tastiera dell'iPhone. Senza, i centesimi si possono
-                // accettare quanto si vuole: non c'e' modo di digitarli.
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+              // **Fra amici la scelta e' secca: gratis, oppure da un euro in
+              // su.** Non c'e' una terza strada, e non e' una dimenticanza:
+              // lasciato libero, quel campo si riempie di dieci centesimi — che
+              // non sono un premio ne' uno scherzo, e fanno sembrare piccola
+              // tutta l'app. Due tasti tolgono la domanda invece di lasciarla
+              // aperta.
+              if (widget.forFriends) ...[
+                _SectionLabel('Il premio'),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _Choice(
+                        label: 'GRATIS',
+                        selected: _gratis,
+                        onTap: () => setState(() => _gratis = true),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: _Choice(
+                        label: 'CON PREMIO',
+                        selected: !_gratis,
+                        onTap: () => setState(() => _gratis = false),
+                      ),
+                    ),
+                  ],
                 ),
-                // Passano cifre, virgola e punto. Il punto perche' la tastiera
-                // di un telefono in inglese offre quello, e un campo che
-                // rifiuta il tasto che la tastiera stessa suggerisce sembra
-                // rotto. A dire se quello che ne esce e' un importo valido ci
-                // pensa il controllo, non il filtro: qui si decide solo cosa
-                // si puo' battere.
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                ],
-                validator: (value) => ChallengeDraftValidators.validatePrize(
-                  value,
-                  forFriends: _scope == ChallengeScope.friends,
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  _gratis
+                      ? 'Si gioca per la figurina e per il gusto di farlo.'
+                      : 'Da un euro in su. I soldi li dai tu a chi vince.',
+                  style: texts.bodySmall?.copyWith(color: palette.textFaint),
                 ),
-              ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+              if (!widget.forFriends || !_gratis)
+                _Field(
+                  label: 'Premio in euro',
+                  controller: _prize,
+                  focusNode: _prizeFocus,
+                  // Il suggerimento porta i centesimi apposta: e' l'unico posto
+                  // in cui il campo dice di accettarli. Un `500` li' dentro
+                  // lascerebbe credere che si scrivano solo cifre tonde.
+                  hint: '10,50',
+                  // `decimal: true` e' quello che mette il tasto della virgola
+                  // sulla tastiera dell'iPhone. Senza, i centesimi si possono
+                  // accettare quanto si vuole: non c'e' modo di digitarli.
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  // Passano cifre, virgola e punto. Il punto perche' la tastiera
+                  // di un telefono in inglese offre quello, e un campo che
+                  // rifiuta il tasto che la tastiera stessa suggerisce sembra
+                  // rotto. A dire se quello che ne esce e' un importo valido ci
+                  // pensa il controllo, non il filtro: qui si decide solo cosa
+                  // si puo' battere.
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                  ],
+                  // **Il minimo e' un euro anche qui dentro.** Lo zero non si
+                  // scrive: si sceglie con il tasto GRATIS. Cosi' non esiste la
+                  // via di mezzo — dieci centesimi — che era il motivo per cui
+                  // queste due schermate sono diventate due.
+                  validator: ChallengeDraftValidators.validatePrize,
+                ),
               // **La regola si legge prima, non dopo.** Un minimo che si scopre
               // premendo "pubblica" e' un errore rosso preso in faccia dopo
               // aver riempito tutto il resto; scritto qui e' un'informazione.
-              Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.xxs),
-                child: Text(
-                  _scope == ChallengeScope.friends
-                      ? 'Fra amici puoi anche scrivere 0: la sfida vale gia\' '
-                            'per conto suo.'
-                      : 'Almeno ${AppMoney.format(ChallengeDraftValidators.prizeMinCents)}.',
-                  style: context.texts.bodySmall?.copyWith(
-                    color: context.palette.textFaint,
+              if (!widget.forFriends || !_gratis)
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                  child: Text(
+                    'Almeno ${AppMoney.format(ChallengeDraftValidators.prizeMinCents)}.',
+                    style: context.texts.bodySmall?.copyWith(
+                      color: context.palette.textFaint,
+                    ),
                   ),
                 ),
-              ),
               _Field(
                 label: 'Come si chiama',
                 controller: _title,
@@ -241,19 +313,29 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                 style: texts.bodySmall,
               ),
               const SizedBox(height: AppSpacing.lg),
-              _SectionLabel('Dove'),
-              Wrap(
-                spacing: AppSpacing.xs,
-                children: [
-                  for (final scope in ChallengeScope.values)
-                    if (scope != ChallengeScope.private)
-                      _Choice(
-                        label: scope.defaultLabel,
-                        selected: _scope == scope,
-                        onTap: () => setState(() => _scope = scope),
-                      ),
-                ],
-              ),
+              // Il campo di gara si sceglie solo nelle gare aperte a tutti: in
+              // quella fra amici e' gia' deciso dal titolo della schermata, e
+              // una fila di scelte in cui una sola e' valida non e' una scelta.
+              if (!widget.forFriends) ...[
+                _SectionLabel('Dove'),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  children: [
+                    for (final scope in ChallengeScope.values)
+                      // "Solo amici" non sta qui: ha una schermata sua, con la
+                      // sua regola sul premio. Lasciarla anche in questa fila
+                      // vorrebbe dire due strade per la stessa cosa, e una
+                      // delle due con le regole sbagliate.
+                      if (scope != ChallengeScope.private &&
+                          scope != ChallengeScope.friends)
+                        _Choice(
+                          label: scope.defaultLabel,
+                          selected: _scope == scope,
+                          onTap: () => setState(() => _scope = scope),
+                        ),
+                  ],
+                ),
+              ],
               // **Cosa vuol dire "solo amici", detto prima di scegliere.**
               //
               // E' l'unica voce di questa fila che cambia *chi vede la gara* e
@@ -261,30 +343,6 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               // parola sola. Chi la sceglie deve sapere due cose: che fuori dai
               // suoi amici non la vede nessuno, e che l'elenco e' quello di
               // adesso.
-              if (_scope == ChallengeScope.friends) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text.rich(
-                  TextSpan(
-                    style: texts.bodySmall,
-                    children: [
-                      const TextSpan(text: 'La vedono '),
-                      TextSpan(
-                        text: 'solo i tuoi amici',
-                        style: TextStyle(
-                          color: palette.accent,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const TextSpan(
-                        text:
-                            ' — quelli che hai adesso. Non compare nella home '
-                            'di nessun altro, e chi non e\' nel tuo elenco non '
-                            'la puo\' aprire nemmeno con il link.',
-                      ),
-                    ],
-                  ),
-                ),
-              ],
               if (_scope == ChallengeScope.local) ...[
                 const SizedBox(height: AppSpacing.md),
                 _Field(
@@ -379,7 +437,12 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
           // vero: serve a non avere un `!` su un campo di testo, che il giorno
           // che qualcuno tocca il controllo diventa una schermata che si
           // chiude da sola.
-          prizeCents: AppMoney.centsFrom(_prize.text) ?? 0,
+          // Scelto GRATIS, il campo del premio non e' nemmeno a schermo: si
+          // manda zero senza guardare cosa c'era scritto prima di cambiare
+          // idea.
+          prizeCents: widget.forFriends && _gratis
+              ? 0
+              : AppMoney.centsFrom(_prize.text) ?? 0,
           scope: _scope,
           mediaKind: _mediaKind,
           place: _place.text,

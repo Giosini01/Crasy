@@ -151,7 +151,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
       //
       // Sul web resta quella di sistema: li' l'app e' un'anteprima, e il
       // permesso alla fotocamera lo gestisce il browser a modo suo.
-      final media = CrasyCamera.available
+      final media = CrasyCamera.availableFor(video: kind.isVideo)
           ? await _scattaConLaNostra(controller, kind)
           : await controller.capture(kind);
 

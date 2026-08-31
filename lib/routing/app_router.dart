@@ -187,6 +187,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // e si chiudono col dito come tutte le pagine che stanno sopra.
       _pushedRoute(AppRoutes.friends, (state) => const FriendsPage()),
       _pushedRoute(
+        AppRoutes.createForFriends,
+        (state) => const CreateChallengePage(forFriends: true),
+      ),
+      _pushedRoute(
         AppRoutes.userProfile,
         (state) => PublicProfilePage(userId: state.pathParameters['id'] ?? ''),
       ),

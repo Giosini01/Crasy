@@ -45,6 +45,13 @@ abstract final class AppRoutes {
   static const participate = '/challenge/:id/partecipa';
   static const create = '/crea';
 
+  /// Il modulo per una missione riservata agli amici.
+  ///
+  /// **E' una rotta sua e non un parametro**, perche' e' una schermata diversa:
+  /// il premio si sceglie fra gratis e almeno un euro, e il campo di gara non
+  /// si sceglie affatto.
+  static const createForFriends = '/crea/amici';
+
   static String challengeDetailOf(String id) => '/challenge/$id';
 
   static String userProfileOf(String id) => '/utente/$id';

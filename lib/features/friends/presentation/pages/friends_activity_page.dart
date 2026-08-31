@@ -6,6 +6,8 @@ import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
@@ -19,10 +21,15 @@ enum FriendActivityView {
   mine('LE TUE'),
 
   /// Le gare che hanno lanciato loro.
-  missions('LE LORO MISSIONI'),
+  missions('LE LORO'),
 
   /// Le foto con cui sono in gara adesso.
-  entries('DOVE SONO IN GARA');
+  ///
+  /// **I nomi sono corti apposta.** Erano tre e uno si chiamava "DOVE SONO IN
+  /// GARA": su un telefono stretto la fila usciva dallo schermo e il numero
+  /// dell'ultima finiva tagliato sul bordo. Tre parole corte ci stanno tutte,
+  /// e una fila che si legge intera e' una fila che si usa.
+  entries('IN GARA');
 
   const FriendActivityView(this.label);
 
@@ -211,7 +218,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                           // Doppio tocco per la fiamma, tocco singolo per aprirla
                           // grande: gli stessi due gesti della home. Qui non si impara
                           // niente di nuovo, cambia solo di chi sono le foto.
-                          child: EntryTile(entry: entry),
+                          child: _InGara(entry: entry),
                         ),
                   ],
                 ),
@@ -252,43 +259,49 @@ class _Switch extends ConsumerWidget {
       FriendActivityView.entries => entries,
     };
 
-    return Row(
-      children: [
-        for (final view in FriendActivityView.values)
-          GestureDetector(
-            onTap: () {
-              onPicked();
-              ref.read(friendActivityViewProvider.notifier).state = view;
-            },
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.lg),
-              child: Row(
-                children: [
-                  Text(
-                    view.label,
-                    style: texts.labelSmall?.copyWith(
-                      color: view == selected
-                          ? palette.accent
-                          : palette.textFaint,
-                    ),
-                  ),
-                  if (quante(view) > 0) ...[
-                    const SizedBox(width: 5),
+    // Scorre di lato lo stesso, per sicurezza: bastano un telefono piccolo e
+    // un carattere ingrandito dalle impostazioni perche' tre parole non ci
+    // stiano piu'.
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final view in FriendActivityView.values)
+            GestureDetector(
+              onTap: () {
+                onPicked();
+                ref.read(friendActivityViewProvider.notifier).state = view;
+              },
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.lg),
+                child: Row(
+                  children: [
                     Text(
-                      '${quante(view)}',
+                      view.label,
                       style: texts.labelSmall?.copyWith(
                         color: view == selected
                             ? palette.accent
                             : palette.textFaint,
                       ),
                     ),
+                    if (quante(view) > 0) ...[
+                      const SizedBox(width: 5),
+                      Text(
+                        '${quante(view)}',
+                        style: texts.labelSmall?.copyWith(
+                          color: view == selected
+                              ? palette.accent
+                              : palette.textFaint,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -306,7 +319,7 @@ class _LaunchForFriends extends StatelessWidget {
     final texts = context.texts;
 
     return GestureDetector(
-      onTap: () => context.push(AppRoutes.create),
+      onTap: () => context.push(AppRoutes.createForFriends),
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -345,6 +358,75 @@ class _LaunchForFriends extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Una foto di un amico, con sopra la gara in cui sta.
+///
+/// **La foto da sola non basta.** Vedere che un amico e' in gara senza sapere
+/// per cosa e per quanto e' un pettegolezzo, non un invito: la domanda che uno
+/// si fa guardandola e' "quanto c'e' in palio, e posso entrarci anch'io". Il
+/// premio in rosso e il titolo sono le stesse due cose che si leggono per prime
+/// su ogni scheda della home — qui in piccolo, perche' la foto resta la cosa
+/// grande.
+///
+/// La riga si tocca e apre la gara. La gara si prende fra quelle gia' caricate:
+/// una lettura in piu' per ogni foto, solo per scrivere una riga sopra, sarebbe
+/// il modo piu' silenzioso di rimettere in piedi il conto delle letture appena
+/// smontato.
+class _InGara extends ConsumerWidget {
+  const _InGara({required this.entry});
+
+  final ChallengeEntry entry;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+    final texts = context.texts;
+    final challenge = ref.watch(knownChallengeProvider(entry.challengeId));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (challenge != null) ...[
+          GestureDetector(
+            onTap: () =>
+                context.push(AppRoutes.challengeDetailOf(challenge.id)),
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  challenge.prizeLabel,
+                  style: texts.titleLarge?.copyWith(color: palette.accent),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Text(
+                    challenge.title.toUpperCase(),
+                    style: texts.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: palette.textFaint,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+        ],
+        // Il titolo della gara sta gia' nella riga qui sopra: ripeterlo sotto
+        // la foto sarebbe la stessa cosa scritta due volte a due dita di
+        // distanza.
+        EntryTile(entry: entry, showChallenge: challenge == null),
+      ],
     );
   }
 }
