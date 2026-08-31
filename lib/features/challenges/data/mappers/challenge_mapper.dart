@@ -125,6 +125,10 @@ abstract final class ChallengeEntryMapper {
       // continua. Un "-1" sotto la foto di qualcuno e' il tipo di dettaglio che
       // fa perdere fiducia a tutta l'app, non solo a quel numero.
       votes: _atLeastZero((data['votes'] as num?)?.toInt() ?? 0),
+      reporters: [
+        for (final chi in (data['reporters'] as List<dynamic>? ?? const []))
+          if (chi is String) chi,
+      ],
       isWinner: data['isWinner'] as bool? ?? false,
       moderation: EntryModeration.fromName(data['moderation'] as String?),
       mediaKind: MediaKind.fromName(data['mediaKind'] as String?),

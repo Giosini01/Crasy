@@ -55,6 +55,41 @@ service cloud.firestore {
       allow read: if signedIn();
     }
 
+    // **Le segnalazioni: si scrivono e basta.**
+    //
+    // Chi ha fatto l'accesso puo' segnalare, e puo' segnalare **solo a nome
+    // proprio**. Nessuno le puo' rileggere, nemmeno chi le ha scritte: una
+    // segnalazione contiene il nome di chi ha segnalato, e in un'app dove le
+    // persone si conoscono fra loro, poter scoprire chi ti ha segnalato
+    // trasformerebbe la moderazione in una resa dei conti. Le leggiamo noi con
+    // l'SDK di amministrazione, che da qui non passa.
+    //
+    // L'identificativo del documento mette insieme chi segnala e cosa: la
+    // stessa persona non puo' far salire il conto da sola segnalando dieci
+    // volte, perche' riscriverebbe sempre lo stesso documento.
+    match /reports/{reportId} {
+      allow read: if false;
+      allow create: if signedIn()
+                    && request.resource.data.reporterId == request.auth.uid
+                    && reportId == request.auth.uid + '__'
+                       + request.resource.data.kind
+                       + (request.resource.data.challengeId == '' ? ''
+                          : '__' + request.resource.data.challengeId)
+                       + (request.resource.data.entryId == '' ? ''
+                          : '__' + request.resource.data.entryId)
+                       + (request.resource.data.commentId == '' ? ''
+                          : '__' + request.resource.data.commentId)
+                       + ((request.resource.data.entryId == ''
+                           && request.resource.data.commentId == '') ? '__'
+                          + request.resource.data.reportedUserId : '')
+                    && request.resource.data.reportedUserId != request.auth.uid;
+
+      // **Una segnalazione non si ritira e non si cambia.** Se si potesse,
+      // basterebbe una minaccia — "ritira quella segnalazione" — perche' venga
+      // ritirata.
+      allow update, delete: if false;
+    }
+
     // **La sfida del giorno: si legge, non si scrive.**
     //
     // Un documento per giorno — `2026-08-30` — con dentro l'identificativo
@@ -257,6 +292,15 @@ service cloud.firestore {
       // E' quella richiesta a rendere impossibile aggiungersi da soli fra gli
       // amici di qualcuno: senza un documento che quella persona ha ricevuto,
       // nessuna delle due righe si puo' scrivere.
+      // **Chi ho bloccato: lo leggo e lo scrivo solo io.**
+      //
+      // Nessun altro, e in particolare **non chi e' stato bloccato**: sapere
+      // di essere stati bloccati e' l'informazione che trasforma un blocco in
+      // una lite. Chi blocca deve poter sparire in silenzio.
+      match /blocked/{otherId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
       match /friends/{friendId} {
         function pendingRequest(to, from) {
           return exists(
@@ -620,6 +664,24 @@ service cloud.firestore {
                       // Costa una lettura in piu' per fiamma. Vale il prezzo:
                       // qui si sta decidendo chi incassa.
                       && challengeIsLive();
+
+        // **Segnalare una foto: si aggiunge il proprio nome, e basta.**
+        //
+        // Il proprio, non quello di un altro, e **una volta sola**: la lista si
+        // allunga esattamente di uno, e l'elemento nuovo e' chi sta scrivendo.
+        // Senza queste due condizioni chiunque potrebbe riempire la lista di
+        // nomi inventati e far sparire dalla gara la foto che sta vincendo, il
+        // giorno prima che incassi il premio.
+        //
+        // Non si toglie: una segnalazione ritirata sotto minaccia e' peggio di
+        // una segnalazione mai fatta. E l'autore non puo' segnalare se stesso.
+        allow update: if signedIn()
+                      && changedOnly(['reporters'])
+                      && request.auth.uid != resource.data.userId
+                      && request.resource.data.reporters.size()
+                         == resource.data.get('reporters', []).size() + 1
+                      && request.auth.uid in request.resource.data.reporters
+                      && !(request.auth.uid in resource.data.get('reporters', []));
 
         // **Una foto in gara non si cancella. Una foto in una gara finita
         // si'.**

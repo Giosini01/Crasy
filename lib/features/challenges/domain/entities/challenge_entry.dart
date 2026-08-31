@@ -15,6 +15,7 @@ class ChallengeEntry {
     this.votes = 0,
     this.isWinner = false,
     this.moderation = EntryModeration.approved,
+    this.reporters = const [],
     this.mediaKind = MediaKind.photo,
     this.caption = '',
   });
@@ -110,7 +111,47 @@ class ChallengeEntry {
   /// Una foto in attesa la vede **solo chi l'ha mandata**, e con un'etichetta
   /// che lo dice: sapere che il proprio scatto e' in coda e' molto meglio che
   /// vederlo sparire senza spiegazioni. Una rifiutata non la vede nessuno.
-  bool isVisibleTo(String? viewerId) {
+  /// Quante segnalazioni diverse servono per farla sparire a tutti.
+  ///
+  /// **Tre, e non una.** Con una sola, due account falsi basterebbero a far
+  /// sparire la foto di un rivale il giorno prima che vinca un premio — e con
+  /// dei soldi in palio quello smette di essere un caso di scuola. Con tre, chi
+  /// vuole censurare qualcuno deve costruire tre identita' diverse.
+  ///
+  /// Chi segnala per davvero non deve aspettare gli altri due: la propria
+  /// segnalazione gliela fa sparire **subito**, da sola.
+  static const int reportsToHide = 3;
+
+  /// Chi l'ha segnalata.
+  ///
+  /// Gli identificativi e non un numero, per due motivi: un numero non
+  /// permetterebbe di far sparire la foto **a chi l'ha segnalata** senza
+  /// aspettare gli altri, e un contatore libero chiunque potrebbe farlo salire
+  /// da solo dieci volte.
+  final List<String> reporters;
+
+  bool isVisibleTo(String? viewerId, {Set<String> blocked = const {}}) {
+    // **Chi hai bloccato non lo vedi piu', punto.** Prima di ogni altra
+    // considerazione: non e' moderazione, e' una scelta tua, e non ha soglie.
+    if (blocked.contains(userId)) {
+      return false;
+    }
+
+    // L'hai segnalata tu: sparisce per te nello stesso istante, senza aspettare
+    // che qualcun altro sia d'accordo. E' meta' della promessa che fa il tasto
+    // "segnala" — l'altra meta' e' che la guardiamo noi.
+    if (viewerId != null && reporters.contains(viewerId)) {
+      return false;
+    }
+
+    // Segnalata da abbastanza gente: sparisce a tutti finche' non l'abbiamo
+    // guardata. **Non e' un giudizio**, e' un sospetto sospeso — meglio una
+    // foto onesta invisibile per un giorno che una foto da denuncia visibile
+    // per un giorno.
+    if (reporters.length >= reportsToHide) {
+      return false;
+    }
+
     return switch (moderation) {
       EntryModeration.approved => true,
       EntryModeration.pending => viewerId != null && viewerId == userId,
@@ -130,6 +171,7 @@ class ChallengeEntry {
     int? votes,
     bool? isWinner,
     EntryModeration? moderation,
+    List<String>? reporters,
     MediaKind? mediaKind,
     String? caption,
   }) {
@@ -145,6 +187,7 @@ class ChallengeEntry {
       votes: votes ?? this.votes,
       isWinner: isWinner ?? this.isWinner,
       moderation: moderation ?? this.moderation,
+      reporters: reporters ?? this.reporters,
       mediaKind: mediaKind ?? this.mediaKind,
       caption: caption ?? this.caption,
     );

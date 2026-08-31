@@ -10,6 +10,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
+import 'package:crasy/features/moderation/presentation/providers/moderation_providers.dart';
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -120,13 +121,21 @@ final challengeEntriesProvider = StreamProvider.autoDispose
       cacheFor(ref);
 
       final viewerId = ref.watch(currentUserIdProvider);
+      // Chi ho bloccato e cosa ho segnalato entrano nel filtro insieme allo
+      // stato del controllo: sono tre modi diversi di dire "questa foto non la
+      // devi vedere", e tenerli separati vorrebbe dire tre filtri sparsi che
+      // prima o poi non coprono la stessa schermata.
+      final bloccati = ref.watch(blockedNowProvider);
 
       return ref
           .watch(challengeRepositoryProvider)
           .watchEntries(challengeId)
           .map(
-            (entries) =>
-                entries.where((entry) => entry.isVisibleTo(viewerId)).toList(),
+            (entries) => entries
+                .where(
+                  (entry) => entry.isVisibleTo(viewerId, blocked: bloccati),
+                )
+                .toList(),
           );
     });
 
@@ -181,11 +190,23 @@ final entryCommentsProvider = StreamProvider.autoDispose
     .family<List<EntryComment>, CommentTarget>((ref, target) {
       cacheFor(ref);
 
+      final bloccati = ref.watch(blockedNowProvider);
+
       return ref
           .watch(challengeRepositoryProvider)
           .watchComments(
             challengeId: target.challengeId,
             entryId: target.entryId,
+          )
+          // **Chi hai bloccato non parla piu'.** Il commento resta nel
+          // database — cancellare le parole di qualcuno perche' una persona
+          // sola non le vuole leggere sarebbe un'altra cosa — ma tu non lo
+          // vedi, ne' qui ne' nel conteggio.
+          .map(
+            (comments) => [
+              for (final comment in comments)
+                if (!bloccati.contains(comment.userId)) comment,
+            ],
           );
     });
 

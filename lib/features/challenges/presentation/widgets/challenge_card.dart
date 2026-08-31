@@ -189,19 +189,19 @@ class ChallengeShowcase extends StatelessWidget {
           FireTap(
             entry: entry,
             onTap: onOpen,
-            // **Sedici decimi: l'anteprima e' una striscia orizzontale.**
+            // **Nove decimi, e ci restiamo.**
             //
-            // A nove decimi era ancora alta quanto mezzo telefono, e scorrendo
-            // la home si vedeva una gara alla volta — che e' il modo piu'
-            // sicuro di far credere che ce ne sia una sola. Qui l'altezza si
-            // dimezza, e sotto la prima gara comincia a vedersi la seconda.
-            //
-            // E' un ritaglio, non una foto rimpicciolita: l'immagine intera si
-            // guarda toccandola, che e' il gesto che tutti fanno comunque.
+            // Si e' provato a schiacciarla a sedici decimi per far entrare due
+            // gare nella stessa schermata. Non funziona: il resto della scheda
+            // — premio, titolo, consegna, comando — pesa da solo mezzo
+            // telefono, quindi la seconda gara non entrava lo stesso, e in
+            // cambio la foto diventava una striscia. **La foto e' il
+            // contenuto**, ed e' l'ultima cosa da sacrificare per far entrare
+            // altra interfaccia.
             child: MediaFrame(
               url: entry.mediaUrl,
               video: entry.isVideo,
-              aspectRatio: 1.6,
+              aspectRatio: 0.9,
               caption: entry.authorName,
             ),
           ),

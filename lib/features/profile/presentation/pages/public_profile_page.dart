@@ -13,6 +13,8 @@ import 'package:crasy/features/challenges/presentation/providers/challenge_provi
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
+import 'package:crasy/features/moderation/domain/report_reason.dart';
+import 'package:crasy/features/moderation/presentation/widgets/report_sheet.dart';
 import 'package:crasy/features/payments/presentation/widgets/wallet_card.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/widgets/profile_shelf.dart';
@@ -39,7 +41,30 @@ class PublicProfilePage extends ConsumerWidget {
     final profileState = ref.watch(publicProfileProvider(userId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profilo')),
+      appBar: AppBar(
+        title: const Text('Profilo'),
+        actions: [
+          // **Segnalare e bloccare da qui, non solo da una foto.** Chi vuole
+          // togliersi di torno una persona pensa alla persona, non a una sua
+          // foto in particolare: se il comando sta solo sotto un contenuto,
+          // deve prima trovarne uno.
+          //
+          // Non compare sul proprio profilo, per ovvi motivi.
+          if (profileState.valueOrNull case final chi?
+              when chi.id != ref.watch(currentUserIdProvider))
+            IconButton(
+              onPressed: () => showReportSheet(
+                context,
+                ref,
+                kind: ReportTargetKind.user,
+                reportedUserId: chi.id,
+                reportedUsername: chi.username,
+              ),
+              icon: const Icon(Icons.flag_outlined, size: 20),
+              tooltip: 'Segnala o blocca',
+            ),
+        ],
+      ),
       body: AppBackground(
         child: profileState.when(
           loading: () => const SizedBox.shrink(),

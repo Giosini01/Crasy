@@ -7,6 +7,8 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_comments.dart';
+import 'package:crasy/features/moderation/domain/report_reason.dart';
+import 'package:crasy/features/moderation/presentation/widgets/report_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -396,6 +398,32 @@ class _Actions extends ConsumerWidget {
           ),
         ],
         const Spacer(),
+        // **Segnalare sta qui, non dentro un menu di secondo livello.**
+        //
+        // Chi ha davanti una cosa che non dovrebbe esserci la sta guardando a
+        // tutto schermo, in questo momento: e' l'unico istante in cui
+        // segnalera'. Nascosto dietro due tocchi, il comando esiste per le
+        // linee guida e non per le persone.
+        //
+        // Non compare sulle proprie foto: segnalare se stessi non vuol dire
+        // niente.
+        if (entry.userId != ref.watch(currentUserIdProvider))
+          _Action(
+            onTap: () => showReportSheet(
+              context,
+              ref,
+              kind: ReportTargetKind.entry,
+              reportedUserId: entry.userId,
+              reportedUsername: entry.authorName,
+              challengeId: entry.challengeId,
+              entryId: entry.id,
+            ),
+            icon: Icons.flag_outlined,
+            color: AppColors.paper,
+            label: '',
+            tooltip: 'Segnala o blocca',
+          ),
+        const SizedBox(width: AppSpacing.lg),
         // Condividere non sta nascosto in un menu: e' il gesto con cui chi e'
         // in gara si porta dentro i voti, ed e' anche il modo in cui CRASY
         // incontra gente che non la conosce.
