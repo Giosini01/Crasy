@@ -380,7 +380,7 @@ class _Actions extends ConsumerWidget {
               ? Icons.local_fire_department
               : Icons.local_fire_department_outlined,
           color: voted ? AppColors.crasyRed : AppColors.paper,
-          label: '$votes',
+          label: votesLabel(votes),
           tooltip: voted ? 'Togli la fiamma' : 'Dai la fiamma',
         ),
         // **I commenti spariscono alla sirena.** Non e' un permesso tolto: un

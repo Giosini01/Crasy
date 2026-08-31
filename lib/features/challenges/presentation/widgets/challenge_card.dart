@@ -110,7 +110,11 @@ class ChallengeCard extends ConsumerWidget {
         ),
         if (leader != null) ...[
           const SizedBox(height: AppSpacing.lg),
-          ChallengeShowcase(entry: leader, onOpen: onOpen),
+          ChallengeShowcase(
+            entry: leader,
+            challenge: challenge,
+            onOpen: onOpen,
+          ),
         ],
         // Il comando chiude il blocco, sempre. Dopo aver visto cosa sta
         // vincendo si sa cosa bisogna battere, ed e' quello il momento in cui
@@ -118,10 +122,30 @@ class ChallengeCard extends ConsumerWidget {
         const SizedBox(height: AppSpacing.md),
         if (isMine)
           const OwnChallengeNote()
-        else if (myEntry == null)
-          CrasyButton(label: 'Partecipa', onPressed: onParticipate)
+        else if (myEntry != null)
+          const AlreadyJoinedNote()
+        // **Al completo il bottone non c'e' piu'.** Lasciarlo e farlo rifiutare
+        // dopo lo scatto vorrebbe dire far spendere l'unico scatto per sentirsi
+        // dire di no.
+        else if (challenge.isFull)
+          Row(
+            children: [
+              Icon(
+                Icons.lock_outline_rounded,
+                size: 16,
+                color: palette.textFaint,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Flexible(
+                child: Text(
+                  'Posti finiti. Questa gara e\' al completo.',
+                  style: texts.labelMedium?.copyWith(color: palette.textFaint),
+                ),
+              ),
+            ],
+          )
         else
-          const AlreadyJoinedNote(),
+          CrasyButton(label: 'Partecipa', onPressed: onParticipate),
       ],
     );
   }
@@ -139,11 +163,17 @@ class ChallengeCard extends ConsumerWidget {
 class ChallengeShowcase extends StatelessWidget {
   const ChallengeShowcase({
     required this.entry,
+    required this.challenge,
     required this.onOpen,
     super.key,
   });
 
   final ChallengeEntry entry;
+
+  /// La gara a cui appartiene: serve a sapere **se e' ancora in corso**, e a
+  /// gara in corso qui non si dice chi sta vincendo.
+  final Challenge challenge;
+
   final VoidCallback onOpen;
 
   @override
@@ -156,23 +186,41 @@ class ChallengeShowcase extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // **A gara aperta qui non c'e' nessuna classifica.**
+          //
+          // Diceva "IN TESTA" con accanto il numero delle fiamme, e con i voti
+          // nascosti quella riga sarebbe la classifica scritta in un altro modo:
+          // basta guardare la copertina di ogni gara per sapere chi sta
+          // vincendo. Al suo posto c'e' **l'ultima arrivata** e quanti sono in
+          // gara — due informazioni che invogliano a entrare senza dire a
+          // nessuno come sta andando.
+          //
+          // Finita la gara si torna a dire tutto: chi ha vinto, con quante.
           Row(
             children: [
               Text(
-                'IN TESTA',
-                style: texts.labelSmall?.copyWith(color: palette.textFaint),
+                challenge.isOver ? 'HA VINTO' : 'ULTIMA ARRIVATA',
+                style: texts.labelSmall?.copyWith(
+                  color: challenge.isOver ? palette.accent : palette.textFaint,
+                ),
               ),
               const Spacer(),
-              Icon(
-                Icons.local_fire_department,
-                size: 16,
-                color: palette.accent,
-              ),
-              const SizedBox(width: 2),
-              Text(
-                '${entry.votes}',
-                style: texts.labelMedium?.copyWith(color: palette.accent),
-              ),
+              if (challenge.isOver) ...[
+                Icon(
+                  Icons.local_fire_department,
+                  size: 16,
+                  color: palette.accent,
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  '${entry.votes}',
+                  style: texts.labelMedium?.copyWith(color: palette.accent),
+                ),
+              ] else
+                Text(
+                  challenge.crowdLabel,
+                  style: texts.labelSmall?.copyWith(color: palette.textFaint),
+                ),
             ],
           ),
           // **Quattro punti sopra e sotto, non otto.** Il conto delle fiamme
@@ -416,6 +464,19 @@ class ChallengeMetaRow extends StatelessWidget {
           '${challenge.participantsCount == 1 ? 'partecipante' : 'partecipanti'}',
           style: style,
         ),
+        // **I posti che restano, in rosso.**
+        //
+        // E' l'unica cosa di questa riga che cambia il comportamento di chi
+        // legge: "restano tre posti" e' il motivo piu' forte che esista per
+        // partecipare adesso invece che stasera. Al completo diventa
+        // un'informazione altrettanto utile — smetti di pensarci.
+        if (!ended && challenge.spotsLeft != null) ...[
+          Text('  ·  ', style: style),
+          Text(
+            challenge.isFull ? 'al completo' : '${challenge.spotsLeft} liberi',
+            style: style?.copyWith(color: palette.accent),
+          ),
+        ],
       ],
     );
   }

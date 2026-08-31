@@ -7,6 +7,7 @@ import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/presentation/controllers/create_challenge_controller.dart';
@@ -95,6 +96,13 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
   /// sfida vale gia' per conto suo, e chi vuole metterci dei soldi lo sa gia' e
   /// tocca l'altro tasto.
   var _gratis = true;
+
+  /// Quante persone possono partecipare. Zero: senza limite.
+  ///
+  /// Parte da **dieci**, ed e' il consiglio giusto: con dieci foto si guardano
+  /// tutte e il voto vale qualcosa, e un premio diviso per una possibilita' su
+  /// dieci resta una scommessa vera.
+  var _maxPartecipanti = 10;
   MediaKind _mediaKind = MediaKind.photo;
   String? _error;
 
@@ -354,6 +362,34 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                 ),
               ],
               const SizedBox(height: AppSpacing.lg),
+              // **Quanti possono entrare.** E' la scelta che decide se la gara
+              // e' un gioco o una folla: con cinquecento foto nessuno le guarda
+              // tutte, si vota fra le prime che capitano, e vince la posizione
+              // nella lista invece di quello che uno ha fatto.
+              _SectionLabel('Quanti possono partecipare'),
+              Wrap(
+                spacing: AppSpacing.xs,
+                children: [
+                  for (final quanti in Challenge.participantCaps)
+                    _Choice(
+                      label: quanti == 0 ? 'SENZA LIMITE' : '$quanti',
+                      selected: _maxPartecipanti == quanti,
+                      onTap: () => setState(() => _maxPartecipanti = quanti),
+                    ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                child: Text(
+                  _maxPartecipanti == 0
+                      ? 'Aperta a chiunque. Con tante foto, le migliori si '
+                            'perdono in mezzo alle altre.'
+                      : 'Una possibilita\' su $_maxPartecipanti. Quando i posti '
+                            'finiscono, non si entra piu\'.',
+                  style: texts.bodySmall?.copyWith(color: palette.textFaint),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
               _SectionLabel('Quanto dura'),
               // **Solo caselle, niente campo da riempire.**
               //
@@ -444,6 +480,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               ? 0
               : AppMoney.centsFrom(_prize.text) ?? 0,
           scope: _scope,
+          maxParticipants: _maxPartecipanti,
           mediaKind: _mediaKind,
           place: _place.text,
           minutes: _minutes,

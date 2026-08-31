@@ -35,6 +35,7 @@ class Challenge {
     this.prizeStatus = PrizeStatus.unpaid,
     this.isDaily = false,
     this.audience = const [everyone],
+    this.maxParticipants = 0,
   });
 
   /// L'identificativo dell'account di CRASY.
@@ -131,6 +132,14 @@ class Challenge {
   /// Il valore che, dentro [audience], vuol dire "la vedono tutti".
   static const String everyone = '*';
 
+  /// I tetti fra cui si sceglie quando si lancia una gara.
+  ///
+  /// **Quattro scelte e non un campo libero.** Lasciato libero, uno scrive tre
+  /// e un altro cinquecento: il primo fa una gara che si chiude prima che
+  /// qualcuno la veda, il secondo rimette in piedi il problema che il tetto
+  /// doveva risolvere.
+  static const List<int> participantCaps = [10, 25, 50, 0];
+
   /// **La sfida del giorno di CRASY: gratis, e non consuma una partecipazione.**
   ///
   /// E' l'unica gara che non nasce da una persona. Non ha un premio in denaro, e
@@ -182,6 +191,57 @@ class Challenge {
 
   /// L'ha lanciata CRASY.
   bool get byCrasy => createdByUserId == crasyUserId;
+
+  /// **Quante persone possono partecipare, al massimo.** Zero vuol dire senza
+  /// limite.
+  ///
+  /// Non e' un limite tecnico, e' il cuore del gioco. Con cinquecento foto
+  /// nessuno vota il merito: si guardano le prime cinque, si da' la fiamma li'
+  /// e si scorre — e il vincitore lo decide la posizione nella lista, non
+  /// quello che ha fatto. Con dieci si guardano tutte, e il voto torna a
+  /// significare qualcosa.
+  ///
+  /// E c'e' l'altra meta': **un euro fra dieci persone e' una scommessa, un
+  /// euro fra cinquecento e' una presa in giro.** Chi partecipa se ne accorge
+  /// alla seconda volta, e alla terza non partecipa piu'.
+  ///
+  /// In cambio arriva l'urgenza: "restano tre posti" e' il motivo piu' forte
+  /// che esista per partecipare adesso invece che stasera.
+  final int maxParticipants;
+
+  /// Quanti posti restano, o `null` se non c'e' un tetto.
+  int? get spotsLeft {
+    if (maxParticipants <= 0) {
+      return null;
+    }
+
+    final left = maxParticipants - participantsCount;
+
+    return left < 0 ? 0 : left;
+  }
+
+  /// Non si puo' piu' entrare: i posti sono finiti.
+  bool get isFull => spotsLeft == 0;
+
+  /// La gara e' finita.
+  bool get isOver => hasEndedAt(DateTime.now());
+
+  /// Quanti sono in gara, e quanti posti restano: `7 IN GARA · 3 POSTI`.
+  ///
+  /// **Si scrive dove prima c'era la classifica.** A gara aperta chi guarda
+  /// vuole sapere due cose per decidere se entrare — quanta concorrenza c'e' e
+  /// se c'e' ancora posto — e nessuna delle due dice come sta andando a
+  /// qualcuno.
+  String get crowdLabel {
+    final quanti = '$participantsCount IN GARA';
+    final posti = spotsLeft;
+
+    if (posti == null) {
+      return quanti;
+    }
+
+    return posti == 0 ? '$quanti · AL COMPLETO' : '$quanti · $posti POSTI';
+  }
 
   /// E' riservata agli amici di chi l'ha lanciata.
   bool get isForFriends => scope == ChallengeScope.friends;
@@ -308,6 +368,7 @@ class Challenge {
     PrizeStatus? prizeStatus,
     bool? isDaily,
     List<String>? audience,
+    int? maxParticipants,
   }) {
     return Challenge(
       id: id ?? this.id,
@@ -332,6 +393,7 @@ class Challenge {
       prizeStatus: prizeStatus ?? this.prizeStatus,
       isDaily: isDaily ?? this.isDaily,
       audience: audience ?? this.audience,
+      maxParticipants: maxParticipants ?? this.maxParticipants,
     );
   }
 

@@ -203,19 +203,50 @@ final entryVotedProvider = Provider.family<bool, String>((ref, voteKey) {
       false;
 });
 
-/// Il numero da scrivere sotto la foto.
+/// Il numero da scrivere sotto la foto, **o niente**.
+///
+/// **A gara aperta le fiamme non si vedono.** Torna `null`, e chi disegna
+/// scrive un trattino al posto del numero.
+///
+/// Non e' pudore: e' quello che rende il voto un giudizio invece che un
+/// accodamento. Con i numeri in chiaro succedono tre cose, tutte e tre brutte.
+/// Si vota chi sta gia' vincendo, perche' nessuno vuole dare la fiamma a chi
+/// perde. Chi e' indietro smette di provarci a meta' gara. E chi vuole comprare
+/// dei voti sa **esattamente quanti gliene mancano** — che con dei soldi in
+/// palio e' l'informazione piu' preziosa che gli si possa regalare.
+///
+/// Alla sirena si rivela tutto insieme, ed e' un momento che prima non
+/// esisteva.
+///
+/// **Il proprio numero pero' si vede.** Mandare una foto e non ricevere niente
+/// per ventiquattro ore e' come parlare a un muro, e la voglia di partecipare
+/// la seconda volta nasce da quel numerino che sale. Sapere quante ne hai prese
+/// tu non dice niente su quante ne hanno prese gli altri.
 ///
 /// **Una fiamma sola per gesto, sempre.** O il numero congelato della richiesta
 /// in corso, o quello del server — mai i due sommati, che era il difetto.
 ///
 /// Sotto zero non si scende: nessuno puo' togliere un voto che non ha dato, e
 /// un `-1` sotto una foto non vuol dire niente.
-int visibleVotes(WidgetRef ref, ChallengeEntry entry) {
+int? visibleVotes(WidgetRef ref, ChallengeEntry entry) {
+  final live = ref.watch(challengeIsLiveProvider(entry.challengeId));
+  final mia = entry.userId == ref.watch(currentUserIdProvider);
+
+  if (live && !mia) {
+    return null;
+  }
+
   final intent = ref.watch(voteIntentProvider(entry.voteKey));
   final votes = intent?.votes ?? entry.votes;
 
   return votes < 0 ? 0 : votes;
 }
+
+/// Come si scrive un numero di fiamme che potrebbe essere nascosto.
+///
+/// Il trattino e non lo spazio vuoto: uno spazio sembra un difetto, un trattino
+/// dice **"c'e' un numero, non te lo diciamo adesso"**.
+String votesLabel(int? votes) => votes == null ? '–' : '$votes';
 
 /// Accende o spegne la fiamma su una partecipazione.
 ///

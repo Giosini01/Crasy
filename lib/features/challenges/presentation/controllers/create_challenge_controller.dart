@@ -164,6 +164,7 @@ class CreateChallengeController extends AsyncNotifier<void> {
     required String brief,
     required int prizeCents,
     required ChallengeScope scope,
+    required int maxParticipants,
     required MediaKind mediaKind,
     required String place,
     required int minutes,
@@ -194,6 +195,7 @@ class CreateChallengeController extends AsyncNotifier<void> {
       // numeri interi.
       prizeCents: prizeCents,
       scope: scope,
+      maxParticipants: maxParticipants,
       mediaKind: mediaKind,
       place: scope == ChallengeScope.local ? place.trim().toUpperCase() : '',
       // **Chi la puo' vedere, scritto dentro la gara.**

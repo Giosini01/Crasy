@@ -195,7 +195,12 @@ class _Fire extends StatelessWidget {
   const _Fire({required this.voted, required this.votes, this.dimmed = false});
 
   final bool voted;
-  final int votes;
+
+  /// Quante fiamme ha preso, **oppure niente**.
+  ///
+  /// Nullo vuol dire "a gara aperta non si dice": al posto del numero c'e' un
+  /// trattino. Vedi `visibleVotes`.
+  final int? votes;
 
   /// Vero quando le fiamme di questa gara sono finite: la si vede piu' pallida.
   final bool dimmed;
@@ -219,7 +224,7 @@ class _Fire extends StatelessWidget {
         ),
         const SizedBox(width: 4),
         Text(
-          '$votes',
+          votesLabel(votes),
           style: context.texts.titleMedium?.copyWith(color: color),
         ),
       ],

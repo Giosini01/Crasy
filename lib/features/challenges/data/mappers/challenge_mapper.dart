@@ -39,6 +39,7 @@ abstract final class ChallengeMapper {
       // gara con questo dentro non la puo' creare nessuno.
       isDaily: (data['kind'] as String?) == 'daily',
       audience: _stringList(data['audience']),
+      maxParticipants: (data['maxParticipants'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -53,6 +54,9 @@ abstract final class ChallengeMapper {
       // l'hanno: una gara scritta senza `audience` non comparirebbe da nessuna
       // parte, nemmeno a chi l'ha lanciata.
       'audience': challenge.audience,
+      // Zero vuol dire senza tetto, ed e' anche il valore che si legge sulle
+      // gare scritte prima che questo campo esistesse: restano com'erano.
+      'maxParticipants': challenge.maxParticipants,
       'place': challenge.place,
       'rules': challenge.rules,
       'mediaKind': challenge.mediaKind.name,

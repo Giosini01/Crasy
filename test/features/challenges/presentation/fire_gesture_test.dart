@@ -57,9 +57,21 @@ class _Harness extends ConsumerWidget {
 
     return Column(
       children: [
+        // **Il conto vero, non quello che si vede.**
+        //
+        // A gara aperta le fiamme degli altri sono nascoste — `visibleVotes`
+        // torna nulla e a schermo c'e' un trattino — ma qui si sta provando la
+        // *meccanica* del voto, non cosa si mostra. Il numero vero e' quello
+        // che il gesto deve muovere; che poi sia coperto lo prova la riga
+        // sotto.
         Text(
-          '${visibleVotes(ref, entry)}',
+          '${ref.watch(voteIntentProvider(entry.voteKey))?.votes ?? entry.votes}',
           key: const Key('conto'),
+          textDirection: TextDirection.ltr,
+        ),
+        Text(
+          votesLabel(visibleVotes(ref, entry)),
+          key: const Key('conto-visibile'),
           textDirection: TextDirection.ltr,
         ),
         Text(
@@ -102,6 +114,12 @@ void main() {
       (tester.widget(find.byKey(const Key('conto'))) as Text).data!,
       (tester.widget(find.byKey(const Key('stato'))) as Text).data!,
     );
+  }
+
+  /// Quello che si vede davvero sotto la foto: un numero, o il trattino.
+  String Function() readVisible(WidgetTester tester) {
+    return () =>
+        (tester.widget(find.byKey(const Key('conto-visibile'))) as Text).data!;
   }
 
   Future<void> pumpEntry(WidgetTester tester, {bool ended = false}) async {
@@ -244,5 +262,31 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(read(), ('0', 'spenta'));
+  });
+
+  testWidgets('a gara aperta le fiamme degli altri non si vedono', (
+    tester,
+  ) async {
+    await pumpEntry(tester);
+    final visibile = readVisible(tester);
+
+    // **E' l'altra meta' del gioco.** Con i numeri in chiaro si vota chi sta
+    // gia' vincendo, chi e' indietro molla a meta' gara, e chi vuole comprare
+    // dei voti sa esattamente quanti gliene mancano.
+    expect(visibile(), '–');
+
+    await tester.tap(find.byKey(const Key('doppio-tocco')));
+    await tester.pumpAndSettle();
+
+    // La fiamma e' partita — il conto vero lo dice — ma il numero resta
+    // coperto: chi vota non deve poter misurare l'effetto del proprio voto.
+    expect(readScreen(tester)(), ('1', 'accesa'));
+    expect(visibile(), '–');
+  });
+
+  testWidgets('a gara finita si rivela tutto', (tester) async {
+    await pumpEntry(tester, ended: true);
+
+    expect(readVisible(tester)(), '0');
   });
 }

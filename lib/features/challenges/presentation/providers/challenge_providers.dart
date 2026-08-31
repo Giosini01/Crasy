@@ -127,16 +127,35 @@ final challengeEntriesProvider = StreamProvider.autoDispose
       // prima o poi non coprono la stessa schermata.
       final bloccati = ref.watch(blockedNowProvider);
 
+      final live = ref.watch(challengeIsLiveProvider(challengeId));
+
       return ref
           .watch(challengeRepositoryProvider)
           .watchEntries(challengeId)
-          .map(
-            (entries) => entries
-                .where(
-                  (entry) => entry.isVisibleTo(viewerId, blocked: bloccati),
-                )
-                .toList(),
-          );
+          .map((entries) {
+            final visibili = [
+              for (final entry in entries)
+                if (entry.isVisibleTo(viewerId, blocked: bloccati)) entry,
+            ];
+
+            // **A gara aperta l'ordine e' mescolato, e diverso per ognuno.**
+            //
+            // Arrivavano ordinate per fiamme, e con i voti nascosti quello
+            // sarebbe stato il modo piu' sciocco di rivelarli: il numero
+            // sparisce e la classifica resta in bella vista. Mescolarle non e'
+            // un ripiego, e' l'altra meta' della stessa idea.
+            //
+            // Mescolate **con il nome di chi guarda**, non a caso: la fila
+            // resta la stessa per te per tutta la gara — riaprendo non balla —
+            // ed e' diversa dalla mia. Cosi' ogni foto sta in cima per
+            // qualcuno, e chi ha mandato per primo smette di avere un
+            // vantaggio che non si e' guadagnato.
+            //
+            // Alla sirena si torna all'ordine vero, che e' quello che paga.
+            return live
+                ? _mescolaPer(visibili, viewerId, challengeId)
+                : visibili;
+          });
     });
 
 /// La foto in testa a una challenge: quella con piu' fiamme.
@@ -155,7 +174,12 @@ final challengeTopEntryProvider = StreamProvider.autoDispose
       // documenti.
       cacheFor(ref);
 
-      return ref.watch(challengeRepositoryProvider).watchTopEntry(challengeId);
+      return ref
+          .watch(challengeRepositoryProvider)
+          .watchTopEntry(
+            challengeId,
+            live: ref.watch(challengeIsLiveProvider(challengeId)),
+          );
     });
 
 /// La foto che rappresenta una challenge: **quella con piu' fiamme**.
@@ -704,3 +728,27 @@ final knownChallengeProvider = Provider.autoDispose.family<Challenge?, String>((
 
   return null;
 });
+
+/// Rimette in fila le partecipazioni in un ordine **stabile e personale**.
+///
+/// Stabile: la stessa persona vede sempre la stessa fila, dall'inizio alla fine
+/// della gara. Una fila che cambia a ogni apertura non e' equa, e' solo
+/// fastidiosa.
+///
+/// Personale: due persone diverse vedono due file diverse. E' il punto — senza,
+/// la prima foto della lista sarebbe la prima per tutti, e "prima nella lista"
+/// vale piu' di qualunque merito.
+List<ChallengeEntry> _mescolaPer(
+  List<ChallengeEntry> entries,
+  String? viewerId,
+  String challengeId,
+) {
+  final ordinate = [...entries]
+    ..sort((a, b) {
+      final chiave = '${viewerId ?? 'ospite'}:$challengeId';
+
+      return _mescola('$chiave:${a.id}').compareTo(_mescola('$chiave:${b.id}'));
+    });
+
+  return ordinate;
+}

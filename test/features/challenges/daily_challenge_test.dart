@@ -115,9 +115,13 @@ void main() {
     () async {
       final container = containerWith(
         live: [
+          // **Un minuto prima di mezzanotte, non "fra un'ora".** Con "fra
+          // un'ora" questo test diceva il vero di giorno e il falso alle 23:30,
+          // quando un'ora dopo e' gia' domani: passava o falliva a seconda di
+          // che ore erano quando lo si lanciava.
           challenge(
             id: 'finisce-subito',
-            fine: adesso.add(const Duration(hours: 1)),
+            fine: domani.subtract(const Duration(minutes: 1)),
           ),
         ],
       );

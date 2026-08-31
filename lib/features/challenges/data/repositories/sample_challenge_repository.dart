@@ -85,7 +85,10 @@ class SampleChallengeRepository implements ChallengeRepository {
       Stream.value(const <Challenge>[]);
 
   @override
-  Stream<ChallengeEntry?> watchTopEntry(String challengeId) {
+  Stream<ChallengeEntry?> watchTopEntry(
+    String challengeId, {
+    bool live = false,
+  }) {
     return watchEntries(challengeId).map((entries) {
       for (final entry in entries) {
         if (entry.mediaUrl.isNotEmpty) {

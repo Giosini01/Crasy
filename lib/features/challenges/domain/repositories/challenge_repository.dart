@@ -26,7 +26,10 @@ abstract class ChallengeRepository {
   /// una gara mostra una foto sola, e leggerne trecento per prenderne una e'
   /// il modo piu' veloce di spendere il piano gratuito di Firestore. Qui
   /// l'ordine lo fa il database e ne tornano cinque.
-  Stream<ChallengeEntry?> watchTopEntry(String challengeId);
+  Stream<ChallengeEntry?> watchTopEntry(
+    String challengeId, {
+    bool live = false,
+  });
 
   /// La gara scelta per la sfida del giorno, per il giorno `AAAA-MM-GG`.
   ///

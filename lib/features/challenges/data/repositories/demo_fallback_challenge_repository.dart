@@ -38,8 +38,10 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
       _remote.watchChallengesFor(userId);
 
   @override
-  Stream<ChallengeEntry?> watchTopEntry(String challengeId) =>
-      _forChallenge(challengeId).watchTopEntry(challengeId);
+  Stream<ChallengeEntry?> watchTopEntry(
+    String challengeId, {
+    bool live = false,
+  }) => _forChallenge(challengeId).watchTopEntry(challengeId, live: live);
 
   @override
   Stream<String?> watchDailyPick(String day) => _remote.watchDailyPick(day);

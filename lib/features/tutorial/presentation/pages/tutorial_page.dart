@@ -223,6 +223,15 @@ class _TutorialStep {
           'foto — in un\'altra missione ne hai di nuovo tre.',
     ),
     const _TutorialStep(
+      icon: Icons.visibility_off_rounded,
+      title: 'Le fiamme sono nascoste\nfino alla fine',
+      body:
+          'Nessuno sa come sta andando, nemmeno chi ha mandato la foto: i '
+          'numeri si scoprono tutti insieme alla sirena. E ognuno vede le foto '
+          'in un ordine diverso, cosi\' chi manda per primo non parte '
+          'avvantaggiato.',
+    ),
+    const _TutorialStep(
       icon: Icons.emoji_events_rounded,
       title: 'Vince chi ha piu\' fiamme\nquando scade il tempo',
       body:

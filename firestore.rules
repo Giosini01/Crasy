@@ -577,9 +577,33 @@ service cloud.firestore {
 
         allow create: if isAuthor()
                       && request.resource.data.userId == request.auth.uid
+                      // **I posti sono finiti: non si entra piu'.**
+                      //
+                      // Il tetto lo sceglie chi lancia la gara, e serve a
+                      // tenerla giocabile: con cinquecento foto nessuno le
+                      // guarda tutte, si vota fra le prime che capitano, e
+                      // vince la posizione nella lista invece di quello che
+                      // uno ha fatto.
+                      //
+                      // Sta qui e non solo nell'interfaccia, o si aggira in
+                      // dieci secondi scrivendo sul database. Zero vuol dire
+                      // senza limite, ed e' anche cio' che si legge sulle gare
+                      // scritte prima che questo campo esistesse.
+                      //
+                      // **Due persone che mandano nello stesso istante possono
+                      // passare tutte e due**, perche' leggono lo stesso conto
+                      // prima che l'altra scriva: ogni tanto saranno undici
+                      // invece di dieci. Chiuderla davvero vorrebbe dire una
+                      // transazione sul server, e a questa scala non vale il
+                      // prezzo — undici in gara non rovina niente, mille si'.
                       // Chi ha lanciato la challenge non ci partecipa: mette
                       // lui i soldi del premio, e una gara in cui chi paga
                       // puo' anche vincere non e' una gara.
+                      && (
+                           challenge().get('maxParticipants', 0) == 0
+                           || challenge().get('participantsCount', 0)
+                              < challenge().get('maxParticipants', 0)
+                         )
                       && challenge().createdByUserId != request.auth.uid
                       && request.resource.data.mediaUrl is string
                       && request.resource.data.mediaUrl.size() > 0

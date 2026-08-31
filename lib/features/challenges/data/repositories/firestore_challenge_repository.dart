@@ -174,7 +174,10 @@ class FirestoreChallengeRepository implements ChallengeRepository {
   }
 
   @override
-  Stream<ChallengeEntry?> watchTopEntry(String challengeId) {
+  Stream<ChallengeEntry?> watchTopEntry(
+    String challengeId, {
+    bool live = false,
+  }) {
     // **Cinque documenti al posto di trecento.**
     //
     // In cima a ogni scheda della home c'e' la foto che sta vincendo, ed e' una
@@ -190,9 +193,18 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     //
     // Il campo `votes` ce l'hanno tutte — lo scrive chi manda la foto, a zero —
     // quindi ordinare per quello non taglia fuori nessuno.
-    return _entries(
-      challengeId,
-    ).orderBy('votes', descending: true).limit(5).snapshots().map((snapshot) {
+    // **A gara aperta si mostra l'ultima arrivata, non la prima in
+    // classifica.** Con le fiamme nascoste, una vetrina che mostra chi sta
+    // vincendo sarebbe la classifica scritta in un altro modo: basterebbe
+    // guardare la copertina di ogni gara per sapere come sta andando.
+    //
+    // L'ultima arrivata dice invece una cosa utile e innocua: **qui si sta
+    // giocando adesso**.
+    final query = live
+        ? _entries(challengeId).orderBy('createdAt', descending: true)
+        : _entries(challengeId).orderBy('votes', descending: true);
+
+    return query.limit(5).snapshots().map((snapshot) {
       final entries = [
         for (final document in snapshot.docs)
           ChallengeEntryMapper.fromFirestore(
@@ -200,7 +212,7 @@ class FirestoreChallengeRepository implements ChallengeRepository {
             challengeId,
             document.data(),
           ),
-      ]..sort(_byVotesThenOldest);
+      ]..sort(live ? _byNewest : _byVotesThenOldest);
 
       for (final entry in entries) {
         if (entry.mediaUrl.isNotEmpty &&
@@ -227,6 +239,24 @@ class FirestoreChallengeRepository implements ChallengeRepository {
 
       return entries..sort(_byVotesThenOldest);
     });
+  }
+
+  /// La piu' recente per prima. Chi non ha ancora l'ora del server e' appena
+  /// arrivato, quindi sta in cima: e' esattamente la foto che la vetrina deve
+  /// mostrare a gara aperta.
+  static int _byNewest(ChallengeEntry a, ChallengeEntry b) {
+    final quando = a.createdAt;
+    final altra = b.createdAt;
+
+    if (quando == null) {
+      return altra == null ? 0 : -1;
+    }
+
+    if (altra == null) {
+      return 1;
+    }
+
+    return altra.compareTo(quando);
   }
 
   /// Piu' fiamme per prima; a parita', chi ha mandato prima.

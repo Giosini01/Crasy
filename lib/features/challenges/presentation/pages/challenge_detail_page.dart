@@ -1,5 +1,6 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/countdown_text.dart';
@@ -125,6 +126,16 @@ class _Body extends ConsumerWidget {
         ],
         const SizedBox(height: AppSpacing.lg),
         _TimeBlock(challenge: challenge),
+        // **Le regole del gioco, scritte.**
+        //
+        // Sono tre cose che non si indovinano guardando la schermata — i numeri
+        // coperti sembrano un difetto, l'ordine mescolato sembra un capriccio,
+        // il tetto sembra una porta chiusa in faccia — e non dette diventano
+        // esattamente questo: tre difetti. Dette, sono il gioco.
+        if (!challenge.hasEndedAt(DateTime.now())) ...[
+          const SizedBox(height: AppSpacing.lg),
+          _GameRules(challenge: challenge),
+        ],
         if (challenge.rules.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xl),
           Text(
@@ -660,5 +671,126 @@ class _DeleteChallengeState extends ConsumerState<_DeleteChallenge> {
     if (mounted) {
       Navigator.of(context).pop();
     }
+  }
+}
+
+/// Le tre regole che rendono la gara una gara.
+class _GameRules extends StatelessWidget {
+  const _GameRules({required this.challenge});
+
+  final Challenge challenge;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+    final posti = challenge.spotsLeft;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        border: Border.all(color: palette.line),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'COME SI VINCE',
+            style: texts.labelSmall?.copyWith(color: palette.accent),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _Rule(
+            icon: Icons.visibility_off_outlined,
+            text: 'Le fiamme sono nascoste.',
+            detail:
+                'Nessuno sa come sta andando, nemmeno tu. Si scopre tutto alla '
+                'fine, insieme.',
+          ),
+          _Rule(
+            icon: Icons.shuffle_rounded,
+            text: 'Le foto sono in ordine sparso.',
+            detail:
+                'Ognuno le vede in un ordine diverso: chi manda per primo non '
+                'ha nessun vantaggio.',
+          ),
+          if (posti != null)
+            _Rule(
+              icon: Icons.people_outline_rounded,
+              text: posti == 0
+                  ? 'Posti esauriti.'
+                  : 'Restano $posti posti su ${challenge.maxParticipants}.',
+              detail: posti == 0
+                  ? 'Nessuno puo\' piu\' entrare in questa gara.'
+                  : 'Quando finiscono non si entra piu\'. Una possibilita\' su '
+                        '${challenge.maxParticipants}.',
+              accent: true,
+            )
+          else
+            _Rule(
+              icon: Icons.people_outline_rounded,
+              text: 'Aperta a chiunque.',
+              detail: 'Nessun tetto ai partecipanti.',
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Rule extends StatelessWidget {
+  const _Rule({
+    required this.icon,
+    required this.text,
+    required this.detail,
+    this.accent = false,
+  });
+
+  final IconData icon;
+  final String text;
+  final String detail;
+  final bool accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(
+              icon,
+              size: 16,
+              color: accent ? palette.accent : palette.textFaint,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  text,
+                  style: texts.titleSmall?.copyWith(
+                    color: accent ? palette.accent : palette.textPrimary,
+                  ),
+                ),
+                Text(
+                  detail,
+                  style: texts.bodySmall?.copyWith(
+                    color: palette.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
