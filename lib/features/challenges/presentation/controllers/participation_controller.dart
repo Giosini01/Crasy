@@ -114,10 +114,19 @@ class ParticipationController extends AsyncNotifier<void> {
   /// Fa la stessa cosa che si faceva sul risultato del selettore di sistema —
   /// stringere la foto prima ancora dell'anteprima — perche' quello che si vede
   /// deve essere esattamente quello che parte.
-  Future<PickedMedia> fromCamera(XFile file, MediaKind kind) async {
+  Future<PickedMedia> fromCamera(
+    XFile file,
+    MediaKind kind, {
+    bool mirror = false,
+  }) async {
     final original = await file.readAsBytes();
 
     if (kind.isVideo) {
+      // **Un video non si ribalta.** Girarlo vorrebbe dire ricodificarlo tutto
+      // sul telefono: decine di secondi di attesa e un file peggiore, per una
+      // cosa che nessuno guarda cercandosi la riga dei capelli. Le scritte
+      // nello sfondo restano al contrario, ed e' un compromesso — lo stesso che
+      // fanno tutti.
       return PickedMedia(
         bytes: original,
         contentType: file.mimeType ?? 'video/mp4',
@@ -125,7 +134,7 @@ class ParticipationController extends AsyncNotifier<void> {
       );
     }
 
-    final shrunk = PhotoCompressor.shrink(original);
+    final shrunk = PhotoCompressor.shrink(original, mirror: mirror);
 
     return PickedMedia(
       bytes: shrunk,

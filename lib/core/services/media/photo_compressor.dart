@@ -42,8 +42,11 @@ abstract final class PhotoCompressor {
   /// Non lancia mai, ed e' voluto: un formato che il decodificatore non conosce
   /// — un HEIC di iPhone, per dirne uno — non deve far fallire la
   /// partecipazione. Nel dubbio sale l'originale: pesante, ma in gara.
-  static Uint8List shrink(Uint8List bytes) {
-    if (bytes.lengthInBytes <= leaveAloneBelowBytes) {
+  static Uint8List shrink(Uint8List bytes, {bool mirror = false}) {
+    // **Con lo specchio si passa sempre di qui**, anche per una foto gia'
+    // piccola: ribaltarla non e' un'ottimizzazione da saltare, e' quello che
+    // rende la foto uguale a quella che si e' vista.
+    if (!mirror && bytes.lengthInBytes <= leaveAloneBelowBytes) {
       return bytes;
     }
 
@@ -67,11 +70,29 @@ abstract final class PhotoCompressor {
               interpolation: img.Interpolation.average,
             );
 
-      final encoded = img.encodeJpg(resized, quality: quality);
+      // **Il ribaltamento, per i selfie.**
+      //
+      // Nell'anteprima ci si vede come in uno specchio — e' l'unico modo per
+      // riuscire a inquadrarsi — e la foto deve venire **uguale a quella
+      // anteprima**. Senza questo passaggio il sensore consegna l'immagine dal
+      // suo punto di vista, cioe' ribaltata rispetto a quella che hai appena
+      // guardato: alzi la mano destra e nella foto e' a sinistra, le scritte
+      // sulla maglietta sono al contrario, e la faccia non e' quella con cui ti
+      // sei visto un secondo prima.
+      //
+      // La regola e' una sola e vale sempre: **quello che vedi e' quello che
+      // mandi.**
+      final finale = mirror ? img.flipHorizontal(resized) : resized;
+      final encoded = img.encodeJpg(finale, quality: quality);
 
       // Se il giro non ha guadagnato niente si tiene l'originale. Capita con le
       // foto gia' compresse bene, e riscriverle sarebbe solo un altro passaggio
-      // di perdita.
+      // di perdita. **Ribaltata no**: li' i byte nuovi sono l'unica versione
+      // giusta, pesino quello che pesano.
+      if (mirror) {
+        return encoded;
+      }
+
       return encoded.lengthInBytes < bytes.lengthInBytes ? encoded : bytes;
     } on Exception catch (_) {
       return bytes;

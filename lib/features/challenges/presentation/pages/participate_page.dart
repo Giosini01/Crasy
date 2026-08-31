@@ -174,14 +174,16 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
     ParticipationController controller,
     MediaKind kind,
   ) async {
-    final file = await CrasyCamera.open(context, video: kind.isVideo);
+    final scatto = await CrasyCamera.open(context, video: kind.isVideo);
 
     // Chiusa senza scattare: non e' un errore e non deve dire niente.
-    if (file == null || !mounted) {
+    if (scatto == null || !mounted) {
       return null;
     }
 
-    return controller.fromCamera(file, kind);
+    // Se e' un selfie, la foto viene ribaltata come lo era l'anteprima: quello
+    // che si e' visto e' quello che si manda.
+    return controller.fromCamera(scatto.file, kind, mirror: scatto.mirrored);
   }
 
   /// L'ultima domanda prima che lo scatto entri in gara.

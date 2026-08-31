@@ -16,16 +16,32 @@ import 'package:flutter/material.dart';
 /// che non e' quella che gli altri vedono. Quell'interruttore sta nelle
 /// impostazioni del telefono, non nelle nostre.
 ///
-/// Qui lo scatto lo facciamo noi, e il file che ne esce **non e' mai
-/// specchiato**.
+/// Qui lo scatto lo facciamo noi, e vale una regola sola: **quello che vedi e'
+/// quello che mandi.**
 ///
-/// ## L'anteprima invece si', ed e' voluto
+/// ## Lo specchio vale anche per la foto
 ///
 /// Mentre ti inquadri, l'immagine e' ribaltata come in uno specchio: e' il modo
-/// in cui ognuno e' abituato a vedere la propria faccia, e senza quel ribaltamento
-/// alzare la mano destra e vederla muovere a sinistra rende impossibile
-/// inquadrarsi. E' esattamente quello che fanno Instagram e la fotocamera di
-/// sistema: **specchio mentre guardi, verita' quando scatti.**
+/// in cui ognuno e' abituato a vedere la propria faccia, e senza quel
+/// ribaltamento alzare la mano destra e vederla muovere a sinistra rende
+/// impossibile inquadrarsi.
+///
+/// **E la foto viene ribaltata insieme all'anteprima**, non lasciata come la
+/// consegna il sensore. Il sensore guarda dal proprio punto di vista, quindi
+/// senza quel passaggio la foto esce specchiata *rispetto a quella che hai
+/// appena visto*: la riga dei capelli dalla parte sbagliata, le scritte al
+/// contrario, una faccia che non e' quella che avevi inquadrato. Con
+/// l'anteprima e la foto d'accordo, non c'e' nessuna sorpresa fra il tocco e
+/// il risultato.
+///
+/// Vale solo per la lente frontale: dietro non c'e' nessuno specchio da
+/// rispettare.
+/// Quello che esce dalla fotocamera: il file, e da che lente arriva.
+///
+/// La lente serve a chi prepara la foto: **solo quella frontale va ribaltata**,
+/// perche' solo li' c'e' uno specchio da rispettare.
+typedef CameraShot = ({XFile file, bool mirrored});
+
 class CrasyCamera extends StatefulWidget {
   const CrasyCamera({required this.video, super.key});
 
@@ -34,9 +50,9 @@ class CrasyCamera extends StatefulWidget {
 
   /// Apre la fotocamera a schermo intero. Torna il file, o `null` se si e'
   /// tornati indietro senza scattare.
-  static Future<XFile?> open(BuildContext context, {required bool video}) {
-    return Navigator.of(context).push<XFile>(
-      MaterialPageRoute<XFile>(
+  static Future<CameraShot?> open(BuildContext context, {required bool video}) {
+    return Navigator.of(context).push<CameraShot>(
+      MaterialPageRoute<CameraShot>(
         fullscreenDialog: true,
         builder: (_) => CrasyCamera(video: video),
       ),
@@ -186,7 +202,7 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
           : await controller.takePicture();
 
       if (file != null && mounted) {
-        Navigator.of(context).pop(file);
+        Navigator.of(context).pop((file: file, mirrored: _frontale));
 
         return;
       }
