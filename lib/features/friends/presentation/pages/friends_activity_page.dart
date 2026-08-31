@@ -394,27 +394,38 @@ class _InGara extends ConsumerWidget {
             onTap: () =>
                 context.push(AppRoutes.challengeDetailOf(challenge.id)),
             behavior: HitTestBehavior.opaque,
+            // **Una riga piccola, e la foto grande sotto.**
+            //
+            // Il premio era grande come sulla scheda della home, e li' e'
+            // giusto — la' si decide se entrare in una gara. Qui no: qui si
+            // guarda cosa ha combinato un amico, e la cosa da guardare e' la
+            // foto. Premio e titolo servono solo a dire *dentro cosa* sta, in
+            // una riga sola che si legge in un secondo e non ruba spazio
+            // all'immagine.
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
               children: [
                 Text(
                   challenge.prizeLabel,
-                  style: texts.titleLarge?.copyWith(color: palette.accent),
+                  style: texts.labelSmall?.copyWith(color: palette.accent),
                 ),
-                const SizedBox(width: AppSpacing.xs),
-                Expanded(
+                Text(
+                  '  ·  ',
+                  style: texts.labelSmall?.copyWith(color: palette.textFaint),
+                ),
+                Flexible(
                   child: Text(
                     challenge.title.toUpperCase(),
-                    style: texts.titleSmall,
+                    style: texts.labelSmall?.copyWith(
+                      color: palette.textSecondary,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: AppSpacing.xs),
+                const SizedBox(width: 2),
                 Icon(
                   Icons.chevron_right_rounded,
-                  size: 18,
+                  size: 14,
                   color: palette.textFaint,
                 ),
               ],

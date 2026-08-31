@@ -405,8 +405,18 @@ service cloud.firestore {
                     && request.resource.data.brief.size() > 0
                     && request.resource.data.brief.size() <= 280
                     && request.resource.data.place is string
+                    // **`friends` va nell'elenco, o la gara fra amici non
+                    // nasce.** L'ambito nuovo era stato aggiunto nell'app e non
+                    // qui, e il risultato era un "operazione non consentita"
+                    // secco al momento di lanciarla: l'app diceva di si', il
+                    // database di no.
+                    //
+                    // Vale la pena tenerlo un elenco chiuso invece di accettare
+                    // qualunque parola: uno scope inventato non lo capirebbe
+                    // nessuna schermata, e la gara resterebbe invisibile senza
+                    // che nessuno sappia perche'.
                     && request.resource.data.scope in
-                       ['global', 'country', 'local', 'private']
+                       ['global', 'country', 'local', 'friends', 'private']
                     && request.resource.data.rules is list
                     // Foto o video: il vincolo lo sceglie chi lancia. Si legge
                     // con `get` perche' le challenge nate prima che il vincolo
