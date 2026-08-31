@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:crasy/core/utils/provider_cache.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
@@ -108,7 +109,12 @@ void main() {
     late String entryId;
 
     final container = ProviderContainer(
-      overrides: [authRepositoryProvider.overrideWithValue(authRepository)],
+      overrides: [
+        authRepositoryProvider.overrideWithValue(authRepository),
+        // Niente attesa prima di spegnere gli ascolti: qui si verifica proprio
+        // che si spengano, e un timer da un minuto resterebbe appeso.
+        providerCacheProvider.overrideWithValue(Duration.zero),
+      ],
     );
     addTearDown(container.dispose);
 

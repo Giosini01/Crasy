@@ -34,6 +34,7 @@ class Challenge {
     this.winnerVotes = 0,
     this.prizeStatus = PrizeStatus.unpaid,
     this.isDaily = false,
+    this.audience = const [everyone],
   });
 
   /// L'identificativo dell'account di CRASY.
@@ -113,6 +114,23 @@ class Challenge {
   /// La consegna per esteso: cosa bisogna fare, in una frase.
   final String brief;
 
+  /// **Chi puo' vedere questa gara.**
+  ///
+  /// `['*']` vuol dire tutti. Una gara riservata porta invece dentro di se'
+  /// l'elenco di chi la puo' leggere — chi l'ha lanciata piu' i suoi amici del
+  /// momento in cui l'ha lanciata.
+  ///
+  /// **Sta scritto nel documento e non calcolato al momento**, e la ragione e'
+  /// che le regole di Firestore devono poter decidere guardando **solo quel
+  /// documento**: andare a leggere altrove l'elenco degli amici, per ogni gara
+  /// di ogni schermata, costerebbe una lettura in piu' a testa e sfonderebbe i
+  /// limiti che Firestore mette alle regole. Con l'elenco dentro, ogni query
+  /// chiede esattamente quello che ha diritto di vedere.
+  final List<String> audience;
+
+  /// Il valore che, dentro [audience], vuol dire "la vedono tutti".
+  static const String everyone = '*';
+
   /// **La sfida del giorno di CRASY: gratis, e non consuma una partecipazione.**
   ///
   /// E' l'unica gara che non nasce da una persona. Non ha un premio in denaro, e
@@ -164,6 +182,9 @@ class Challenge {
 
   /// L'ha lanciata CRASY.
   bool get byCrasy => createdByUserId == crasyUserId;
+
+  /// E' riservata agli amici di chi l'ha lanciata.
+  bool get isForFriends => scope == ChallengeScope.friends;
 
   final DateTime startsAt;
   final DateTime endsAt;
@@ -286,6 +307,7 @@ class Challenge {
     int? winnerVotes,
     PrizeStatus? prizeStatus,
     bool? isDaily,
+    List<String>? audience,
   }) {
     return Challenge(
       id: id ?? this.id,
@@ -309,6 +331,7 @@ class Challenge {
       winnerVotes: winnerVotes ?? this.winnerVotes,
       prizeStatus: prizeStatus ?? this.prizeStatus,
       isDaily: isDaily ?? this.isDaily,
+      audience: audience ?? this.audience,
     );
   }
 

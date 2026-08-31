@@ -81,6 +81,23 @@ class SampleChallengeRepository implements ChallengeRepository {
   bool owns(String challengeId) => _challenges.containsKey(challengeId);
 
   @override
+  Stream<List<Challenge>> watchChallengesFor(String userId) =>
+      Stream.value(const <Challenge>[]);
+
+  @override
+  Stream<ChallengeEntry?> watchTopEntry(String challengeId) {
+    return watchEntries(challengeId).map((entries) {
+      for (final entry in entries) {
+        if (entry.mediaUrl.isNotEmpty) {
+          return entry;
+        }
+      }
+
+      return null;
+    });
+  }
+
+  @override
   Stream<String?> watchDailyPick(String day) => Stream.value(null);
 
   @override

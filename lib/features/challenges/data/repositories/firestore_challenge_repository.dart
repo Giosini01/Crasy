@@ -6,6 +6,7 @@ import 'package:crasy/features/challenges/domain/commissioned_order.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
+import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -51,8 +52,21 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     // Firestore non accetta disuguaglianze su due campi diversi nella stessa
     // query, e delle due questa e' quella che taglia i documenti inutili.
     return _challenges
+        // **Solo le pubbliche.** Le gare riservate agli amici non passano di
+        // qui: si vedono nella scheda degli amici, e chi non e' fra i loro
+        // destinatari non le puo' nemmeno leggere — lo impediscono le regole,
+        // non un filtro scritto qui.
+        .where('audience', arrayContains: Challenge.everyone)
         .where('endsAt', isGreaterThan: Timestamp.now())
         .orderBy('endsAt')
+        // **Cinquanta, non tutte.** Senza tetto questa query legge ogni gara
+        // aperta esistente, a ogni avvio, per ogni persona: con dieci utenti non
+        // si nota, con duemila che ne lanciano una a testa sono duemila letture
+        // per ogni apertura dell'app — il costo cresce col **quadrato** della
+        // gente. L'ordine e' per scadenza crescente, quindi le cinquanta sono
+        // quelle che stanno per chiudersi: esattamente quelle che si mostrano
+        // per prime, e le uniche a cui si fa in tempo a partecipare.
+        .limit(50)
         .snapshots()
         .map((snapshot) {
           final now = DateTime.now();
@@ -81,6 +95,7 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     final now = DateTime.now();
 
     return _challenges
+        .where('audience', arrayContains: Challenge.everyone)
         .where('endsAt', isLessThanOrEqualTo: Timestamp.now())
         .where(
           'endsAt',
@@ -92,9 +107,23 @@ class FirestoreChallengeRepository implements ChallengeRepository {
         .limit(50)
         .snapshots()
         .map(
-          (snapshot) => _challengesFrom(
-            snapshot,
-          ).where((challenge) => challenge.isPayable).toList(),
+          (snapshot) => _challengesFrom(snapshot).where((challenge) {
+            // **La sfida gratis resta fra i vincitori un giorno, non due.**
+            //
+            // Ce ne sono trecentosessantacinque all'anno, e con la finestra
+            // delle altre — quarantotto ore — ce ne sarebbero sempre due in
+            // cima a coprire le gare vere, quelle in cui qualcuno ha vinto dei
+            // soldi. Un giorno basta: chi l'ha fatta ieri sera passa di qui la
+            // mattina dopo e vede chi ha vinto.
+            if (challenge.isDaily &&
+                challenge.endsAt.isBefore(
+                  now.subtract(const Duration(hours: 24)),
+                )) {
+              return false;
+            }
+
+            return challenge.isPayable;
+          }).toList(),
         );
   }
 
@@ -123,6 +152,67 @@ class FirestoreChallengeRepository implements ChallengeRepository {
   /// Qui si chiedono tutte le partecipazioni e si ordinano dopo. Con qualche
   /// centinaio di foto per challenge il costo e' nullo, e nessun documento puo'
   /// piu' rendersi invisibile perche' gli manca un campo.
+  @override
+  @override
+  Stream<List<Challenge>> watchChallengesFor(String userId) {
+    // Le gare riservate in cui **io** compaio fra i destinatari: quelle dei
+    // miei amici, e le mie. Nessun'altra: il filtro e' lo stesso che usano le
+    // regole per decidere se posso leggerle.
+    return _challenges
+        .where('audience', arrayContains: userId)
+        .where('endsAt', isGreaterThan: Timestamp.now())
+        .orderBy('endsAt')
+        .limit(50)
+        .snapshots()
+        .map((snapshot) {
+          final now = DateTime.now();
+
+          return _challengesFrom(
+            snapshot,
+          ).where((challenge) => !challenge.isUpcomingAt(now)).toList();
+        });
+  }
+
+  @override
+  Stream<ChallengeEntry?> watchTopEntry(String challengeId) {
+    // **Cinque documenti al posto di trecento.**
+    //
+    // In cima a ogni scheda della home c'e' la foto che sta vincendo, ed e' una
+    // foto sola. Per trovarla si leggevano **tutte** le partecipazioni della
+    // gara e si ordinavano qui: con otto gare in home erano otto ascolti su
+    // altrettante collezioni intere, riaperti ogni volta che una scheda usciva
+    // e rientrava dallo schermo. E' la prima voce del conto delle letture.
+    //
+    // Chiedendo l'ordine a Firestore ne bastano cinque. Cinque e non uno perche'
+    // la prima potrebbe essere in attesa di controllo o senza immagine, e in
+    // vetrina non ci va: con cinque in mano la seconda scelta ce l'abbiamo gia',
+    // senza una seconda domanda.
+    //
+    // Il campo `votes` ce l'hanno tutte — lo scrive chi manda la foto, a zero —
+    // quindi ordinare per quello non taglia fuori nessuno.
+    return _entries(
+      challengeId,
+    ).orderBy('votes', descending: true).limit(5).snapshots().map((snapshot) {
+      final entries = [
+        for (final document in snapshot.docs)
+          ChallengeEntryMapper.fromFirestore(
+            document.id,
+            challengeId,
+            document.data(),
+          ),
+      ]..sort(_byVotesThenOldest);
+
+      for (final entry in entries) {
+        if (entry.mediaUrl.isNotEmpty &&
+            entry.moderation == EntryModeration.approved) {
+          return entry;
+        }
+      }
+
+      return null;
+    });
+  }
+
   @override
   Stream<List<ChallengeEntry>> watchEntries(String challengeId) {
     return _entries(challengeId).limit(300).snapshots().map((snapshot) {
@@ -535,7 +625,22 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     return _challenges
         .where('winnerUserId', isEqualTo: userId)
         .snapshots()
-        .map((snapshot) => _mostRecentFirst(_challengesFrom(snapshot)));
+        .map(
+          (snapshot) => _mostRecentFirst([
+            for (final challenge in _challengesFrom(snapshot))
+              // **La sfida del giorno non lascia figurine.**
+              //
+              // Il trofeo dice quanto si e' vinto, ed e' un oggetto che si
+              // colleziona: nasce dal fatto che qualcuno ci ha messo dei soldi
+              // e qualcun altro se li e' presi. Una gara gratis non ha niente
+              // di tutto questo — si fa per giocare — e una bacheca piena di
+              // figurine da zero euro toglie valore proprio a quelle vere.
+              //
+              // Vincerla si vede lo stesso: la gara sta fra i vincitori per un
+              // giorno, con la foto e il nome di chi l'ha presa.
+              if (!challenge.isDaily) challenge,
+          ]),
+        );
   }
 
   @override

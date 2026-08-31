@@ -1,6 +1,7 @@
 import 'package:crasy/app.dart';
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/legal/legal_documents.dart';
+import 'package:crasy/core/utils/provider_cache.dart';
 import 'package:crasy/core/widgets/opening_curtain.dart';
 import 'package:crasy/features/auth/domain/entities/app_user.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
@@ -54,6 +55,7 @@ void main() {
         // Il sipario dell'apertura non si alza nelle prove: coprirebbe
         // lo schermo per due secondi e i tocchi finirebbero su di lui.
         openingCurtainProvider.overrideWithValue(false),
+        providerCacheProvider.overrideWithValue(Duration.zero),
         // Il giorno e' fisso: quello vero si porta dietro una sveglia puntata
         // sulla mezzanotte, e una prova non deve dipendere da che ore sono.
         todayKeyProvider.overrideWith((ref) => Stream.value('2026-08-30')),

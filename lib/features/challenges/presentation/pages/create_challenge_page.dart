@@ -178,7 +178,10 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
                 ],
-                validator: ChallengeDraftValidators.validatePrize,
+                validator: (value) => ChallengeDraftValidators.validatePrize(
+                  value,
+                  forFriends: _scope == ChallengeScope.friends,
+                ),
               ),
               // **La regola si legge prima, non dopo.** Un minimo che si scopre
               // premendo "pubblica" e' un errore rosso preso in faccia dopo
@@ -186,7 +189,10 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.xxs),
                 child: Text(
-                  'Almeno ${AppMoney.format(ChallengeDraftValidators.prizeMinCents)}.',
+                  _scope == ChallengeScope.friends
+                      ? 'Fra amici puoi anche scrivere 0: la sfida vale gia\' '
+                            'per conto suo.'
+                      : 'Almeno ${AppMoney.format(ChallengeDraftValidators.prizeMinCents)}.',
                   style: context.texts.bodySmall?.copyWith(
                     color: context.palette.textFaint,
                   ),
@@ -248,6 +254,37 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                       ),
                 ],
               ),
+              // **Cosa vuol dire "solo amici", detto prima di scegliere.**
+              //
+              // E' l'unica voce di questa fila che cambia *chi vede la gara* e
+              // non *dove si gioca*, e la differenza non si indovina da una
+              // parola sola. Chi la sceglie deve sapere due cose: che fuori dai
+              // suoi amici non la vede nessuno, e che l'elenco e' quello di
+              // adesso.
+              if (_scope == ChallengeScope.friends) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text.rich(
+                  TextSpan(
+                    style: texts.bodySmall,
+                    children: [
+                      const TextSpan(text: 'La vedono '),
+                      TextSpan(
+                        text: 'solo i tuoi amici',
+                        style: TextStyle(
+                          color: palette.accent,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const TextSpan(
+                        text:
+                            ' — quelli che hai adesso. Non compare nella home '
+                            'di nessun altro, e chi non e\' nel tuo elenco non '
+                            'la puo\' aprire nemmeno con il link.',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               if (_scope == ChallengeScope.local) ...[
                 const SizedBox(height: AppSpacing.md),
                 _Field(

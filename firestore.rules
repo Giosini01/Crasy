@@ -295,14 +295,34 @@ service cloud.firestore {
                && challenge().endsAt > request.time;
       }
 
-      // **Niente si legge senza aver fatto l'accesso.**
+      // **Niente si legge senza aver fatto l'accesso, e le gare riservate solo
+      // se sei fra i destinatari.**
       //
-      // L'app lo impedisce gia' da sola, ma se qui restasse aperto il muro
-      // esisterebbe solo nell'interfaccia: chiunque potrebbe leggere tutto
-      // chiamando il database direttamente. Le foto che la gente manda sono di
-      // persone vere che si mettono in gioco, e non stanno in una vetrina
-      // aperta a chiunque passi.
-      allow read: if signedIn();
+      // L'app impedisce gia' da sola di vedere quello che non ti riguarda, ma
+      // se qui restasse aperto il muro esisterebbe solo nell'interfaccia:
+      // chiunque potrebbe leggere tutto chiamando il database direttamente. Una
+      // gara "solo per amici" che si legge scrivendo un indirizzo non e' una
+      // gara solo per amici — e' una promessa.
+      //
+      // Chi la puo' vedere sta **dentro la gara**, in `audience`: `*` per le
+      // pubbliche, l'elenco dei destinatari per le riservate. E' scritto li' e
+      // non ricavato leggendo l'elenco degli amici perche' una regola che va a
+      // leggere un altro documento **paga una lettura per ogni gara di ogni
+      // schermata**, e oltre una certa quantita' Firestore si rifiuta proprio.
+      //
+      // Le due liste — home e vincitori — chiedono esplicitamente `audience`
+      // contiene `*`; la scheda degli amici chiede `audience` contiene il
+      // proprio identificativo. Cosi' nessuna query prova a leggere qualcosa
+      // che questa regola poi rifiuta: se lo facesse, non tornerebbe una lista
+      // filtrata — fallirebbe tutta.
+      //
+      // Il valore di ripiego e' `['*']`: una gara scritta prima che questo
+      // campo esistesse resta pubblica, come e' sempre stata.
+      allow read: if signedIn()
+                  && (
+                       '*' in resource.data.get('audience', ['*'])
+                       || request.auth.uid in resource.data.get('audience', ['*'])
+                     );
 
       // Una challenge la lancia chiunque abbia un account.
       //
@@ -341,7 +361,38 @@ service cloud.firestore {
                     // vera e si mangerebbe una delle cinque partecipazioni di
                     // chi ci casca. La soglia sta anche qui perche' l'app si
                     // puo' saltare, il database no.
-                    && request.resource.data.prizeCents >= 100
+                    // **Chi la puo' vedere dev'essere scritto bene.**
+                    //
+                    // Senza questa riga il minimo di un euro si aggira in un
+                    // modo solo: si scrive `scope: friends` per avere il premio
+                    // a zero e poi si mette `*` fra i destinatari, ottenendo una
+                    // gara pubblica gratis. Una gara riservata **non puo'**
+                    // essere aperta a tutti, e chi la lancia dev'esserci dentro.
+                    && request.resource.data.audience is list
+                    && request.resource.data.audience.size() > 0
+                    && request.resource.data.audience.size() <= 300
+                    && (
+                         request.resource.data.get('scope', '') != 'friends'
+                           ? '*' in request.resource.data.audience
+                           : (
+                               !('*' in request.resource.data.audience)
+                               && request.auth.uid in request.resource.data.audience
+                             )
+                       )
+                    // **Un euro di minimo, tranne fra amici.**
+                    //
+                    // Sotto un euro un premio smette di essere un premio. Ma
+                    // una gara riservata agli amici puo' valere zero: li' la
+                    // sfida vale gia' per conto suo, e chiedere un euro per
+                    // lanciarla metterebbe un casello davanti alla cosa piu'
+                    // naturale che si fa qui dentro.
+                    && (
+                         request.resource.data.prizeCents >= 100
+                         || (
+                              request.resource.data.get('scope', '') == 'friends'
+                              && request.resource.data.prizeCents == 0
+                            )
+                       )
                     && request.resource.data.prizeCents <= 100000000
                     // Nasce vuota e senza vincitore: i partecipanti li porta
                     // il tempo, il vincitore lo proclama il server.

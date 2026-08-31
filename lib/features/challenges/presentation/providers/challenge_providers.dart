@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:crasy/core/services/firebase/firebase_providers.dart';
+import 'package:crasy/core/utils/provider_cache.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/data/repositories/demo_fallback_challenge_repository.dart';
 import 'package:crasy/features/challenges/data/repositories/firestore_challenge_repository.dart';
@@ -8,7 +9,6 @@ import 'package:crasy/features/challenges/data/repositories/sample_challenge_rep
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
-import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -60,7 +60,11 @@ final endedChallengesProvider = StreamProvider<List<Challenge>>((ref) {
 /// sotto il dito lascerebbe dietro di se' un ascoltatore su Firestore aperto
 /// per sempre.
 final challengeProvider = StreamProvider.autoDispose.family<Challenge?, String>(
-  (ref, id) => ref.watch(challengeRepositoryProvider).watchChallenge(id),
+  (ref, id) {
+    cacheFor(ref);
+
+    return ref.watch(challengeRepositoryProvider).watchChallenge(id);
+  },
 );
 
 /// Se su questa gara si vota ancora.
@@ -78,6 +82,21 @@ final challengeIsLiveProvider = Provider.autoDispose.family<bool, String>((
   ref,
   challengeId,
 ) {
+  for (final challenge
+      in ref.watch(liveChallengesProvider).valueOrNull ?? const <Challenge>[]) {
+    if (challenge.id == challengeId) {
+      return !challenge.hasEndedAt(DateTime.now());
+    }
+  }
+
+  for (final challenge
+      in ref.watch(endedChallengesProvider).valueOrNull ??
+          const <Challenge>[]) {
+    if (challenge.id == challengeId) {
+      return false;
+    }
+  }
+
   final challenge = ref.watch(challengeProvider(challengeId)).valueOrNull;
 
   if (challenge == null) {
@@ -95,6 +114,11 @@ final challengeIsLiveProvider = Provider.autoDispose.family<bool, String>((
 /// semplicemente non c'e' ancora.
 final challengeEntriesProvider = StreamProvider.autoDispose
     .family<List<ChallengeEntry>, String>((ref, challengeId) {
+      // L'elenco intero lo guardano solo le schermate che lo vogliono intero:
+      // il dettaglio di una gara, il visore a tutto schermo, i vincitori.
+      // Uscire e rientrare da una di quelle lo faceva rileggere da capo.
+      cacheFor(ref);
+
       final viewerId = ref.watch(currentUserIdProvider);
 
       return ref
@@ -113,19 +137,16 @@ final challengeEntriesProvider = StreamProvider.autoDispose
 ///
 /// In vetrina vanno **solo le foto gia' ammesse**: la vetrina la vedono tutti,
 /// e una foto ancora in attesa di controllo non e' pronta per stare li'.
-final challengeTopEntryProvider = Provider.autoDispose
+final challengeTopEntryProvider = StreamProvider.autoDispose
     .family<ChallengeEntry?, String>((ref, challengeId) {
-      final entries = ref
-          .watch(challengeEntriesProvider(challengeId))
-          .valueOrNull;
+      // **Non passa piu' dall'elenco completo.** Prima leggeva tutte le
+      // partecipazioni della gara per prenderne una: una scheda in home valeva
+      // fino a trecento documenti, e la home ne mostra otto. Adesso la domanda
+      // e' quella giusta — "la prima della classifica" — e costa cinque
+      // documenti.
+      cacheFor(ref);
 
-      return entries
-          ?.where(
-            (entry) =>
-                entry.mediaUrl.isNotEmpty &&
-                entry.moderation == EntryModeration.approved,
-          )
-          .firstOrNull;
+      return ref.watch(challengeRepositoryProvider).watchTopEntry(challengeId);
     });
 
 /// La foto che rappresenta una challenge: **quella con piu' fiamme**.
@@ -140,7 +161,7 @@ final challengeTopEntryProvider = Provider.autoDispose
 /// titolo, consegna e comando.
 final challengeCoverProvider = Provider.autoDispose.family<String?, String>(
   (ref, challengeId) =>
-      ref.watch(challengeTopEntryProvider(challengeId))?.mediaUrl,
+      ref.watch(challengeTopEntryProvider(challengeId)).valueOrNull?.mediaUrl,
 );
 
 /// Sotto quale foto, di quale gara. Serve a chiedere i commenti.
@@ -158,6 +179,8 @@ typedef CommentTarget = ({String challengeId, String entryId});
 /// ascoltatore su Firestore aperto per sempre.
 final entryCommentsProvider = StreamProvider.autoDispose
     .family<List<EntryComment>, CommentTarget>((ref, target) {
+      cacheFor(ref);
+
       return ref
           .watch(challengeRepositoryProvider)
           .watchComments(

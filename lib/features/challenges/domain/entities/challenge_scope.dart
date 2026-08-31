@@ -12,6 +12,16 @@ enum ChallengeScope {
   /// (`NAPOLI`, `MILANO`), questa e' solo la parola di ripiego.
   local('LOCALE'),
 
+  /// **Solo per i tuoi amici.** Non e' un filtro sulla home: e' una gara che
+  /// chi non ti conosce **non vede proprio**, perche' le regole del database
+  /// non gliela lasciano leggere. Chi la puo' vedere sta scritto dentro la gara
+  /// stessa, nel campo `audience`.
+  ///
+  /// E' l'unico ambito in cui il premio puo' essere zero: fra amici la sfida
+  /// vale gia' per conto suo, e chiedere un euro per lanciarla vorrebbe dire
+  /// mettere un casello davanti alla cosa piu' naturale che si fa qui dentro.
+  friends('SOLO AMICI'),
+
   /// Su invito. Non ancora aperta nell'MVP, ma il valore esiste gia' perche' i
   /// documenti che lo portano possano essere letti senza rompere nulla.
   private('PRIVATA');

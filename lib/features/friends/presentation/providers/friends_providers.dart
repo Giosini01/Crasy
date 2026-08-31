@@ -228,8 +228,16 @@ final friendChallengesProvider = Provider<List<Challenge>>((ref) {
   final loro = {for (final amico in friends) amico.userId};
   final live = ref.watch(liveChallengesProvider).valueOrNull ?? const [];
 
+  // Le pubbliche piu' quelle che hanno riservato a noi. Le riservate non
+  // passano dalla home — la home chiede solo le gare aperte a tutti — quindi se
+  // non le raccogliessimo qui non si vedrebbero da nessuna parte.
+  final riservate =
+      ref.watch(reservedChallengesProvider).valueOrNull ?? const <Challenge>[];
+
   return [
     for (final challenge in live)
+      if (loro.contains(challenge.createdByUserId)) challenge,
+    for (final challenge in riservate)
       if (loro.contains(challenge.createdByUserId)) challenge,
   ];
 });
@@ -325,4 +333,32 @@ final friendActivityProblemProvider = Provider<Object?>((ref) {
   final live = ref.watch(liveChallengesProvider);
 
   return live.hasError ? live.error : null;
+});
+
+/// Le gare **riservate** che posso vedere: le mie e quelle dei miei amici.
+///
+/// Una lettura sola per tutte e due: il filtro e' "il mio identificativo sta fra
+/// i destinatari", e chi le ha lanciate si guarda dopo, in memoria. Due query
+/// separate — le mie, le loro — sarebbero due ascolti su Firestore per una cosa
+/// che il database sa gia' dire in uno.
+final reservedChallengesProvider = StreamProvider<List<Challenge>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+
+  if (userId == null) {
+    return Stream.value(const <Challenge>[]);
+  }
+
+  return ref.watch(challengeRepositoryProvider).watchChallengesFor(userId);
+});
+
+/// Le missioni riservate che ho lanciato **io**.
+final myFriendChallengesProvider = Provider<List<Challenge>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  final riservate =
+      ref.watch(reservedChallengesProvider).valueOrNull ?? const <Challenge>[];
+
+  return [
+    for (final challenge in riservate)
+      if (challenge.createdByUserId == userId) challenge,
+  ];
 });

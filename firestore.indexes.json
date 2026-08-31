@@ -10,6 +10,24 @@
       ]
     },
     {
+      "comment": "Chi puo' vedere una gara sta scritto dentro la gara, in 'audience': '*' per quelle pubbliche, l'elenco degli amici per quelle riservate. Ogni query sulle gare filtra su quel campo e ordina per scadenza, e le due cose insieme vogliono un indice composto.",
+      "collectionGroup": "challenges",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "audience", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "endsAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "comment": "Lo stesso, per le gare finite: si leggono dalla piu' recente.",
+      "collectionGroup": "challenges",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "audience", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "endsAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "comment": "Le proprie partecipazioni stanno sparse sotto challenge diverse, quindi si leggono con una query sul gruppo di collezioni: un indice cosi' Firestore non lo crea da se'. Serve al feed e alla griglia del profilo.",
       "collectionGroup": "entries",
       "queryScope": "COLLECTION_GROUP",

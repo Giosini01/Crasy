@@ -38,6 +38,7 @@ abstract final class ChallengeMapper {
       // solo chi tiene l'app, con l'SDK di amministrazione: dalle regole una
       // gara con questo dentro non la puo' creare nessuno.
       isDaily: (data['kind'] as String?) == 'daily',
+      audience: _stringList(data['audience']),
     );
   }
 
@@ -47,6 +48,11 @@ abstract final class ChallengeMapper {
       'brief': challenge.brief,
       'prizeCents': challenge.prizeCents,
       'scope': challenge.scope.name,
+      // **Chi la puo' vedere viaggia con la gara.** Ogni query filtra su questo
+      // campo, e una query che filtra su un campo salta i documenti che non ce
+      // l'hanno: una gara scritta senza `audience` non comparirebbe da nessuna
+      // parte, nemmeno a chi l'ha lanciata.
+      'audience': challenge.audience,
       'place': challenge.place,
       'rules': challenge.rules,
       'mediaKind': challenge.mediaKind.name,

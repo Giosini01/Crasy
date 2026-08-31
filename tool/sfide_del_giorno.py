@@ -136,6 +136,9 @@ def documento(giorno, consegna):
             "participantsCount": {"integerValue": "0"},
             "prizeStatus": {"stringValue": "unpaid"},
             "rules": {"arrayValue": {"values": []}},
+            # Chi la puo' vedere: tutti. Le gare riservate agli amici portano
+            # qui dentro l'elenco degli amici di chi le ha lanciate.
+            "audience": {"arrayValue": {"values": [{"stringValue": "*"}]}},
         }
     }
 

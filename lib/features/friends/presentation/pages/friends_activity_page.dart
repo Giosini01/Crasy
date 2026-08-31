@@ -15,6 +15,9 @@ import 'package:go_router/go_router.dart';
 
 /// Cosa scelgo di guardare qui dentro.
 enum FriendActivityView {
+  /// Le gare riservate che ho lanciato io.
+  mine('LE TUE'),
+
   /// Le gare che hanno lanciato loro.
   missions('LE LORO MISSIONI'),
 
@@ -68,6 +71,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
     final view = ref.watch(friendActivityViewProvider);
     final missions = ref.watch(friendChallengesProvider);
     final entries = ref.watch(friendEntriesProvider);
+    final mine = ref.watch(myFriendChallengesProvider);
     final problema = ref.watch(friendActivityProblemProvider);
 
     // **Si apre su quella che ha qualcosa da mostrare.**
@@ -98,15 +102,14 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // **In cima il marchio, come sulle altre schede.** Questa e' una
-              // delle cinque, non una pagina in cui si e' entrati: una freccia
-              // per tornare indietro qui non porterebbe da nessuna parte.
+              // **In cima solo il marchio, come sulle altre schede.** Questa
+              // e' una delle cinque, non una pagina in cui si e' entrati.
               //
-              // A destra la porta per l'elenco vero — chi ti ha chiesto
-              // l'amicizia, chi hai gia' — con sopra il numero delle richieste
-              // che aspettano. Sono l'unica cosa dell'app che aspetta una
-              // risposta da te, e da qualche parte si devono vedere.
-              const CrasyHeaderBar(action: _ListButton()),
+              // L'elenco degli amici si apre dal numero sul profilo, e li' c'e'
+              // anche il pallino rosso delle richieste che aspettano: qui in
+              // cima c'era una seconda porta per lo stesso posto, e due porte
+              // per una stanza sola sono una porta di troppo.
+              const CrasyHeaderBar(),
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(
@@ -123,6 +126,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     _Switch(
+                      mine: mine.length,
                       missions: missions.length,
                       entries: entries.length,
                       onPicked: () => _scelto = true,
@@ -137,7 +141,39 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                       ),
                       const SizedBox(height: AppSpacing.lg),
                     ],
-                    if (view == FriendActivityView.missions)
+                    if (view == FriendActivityView.mine) ...[
+                      // **Da qui si lancia una missione per i soli amici.**
+                      //
+                      // Sta in cima e non in fondo perche' quando questa sezione e'
+                      // vuota — cioe' la prima volta di chiunque — il bottone e' tutto
+                      // quello che c'e' da fare qui dentro.
+                      _LaunchForFriends(quante: mine.length),
+                      const SizedBox(height: AppSpacing.lg),
+                      if (mine.isEmpty)
+                        const EmptyState(
+                          title: 'Non ne hai lanciata nessuna',
+                          message:
+                              'Una missione per i soli amici non compare nella home di '
+                              'nessun altro: la vedono loro e basta. E puo\' anche non '
+                              'avere un premio.',
+                        )
+                      else
+                        for (final challenge in mine)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpacing.xl,
+                            ),
+                            child: ChallengeCard(
+                              challenge: challenge,
+                              onOpen: () => context.push(
+                                AppRoutes.challengeDetailOf(challenge.id),
+                              ),
+                              onParticipate: () => context.push(
+                                AppRoutes.participateOf(challenge.id),
+                              ),
+                            ),
+                          ),
+                    ] else if (view == FriendActivityView.missions)
                       if (missions.isEmpty)
                         const EmptyState(
                           title: 'Nessuno ha lanciato niente',
@@ -188,71 +224,16 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
   }
 }
 
-/// La porta per l'elenco degli amici, con le richieste che aspettano.
-class _ListButton extends ConsumerWidget {
-  const _ListButton();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final palette = context.palette;
-    final aspettano =
-        ref.watch(incomingRequestsProvider).valueOrNull?.length ?? 0;
-
-    return Semantics(
-      button: true,
-      label: aspettano > 0
-          ? 'I tuoi amici, $aspettano richieste'
-          : 'I tuoi amici',
-      child: IconButton(
-        onPressed: () => context.push(AppRoutes.friends),
-        tooltip: 'I tuoi amici',
-        icon: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Icon(
-              Icons.format_list_bulleted_rounded,
-              size: 20,
-              color: palette.textFaint,
-            ),
-            if (aspettano > 0)
-              Positioned(
-                top: -5,
-                right: -7,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 1,
-                  ),
-                  decoration: BoxDecoration(
-                    color: palette.accent,
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                  ),
-                  child: Text(
-                    '$aspettano',
-                    style: context.texts.labelSmall?.copyWith(
-                      color: palette.onAccent,
-                      fontSize: 9,
-                      height: 1.3,
-                      letterSpacing: 0,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// La scelta fra le due: due parole e il loro numero.
 class _Switch extends ConsumerWidget {
   const _Switch({
+    required this.mine,
     required this.missions,
     required this.entries,
     required this.onPicked,
   });
 
+  final int mine;
   final int missions;
   final int entries;
 
@@ -265,8 +246,11 @@ class _Switch extends ConsumerWidget {
     final texts = context.texts;
     final selected = ref.watch(friendActivityViewProvider);
 
-    int quante(FriendActivityView view) =>
-        view == FriendActivityView.missions ? missions : entries;
+    int quante(FriendActivityView view) => switch (view) {
+      FriendActivityView.mine => mine,
+      FriendActivityView.missions => missions,
+      FriendActivityView.entries => entries,
+    };
 
     return Row(
       children: [
@@ -305,6 +289,62 @@ class _Switch extends ConsumerWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Il bottone per lanciare una missione riservata agli amici.
+class _LaunchForFriends extends StatelessWidget {
+  const _LaunchForFriends({required this.quante});
+
+  /// Quante ne hai gia' in giro: cambia solo le parole, non il comando.
+  final int quante;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+
+    return GestureDetector(
+      onTap: () => context.push(AppRoutes.create),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          border: Border.all(color: palette.accent, width: 1.5),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.add_rounded, color: palette.accent),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    quante == 0
+                        ? 'LANCIA UNA MISSIONE PER I TUOI AMICI'
+                        : 'LANCIANE UN\'ALTRA',
+                    style: texts.labelSmall?.copyWith(color: palette.accent),
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  // Le due cose che rendono diversa questa missione, dette
+                  // prima di aprire il modulo: chi la vede, e che puo' non
+                  // costare niente. Nel modulo si sceglie SOLO AMICI.
+                  Text(
+                    'La vedono soltanto loro, e il premio puo\' anche essere '
+                    'zero. Nel modulo scegli SOLO AMICI.',
+                    style: texts.bodySmall?.copyWith(
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

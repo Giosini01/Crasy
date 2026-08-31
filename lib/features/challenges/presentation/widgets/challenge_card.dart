@@ -42,7 +42,12 @@ class ChallengeCard extends ConsumerWidget {
     final palette = context.palette;
     final texts = context.texts;
     final myEntry = ref.watch(myEntryForChallengeProvider(challenge.id));
-    final leader = ref.watch(challengeTopEntryProvider(challenge.id));
+    // Il valore, non l'attesa: finche' la foto in vetrina non e' arrivata la
+    // scheda si mostra senza — come faceva prima — e la foto compare quando
+    // c'e'.
+    final leader = ref
+        .watch(challengeTopEntryProvider(challenge.id))
+        .valueOrNull;
     final isMine =
         challenge.createdByUserId.isNotEmpty &&
         challenge.createdByUserId == ref.watch(currentUserIdProvider);
@@ -184,15 +189,19 @@ class ChallengeShowcase extends StatelessWidget {
           FireTap(
             entry: entry,
             onTap: onOpen,
-            // **Piu' bassa di quattro quinti, ma non quadrata.** A quattro
-            // quinti l'anteprima si prendeva quasi tutto lo schermo e scorrendo
-            // le gare se ne vedeva una alla volta; quadrata perdeva l'aria che
-            // serve a una foto verticale, che e' come le fa quasi tutti. Nove
-            // decimi sta in mezzo: si accorcia di un sesto e resta una foto.
+            // **Sedici decimi: l'anteprima e' una striscia orizzontale.**
+            //
+            // A nove decimi era ancora alta quanto mezzo telefono, e scorrendo
+            // la home si vedeva una gara alla volta — che e' il modo piu'
+            // sicuro di far credere che ce ne sia una sola. Qui l'altezza si
+            // dimezza, e sotto la prima gara comincia a vedersi la seconda.
+            //
+            // E' un ritaglio, non una foto rimpicciolita: l'immagine intera si
+            // guarda toccandola, che e' il gesto che tutti fanno comunque.
             child: MediaFrame(
               url: entry.mediaUrl,
               video: entry.isVideo,
-              aspectRatio: 0.9,
+              aspectRatio: 1.6,
               caption: entry.authorName,
             ),
           ),

@@ -15,6 +15,19 @@ abstract class ChallengeRepository {
   /// Le challenge aperte, dalla piu' vicina alla scadenza.
   Stream<List<Challenge>> watchLiveChallenges();
 
+  /// Le gare **riservate** in cui compaio fra i destinatari: quelle lanciate
+  /// dai miei amici solo per gli amici, e le mie.
+  Stream<List<Challenge>> watchChallengesFor(String userId);
+
+  /// **La sola foto in vetrina**: quella che sta vincendo, gia' pronta da
+  /// mostrare.
+  ///
+  /// Esiste separata da [watchEntries] per una ragione di conto: la scheda di
+  /// una gara mostra una foto sola, e leggerne trecento per prenderne una e'
+  /// il modo piu' veloce di spendere il piano gratuito di Firestore. Qui
+  /// l'ordine lo fa il database e ne tornano cinque.
+  Stream<ChallengeEntry?> watchTopEntry(String challengeId);
+
   /// La gara scelta per la sfida del giorno, per il giorno `AAAA-MM-GG`.
   ///
   /// Torna **l'identificativo di una gara che esiste gia'**, non una gara

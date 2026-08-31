@@ -5,6 +5,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -75,7 +76,7 @@ abstract final class ChallengeDraftValidators {
   /// di essere un premio, non un filtro sul valore.
   static const int prizeMinCents = 100;
 
-  static String? validatePrize(String? value) {
+  static String? validatePrize(String? value, {bool forFriends = false}) {
     // Il premio si scrive anche con i centesimi: `10,50`. Non e' un vezzo — a
     // dividere una cifra fra due persone i centesimi escono da soli, e un
     // campo che li rifiuta costringe ad arrotondare in favore di qualcuno.
@@ -88,6 +89,14 @@ abstract final class ChallengeDraftValidators {
     // Il messaggio dice **il numero**, non "importo non valido": chi ha scritto
     // cinquanta centesimi deve sapere subito quanto deve alzare, non che ha
     // sbagliato qualcosa.
+    // **Fra amici lo zero e' ammesso.** Una gara riservata vale gia' per conto
+    // suo — la sfida e' il premio — e chiedere un euro per lanciarla metterebbe
+    // un casello davanti alla cosa piu' naturale che si fa qui dentro. Fuori da
+    // li' il minimo resta, perche' sotto un euro un premio non e' un premio.
+    if (forFriends && cents == 0) {
+      return null;
+    }
+
     if (cents < prizeMinCents) {
       return 'Il premio minimo e\' ${AppMoney.format(prizeMinCents)}.';
     }
@@ -187,6 +196,20 @@ class CreateChallengeController extends AsyncNotifier<void> {
       scope: scope,
       mediaKind: mediaKind,
       place: scope == ChallengeScope.local ? place.trim().toUpperCase() : '',
+      // **Chi la puo' vedere, scritto dentro la gara.**
+      //
+      // Per una gara riservata: io e i miei amici di adesso. La fotografia si
+      // scatta al momento del lancio e non cambia piu' — un amico fatto domani
+      // non vedra' la gara di oggi, ed e' voluto: chi entra a meta' partita non
+      // ha visto la sfida da cui e' nata.
+      audience: scope == ChallengeScope.friends
+          ? [
+              authState.user.id,
+              for (final amico
+                  in ref.read(myFriendsProvider).valueOrNull ?? const [])
+                amico.userId,
+            ]
+          : const [Challenge.everyone],
       createdByUsername: profile?.username ?? 'anonimo',
       createdByUserId: authState.user.id,
       startsAt: now,
