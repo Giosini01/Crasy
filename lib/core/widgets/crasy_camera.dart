@@ -250,15 +250,20 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
         fit: StackFit.expand,
         children: [
           if (_pronta && controller != null)
-            // **Lo specchio sta qui e solo qui.** Riguarda quello che si vede
-            // mentre ci si inquadra, non il file che parte: `takePicture`
-            // legge il sensore, non questa trasformazione.
-            Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.identity()
-                ..scaleByDouble(_frontale ? -1.0 : 1.0, 1, 1, 1),
-              child: Center(child: CameraPreview(controller)),
-            )
+            // **L'anteprima non la ribaltiamo noi: la ribalta gia' il
+            // sistema.**
+            //
+            // C'era un `Transform` qui, e faceva danno. Il livello di anteprima
+            // della fotocamera — su iPhone, su Android e nel browser — mostra
+            // gia' la lente frontale come uno specchio, perche' e' l'unico modo
+            // in cui uno riesce a inquadrarsi. Aggiungendone un altro sopra, i
+            // due ribaltamenti si annullavano e ci si vedeva **al contrario**:
+            // la scritta sulla maglietta leggibile, la riga dei capelli dalla
+            // parte sbagliata, e la mano destra che si muove a sinistra.
+            //
+            // Il ribaltamento serve **solo sul file**, che invece arriva dal
+            // sensore cosi' com'e'.
+            Center(child: CameraPreview(controller))
           else
             const Center(
               child: SizedBox(
