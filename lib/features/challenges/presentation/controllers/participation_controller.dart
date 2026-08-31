@@ -109,6 +109,32 @@ class ParticipationController extends AsyncNotifier<void> {
     );
   }
 
+  /// Prepara un file **gia' scattato** dalla fotocamera di CRASY.
+  ///
+  /// Fa la stessa cosa che si faceva sul risultato del selettore di sistema —
+  /// stringere la foto prima ancora dell'anteprima — perche' quello che si vede
+  /// deve essere esattamente quello che parte.
+  Future<PickedMedia> fromCamera(XFile file, MediaKind kind) async {
+    final original = await file.readAsBytes();
+
+    if (kind.isVideo) {
+      return PickedMedia(
+        bytes: original,
+        contentType: file.mimeType ?? 'video/mp4',
+        isVideo: true,
+      );
+    }
+
+    final shrunk = PhotoCompressor.shrink(original);
+
+    return PickedMedia(
+      bytes: shrunk,
+      contentType: shrunk.length == original.length
+          ? file.mimeType
+          : 'image/jpeg',
+    );
+  }
+
   /// Il video, registrato sul momento.
   ///
   /// La durata massima la impone il selettore stesso, non un controllo dopo:

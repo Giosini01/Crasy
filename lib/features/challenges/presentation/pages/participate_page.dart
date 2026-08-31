@@ -5,6 +5,7 @@ import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
+import 'package:crasy/core/widgets/crasy_camera.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
@@ -138,9 +139,21 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
     setState(() => _error = null);
 
     try {
-      final media = await ref
-          .read(participationControllerProvider.notifier)
-          .capture(kind);
+      final controller = ref.read(participationControllerProvider.notifier);
+
+      // **La fotocamera e' la nostra, dove possiamo averla.**
+      //
+      // Quella di sistema portava dietro un problema che da qui non si
+      // aggiustava: su iPhone, con "Immagine speculare fotocamera anteriore"
+      // acceso, il selfie viene **salvato specchiato** — e quell'interruttore
+      // sta nelle impostazioni del telefono, non nelle nostre. Scattando noi,
+      // il file non e' mai specchiato.
+      //
+      // Sul web resta quella di sistema: li' l'app e' un'anteprima, e il
+      // permesso alla fotocamera lo gestisce il browser a modo suo.
+      final media = CrasyCamera.available
+          ? await _scattaConLaNostra(controller, kind)
+          : await controller.capture(kind);
 
       // Rinunciare a scattare non e' un errore: se l'utente chiude la
       // fotocamera non deve trovarsi un messaggio rosso in pagina.
@@ -154,6 +167,21 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
         setState(() => _error = ErrorMessageMapper.map(error));
       }
     }
+  }
+
+  /// Apre la fotocamera di CRASY e prepara quello che ne esce.
+  Future<PickedMedia?> _scattaConLaNostra(
+    ParticipationController controller,
+    MediaKind kind,
+  ) async {
+    final file = await CrasyCamera.open(context, video: kind.isVideo);
+
+    // Chiusa senza scattare: non e' un errore e non deve dire niente.
+    if (file == null || !mounted) {
+      return null;
+    }
+
+    return controller.fromCamera(file, kind);
   }
 
   /// L'ultima domanda prima che lo scatto entri in gara.
