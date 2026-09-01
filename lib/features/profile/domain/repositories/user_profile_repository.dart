@@ -50,6 +50,13 @@ abstract class UserProfileRepository {
   /// finito il tutorial.
   Future<void> markTutorialSeen(String userId);
 
+  /// Salva il numero di telefono verificato.
+  ///
+  /// Il numero arriva da Firebase, che l'ha appena legato all'account: qui si
+  /// scrive soltanto nel profilo, perche' e' li' che l'app guarda per sapere
+  /// se il passaggio e' gia' stato fatto.
+  Future<void> savePhone({required String userId, required String phone});
+
   Future<void> saveConsent({
     required String userId,
     required String version,

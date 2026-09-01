@@ -292,6 +292,20 @@ service cloud.firestore {
       // E' quella richiesta a rendere impossibile aggiungersi da soli fra gli
       // amici di qualcuno: senza un documento che quella persona ha ricevuto,
       // nessuna delle due righe si puo' scrivere.
+      // **I telefoni a cui mandare le notifiche.**
+      //
+      // Li scrive e li legge soltanto il diretto interessato. Nessun altro:
+      // l'indirizzo di un dispositivo e' cio' che serve per mandargli una
+      // notifica, e lasciarlo leggere a chiunque vorrebbe dire consegnare a
+      // chiunque il modo di far vibrare il telefono di un altro.
+      //
+      // Il nome del documento e' l'indirizzo stesso: riscriverlo non crea
+      // doppioni, e due notifiche identiche sullo stesso telefono sono il modo
+      // piu' veloce per farsele disattivare.
+      match /devices/{token} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
       // **Chi ho bloccato: lo leggo e lo scrivo solo io.**
       //
       // Nessun altro, e in particolare **non chi e' stato bloccato**: sapere

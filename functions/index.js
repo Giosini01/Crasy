@@ -13,12 +13,27 @@ const db = admin.firestore();
 
 // I soldi stanno in un file a parte, e le sue funzioni si esportano da qui:
 // tutto quello che tocca denaro si legge in un posto solo.
-const payments = require('./payments');
+//
+// **Restano spente finche' non si accendono di proposito.** Le funzioni dei
+// pagamenti dichiarano due segreti di Stripe, e dichiararli obbliga il
+// caricamento a interrogare Secret Manager: finche' quel servizio non e'
+// attivo e le chiavi non ci sono, il tentativo fallisce — e con lui fallisce
+// il caricamento di **tutte** le altre funzioni, comprese quelle che con i
+// soldi non c'entrano niente. Una parte non finita che impedisce di pubblicare
+// il resto e' una parte che va tenuta fuori.
+//
+// Si accendono cosi', il giorno in cui i pagamenti partono davvero:
+//
+//     firebase functions:secrets:set STRIPE_SECRET_KEY
+//     firebase deploy --only functions --set-env-vars CRASY_PAYMENTS=on
+if (process.env.CRASY_PAYMENTS === 'on') {
+  const payments = require('./payments');
 
-exports.startChallengePayment = payments.startChallengePayment;
-exports.stripeWebhook = payments.stripeWebhook;
-exports.createPayoutOnboarding = payments.createPayoutOnboarding;
-exports.withdrawWallet = payments.withdrawWallet;
+  exports.startChallengePayment = payments.startChallengePayment;
+  exports.stripeWebhook = payments.stripeWebhook;
+  exports.createPayoutOnboarding = payments.createPayoutOnboarding;
+  exports.withdrawWallet = payments.withdrawWallet;
+}
 
 // Stessa regione del database: una funzione che scrive su Firestore va dove sta
 // il database, altrimenti ogni scrittura fa un giro per mezzo mondo.
@@ -442,3 +457,117 @@ exports.purgeUnverifiedAccounts = onSchedule('every 60 minutes', async () => {
 
   logger.info(`Buttati ${daButtare.length} account mai confermati.`);
 });
+
+/**
+ * Manda la notifica push quando ne nasce una nella casella di qualcuno.
+ *
+ * **Perche' serve il server.** L'app scrive gia' la notifica nel database, e chi
+ * ha CRASY aperta la vede comparire da sola. Ma il novanta per cento delle
+ * volte l'app e' chiusa: senza qualcuno che parli con Apple e con Google, quella
+ * notifica la si scopre riaprendo l'app — cioe' quando non serve piu' a niente.
+ * Le notifiche non servono a informare chi c'e' gia': servono a far tornare chi
+ * se n'e' andato.
+ *
+ * Il messaggio si costruisce qui e non nell'app perche' e' l'unico posto che
+ * sa a chi sta parlando e in che lingua, e perche' quello che arriva sullo
+ * schermo bloccato deve essere corto: una riga, un nome, e cosa e' successo.
+ */
+exports.sendPushOnNotification = onDocumentCreated(
+  'users/{userId}/notifications/{notificationId}',
+  async (event) => {
+    const dati = event.data?.data();
+
+    if (!dati) {
+      return;
+    }
+
+    const userId = event.params.userId;
+    const chi = dati.actorUsername || 'qualcuno';
+    const gara = dati.challengeTitle || '';
+
+    // Una riga per tipo. Corte apposta: sullo schermo bloccato di un telefono
+    // ne entrano due, e la seconda la legge quasi nessuno.
+    const testi = {
+      win: ['Hai vinto.', gara ? `La tua foto ha vinto ${gara}.` : 'La tua foto ha vinto.'],
+      fire: ['Una fiamma in piu', `@${chi} ha acceso una fiamma sulla tua foto.`],
+      participation: ['Qualcuno e sceso in gara', gara ? `@${chi} ha partecipato a ${gara}.` : `@${chi} ha partecipato.`],
+      comment: ['Nuovo commento', `@${chi} ha commentato la tua foto.`],
+      mention: ['Ti hanno nominato', `@${chi} ti ha nominato in un commento.`],
+      friendRequest: ['Richiesta di amicizia', `@${chi} vuole essere tuo amico.`],
+    };
+
+    const [titolo, corpo] = testi[dati.kind] || ['CRASY', `@${chi} ha fatto qualcosa.`];
+
+    // Gli indirizzi dei telefoni di questa persona. Senza nessun dispositivo
+    // registrato non c'e' niente da fare: la notifica resta nel database e si
+    // vedra' riaprendo l'app.
+    const dispositivi = await db
+      .collection('users')
+      .doc(userId)
+      .collection('devices')
+      .get();
+
+    const indirizzi = dispositivi.docs.map((doc) => doc.id);
+
+    if (indirizzi.length === 0) {
+      return;
+    }
+
+    const esito = await admin.messaging().sendEachForMulticast({
+      tokens: indirizzi,
+      notification: { title: titolo, body: corpo },
+      // Serve all'app per sapere dove portare chi tocca la notifica.
+      data: {
+        kind: String(dati.kind || ''),
+        challengeId: String(dati.challengeId || ''),
+      },
+      apns: {
+        payload: { aps: { sound: 'default', badge: 1 } },
+      },
+      android: {
+        priority: 'high',
+        notification: { sound: 'default', color: '#C8102E' },
+      },
+    });
+
+    // **Gli indirizzi morti si cancellano subito.**
+    //
+    // Un telefono formattato, un'app disinstallata, un permesso revocato: da
+    // quel momento l'indirizzo non risponde piu'. Lasciandolo li', ogni
+    // notifica futura di quella persona prova a raggiungerlo e fallisce — e
+    // dopo qualche mese l'elenco e' fatto piu' di morti che di vivi.
+    const morti = [];
+
+    esito.responses.forEach((risposta, i) => {
+      const codice = risposta.error?.code || '';
+
+      if (
+        codice === 'messaging/registration-token-not-registered' ||
+        codice === 'messaging/invalid-registration-token' ||
+        codice === 'messaging/invalid-argument'
+      ) {
+        morti.push(indirizzi[i]);
+      }
+    });
+
+    await Promise.all(
+      morti.map((token) =>
+        db
+          .collection('users')
+          .doc(userId)
+          .collection('devices')
+          .doc(token)
+          .delete()
+          .catch(() => {})
+      )
+    );
+
+    logger.info('notifica mandata', {
+      userId,
+      kind: dati.kind,
+      inviate: esito.successCount,
+      fallite: esito.failureCount,
+      ripulite: morti.length,
+    });
+  }
+);

@@ -1,6 +1,7 @@
 import 'package:crasy/core/services/refresh/auto_refresh.dart';
 import 'package:crasy/core/theme/app_theme.dart';
 import 'package:crasy/core/widgets/opening_curtain.dart';
+import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:crasy/routing/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -12,6 +13,12 @@ class CrasyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(goRouterProvider);
+
+    // **Il registro dei dispositivi si accende qui**, e non dentro una
+    // schermata: deve seguire la sessione — chi entra registra il proprio
+    // telefono, chi esce lo toglie — e nessuna schermata resta aperta per tutta
+    // la sessione. Guardato da qui, vive quanto l'app.
+    ref.watch(pushRegistrationProvider);
 
     return MaterialApp.router(
       title: 'CRASY',

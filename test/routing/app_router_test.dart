@@ -74,6 +74,9 @@ void main() {
               createdAt: null,
               updatedAt: null,
               onboardingCompleted: true,
+              // Il muro del telefono viene prima: senza questo, la prova si
+              // fermerebbe li' e non verificherebbe piu' i consensi.
+              phone: '+393330000000',
             ),
           ),
         ),
@@ -141,6 +144,7 @@ void main() {
               legalVersion: LegalTexts.version,
               legalAcceptedAt: DateTime(2026),
               tutorialSeen: true,
+              phone: '+393330000000',
             ),
           ),
         ),
@@ -151,6 +155,37 @@ void main() {
     await container.pump();
 
     expect(container.read(sessionLandingRouteProvider), AppRoutes.challenges);
+  });
+
+  test('senza numero verificato si passa dalla verifica del telefono', () async {
+    final container = containerWith(
+      FakeAuthRepository(currentUser: user),
+      overrides: [
+        currentUserProfileProvider.overrideWith(
+          (ref) => Stream.value(
+            UserProfile(
+              id: 'user-1',
+              username: 'martina',
+              birthDate: DateTime(2000, 1, 1),
+              createdAt: null,
+              updatedAt: null,
+              onboardingCompleted: true,
+              legalVersion: LegalTexts.version,
+              legalAcceptedAt: DateTime(2026),
+              tutorialSeen: true,
+            ),
+          ),
+        ),
+      ],
+    );
+
+    await container.read(currentUserProfileProvider.future);
+    await container.pump();
+
+    // **Prima dei consensi**, non dopo: e' un requisito di identita'. A
+    // decidere chi vince sono i voti, e sulle gare girano dei soldi: finche'
+    // iscriversi costa un indirizzo email, cinque profili valgono cinque voti.
+    expect(container.read(sessionLandingRouteProvider), AppRoutes.verifyPhone);
   });
 
   test('senza sessione completa non si guarda niente', () {
@@ -179,6 +214,9 @@ void main() {
               createdAt: null,
               updatedAt: null,
               onboardingCompleted: true,
+              // Il muro del telefono viene prima: senza questo, la prova si
+              // fermerebbe li' e non verificherebbe piu' i consensi.
+              phone: '+393330000000',
             ),
           ),
         ),
@@ -209,6 +247,7 @@ void main() {
               onboardingCompleted: true,
               legalVersion: 'una-versione-di-due-anni-fa',
               legalAcceptedAt: DateTime(2024),
+              phone: '+393330000000',
             ),
           ),
         ),
@@ -240,6 +279,7 @@ void main() {
               onboardingCompleted: true,
               legalVersion: LegalTexts.version,
               legalAcceptedAt: DateTime(2026),
+              phone: '+393330000000',
             ),
           ),
         ),

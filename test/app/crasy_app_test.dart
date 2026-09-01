@@ -35,6 +35,8 @@ void main() {
     legalVersion: LegalTexts.version,
     legalAcceptedAt: DateTime(2026),
     tutorialSeen: true,
+    // La porta del numero: senza, si resta fermi alla verifica del telefono.
+    phone: '+393330000000',
   );
 
   /// Le schermate con il countdown tengono un timer che batte ogni secondo.

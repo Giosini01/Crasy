@@ -88,6 +88,14 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
   }
 
   @override
+  Future<void> savePhone({required String userId, required String phone}) {
+    return _users.doc(userId).update({
+      'phone': phone,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
   Future<void> saveConsent({
     required String userId,
     required String version,

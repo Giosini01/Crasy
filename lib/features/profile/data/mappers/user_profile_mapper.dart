@@ -19,6 +19,7 @@ abstract final class UserProfileMapper {
       marketingConsent: data['marketingConsent'] as bool? ?? false,
       profilingConsent: data['profilingConsent'] as bool? ?? false,
       tutorialSeen: data['tutorialSeen'] as bool? ?? false,
+      phone: data['phone'] as String? ?? '',
     );
   }
 

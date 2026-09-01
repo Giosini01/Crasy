@@ -25,6 +25,7 @@ class UserProfile {
     this.marketingConsent = false,
     this.profilingConsent = false,
     this.tutorialSeen = false,
+    this.phone = '',
   });
 
   final String id;
@@ -82,6 +83,22 @@ class UserProfile {
   /// cosa che riguarda la persona, non l'apparecchio.
   final bool tutorialSeen;
 
+  /// Il numero di telefono verificato, o vuoto.
+  ///
+  /// **Non serve a chiamare nessuno: serve a rendere caro un account falso.**
+  /// Con dei soldi in palio e un vincitore deciso dai voti, cinque profili
+  /// costruiti in cinque minuti valgono cinque voti — e la classifica che
+  /// assegna il premio smette di significare qualcosa. Un'email si inventa in
+  /// dieci secondi e gratis; un numero di telefono no.
+  ///
+  /// Non e' visibile a nessun altro utente: le regole del database lo lasciano
+  /// leggere e scrivere soltanto al diretto interessato, e nell'app non compare
+  /// da nessuna parte.
+  final String phone;
+
+  /// Ha verificato il numero.
+  bool get phoneVerified => phone.isNotEmpty;
+
   /// Se ha accettato **la versione che gira adesso**.
   ///
   /// Cambiando i testi cambia la versione, e da quel momento questo torna falso
@@ -123,6 +140,7 @@ class UserProfile {
     bool? marketingConsent,
     bool? profilingConsent,
     bool? tutorialSeen,
+    String? phone,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? onboardingCompleted,
@@ -140,6 +158,7 @@ class UserProfile {
       marketingConsent: marketingConsent ?? this.marketingConsent,
       profilingConsent: profilingConsent ?? this.profilingConsent,
       tutorialSeen: tutorialSeen ?? this.tutorialSeen,
+      phone: phone ?? this.phone,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
@@ -162,7 +181,8 @@ class UserProfile {
         other.photoStoragePath == photoStoragePath &&
         other.createdAt == createdAt &&
         other.updatedAt == updatedAt &&
-        other.onboardingCompleted == onboardingCompleted;
+        other.onboardingCompleted == onboardingCompleted &&
+        other.phone == phone;
   }
 
   @override
@@ -177,5 +197,6 @@ class UserProfile {
     createdAt,
     updatedAt,
     onboardingCompleted,
+    phone,
   );
 }

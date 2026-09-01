@@ -5,6 +5,9 @@ abstract final class AppRoutes {
   /// Il muro della conferma dell'email: si sta qui finche' non e' confermata.
   static const verifyEmail = '/verifica-email';
 
+  /// Il muro del numero di telefono: **un account per persona**.
+  static const verifyPhone = '/verifica-telefono';
+
   static const onboarding = '/onboarding';
 
   /// I consensi: cosa accetti prima di entrare.

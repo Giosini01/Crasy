@@ -81,6 +81,38 @@ class FakeAuthRepository implements AuthRepository {
     _controller.add(null);
   }
 
+  /// I numeri a cui e' stato chiesto un codice, in ordine.
+  final sentPhoneCodes = <String>[];
+
+  /// Il numero che [confirmPhoneCode] fara' finta di aver verificato.
+  String phoneOnConfirm = '+390000000000';
+
+  /// Se la verifica deve fallire, l'errore da lanciare.
+  Object? phoneError;
+
+  @override
+  Future<String> sendPhoneCode({required String phoneNumber}) async {
+    if (phoneError != null) {
+      throw phoneError!;
+    }
+
+    sentPhoneCodes.add(phoneNumber);
+
+    return 'verifica-finta';
+  }
+
+  @override
+  Future<String> confirmPhoneCode({
+    required String verificationId,
+    required String code,
+  }) async {
+    if (phoneError != null) {
+      throw phoneError!;
+    }
+
+    return phoneOnConfirm;
+  }
+
   /// Cambia account senza passare da un accesso vero.
   ///
   /// Serve alle prove che devono guardare **cosa resta appiccicato** quando

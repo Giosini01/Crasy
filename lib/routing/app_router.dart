@@ -3,6 +3,7 @@ import 'package:crasy/core/legal/legal_documents.dart';
 import 'package:crasy/core/routing/swipe_back_page.dart';
 import 'package:crasy/features/auth/presentation/pages/auth_page.dart';
 import 'package:crasy/features/auth/presentation/pages/verify_email_page.dart';
+import 'package:crasy/features/auth/presentation/pages/verify_phone_page.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/presentation/pages/challenge_detail_page.dart';
 import 'package:crasy/features/challenges/presentation/pages/create_challenge_page.dart';
@@ -65,6 +66,19 @@ final sessionLandingRouteProvider = Provider<String>((ref) {
       // dall'onboarding: l'eta' non e' un campo che si possa lasciare vuoto.
       if (profile.birthDate == null) {
         return AppRoutes.onboarding;
+      }
+
+      // **Il numero di telefono, prima dei consensi.**
+      //
+      // Sta qui e non piu' avanti perche' e' un requisito di identita', non una
+      // funzione: a decidere chi vince sono i voti, e sulle gare girano dei
+      // soldi. Finche' iscriversi costa un indirizzo email — dieci secondi,
+      // gratis, quanti se ne vogliono — cinque profili valgono cinque voti.
+      //
+      // Chi si e' registrato prima che questo muro esistesse ci ripassa una
+      // volta sola.
+      if (!profile.phoneVerified) {
+        return AppRoutes.verifyPhone;
       }
 
       // Chi non ha mai accettato, e chi aveva accettato una versione che nel
@@ -162,6 +176,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       _tabRoute(AppRoutes.auth, const AuthPage()),
       _tabRoute(AppRoutes.verifyEmail, const VerifyEmailPage()),
       _tabRoute(AppRoutes.onboarding, const OnboardingPage()),
+      _tabRoute(AppRoutes.verifyPhone, const VerifyPhonePage()),
       _tabRoute(AppRoutes.consents, const ConsentPage()),
       _tabRoute(AppRoutes.tutorial, const TutorialPage()),
       for (final tab in AppRoutes.tabs)
@@ -213,6 +228,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         AppRoutes.auth,
         AppRoutes.verifyEmail,
         AppRoutes.onboarding,
+        AppRoutes.verifyPhone,
         AppRoutes.consents,
         AppRoutes.tutorial,
       };

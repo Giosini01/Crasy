@@ -44,6 +44,33 @@ abstract class AuthRepository {
   /// dentro la sessione appena aperta.
   Future<void> discardUnverifiedAccount();
 
+  /// Manda il codice via SMS e torna l'identificativo della verifica.
+  ///
+  /// **Il numero non serve a chiamare nessuno: serve a rendere caro un account
+  /// falso.** Con dei soldi in palio e un vincitore deciso dai voti, cinque
+  /// profili costruiti in cinque minuti valgono cinque voti, e la classifica
+  /// che assegna il premio smette di significare qualcosa. Un indirizzo email
+  /// si inventa in dieci secondi e gratis; un numero no.
+  ///
+  /// L'identificativo che torna e' il filo che tiene insieme le due meta'
+  /// dell'operazione: si manda il codice adesso, si controlla fra un minuto,
+  /// e nel frattempo l'app puo' anche essere stata ridisegnata dieci volte.
+  Future<String> sendPhoneCode({required String phoneNumber});
+
+  /// Controlla il codice e **attacca il numero all'account che gia' esiste**.
+  ///
+  /// Attacca, non sostituisce: si continua a entrare con email e password, e
+  /// il numero diventa una seconda prova di identita' sullo stesso account.
+  /// Facendone invece un secondo modo di accedere, chi cambia numero — o chi
+  /// se lo fa intestare da qualcun altro — si porterebbe via l'account.
+  ///
+  /// Torna il numero in forma internazionale, quello che va salvato nel
+  /// profilo.
+  Future<String> confirmPhoneCode({
+    required String verificationId,
+    required String code,
+  });
+
   /// Cancella l'account, per sempre.
   ///
   /// **La password si richiede davvero**, e non e' una formalita': Firebase

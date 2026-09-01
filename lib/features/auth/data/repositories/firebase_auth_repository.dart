@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:crasy/features/auth/domain/entities/app_user.dart';
 import 'package:crasy/features/auth/domain/repositories/auth_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class FirebaseAuthRepository implements AuthRepository {
   FirebaseAuthRepository(this._firebaseAuth);
@@ -153,6 +156,85 @@ class FirebaseAuthRepository implements AuthRepository {
       // fa fare niente.
       await _firebaseAuth.signOut();
     }
+  }
+
+  @override
+  Future<String> sendPhoneCode({required String phoneNumber}) async {
+    // **Sul web e sui telefoni si parte da due strade diverse.** Nel browser
+    // Firebase apre da se' il proprio controllo anti-robot e il codice torna
+    // per un'altra via; su iPhone e Android il controllo lo fa il sistema
+    // operativo, in silenzio.
+    //
+    // Il `Completer` mette d'accordo le due: qualunque strada prenda Firebase,
+    // di qui esce **un identificativo o un errore**, una volta sola.
+    final atteso = Completer<String>();
+
+    if (kIsWeb) {
+      final conferma = await _firebaseAuth.signInWithPhoneNumber(phoneNumber);
+
+      return conferma.verificationId;
+    }
+
+    await _firebaseAuth.verifyPhoneNumber(
+      phoneNumber: phoneNumber,
+      // Su Android il codice a volte arriva e si applica da solo. Non lo
+      // usiamo per chiudere l'operazione: la schermata sta aspettando un
+      // identificativo, e riceverne uno e' l'unico modo di andare avanti in
+      // tutti i casi allo stesso modo.
+      verificationCompleted: (_) {},
+      verificationFailed: (errore) {
+        if (!atteso.isCompleted) {
+          atteso.completeError(errore);
+        }
+      },
+      codeSent: (verificationId, _) {
+        if (!atteso.isCompleted) {
+          atteso.complete(verificationId);
+        }
+      },
+      codeAutoRetrievalTimeout: (verificationId) {
+        // Scaduta l'attesa del riempimento automatico l'identificativo resta
+        // buono: se nessuno ha ancora risposto, e' questo il momento di
+        // consegnarlo.
+        if (!atteso.isCompleted) {
+          atteso.complete(verificationId);
+        }
+      },
+      timeout: const Duration(seconds: 60),
+    );
+
+    return atteso.future;
+  }
+
+  @override
+  Future<String> confirmPhoneCode({
+    required String verificationId,
+    required String code,
+  }) async {
+    final utente = _firebaseAuth.currentUser;
+
+    if (utente == null) {
+      throw FirebaseAuthException(
+        code: 'no-current-user',
+        message: 'Sessione non valida.',
+      );
+    }
+
+    final credenziale = PhoneAuthProvider.credential(
+      verificationId: verificationId,
+      smsCode: code,
+    );
+
+    // **Si attacca al proprio account, non si entra con il numero.**
+    //
+    // Se il numero e' gia' attaccato a un altro account Firebase rifiuta, ed e'
+    // esattamente quello che vogliamo: e' la riga che impedisce a una persona
+    // sola di verificare cinque profili con lo stesso telefono, cioe' tutto il
+    // motivo per cui questa schermata esiste.
+    await utente.linkWithCredential(credenziale);
+    await utente.reload();
+
+    return _firebaseAuth.currentUser?.phoneNumber ?? '';
   }
 
   @override

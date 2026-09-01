@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:crasy/core/services/firebase/firebase_providers.dart';
+import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/notifications/data/push_registry.dart';
 import 'package:crasy/features/notifications/data/repositories/firestore_notifications_repository.dart';
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final notificationsRepositoryProvider =
@@ -124,4 +129,47 @@ final unreadNotificationsProvider = Provider<int>((ref) {
       .watch(notificationsProvider)
       .where((notification) => notification.isUnreadSince(seenAt))
       .length;
+});
+
+/// Il registro dei dispositivi per le notifiche.
+final pushRegistryProvider = Provider<PushRegistry?>((ref) {
+  if (!ref.watch(firebaseBootstrapResultProvider).isConfigured) {
+    return null;
+  }
+
+  return PushRegistry(
+    ref.watch(firebaseFirestoreProvider),
+    FirebaseMessaging.instance,
+  );
+});
+
+/// Tiene il registro dei dispositivi allineato a chi e' collegato.
+///
+/// **Si accende e si spegne da solo**, seguendo la sessione: chi entra registra
+/// il proprio telefono, chi esce lo toglie. Senza la seconda meta', il telefono
+/// di chi ha fatto uscire l'account continuerebbe a ricevere le notifiche di
+/// quella persona — anche mesi dopo, anche se nel frattempo lo usa qualcun
+/// altro.
+///
+/// Il permesso si chiede qui e non all'avvio, ed e' una scelta che non si puo'
+/// disfare: su iPhone la richiesta si fa **una volta sola** nella vita
+/// dell'installazione. Chiederla prima che uno abbia capito cosa sia CRASY
+/// vuol dire bruciarla.
+final pushRegistrationProvider = Provider<void>((ref) {
+  final registro = ref.watch(pushRegistryProvider);
+
+  if (registro == null) {
+    return;
+  }
+
+  final authState = ref.watch(authStateProvider);
+
+  if (authState is! AuthenticatedAuthState) {
+    return;
+  }
+
+  final userId = authState.user.id;
+
+  unawaited(registro.register(userId));
+  ref.onDispose(() => unawaited(registro.unregister(userId)));
 });
