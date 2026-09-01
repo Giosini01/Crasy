@@ -117,12 +117,32 @@ class _VerifyPhonePageState extends ConsumerState<VerifyPhonePage> {
     });
 
     try {
-      final numero = await ref
+      final confermato = await ref
           .read(authRepositoryProvider)
           .confirmPhoneCode(
             verificationId: verifica,
             code: _codice.text.trim(),
           );
+
+      // **Il numero da salvare non puo' mai essere vuoto.**
+      //
+      // Era il difetto che mandava la schermata in circolo. Firebase, dopo aver
+      // agganciato il numero, non sempre lo restituisce subito: sul web
+      // l'aggiornamento della sessione arriva un istante dopo, e quello che
+      // tornava era una stringa vuota. Vuota finiva nel profilo, il profilo
+      // risultava senza numero, e il muro rimandava alla stessa schermata —
+      // **senza nessun errore**, perche' dal punto di vista del codice era
+      // andato tutto bene.
+      //
+      // Quello scritto qui sopra lo sappiamo comunque: e' il numero a cui e'
+      // appena arrivato il codice, e la verifica e' passata. Se Firebase ce ne
+      // da' una versione sua la si preferisce — e' scritta nella forma
+      // canonica — altrimenti vale la nostra.
+      final numero = confermato.isNotEmpty ? confermato : _numeroPerFirebase;
+
+      if (numero.isEmpty) {
+        throw StateError('numero mancante');
+      }
 
       // Il numero finisce nel profilo: e' li' che l'app va a guardare per
       // sapere se questa persona ha gia' fatto il passaggio, e senza quel campo
