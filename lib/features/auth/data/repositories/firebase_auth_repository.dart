@@ -159,6 +159,9 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   @override
+  String? get currentPhoneNumber => _firebaseAuth.currentUser?.phoneNumber;
+
+  @override
   Future<String> sendPhoneCode({required String phoneNumber}) async {
     // **Sul web e sui telefoni si parte da due strade diverse.** Nel browser
     // Firebase apre da se' il proprio controllo anti-robot e il codice torna
@@ -277,7 +280,29 @@ class FirebaseAuthRepository implements AuthRepository {
     // esattamente quello che vogliamo: e' la riga che impedisce a una persona
     // sola di verificare cinque profili con lo stesso telefono, cioe' tutto il
     // motivo per cui questa schermata esiste.
-    await utente.linkWithCredential(credenziale);
+    try {
+      await utente.linkWithCredential(credenziale);
+    } on FirebaseAuthException catch (errore) {
+      // **Gia' agganciato non e' un fallimento.**
+      //
+      // Capita a chi si e' fermato fra i due passaggi: il numero era stato
+      // legato all'account, ma il profilo non era stato aggiornato. Tornando
+      // qui, Firebase rifiuta di legarlo una seconda volta — giustamente — e
+      // trattare quel rifiuto come un errore lascerebbe la persona chiusa
+      // fuori per sempre, con la schermata che chiede un numero che ha gia'
+      // dato.
+      //
+      // Vale solo se il numero agganciato c'e' davvero: allora il lavoro era
+      // gia' fatto, e qui non resta che dirlo.
+      final gia = _firebaseAuth.currentUser?.phoneNumber;
+
+      if (errore.code != 'provider-already-linked' ||
+          gia == null ||
+          gia.isEmpty) {
+        rethrow;
+      }
+    }
+
     await utente.reload();
 
     return _firebaseAuth.currentUser?.phoneNumber ?? '';

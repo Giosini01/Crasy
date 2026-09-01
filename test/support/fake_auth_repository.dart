@@ -81,6 +81,12 @@ class FakeAuthRepository implements AuthRepository {
     _controller.add(null);
   }
 
+  @override
+  String? get currentPhoneNumber => linkedPhone;
+
+  /// Il numero gia' agganciato alla sessione finta, se c'e'.
+  String? linkedPhone;
+
   /// I numeri a cui e' stato chiesto un codice, in ordine.
   final sentPhoneCodes = <String>[];
 

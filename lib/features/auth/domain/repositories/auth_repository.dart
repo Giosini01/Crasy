@@ -44,6 +44,19 @@ abstract class AuthRepository {
   /// dentro la sessione appena aperta.
   Future<void> discardUnverifiedAccount();
 
+  /// Il numero gia' agganciato a questa sessione, se c'e'.
+  ///
+  /// **Serve a recuperare chi e' rimasto a meta'.** Agganciare il numero e
+  /// scriverlo nel profilo sono due passaggi distinti, e fra i due ci sta di
+  /// tutto: la rete che cade, l'app chiusa, un difetto nostro. Chi si ferma li'
+  /// in mezzo si ritrova con il numero legato all'account ma il profilo che non
+  /// lo sa — e la schermata glielo richiede all'infinito, mentre Firebase
+  /// rifiuta di agganciarlo una seconda volta.
+  ///
+  /// Con questo, la schermata se ne accorge da sola e finisce il lavoro senza
+  /// chiedere niente a nessuno.
+  String? get currentPhoneNumber;
+
   /// Manda il codice via SMS e torna l'identificativo della verifica.
   ///
   /// **Il numero non serve a chiamare nessuno: serve a rendere caro un account

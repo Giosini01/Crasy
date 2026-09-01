@@ -44,6 +44,47 @@ class _VerifyPhonePageState extends ConsumerState<VerifyPhonePage> {
   String? _errore;
 
   @override
+  void initState() {
+    super.initState();
+    // **Prima di chiedere, si guarda se c'e' gia'.**
+    //
+    // Agganciare il numero e scriverlo nel profilo sono due passaggi distinti,
+    // e fra i due ci sta di tutto: la rete che cade, l'app chiusa, un difetto
+    // nostro. Chi si e' fermato li' in mezzo ha il numero legato all'account e
+    // il profilo che non lo sa — e senza questa riga la schermata glielo
+    // richiede all'infinito, mentre Firebase si rifiuta di agganciarlo una
+    // seconda volta. Un vicolo cieco creato da noi.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _recupera());
+  }
+
+  /// Se il numero e' gia' agganciato, finisce il lavoro senza chiedere niente.
+  Future<void> _recupera() async {
+    final gia = ref.read(authRepositoryProvider).currentPhoneNumber;
+    final sessione = ref.read(authStateProvider);
+
+    if (gia == null ||
+        gia.isEmpty ||
+        sessione is! AuthenticatedAuthState ||
+        !mounted) {
+      return;
+    }
+
+    setState(() => _inCorso = true);
+
+    try {
+      await ref
+          .read(userProfileRepositoryProvider)
+          .savePhone(userId: sessione.user.id, phone: gia);
+    } on Object catch (_) {
+      // Non riuscito: resta la schermata normale, che e' un ripiego onesto.
+    }
+
+    if (mounted) {
+      setState(() => _inCorso = false);
+    }
+  }
+
+  @override
   void dispose() {
     _numero.dispose();
     _codice.dispose();
