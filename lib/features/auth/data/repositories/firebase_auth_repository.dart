@@ -170,7 +170,28 @@ class FirebaseAuthRepository implements AuthRepository {
     final atteso = Completer<String>();
 
     if (kIsWeb) {
-      final conferma = await _firebaseAuth.signInWithPhoneNumber(phoneNumber);
+      // **Nel browser si aggancia il numero, non si entra con il numero.**
+      //
+      // C'era `signInWithPhoneNumber`, ed era sbagliato in un modo che si
+      // vedeva solo provandolo: quel metodo apre una sessione **nuova**
+      // intestata al telefono, buttando fuori l'account con cui si e' entrati.
+      // Chi verificava il proprio numero si ritrovava scollegato dal proprio
+      // account — e senza un `currentUser` a cui attaccarlo, l'operazione
+      // moriva li'.
+      //
+      // `linkWithPhoneNumber` fa la cosa giusta: attacca il numero all'account
+      // che c'e' gia', come su iPhone e su Android.
+      final utente = _firebaseAuth.currentUser;
+
+      if (utente == null) {
+        throw FirebaseAuthException(
+          code: 'no-current-user',
+          message: 'Sessione non valida.',
+        );
+      }
+
+      final conferma = await utente.linkWithPhoneNumber(phoneNumber);
+      _confermaWeb = conferma;
 
       return conferma.verificationId;
     }
@@ -206,6 +227,14 @@ class FirebaseAuthRepository implements AuthRepository {
     return atteso.future;
   }
 
+  /// La verifica in corso nel browser.
+  ///
+  /// **Sul web il codice non si controlla ricostruendo una credenziale**: si
+  /// consegna all'oggetto che ha mandato l'SMS, e quello vive solo in memoria.
+  /// Per questo va tenuto da parte fra il momento in cui si manda il codice e
+  /// quello in cui si scrive.
+  ConfirmationResult? _confermaWeb;
+
   @override
   Future<String> confirmPhoneCode({
     required String verificationId,
@@ -218,6 +247,23 @@ class FirebaseAuthRepository implements AuthRepository {
         code: 'no-current-user',
         message: 'Sessione non valida.',
       );
+    }
+
+    if (kIsWeb) {
+      final conferma = _confermaWeb;
+
+      if (conferma == null) {
+        throw FirebaseAuthException(
+          code: 'session-expired',
+          message: 'Il codice e\' scaduto. Chiedine un altro.',
+        );
+      }
+
+      await conferma.confirm(code);
+      await utente.reload();
+      _confermaWeb = null;
+
+      return _firebaseAuth.currentUser?.phoneNumber ?? '';
     }
 
     final credenziale = PhoneAuthProvider.credential(

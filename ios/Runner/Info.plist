@@ -18,6 +18,32 @@
 	<string>Serve il microfono per registrare l'audio del video con cui partecipi a una challenge.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Serve la fotocamera per scattare al volo la foto con cui partecipi a una challenge.</string>
+	<!-- **Lo schema con cui Firebase rientra nell'app.**
+
+	     Serve alla verifica del numero di telefono. Su iPhone Firebase prova
+	     prima una notifica silenziosa; se quella non passa — succede sui
+	     simulatori, con certe reti, e la prima volta dopo l'installazione —
+	     ripiega su un controllo anti-robot che apre una pagina web, e da quella
+	     pagina deve poter tornare dentro l'app.
+
+	     Senza questa riga non torna: **l'app si chiude di colpo** nel momento in
+	     cui si tocca "mandami il codice". Non e' un errore che si vede scrivendo
+	     il codice, perche' il codice e' giusto: manca un pezzo di configurazione
+	     che vive qui dentro.
+
+	     Il valore e' l'identificativo dell'app su Firebase con i due punti
+	     trasformati in trattini. Non e' un segreto: sta gia' dentro l'app. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app-1-781052311292-ios-cf2f5293adc52143264979</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<!-- Nessuna crittografia da dichiarare.
