@@ -42,6 +42,42 @@ abstract final class ErrorMessageMapper {
         return 'Connessione assente o instabile. Controlla la rete.';
       case 'too-many-requests':
         return 'Troppi tentativi. Riprova tra qualche minuto.';
+
+      // **I casi del numero di telefono, uno per uno.**
+      //
+      // Prima finivano tutti nel ripiego — "autenticazione non riuscita" — che
+      // e' la frase piu' inutile che si possa scrivere sotto un campo: non dice
+      // se hai sbagliato tu, se il codice e' scaduto o se manca qualcosa dalla
+      // nostra parte. Chi la legge non sa nemmeno se vale la pena riprovare.
+      case 'invalid-phone-number':
+        return 'Questo numero non sembra giusto. Controllalo.';
+      case 'invalid-verification-code':
+        return 'Codice sbagliato. Ricontrolla le sei cifre.';
+      case 'session-expired':
+      case 'code-expired':
+        return 'Il codice e\' scaduto. Chiedine un altro.';
+      case 'credential-already-in-use':
+      case 'account-exists-with-different-credential':
+        // **E' la regola che rende utile tutta la verifica**, quindi si dice
+        // esattamente cosa e' successo invece di un errore vago: un numero, un
+        // account. Chi ci finisce sopra sta provando a verificare un secondo
+        // profilo con lo stesso telefono.
+        return 'Questo numero e\' gia\' su un altro account CRASY. '
+            'Un numero vale per un account solo.';
+      case 'provider-already-linked':
+        return 'Hai gia\' verificato un numero su questo account.';
+      case 'quota-exceeded':
+        return 'Abbiamo finito i messaggi per oggi. Riprova domani.';
+      case 'operation-not-allowed':
+        // Non e' colpa di chi sta guardando lo schermo: e' un interruttore
+        // spento nella console. Dirlo apertamente e' l'unico modo perche' chi
+        // tiene l'app lo scopra invece di cercare il difetto nel codice.
+        return 'La verifica via SMS non e\' attiva. '
+            'Non dipende da te: ci stiamo lavorando.';
+      case 'captcha-check-failed':
+      case 'missing-client-identifier':
+        return 'Verifica di sicurezza non riuscita. Riprova fra un minuto.';
+
       default:
         return 'Autenticazione non riuscita. Riprova.';
     }
