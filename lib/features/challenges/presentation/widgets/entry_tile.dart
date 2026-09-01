@@ -56,7 +56,7 @@ class EntryTile extends ConsumerWidget {
             entry: entry,
           ),
           child: MediaFrame(
-            url: entry.mediaUrl,
+            url: entry.previewUrl,
             video: entry.isVideo,
             caption: entry.authorName,
             mine: entry.userId == ref.watch(currentUserIdProvider),

@@ -404,7 +404,9 @@ class _EntryGridTile extends ConsumerWidget {
           onTap: () =>
               FullscreenMedia.open(context, entries: entries, entry: entry),
           child: MediaFrame(
-            url: entry.mediaUrl,
+            // La miniatura: qui la foto e' alta un terzo di schermo, e
+            // l'originale si scarica solo toccandola.
+            url: entry.previewUrl,
             video: entry.isVideo,
             aspectRatio: 1,
             caption: entry.authorName,

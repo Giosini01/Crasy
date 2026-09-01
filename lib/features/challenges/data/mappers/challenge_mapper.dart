@@ -119,6 +119,7 @@ abstract final class ChallengeEntryMapper {
       userId: data['userId'] as String? ?? '',
       authorName: data['authorName'] as String? ?? '',
       mediaUrl: data['mediaUrl'] as String? ?? '',
+      thumbUrl: data['thumbUrl'] as String? ?? '',
       storagePath: data['storagePath'] as String? ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       // Mai sotto zero, qualunque cosa dica il documento.
@@ -158,6 +159,7 @@ abstract final class ChallengeEntryMapper {
       'userId': entry.userId,
       'authorName': entry.authorName,
       'mediaUrl': entry.mediaUrl,
+      'thumbUrl': entry.thumbUrl,
       'storagePath': entry.storagePath,
       'mediaKind': entry.mediaKind.name,
       // La didascalia si scrive alla nascita e non si tocca piu': le regole non

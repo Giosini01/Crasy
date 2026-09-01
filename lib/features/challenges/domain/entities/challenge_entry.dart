@@ -16,6 +16,7 @@ class ChallengeEntry {
     this.isWinner = false,
     this.moderation = EntryModeration.approved,
     this.reporters = const [],
+    this.thumbUrl = '',
     this.mediaKind = MediaKind.photo,
     this.caption = '',
   });
@@ -39,6 +40,24 @@ class ChallengeEntry {
   final String mediaUrl;
 
   final String storagePath;
+
+  /// La copia piccola, quella che riempie gli elenchi.
+  ///
+  /// **Vuota per tutte le foto caricate prima che esistesse**, ed e' il motivo
+  /// per cui esiste [previewUrl]: dove manca si continua a mostrare
+  /// l'originale, come si e' sempre fatto. Nessuna migrazione, nessuna foto che
+  /// sparisce.
+  ///
+  /// Vuota anche per i video: da un video una miniatura si ricava soltanto
+  /// estraendone un fotogramma, e quello non lo puo' fare il telefono di chi
+  /// carica senza far aspettare.
+  final String thumbUrl;
+
+  /// L'indirizzo da usare **negli elenchi**: la miniatura se c'e', altrimenti
+  /// l'originale.
+  ///
+  /// A schermo intero non si usa: li' serve tutta.
+  String get previewUrl => thumbUrl.isEmpty ? mediaUrl : thumbUrl;
 
   /// Due righe scritte da chi ha mandato la foto, come sotto un'istantanea.
   ///
@@ -172,6 +191,7 @@ class ChallengeEntry {
     bool? isWinner,
     EntryModeration? moderation,
     List<String>? reporters,
+    String? thumbUrl,
     MediaKind? mediaKind,
     String? caption,
   }) {
@@ -188,6 +208,7 @@ class ChallengeEntry {
       isWinner: isWinner ?? this.isWinner,
       moderation: moderation ?? this.moderation,
       reporters: reporters ?? this.reporters,
+      thumbUrl: thumbUrl ?? this.thumbUrl,
       mediaKind: mediaKind ?? this.mediaKind,
       caption: caption ?? this.caption,
     );

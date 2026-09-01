@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crasy/core/services/media/photo_compressor.dart';
 import 'package:crasy/features/challenges/data/mappers/challenge_mapper.dart';
 import 'package:crasy/features/challenges/domain/commissioned_order.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
@@ -364,6 +365,40 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     // un premio.
     await reference.putData(bytes, SettableMetadata(contentType: type));
 
+    // **La copia piccola sale insieme all'originale.**
+    //
+    // La fa il telefono qui, adesso, con la stessa libreria che ha appena
+    // stretto la foto: nessun server, nessuna funzione, nessun ritardo che si
+    // noti. Sara' lei a riempire tutti gli elenchi — dove finora si scaricavano
+    // trecento chilobyte per disegnarne quaranta.
+    //
+    // **Se fallisce non succede niente.** La partecipazione va in gara lo
+    // stesso e negli elenchi si continua a mostrare l'originale: una foto
+    // pesante e' un problema di conto a fine mese, una partecipazione persa e'
+    // un problema di chi l'ha mandata.
+    var thumbUrl = '';
+
+    if (!mediaKind.isVideo) {
+      final small = PhotoCompressor.thumbnail(bytes);
+
+      if (small != null) {
+        try {
+          final thumbRef = _storage.ref(
+            'entries/$challengeId/$userId/${uploadId}_thumb.jpg',
+          );
+
+          await thumbRef.putData(
+            small,
+            SettableMetadata(contentType: 'image/jpeg'),
+          );
+
+          thumbUrl = await thumbRef.getDownloadURL();
+        } on Exception catch (_) {
+          thumbUrl = '';
+        }
+      }
+    }
+
     final entry = ChallengeEntry(
       id: userId,
       challengeId: challengeId,
@@ -371,6 +406,7 @@ class FirestoreChallengeRepository implements ChallengeRepository {
       userId: userId,
       authorName: authorName,
       mediaUrl: await reference.getDownloadURL(),
+      thumbUrl: thumbUrl,
       storagePath: storagePath,
       mediaKind: mediaKind,
       caption: caption.trim(),

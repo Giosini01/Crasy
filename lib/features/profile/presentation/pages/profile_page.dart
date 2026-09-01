@@ -581,7 +581,7 @@ class _EntryGrid extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               MediaFrame(
-                url: entry.mediaUrl,
+                url: entry.previewUrl,
                 video: entry.isVideo,
                 aspectRatio: 1,
                 radius: AppRadius.media,

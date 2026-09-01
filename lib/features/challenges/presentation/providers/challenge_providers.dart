@@ -194,7 +194,7 @@ final challengeTopEntryProvider = StreamProvider.autoDispose
 /// titolo, consegna e comando.
 final challengeCoverProvider = Provider.autoDispose.family<String?, String>(
   (ref, challengeId) =>
-      ref.watch(challengeTopEntryProvider(challengeId)).valueOrNull?.mediaUrl,
+      ref.watch(challengeTopEntryProvider(challengeId)).valueOrNull?.previewUrl,
 );
 
 /// Sotto quale foto, di quale gara. Serve a chiedere i commenti.

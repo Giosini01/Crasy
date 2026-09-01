@@ -458,7 +458,7 @@ class _EntryGrid extends StatelessWidget {
           onTap: () =>
               FullscreenMedia.open(context, entries: entries, entry: entry),
           child: MediaFrame(
-            url: entry.mediaUrl,
+            url: entry.previewUrl,
             video: entry.isVideo,
             aspectRatio: 1,
             radius: AppRadius.media,

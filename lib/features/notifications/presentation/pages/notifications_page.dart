@@ -721,7 +721,7 @@ class _Thumb extends ConsumerWidget {
                   ),
                 )
               : Image.network(
-                  entry.mediaUrl,
+                  entry.previewUrl,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) =>
                       ColoredBox(color: palette.surfaceMuted),

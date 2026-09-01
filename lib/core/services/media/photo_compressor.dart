@@ -30,6 +30,77 @@ abstract final class PhotoCompressor {
   /// comparire i quadretti.
   static const int quality = 82;
 
+  /// Il lato lungo di una miniatura, in punti.
+  ///
+  /// Quattrocento e' il doppio del posto piu' grande in cui una miniatura
+  /// compare — la copertina di una gara in home — e il doppio serve: sugli
+  /// schermi a tripla densita' un'immagine grande quanto lo spazio che occupa
+  /// si vede sgranata.
+  static const int thumbSide = 400;
+
+  /// Quanto si stringe una miniatura.
+  ///
+  /// Piu' del normale. A quattrocento punti i difetti della compressione non si
+  /// vedono, e ogni punto percentuale qui e' banda che non si paga: la
+  /// miniatura viene scaricata **decine di volte** per ogni volta che si apre
+  /// l'originale.
+  static const int thumbQuality = 74;
+
+  /// La copia piccola, quella che riempie gli elenchi.
+  ///
+  /// **Perche' esiste.** Fino a ieri saliva un file solo, da circa trecento
+  /// chilobyte, e quel file veniva scaricato dappertutto: nella copertina di
+  /// una gara, dove e' alto duecento punti; nella griglia del profilo, dove e'
+  /// un quadratino da cento; nella scheda degli amici. **Trecento chilobyte per
+  /// disegnarne quaranta**, ogni volta, per ogni foto di ogni schermata.
+  ///
+  /// Con la miniatura da quarantacinque, aprire la home con otto gare scarica
+  /// trecentosessanta chilobyte invece di due megabyte e mezzo. Sul conto di
+  /// fine mese la banda si divide per cinque; su una connessione lenta la
+  /// differenza fra otto secondi e uno.
+  ///
+  /// Torna `null` quando non c'e' niente da fare — un formato che non sappiamo
+  /// leggere, o un'immagine gia' piccolissima — e chi la chiama sa cosa fare:
+  /// niente. Senza miniatura si continua a mostrare l'originale, come prima.
+  static Uint8List? thumbnail(Uint8List bytes) {
+    try {
+      final decoded = img.decodeImage(bytes);
+
+      if (decoded == null) {
+        return null;
+      }
+
+      final longest = decoded.width > decoded.height
+          ? decoded.width
+          : decoded.height;
+
+      // Gia' piccola: una seconda copia della stessa cosa non serve a nessuno e
+      // costa spazio.
+      if (longest <= thumbSide) {
+        return null;
+      }
+
+      final small = img.copyResize(
+        decoded,
+        width: decoded.width >= decoded.height ? thumbSide : null,
+        height: decoded.height > decoded.width ? thumbSide : null,
+        interpolation: img.Interpolation.average,
+      );
+
+      return img.encodeJpg(small, quality: thumbQuality);
+    } catch (_) {
+      // **Si prende tutto, non solo le eccezioni.** Davanti a un file
+      // rovinato la libreria delle immagini non lancia un'eccezione: lancia un
+      // `RangeError`, che e' un `Error` e da un `on Exception` passa dritto.
+      // L'ha trovato un test con quattro byte a caso dentro.
+      //
+      // Qui prendere tutto e' la cosa giusta, non la scorciatoia: **una
+      // miniatura mancata non deve far fallire una partecipazione.** Nel dubbio
+      // si mostra l'originale, che e' come si e' sempre fatto.
+      return null;
+    }
+  }
+
   /// Sotto questa misura non si tocca niente.
   ///
   /// Ricomprimere una foto gia' piccola la peggiora e basta: ogni passaggio in
@@ -94,7 +165,10 @@ abstract final class PhotoCompressor {
       }
 
       return encoded.lengthInBytes < bytes.lengthInBytes ? encoded : bytes;
-    } on Exception catch (_) {
+    } catch (_) {
+      // Come sopra: un file che il decodificatore non digerisce lancia un
+      // `Error`, non un'eccezione. Nel dubbio sale l'originale — pesante, ma in
+      // gara.
       return bytes;
     }
   }

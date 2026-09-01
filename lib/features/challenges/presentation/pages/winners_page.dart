@@ -222,7 +222,7 @@ class _WinnerBlock extends ConsumerWidget {
                 entry: winner,
               ),
               child: MediaFrame(
-                url: winner.mediaUrl,
+                url: winner.previewUrl,
                 video: winner.isVideo,
                 aspectRatio: 1,
                 caption: winner.authorName,
