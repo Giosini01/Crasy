@@ -6,6 +6,7 @@ import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
@@ -42,7 +43,7 @@ enum FriendActivityView {
 /// entrare in una gara con un amico e' il motivo per cui questa schermata
 /// esiste. Le foto vengono dopo, che si guardano e basta.
 final friendActivityViewProvider = StateProvider<FriendActivityView>(
-  (ref) => FriendActivityView.missions,
+  (ref) => FriendActivityView.mine,
 );
 
 /// **Attivita' amici**: le gare che hanno lanciato, le foto con cui sono in
@@ -66,13 +67,6 @@ class FriendsActivityPage extends ConsumerStatefulWidget {
 }
 
 class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
-  /// Se la scelta l'ha fatta chi guarda.
-  ///
-  /// Finche' e' falso la pagina si sposta da sola sulla parte che ha qualcosa
-  /// dentro. Dopo il primo tocco non lo fa piu': una schermata che cambia da
-  /// sola sotto le dita di chi l'ha appena scelta e' una schermata rotta.
-  var _scelto = false;
-
   @override
   Widget build(BuildContext context) {
     final view = ref.watch(friendActivityViewProvider);
@@ -81,26 +75,16 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
     final mine = ref.watch(myFriendChallengesProvider);
     final problema = ref.watch(friendActivityProblemProvider);
 
-    // **Si apre su quella che ha qualcosa da mostrare.**
+    // **Si apre sempre su LE TUE, anche quando e' vuota.**
     //
-    // Aprire sempre sulle missioni e' giusto quando ce ne sono: e' la cosa in
-    // cui uno puo' entrare. Ma se nessun amico ne ha lanciata una, quella
-    // scelta mostra una schermata vuota mentre l'altra e' piena di foto — e chi
-    // guarda conclude che non funziona, non che ha guardato dalla parte
-    // sbagliata. E' successo davvero.
-    if (!_scelto &&
-        view == FriendActivityView.missions &&
-        missions.isEmpty &&
-        entries.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _scelto) {
-          return;
-        }
-
-        ref.read(friendActivityViewProvider.notifier).state =
-            FriendActivityView.entries;
-      });
-    }
+    // C'era un salto automatico sulla sezione che aveva qualcosa dentro, e
+    // sembrava premuroso: in realta' spostava la schermata sotto le dita di chi
+    // l'aveva appena aperta, e due aperture di fila non davano mai la stessa
+    // schermata. Una scheda che si apre sempre uguale si impara; una che
+    // indovina non si impara mai.
+    //
+    // E vuota qui non vuol dire niente da fare: e' dove sta il comando per
+    // lanciare una missione, cioe' la cosa da fare.
 
     return Scaffold(
       body: AppBackground(
@@ -136,7 +120,6 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                       mine: mine.length,
                       missions: missions.length,
                       entries: entries.length,
-                      onPicked: () => _scelto = true,
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     if (problema != null) ...[
@@ -166,20 +149,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                         )
                       else
                         for (final challenge in mine)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: AppSpacing.xl,
-                            ),
-                            child: ChallengeCard(
-                              challenge: challenge,
-                              onOpen: () => context.push(
-                                AppRoutes.challengeDetailOf(challenge.id),
-                              ),
-                              onParticipate: () => context.push(
-                                AppRoutes.participateOf(challenge.id),
-                              ),
-                            ),
-                          ),
+                          _MissionRow(challenge: challenge),
                     ] else if (view == FriendActivityView.missions)
                       if (missions.isEmpty)
                         const EmptyState(
@@ -190,20 +160,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                         )
                       else
                         for (final challenge in missions)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: AppSpacing.xl,
-                            ),
-                            child: ChallengeCard(
-                              challenge: challenge,
-                              onOpen: () => context.push(
-                                AppRoutes.challengeDetailOf(challenge.id),
-                              ),
-                              onParticipate: () => context.push(
-                                AppRoutes.participateOf(challenge.id),
-                              ),
-                            ),
-                          )
+                          _MissionRow(challenge: challenge)
                     else if (entries.isEmpty)
                       const EmptyState(
                         title: 'Nessuno e\' in gara adesso',
@@ -237,15 +194,11 @@ class _Switch extends ConsumerWidget {
     required this.mine,
     required this.missions,
     required this.entries,
-    required this.onPicked,
   });
 
   final int mine;
   final int missions;
   final int entries;
-
-  /// Da qui in poi la pagina non si sposta piu' da sola.
-  final VoidCallback onPicked;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -268,10 +221,8 @@ class _Switch extends ConsumerWidget {
         children: [
           for (final view in FriendActivityView.values)
             GestureDetector(
-              onTap: () {
-                onPicked();
-                ref.read(friendActivityViewProvider.notifier).state = view;
-              },
+              onTap: () =>
+                  ref.read(friendActivityViewProvider.notifier).state = view,
               behavior: HitTestBehavior.opaque,
               child: Padding(
                 padding: const EdgeInsets.only(right: AppSpacing.lg),
@@ -437,7 +388,82 @@ class _InGara extends ConsumerWidget {
         // la foto sarebbe la stessa cosa scritta due volte a due dita di
         // distanza.
         EntryTile(entry: entry, showChallenge: challenge == null),
+        // **La riga che separa una missione dall'altra.**
+        //
+        // Due foto di fila, senza niente in mezzo, si leggono come due foto
+        // della stessa gara: la riga del premio della seconda sembra la
+        // didascalia della prima. Mezzo pixel di grigio dice "qui finisce" e
+        // non dice nient'altro — e' lo stesso segno che divide le gare in home.
+        const SizedBox(height: AppSpacing.lg),
+        Divider(color: palette.line, height: 0.5, thickness: 0.5),
       ],
+    );
+  }
+}
+
+/// Una missione in elenco: **solo il premio e il titolo**.
+///
+/// **Senza la foto in testa, ed e' voluto.** Nella home quella foto serve — li'
+/// si decide se entrare in una gara, e vedere cosa stanno mandando gli altri e'
+/// meta' della decisione. Qui no: qui si scorre l'elenco delle missioni di un
+/// gruppo di amici, e una foto grande per ognuna trasforma un elenco di dieci
+/// righe in dieci schermate da scorrere. Chi vuole vedere le foto tocca e
+/// entra.
+///
+/// La riga grigia sotto separa una missione dall'altra. Senza, due missioni di
+/// fila diventano un blocco solo di testo e il premio della seconda sembra
+/// appartenere al titolo della prima.
+class _MissionRow extends StatelessWidget {
+  const _MissionRow({required this.challenge});
+
+  final Challenge challenge;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+
+    return GestureDetector(
+      onTap: () => context.push(AppRoutes.challengeDetailOf(challenge.id)),
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                challenge.prizeLabel,
+                style: texts.titleLarge?.copyWith(color: palette.accent),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  challenge.title.toUpperCase(),
+                  style: texts.titleSmall,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: palette.textFaint,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          // Quanto manca e quanti sono dentro: le due cose che dicono se vale
+          // ancora la pena entrare. Stanno qui e non nel titolo perche' si
+          // leggono dopo, non prima.
+          ChallengeMetaRow(challenge: challenge),
+          const SizedBox(height: AppSpacing.md),
+          Divider(color: palette.line, height: 0.5, thickness: 0.5),
+        ],
+      ),
     );
   }
 }
