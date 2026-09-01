@@ -37,7 +37,24 @@ if (process.env.CRASY_PAYMENTS === 'on') {
 
 // Stessa regione del database: una funzione che scrive su Firestore va dove sta
 // il database, altrimenti ogni scrittura fa un giro per mezzo mondo.
-setGlobalOptions({ region: 'europe-west8', maxInstances: 10 });
+// **Il tetto alle istanze e' un tetto alla spesa, non alla velocita'.**
+//
+// Dieci copie in parallelo bastano largamente per il traffico di oggi. Serve
+// contro il caso in cui qualcosa vada in circolo — una funzione che scrive un
+// documento che risveglia la funzione stessa — dove senza tetto la fattura
+// cresce finche' non se ne accorge qualcuno. Con il tetto, il peggio che
+// succede e' che le notifiche arrivino qualche secondo dopo.
+//
+// Anche il tempo massimo e la memoria sono voci di spesa: si paga a
+// millisecondi per gigabyte. Nessuna di queste funzioni ha niente da fare per
+// mezzo minuto, e mezzo giga e' il doppio di quanto serva a mandare una
+// notifica.
+setGlobalOptions({
+  region: 'europe-west8',
+  maxInstances: 10,
+  timeoutSeconds: 60,
+  memory: '256MiB',
+});
 
 /**
  * Guarda ogni foto appena arrivata, e decide se puo' stare in gara.
