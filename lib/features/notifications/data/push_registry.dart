@@ -42,6 +42,21 @@ class PushRegistry {
       return;
     }
 
+    // **Sul web non si chiede niente, per adesso.**
+    //
+    // Le notifiche del browser vogliono due cose che qui non ci sono: un file
+    // di servizio dentro il sito e una chiave dedicata. Senza, l'indirizzo non
+    // si ottiene e nessuna notifica partira' mai — ma il permesso il browser lo
+    // chiederebbe lo stesso, con quel riquadro grigio in cima alla pagina.
+    //
+    // Chiedere un permesso che non serve a niente non e' innocuo: si spende
+    // l'unica occasione che si ha di chiederlo, e chi risponde di no non se lo
+    // vede riproporre mai piu'. Il giorno in cui le notifiche sul web
+    // serviranno davvero, questa riga sparisce.
+    if (kIsWeb) {
+      return;
+    }
+
     try {
       final permesso = await _messaging.requestPermission();
 
