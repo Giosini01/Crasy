@@ -11,6 +11,66 @@ admin.initializeApp();
 
 const db = admin.firestore();
 
+/**
+ * Il suono di CRASY: tre note che salgono, mezzo secondo.
+ *
+ * **Sono due nomi per la stessa cosa.** Su iPhone il file sta dentro il
+ * pacchetto dell'app e si chiama con l'estensione; su Android e' una risorsa e
+ * si chiama senza. Sbagliarne uno non da' nessun errore: suona quello di
+ * sistema, e non lo si scopre finche' qualcuno non se ne accorge.
+ *
+ * Il file lo fabbrica `tool/suono_della_notifica.py`. Cambiando le tre note
+ * li' dentro cambia il suono qui, senza toccare una riga di questo file.
+ */
+const SUONO_APPLE = 'crasy.wav';
+const SUONO_ANDROID = 'crasy';
+
+/** Il rosso di CRASY, che su Android colora l'icona della notifica. */
+const ROSSO = '#C8102E';
+
+/**
+ * Il canale su cui ascoltano tutti i telefoni.
+ *
+ * **Serve a non pagare un annuncio a testa.** Mandare "c'e' una missione
+ * nuova" a diecimila persone leggendo diecimila indirizzi vuol dire diecimila
+ * letture e diecimila messaggi, ogni volta che qualcuno crea una gara. Su un
+ * canale si manda **un messaggio solo**: chi e' iscritto lo riceve, e a tenere
+ * l'elenco ci pensa Google.
+ *
+ * Vale solo per le cose che riguardano tutti — una missione nuova, la sfida
+ * del giorno. Una fiamma sulla tua foto riguarda te, e quella continua a
+ * viaggiare sul tuo indirizzo.
+ */
+const CANALE_DI_TUTTI = 'tutti';
+
+/**
+ * Manda un annuncio a tutti quanti.
+ *
+ * Non scrive niente nella campanella di nessuno, ed e' voluto: una riga per
+ * persona sarebbe una scrittura per persona — il conto piu' salato che questa
+ * app possa farsi — per dire una cosa che sta gia' in prima pagina. Qui
+ * l'annuncio serve solo a far accendere lo schermo di chi non ha l'app aperta.
+ */
+async function annuncia(corpo, dati) {
+  await admin.messaging().send({
+    topic: CANALE_DI_TUTTI,
+    notification: { title: 'CRASY', body: corpo },
+    data: dati,
+    apns: { payload: { aps: { sound: SUONO_APPLE, badge: 1 } } },
+    android: {
+      priority: 'high',
+      notification: { sound: SUONO_ANDROID, color: ROSSO },
+    },
+  });
+}
+
+/** I soldi come si scrivono in italiano: `5` oppure `7,50`. */
+function inEuro(centesimi) {
+  return centesimi % 100 === 0
+    ? String(centesimi / 100)
+    : (centesimi / 100).toFixed(2).replace('.', ',');
+}
+
 // I soldi stanno in un file a parte, e le sue funzioni si esportano da qui:
 // tutto quello che tocca denaro si legge in un posto solo.
 //
@@ -570,11 +630,11 @@ exports.sendPushOnNotification = onDocumentCreated(
         challengeId: String(dati.challengeId || ''),
       },
       apns: {
-        payload: { aps: { sound: 'default', badge: 1 } },
+        payload: { aps: { sound: SUONO_APPLE, badge: 1 } },
       },
       android: {
         priority: 'high',
-        notification: { sound: 'default', color: '#C8102E' },
+        notification: { sound: SUONO_ANDROID, color: ROSSO },
       },
     });
 
@@ -716,5 +776,145 @@ exports.remindQuietUsers = onSchedule(
     }
 
     logger.info('richiami mandati', { mandati, esaminati: assenti.size });
+  }
+);
+
+/**
+ * Ogni quanto si puo' annunciare una missione nuova.
+ *
+ * **Novanta minuti.** Non e' una scelta di gusto: chiunque puo' lanciare una
+ * missione, e il giorno in cui ne partono venti in un pomeriggio venti
+ * notifiche arrivano a tutti. Nessuno le legge, e qualcuno spegne le notifiche
+ * per sempre — anche quelle che gli avrebbero fatto piacere ricevere.
+ *
+ * Alcune missioni resteranno quindi senza annuncio, e va bene: si vedono
+ * comunque in prima pagina. Il freno si sente solo quando ce n'e' bisogno,
+ * cioe' quando le gare sono tante — e quando le gare sono tante, una in piu'
+ * annunciata non cambia niente a nessuno.
+ */
+const MINUTI_FRA_UN_ANNUNCIO_E_L_ALTRO = 90;
+
+/** Dove il server si segna le cose che ha gia' fatto. */
+const MEMORIA = db.collection('system').doc('annunci');
+
+/**
+ * Dice a tutti che c'e' una missione nuova con dei soldi in palio.
+ *
+ * **Solo quelle aperte a tutti, e solo quelle con un premio.** Una missione fra
+ * amici riguarda dieci persone: mandarla a diecimila e' rumore per novemila
+ * novecentonovanta. E una senza premio non e' una notizia — la notizia e' che
+ * c'e' qualcosa da vincere.
+ */
+exports.announceNewChallenge = onDocumentCreated(
+  'challenges/{challengeId}',
+  async (event) => {
+    const dati = event.data?.data();
+
+    if (!dati) {
+      return;
+    }
+
+    // La sfida del giorno ha il suo annuncio, alla sua ora. Qui va saltata per
+    // un motivo pratico: le sfide si scrivono in anticipo, sessanta alla
+    // volta, e senza questa riga partirebbero sessanta notifiche in fila.
+    if (dati.kind === 'daily') {
+      return;
+    }
+
+    const aperta = Array.isArray(dati.audience) && dati.audience.includes('*');
+    const centesimi = Number(dati.prizeCents || 0);
+
+    if (!aperta || centesimi <= 0) {
+      return;
+    }
+
+    const memoria = await MEMORIA.get();
+    const ultimo = memoria.data()?.ultimaMissioneAt?.toDate?.();
+    const limite = new Date(Date.now() - MINUTI_FRA_UN_ANNUNCIO_E_L_ALTRO * 60000);
+
+    if (ultimo && ultimo > limite) {
+      logger.info('missione non annunciata: troppo presto', {
+        challengeId: event.params.challengeId,
+      });
+
+      return;
+    }
+
+    const titolo = String(dati.title || '').trim();
+    const corpo = titolo
+      ? `Missione nuova: ${titolo}. ${inEuro(centesimi)}€ in palio`
+      : `Missione nuova, ${inEuro(centesimi)}€ in palio`;
+
+    await annuncia(corpo, {
+      kind: 'newChallenge',
+      challengeId: String(event.params.challengeId),
+    });
+
+    await MEMORIA.set(
+      { ultimaMissioneAt: admin.firestore.FieldValue.serverTimestamp() },
+      { merge: true }
+    );
+
+    logger.info('missione annunciata', {
+      challengeId: event.params.challengeId,
+      premio: centesimi,
+    });
+  }
+);
+
+/**
+ * Annuncia la sfida del giorno.
+ *
+ * **Non a mezzanotte, quando comincia.** La sfida dura ventiquattro ore esatte
+ * e si apre allo scoccare, ma una notifica a quell'ora la sente solo chi non
+ * stava dormendo, e la sente male. Alle nove il telefono e' in mano a tutti, e
+ * restano quindici ore per uscire a fare la foto.
+ *
+ * Il documento si trova per nome — le sfide si chiamano con la loro data —
+ * quindi qui non c'e' nessuna ricerca: una lettura sola, sempre.
+ */
+exports.announceDailyChallenge = onSchedule(
+  { schedule: '0 9 * * *', timeZone: 'Europe/Rome' },
+  async () => {
+    // `sv-SE` scrive le date come `2026-09-02`, che e' esattamente il nome che
+    // hanno le sfide. Il fuso e' quello italiano: la sfida di oggi e' quella
+    // di oggi qui, non a Greenwich.
+    const oggi = new Date().toLocaleDateString('sv-SE', {
+      timeZone: 'Europe/Rome',
+    });
+
+    const memoria = await MEMORIA.get();
+
+    // **Una sola volta al giorno, anche se la sveglia suona due volte.** Una
+    // funzione programmata puo' essere rieseguita: senza questo, un secondo
+    // giro manderebbe lo stesso annuncio a tutti.
+    if (memoria.data()?.ultimaSfida === oggi) {
+      logger.info('sfida del giorno gia annunciata', { oggi });
+
+      return;
+    }
+
+    const sfida = await db.collection('challenges').doc(`daily-${oggi}`).get();
+
+    if (!sfida.exists) {
+      // Le sfide si scrivono a mano, un mese o due alla volta: se sono finite,
+      // questo e' il posto in cui ce ne si accorge.
+      logger.warn('nessuna sfida del giorno per oggi', { oggi });
+
+      return;
+    }
+
+    const titolo = String(sfida.data().title || '').trim();
+
+    await annuncia(
+      titolo
+        ? `Sfida del giorno: ${titolo}. Gratis, hai 24 ore`
+        : 'C\'è la sfida del giorno. Gratis, hai 24 ore',
+      { kind: 'daily', challengeId: sfida.id }
+    );
+
+    await MEMORIA.set({ ultimaSfida: oggi }, { merge: true });
+
+    logger.info('sfida del giorno annunciata', { oggi, titolo });
   }
 );

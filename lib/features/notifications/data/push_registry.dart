@@ -22,6 +22,19 @@ class PushRegistry {
   final FirebaseFirestore _firestore;
   final FirebaseMessaging _messaging;
 
+  /// Il canale su cui arrivano gli annunci che riguardano tutti.
+  ///
+  /// **Serve a non far pagare a CRASY un messaggio a testa.** Dire "c'e' una
+  /// missione nuova" a diecimila persone leggendo diecimila indirizzi vuol dire
+  /// diecimila letture e diecimila messaggi, ogni volta che qualcuno lancia una
+  /// gara. Su un canale si manda un messaggio solo, e a tenere l'elenco degli
+  /// iscritti ci pensa Google.
+  ///
+  /// Ci passano solo le cose che riguardano davvero tutti: una missione nuova
+  /// con dei soldi in palio, e la sfida del giorno. Una fiamma sulla tua foto
+  /// riguarda te, e continua a viaggiare sul tuo indirizzo.
+  static const canaleDiTutti = 'tutti';
+
   StreamSubscription<String>? _ascoltoRinnovi;
 
   /// L'ultima persona per cui questo telefono e' stato registrato.
@@ -92,6 +105,7 @@ class PushRegistry {
       }
 
       await _salva(userId, token);
+      await _iscrivitiAlCanale();
       _consegnato = true;
       await _annota(userId, 'registrato');
       await segnaPassaggio(userId);
@@ -202,6 +216,19 @@ class PushRegistry {
     return null;
   }
 
+  /// Si mette in ascolto degli annunci per tutti.
+  ///
+  /// Non lancia: **un annuncio perso non vale un accesso rotto**. Se
+  /// l'iscrizione non riesce si continua a ricevere tutto il resto — fiamme,
+  /// commenti, vittorie — e al prossimo avvio si riprova da sola.
+  Future<void> _iscrivitiAlCanale() async {
+    try {
+      await _messaging.subscribeToTopic(canaleDiTutti);
+    } on Object catch (_) {
+      // Vedi sopra.
+    }
+  }
+
   Future<void> _aspetta(int tentativo) {
     return Future<void>.delayed(Duration(milliseconds: 500 * (tentativo + 1)));
   }
@@ -271,6 +298,12 @@ class PushRegistry {
     }
 
     try {
+      // **Chi esce smette anche di sentire gli annunci.** Il canale non sa chi
+      // sono i suoi iscritti: sa solo quali telefoni. Senza questa riga, un
+      // telefono su cui nessuno ha piu' un account continuerebbe a suonare
+      // ogni volta che nasce una missione.
+      await _messaging.unsubscribeFromTopic(canaleDiTutti);
+
       final token = await _messaging.getToken();
 
       if (token != null) {
