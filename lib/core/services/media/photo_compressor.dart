@@ -32,11 +32,20 @@ abstract final class PhotoCompressor {
 
   /// Il lato lungo di una miniatura, in punti.
   ///
-  /// Quattrocento e' il doppio del posto piu' grande in cui una miniatura
-  /// compare — la copertina di una gara in home — e il doppio serve: sugli
-  /// schermi a tripla densita' un'immagine grande quanto lo spazio che occupa
-  /// si vede sgranata.
-  static const int thumbSide = 400;
+  /// **Settecentoventi, e il numero precedente era sbagliato di brutto.**
+  ///
+  /// Era quattrocento, scelto pensando a un quadratino di griglia. Ma la stessa
+  /// miniatura finiva anche sotto le foto larghe quanto lo schermo, e li'
+  /// quattrocento punti stirati su un telefono a tripla densita' — che di punti
+  /// ne vuole mille e passa — davano un'immagine visibilmente sgranata. Su un
+  /// prodotto dove la foto **e' il contenuto**, e' il difetto peggiore che si
+  /// potesse introdurre per risparmiare qualche centesimo di banda.
+  ///
+  /// Adesso le foto larghe usano l'originale e basta, e la miniatura resta dove
+  /// serviva davvero: le griglie. Settecentoventi copre con margine anche la
+  /// griglia a due colonne del dettaglio, dove ogni quadrato vale circa
+  /// cinquecento punti veri.
+  static const int thumbSide = 720;
 
   /// Quanto si stringe una miniatura.
   ///
@@ -44,7 +53,7 @@ abstract final class PhotoCompressor {
   /// vedono, e ogni punto percentuale qui e' banda che non si paga: la
   /// miniatura viene scaricata **decine di volte** per ogni volta che si apre
   /// l'originale.
-  static const int thumbQuality = 74;
+  static const int thumbQuality = 80;
 
   /// La copia piccola, quella che riempie gli elenchi.
   ///

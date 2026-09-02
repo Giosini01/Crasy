@@ -56,7 +56,11 @@ class EntryTile extends ConsumerWidget {
             entry: entry,
           ),
           child: MediaFrame(
-            url: entry.previewUrl,
+            // **L'originale, non la miniatura.** Qui la foto e' larga quanto
+            // lo schermo: su un telefono a tripla densita' vuol dire piu' di
+            // mille punti veri, e qualunque copia ridotta si vede sgranata.
+            // La foto e' il contenuto — e' l'ultima cosa su cui risparmiare.
+            url: entry.mediaUrl,
             video: entry.isVideo,
             caption: entry.authorName,
             mine: entry.userId == ref.watch(currentUserIdProvider),

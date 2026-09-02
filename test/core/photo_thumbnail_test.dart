@@ -41,13 +41,23 @@ void main() {
     expect(letta.height, PhotoCompressor.thumbSide);
   });
 
-  test('la miniatura pesa una frazione dell\'originale', () {
+  test('la miniatura pesa meno dell\'originale', () {
     final originale = foto();
     final piccola = PhotoCompressor.thumbnail(originale)!;
 
-    // Il numero non e' un traguardo di bellezza: e' la banda che non si paga.
-    // Sotto un quinto vuol dire che il conto di fine mese si divide per cinque.
-    expect(piccola.lengthInBytes * 5, lessThan(originale.lengthInBytes));
+    // **Il rapporto non e' piu' un quinto, ed e' giusto cosi'.** La
+    // miniatura era da quattrocento punti e finiva anche sotto le foto
+    // larghe quanto lo schermo, dove si vedeva sgranata. Adesso e' da
+    // settecentoventi e sta solo nelle griglie: pesa meno, ma non
+    // abbastanza meno da rovinare niente.
+    expect(piccola.lengthInBytes, lessThan(originale.lengthInBytes));
+  });
+
+  test('la miniatura e grande abbastanza per una griglia a due colonne', () {
+    // Mezzo schermo su un telefono a tripla densita' vale circa
+    // cinquecento punti veri: sotto quella misura si vedrebbe sgranata
+    // anche li'.
+    expect(PhotoCompressor.thumbSide, greaterThanOrEqualTo(600));
   });
 
   test('una foto gia\' piccola non ne ha bisogno', () {

@@ -247,7 +247,8 @@ class ChallengeShowcase extends StatelessWidget {
             // contenuto**, ed e' l'ultima cosa da sacrificare per far entrare
             // altra interfaccia.
             child: MediaFrame(
-              url: entry.previewUrl,
+              // A tutta larghezza: l'originale. Vedi `EntryTile`.
+              url: entry.mediaUrl,
               video: entry.isVideo,
               aspectRatio: 0.9,
               caption: entry.authorName,
