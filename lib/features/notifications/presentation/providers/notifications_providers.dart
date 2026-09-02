@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:crasy/core/services/firebase/firebase_providers.dart';
-import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/notifications/data/push_registry.dart';
 import 'package:crasy/features/notifications/data/repositories/firestore_notifications_repository.dart';
@@ -162,14 +161,28 @@ final pushRegistrationProvider = Provider<void>((ref) {
     return;
   }
 
-  final authState = ref.watch(authStateProvider);
+  // **Si guarda l'identificativo, non la sessione intera.**
+  //
+  // Guardando la sessione, questo provider si rifaceva a ogni respiro: Firebase
+  // avvisa non solo quando si entra e si esce, ma anche a ogni rinnovo del
+  // gettone, a ogni ricarica dei dati, quando si conferma l'email, quando si
+  // aggancia il numero — tre o quattro volte nei primi secondi. E a ogni giro
+  // il vecchio veniva smontato, il che cancellava l'indirizzo appena scritto.
+  // **L'app si toglieva dal registro da sola**, e il registro restava vuoto
+  // qualunque cosa si facesse.
+  //
+  // L'identificativo invece cambia solo quando cambia davvero la persona: si
+  // entra, si esce, si passa a un altro account. Che e' esattamente quando
+  // questo lavoro va rifatto.
+  final userId = ref.watch(currentUserIdProvider);
 
-  if (authState is! AuthenticatedAuthState) {
+  if (userId == null) {
+    // Nessuno collegato: si toglie il telefono dal registro di chi c'era prima,
+    // altrimenti continuerebbe a ricevere le sue notifiche per mesi.
+    unawaited(registro.forget());
+
     return;
   }
 
-  final userId = authState.user.id;
-
   unawaited(registro.register(userId));
-  ref.onDispose(() => unawaited(registro.unregister(userId)));
 });

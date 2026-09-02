@@ -24,6 +24,12 @@ class PushRegistry {
 
   StreamSubscription<String>? _ascoltoRinnovi;
 
+  /// L'ultima persona per cui questo telefono e' stato registrato.
+  ///
+  /// Serve a [forget]: chi esce non ha piu' una sessione, e senza ricordarselo
+  /// non sapremmo da quale casella togliere l'indirizzo.
+  String? _ultimoUtente;
+
   CollectionReference<Map<String, dynamic>> _devices(String userId) =>
       _firestore.collection('users').doc(userId).collection('devices');
 
@@ -57,10 +63,14 @@ class PushRegistry {
       return;
     }
 
+    _ultimoUtente = userId;
+
     try {
       final permesso = await _messaging.requestPermission();
 
       if (permesso.authorizationStatus == AuthorizationStatus.denied) {
+        await _annota(userId, 'permesso negato');
+
         return;
       }
 
@@ -76,10 +86,16 @@ class PushRegistry {
       }
 
       if (token == null) {
+        // **Succede su iPhone quando il permesso di parlare con Apple non c'e'
+        // nel profilo di firma.** L'app chiede, Apple non risponde, e resta un
+        // nulla che senza questa riga non lascerebbe traccia da nessuna parte.
+        await _annota(userId, 'nessun indirizzo da Apple');
+
         return;
       }
 
       await _salva(userId, token);
+      await _annota(userId, 'registrato');
 
       // L'indirizzo scade e viene rinnovato dal sistema, di solito senza che
       // nessuno se ne accorga. Senza questo ascolto, da quel momento le
@@ -88,9 +104,30 @@ class PushRegistry {
       _ascoltoRinnovi = _messaging.onTokenRefresh.listen(
         (nuovo) => _salva(userId, nuovo),
       );
+    } on Object catch (errore) {
+      // L'app continua senza notifiche — ma **lascia detto perche'**.
+      //
+      // Prima qui non si scriveva niente, e cercare il motivo dall'esterno era
+      // impossibile: si vedeva solo un registro vuoto, che puo' voler dire
+      // cinque cose diverse. Una riga nel profilo costa niente e le distingue
+      // tutte.
+      await _annota(userId, 'errore: $errore');
+    }
+  }
+
+  /// Lascia detto com'e' andata, nel profilo di chi ha provato.
+  ///
+  /// **E' una diagnosi, non un dato del prodotto.** Nessuna schermata la
+  /// mostra: serve a capire dall'esterno perche' un telefono non riceve le
+  /// notifiche, che altrimenti si indovina soltanto.
+  Future<void> _annota(String userId, String esito) async {
+    try {
+      await _firestore.collection('users').doc(userId).set({
+        'pushStatus': esito,
+        'pushStatusAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } on Object catch (_) {
-      // Permesso negato, servizi Google assenti, rete che non risponde: in
-      // tutti i casi l'app continua senza notifiche.
+      // Se non riesce nemmeno questa, pazienza.
     }
   }
 
@@ -108,16 +145,30 @@ class PushRegistry {
     }
   }
 
-  /// Toglie questo telefono dal registro.
+  /// Toglie questo telefono dal registro di chi c'era prima.
   ///
-  /// **Si chiama uscendo.** Senza, il telefono di chi ha fatto uscire l'account
-  /// continua a ricevere le notifiche di quella persona — anche mesi dopo, anche
-  /// se nel frattempo lo usa qualcun altro.
-  Future<void> unregister(String userId) async {
+  /// **Si chiama solo quando qualcuno esce davvero**, e la differenza e' costata
+  /// tutte le notifiche.
+  ///
+  /// Prima veniva chiamata ogni volta che il provider si rifaceva, e il
+  /// provider si rifaceva a ogni respiro della sessione: Firebase avvisa non
+  /// solo quando si entra e si esce, ma anche a ogni rinnovo del gettone, a
+  /// ogni ricarica dei dati, quando si conferma l'email, quando si aggancia il
+  /// numero. Nei primi secondi capita tre o quattro volte.
+  ///
+  /// Il risultato era una gara persa in partenza: la registrazione ci mette
+  /// qualche secondo — su iPhone bisogna aspettare la risposta di Apple — e nel
+  /// frattempo il giro successivo cancellava l'indirizzo appena scritto.
+  /// **L'app si toglieva dal registro da sola**, e il registro restava vuoto
+  /// qualunque cosa si facesse.
+  Future<void> forget() async {
     await _ascoltoRinnovi?.cancel();
     _ascoltoRinnovi = null;
 
-    if (userId.isEmpty) {
+    final userId = _ultimoUtente;
+    _ultimoUtente = null;
+
+    if (userId == null || userId.isEmpty) {
       return;
     }
 
