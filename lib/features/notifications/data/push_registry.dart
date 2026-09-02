@@ -74,16 +74,7 @@ class PushRegistry {
         return;
       }
 
-      // **Su iPhone l'indirizzo arriva solo dopo che Apple ha risposto.**
-      // Chiedendolo troppo presto torna nullo, e il telefono resta muto finche'
-      // non si riapre l'app. Il ciclo aspetta: pochi tentativi, brevi, e poi si
-      // lascia perdere.
-      var token = await _messaging.getToken();
-
-      for (var tentativo = 0; token == null && tentativo < 3; tentativo++) {
-        await Future<void>.delayed(const Duration(seconds: 2));
-        token = await _messaging.getToken();
-      }
+      final token = await _chiediIlRecapito();
 
       if (token == null) {
         // **Succede su iPhone quando il permesso di parlare con Apple non c'e'
@@ -95,6 +86,7 @@ class PushRegistry {
       }
 
       await _salva(userId, token);
+      _consegnato = true;
       await _annota(userId, 'registrato');
 
       // L'indirizzo scade e viene rinnovato dal sistema, di solito senza che
@@ -131,6 +123,58 @@ class PushRegistry {
     }
   }
 
+  /// Chiede il recapito a Firebase, aspettando che Apple abbia fatto la sua
+  /// parte.
+  ///
+  /// **Su iPhone il recapito arriva in due tempi**: prima Apple consegna il
+  /// proprio all'apparecchio, poi Firebase lo traduce nel nostro. Chiedere il
+  /// secondo prima che sia arrivato il primo **non torna un valore vuoto: fa
+  /// fallire la richiesta**, e questa e' l'unica ragione per cui il registro
+  /// restava vuoto anche con tutto il resto a posto.
+  ///
+  /// Il ciclo di prima non serviva a niente: aspettava un valore vuoto che non
+  /// sarebbe mai arrivato, perche' l'errore usciva prima e portava fuori
+  /// dall'intera funzione al primo colpo. Adesso ogni tentativo si prende il
+  /// proprio errore e riprova, con attese che si allungano — la risposta di
+  /// Apple puo' metterci qualche secondo, e su una rete lenta anche di piu'.
+  ///
+  /// Otto tentativi, una ventina di secondi in tutto. Girano in sottofondo:
+  /// nessuno resta ad aspettarli, e chi usa l'app non si accorge di niente.
+  Future<String?> _chiediIlRecapito() async {
+    for (var tentativo = 0; tentativo < 8; tentativo++) {
+      try {
+        if (defaultTargetPlatform == TargetPlatform.iOS) {
+          // Prima quello di Apple. Finche' e' nullo, chiedere il nostro non ha
+          // senso: e' la richiesta che falliva.
+          final daApple = await _messaging.getAPNSToken();
+
+          if (daApple == null) {
+            await _aspetta(tentativo);
+
+            continue;
+          }
+        }
+
+        final token = await _messaging.getToken();
+
+        if (token != null) {
+          return token;
+        }
+      } on Object catch (_) {
+        // Non ancora pronto: si riprova. **Prendere l'errore dentro il ciclo e
+        // non fuori e' tutta la correzione.**
+      }
+
+      await _aspetta(tentativo);
+    }
+
+    return null;
+  }
+
+  Future<void> _aspetta(int tentativo) {
+    return Future<void>.delayed(Duration(milliseconds: 500 * (tentativo + 1)));
+  }
+
   Future<void> _salva(String userId, String token) async {
     try {
       await _devices(userId).doc(token).set({
@@ -144,6 +188,28 @@ class PushRegistry {
       // Vedi sopra.
     }
   }
+
+  /// Riprova, se la prima volta non era andata.
+  ///
+  /// **Si chiama quando l'app torna in primo piano.** Se al primo avvio dopo
+  /// l'installazione Apple non ha fatto in tempo a rispondere, riaprire l'app e'
+  /// il momento in cui quasi sempre ha gia' risposto: senza questa seconda
+  /// occasione, un telefono partito male resterebbe muto fino alla
+  /// disinstallazione.
+  ///
+  /// Non fa niente se il recapito e' gia' stato consegnato.
+  Future<void> retryIfNeeded() async {
+    final userId = _ultimoUtente;
+
+    if (userId == null || _consegnato) {
+      return;
+    }
+
+    await register(userId);
+  }
+
+  /// Vero quando il recapito e' stato scritto almeno una volta.
+  var _consegnato = false;
 
   /// Toglie questo telefono dal registro di chi c'era prima.
   ///
@@ -167,6 +233,7 @@ class PushRegistry {
 
     final userId = _ultimoUtente;
     _ultimoUtente = null;
+    _consegnato = false;
 
     if (userId == null || userId.isEmpty) {
       return;

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
+import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -57,6 +58,20 @@ class _AutoRefreshState extends ConsumerState<AutoRefresh>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _refresh();
+
+      // **La seconda occasione per le notifiche.**
+      //
+      // Al primissimo avvio dopo l'installazione, su iPhone, Apple ci mette un
+      // po' a consegnare il proprio recapito: se non fa in tempo, il telefono
+      // resterebbe fuori dal registro fino alla disinstallazione. Riaprire
+      // l'app e' il momento in cui quasi sempre ha gia' risposto, e non costa
+      // niente riprovare: se il recapito e' gia' stato consegnato, questa
+      // chiamata non fa nulla.
+      final registro = ref.read(pushRegistryProvider);
+
+      if (registro != null) {
+        unawaited(registro.retryIfNeeded());
+      }
     }
   }
 
