@@ -80,7 +80,13 @@ class PushRegistry {
         // **Succede su iPhone quando il permesso di parlare con Apple non c'e'
         // nel profilo di firma.** L'app chiede, Apple non risponde, e resta un
         // nulla che senza questa riga non lascerebbe traccia da nessuna parte.
-        await _annota(userId, 'nessun indirizzo da Apple');
+        // Il numero di giri distingue la versione con i tentativi da
+        // quella senza: e' l'informazione che mi e' mancata per capire
+        // quale build stesse davvero girando sul telefono.
+        await _annota(
+          userId,
+          'nessun indirizzo da Apple dopo $_tentativiFatti tentativi',
+        );
 
         return;
       }
@@ -140,8 +146,12 @@ class PushRegistry {
   ///
   /// Otto tentativi, una ventina di secondi in tutto. Girano in sottofondo:
   /// nessuno resta ad aspettarli, e chi usa l'app non si accorge di niente.
+  /// Quanti giri ha fatto l'ultima richiesta. Serve solo alla diagnosi.
+  var _tentativiFatti = 0;
+
   Future<String?> _chiediIlRecapito() async {
     for (var tentativo = 0; tentativo < 8; tentativo++) {
+      _tentativiFatti = tentativo + 1;
       try {
         if (defaultTargetPlatform == TargetPlatform.iOS) {
           // Prima quello di Apple. Finche' e' nullo, chiedere il nostro non ha
