@@ -43,18 +43,6 @@ enum NotificationKind {
   /// chiude appena finisce: resta una notizia sola, che serve a chi ha
   /// partecipato per sapere che e' il momento di andare a vedere com'e' andata.
   ended,
-
-  /// Un tuo amico ha lanciato una missione.
-  ///
-  /// **La scrive il server, non l'app**, e non e' un dettaglio tecnico: per
-  /// avvisare venti amici bisogna sapere chi sono e scrivere nella casella di
-  /// ognuno, e il telefono di chi lancia la gara non ha — giustamente — il
-  /// permesso di scrivere nelle caselle altrui. Se ce l'avesse, chiunque
-  /// potrebbe riempire di notifiche chiunque.
-  friendChallenge,
-
-  /// Un tuo amico e' sceso in gara con una foto.
-  friendEntry,
 }
 
 /// In quale sezione della campanella finisce una notizia.
@@ -74,16 +62,7 @@ enum NotificationGroup {
   participations('PARTECIPAZIONI'),
 
   /// Qualcuno ha scritto sotto la tua foto, o ti ha nominato.
-  comments('COMMENTI'),
-
-  /// Cosa stanno facendo i tuoi amici: gare lanciate e foto mandate.
-  ///
-  /// **Sta in una sezione sua, e serve che ci stia.** Le altre quattro
-  /// riguardano roba tua — la tua foto, la tua gara, il tuo nome — e arrivano
-  /// poche volte al giorno. Questa riguarda gli altri e arriva molte volte di
-  /// piu': mescolata alle altre le sommergerebbe, e la notizia che hai vinto
-  /// finirebbe sotto sei righe di gente che ha partecipato a qualcosa.
-  friends('AMICI');
+  comments('COMMENTI');
 
   const NotificationGroup(this.label);
 
@@ -148,11 +127,6 @@ class AppNotification {
     NotificationKind.mention => '@$actorUsername ti ha nominato in un commento',
     NotificationKind.friendRequest =>
       '@$actorUsername ti ha chiesto l\'amicizia',
-    NotificationKind.friendChallenge =>
-      // Il premio sta nel titolo della gara quando c'e': la riga dice cosa e'
-      // successo, il premio si legge aprendola.
-      '@$actorUsername ha lanciato una missione',
-    NotificationKind.friendEntry => '@$actorUsername e\' sceso in gara',
     NotificationKind.win => 'Hai vinto',
     NotificationKind.ended => 'La missione e\' finita: guarda chi ha vinto',
     NotificationKind.comment => '@\$actorUsername ha commentato la tua foto',
@@ -181,8 +155,6 @@ class AppNotification {
     NotificationKind.win || NotificationKind.ended => NotificationGroup.wins,
     NotificationKind.participation ||
     NotificationKind.friendRequest => NotificationGroup.participations,
-    NotificationKind.friendChallenge ||
-    NotificationKind.friendEntry => NotificationGroup.friends,
   };
 
   static NotificationKind kindFromName(String? value) {

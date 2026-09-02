@@ -595,17 +595,6 @@ class _Face extends StatelessWidget {
         Icons.mode_comment_outlined,
         palette.textPrimary,
       ),
-      // Le due degli amici: una gara lanciata e una foto mandata. Grigie, non
-      // rosse: sono cose che riguardano gli altri, e il rosso qui dentro e'
-      // riservato a quello che riguarda te.
-      NotificationKind.friendChallenge => (
-        Icons.add_circle_outline_rounded,
-        palette.textPrimary,
-      ),
-      NotificationKind.friendEntry => (
-        Icons.people_outline_rounded,
-        palette.textPrimary,
-      ),
     };
 
     return SizedBox(
