@@ -83,10 +83,12 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
   /// a scrivere `10`.
   final _prizeFocus = FocusNode();
 
-  final _place = TextEditingController();
   int _minutes = 1440;
 
-  late ChallengeScope _scope = widget.forFriends
+  /// Il campo di gara. **Non si sceglie piu': si decide da quale schermata si
+  /// e' entrati.** Una gara aperta e' aperta a tutti, una lanciata dalla
+  /// schermata degli amici la vedono gli amici.
+  late final ChallengeScope _scope = widget.forFriends
       ? ChallengeScope.friends
       : ChallengeScope.global;
 
@@ -149,7 +151,6 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     _brief.dispose();
     _prize.dispose();
     _prizeFocus.dispose();
-    _place.dispose();
     super.dispose();
   }
 
@@ -321,46 +322,6 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                 style: texts.bodySmall,
               ),
               const SizedBox(height: AppSpacing.lg),
-              // Il campo di gara si sceglie solo nelle gare aperte a tutti: in
-              // quella fra amici e' gia' deciso dal titolo della schermata, e
-              // una fila di scelte in cui una sola e' valida non e' una scelta.
-              if (!widget.forFriends) ...[
-                _SectionLabel('Dove'),
-                Wrap(
-                  spacing: AppSpacing.xs,
-                  children: [
-                    for (final scope in ChallengeScope.values)
-                      // "Solo amici" non sta qui: ha una schermata sua, con la
-                      // sua regola sul premio. Lasciarla anche in questa fila
-                      // vorrebbe dire due strade per la stessa cosa, e una
-                      // delle due con le regole sbagliate.
-                      if (scope != ChallengeScope.private &&
-                          scope != ChallengeScope.friends)
-                        _Choice(
-                          label: scope.defaultLabel,
-                          selected: _scope == scope,
-                          onTap: () => setState(() => _scope = scope),
-                        ),
-                  ],
-                ),
-              ],
-              // **Cosa vuol dire "solo amici", detto prima di scegliere.**
-              //
-              // E' l'unica voce di questa fila che cambia *chi vede la gara* e
-              // non *dove si gioca*, e la differenza non si indovina da una
-              // parola sola. Chi la sceglie deve sapere due cose: che fuori dai
-              // suoi amici non la vede nessuno, e che l'elenco e' quello di
-              // adesso.
-              if (_scope == ChallengeScope.local) ...[
-                const SizedBox(height: AppSpacing.md),
-                _Field(
-                  label: 'Citta\'',
-                  controller: _place,
-                  hint: 'NAPOLI',
-                  validator: (value) =>
-                      ChallengeDraftValidators.validatePlace(_scope, value),
-                ),
-              ],
               const SizedBox(height: AppSpacing.lg),
               // **Quanti possono entrare.** E' la scelta che decide se la gara
               // e' un gioco o una folla: con cinquecento foto nessuno le guarda
@@ -372,7 +333,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                 children: [
                   for (final quanti in Challenge.participantCaps)
                     _Choice(
-                      label: quanti == 0 ? 'SENZA LIMITE' : '$quanti',
+                      label: '$quanti',
                       selected: _maxPartecipanti == quanti,
                       onTap: () => setState(() => _maxPartecipanti = quanti),
                     ),
@@ -381,11 +342,8 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.xxs),
                 child: Text(
-                  _maxPartecipanti == 0
-                      ? 'Aperta a chiunque. Con tante foto, le migliori si '
-                            'perdono in mezzo alle altre.'
-                      : 'Una possibilita\' su $_maxPartecipanti. Quando i posti '
-                            'finiscono, non si entra piu\'.',
+                  'Una possibilita\' su $_maxPartecipanti. Quando i posti '
+                  'finiscono, non si entra piu\'.',
                   style: texts.bodySmall?.copyWith(color: palette.textFaint),
                 ),
               ),
@@ -482,7 +440,11 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
           scope: _scope,
           maxParticipants: _maxPartecipanti,
           mediaKind: _mediaKind,
-          place: _place.text,
+          // **Nessuna gara nasce piu' legata a un posto.** Il campo c'era e
+          // non lo compilava quasi nessuno: una gara e' una consegna — *fai
+          // questo* — e dov'e' chi la fa non cambia niente a chi guarda la
+          // foto. Le gare vecchie con dentro una citta' restano come sono.
+          place: '',
           minutes: _minutes,
         );
 

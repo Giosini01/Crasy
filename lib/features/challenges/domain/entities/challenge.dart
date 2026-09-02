@@ -134,11 +134,17 @@ class Challenge {
 
   /// I tetti fra cui si sceglie quando si lancia una gara.
   ///
-  /// **Quattro scelte e non un campo libero.** Lasciato libero, uno scrive tre
-  /// e un altro cinquecento: il primo fa una gara che si chiude prima che
+  /// **Tre scelte, e nessuna senza limite.** Lasciato libero, uno scrive tre e
+  /// un altro cinquecento: il primo fa una gara che si chiude prima che
   /// qualcuno la veda, il secondo rimette in piedi il problema che il tetto
   /// doveva risolvere.
-  static const List<int> participantCaps = [10, 25, 50, 0];
+  ///
+  /// Anche "senza limite" era quel secondo caso, scritto con altre parole: con
+  /// cinquecento foto non le guarda nessuno fino in fondo, si vota fra le prime
+  /// che capitano, e vince la posizione nella lista invece di quello che uno ha
+  /// fatto. Lo zero resta un valore valido — le gare lanciate prima ce l'hanno
+  /// dentro e continuano a funzionare — ma non si puo' piu' scegliere.
+  static const List<int> participantCaps = [10, 25, 50];
 
   /// **La sfida del giorno di CRASY: gratis, e non consuma una partecipazione.**
   ///

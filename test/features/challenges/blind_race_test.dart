@@ -56,7 +56,10 @@ void main() {
     expect(gara(max: 0, dentro: 40).crowdLabel, '40 IN GARA');
   });
 
-  test('i tetti fra cui si sceglie sono quattro, e uno e\' senza limite', () {
-    expect(Challenge.participantCaps, [10, 25, 50, 0]);
+  test('fra i tetti non c\'e\' piu\' quello senza limite', () {
+    // Lo zero resta valido — le gare vecchie ce l\'hanno dentro, e la riga della
+    // folla sa ancora leggerlo — ma non si puo\' piu\' scegliere: era il problema
+    // che il tetto doveva risolvere, scritto con altre parole.
+    expect(Challenge.participantCaps, [10, 25, 50]);
   });
 }

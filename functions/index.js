@@ -64,13 +64,6 @@ async function annuncia(corpo, dati) {
   });
 }
 
-/** I soldi come si scrivono in italiano: `5` oppure `7,50`. */
-function inEuro(centesimi) {
-  return centesimi % 100 === 0
-    ? String(centesimi / 100)
-    : (centesimi / 100).toFixed(2).replace('.', ',');
-}
-
 // I soldi stanno in un file a parte, e le sue funzioni si esportano da qui:
 // tutto quello che tocca denaro si legge in un posto solo.
 //
@@ -840,12 +833,19 @@ exports.announceNewChallenge = onDocumentCreated(
       return;
     }
 
-    const titolo = String(dati.title || '').trim();
-    const corpo = titolo
-      ? `Missione nuova: ${titolo}. ${inEuro(centesimi)}€ in palio`
-      : `Missione nuova, ${inEuro(centesimi)}€ in palio`;
-
-    await annuncia(corpo, {
+    // **Due parole, e basta.**
+    //
+    // Il titolo e la cifra stavano bene in una vetrina e male su uno schermo
+    // bloccato, che e' un posto pubblico: lo leggono in metropolitana, sul
+    // tavolo di un ufficio, chi passa dietro. Una notifica che annuncia
+    // trenta euro dice a chiunque guardi quel telefono cosa ci si puo'
+    // portare a casa — e non e' un'informazione che serve prima di aprire
+    // l'app: chi apre la trova in prima pagina, con dentro tutto.
+    //
+    // In piu' una riga sempre uguale si riconosce senza leggerla, e non
+    // promette niente di preciso: e' la differenza fra un invito e un
+    // volantino.
+    await annuncia('Missione nuova', {
       kind: 'newChallenge',
       challengeId: String(event.params.challengeId),
     });

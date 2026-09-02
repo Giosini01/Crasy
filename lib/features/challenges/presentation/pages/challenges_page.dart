@@ -160,33 +160,32 @@ class _Lives extends StatelessWidget {
             context,
           )?.showSnackBar(SnackBar(content: Text(frase))),
           behavior: HitTestBehavior.opaque,
-          // **Una fotocamera e un numero, non cinque disegnini.**
+          // **Cinque fotocamere, non una fotocamera e un numero.**
           //
-          // Cinque icone in fila occupavano mezza intestazione per dire una cosa
-          // che si legge meglio in due caratteri, e a colpo d'occhio andavano
-          // contate — nessuno conta cinque puntini in cima a uno schermo. Con
-          // il numero accanto si legge, non si conta.
+          // Un numero si legge; cinque disegnini si *vedono*, ed e' una cosa
+          // diversa. Quello che conta qui non e' sapere che ne restano tre: e'
+          // accorgersi, senza leggere niente, che ne restano poche — e due
+          // sagome vuote in fondo alla fila lo dicono in un colpo d'occhio,
+          // mentre "3" va letto e confrontato con un cinque che nessuno ha
+          // scritto.
           //
-          // Finite, diventano il contorno vuoto e non solo grigie: il colore da
-          // solo non basta a chi non lo distingue, e la forma piena contro
+          // Quella spesa diventa il contorno vuoto e non solo grigia: il colore
+          // da solo non basta a chi non lo distingue, e la forma piena contro
           // quella vuota si vede comunque.
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                left > 0
-                    ? Icons.photo_camera_rounded
-                    : Icons.photo_camera_outlined,
-                size: 18,
-                color: left > 0 ? palette.accent : palette.line,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '$left',
-                style: context.texts.titleMedium?.copyWith(
-                  color: left > 0 ? palette.accent : palette.line,
+              for (var i = 0; i < Challenge.livesPerDay; i++)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Icon(
+                    i < left
+                        ? Icons.photo_camera_rounded
+                        : Icons.photo_camera_outlined,
+                    size: 16,
+                    color: i < left ? palette.accent : palette.line,
+                  ),
                 ),
-              ),
             ],
           ),
         ),
