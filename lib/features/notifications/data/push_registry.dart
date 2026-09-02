@@ -94,6 +94,7 @@ class PushRegistry {
       await _salva(userId, token);
       _consegnato = true;
       await _annota(userId, 'registrato');
+      await segnaPassaggio(userId);
 
       // L'indirizzo scade e viene rinnovato dal sistema, di solito senza che
       // nessuno se ne accorga. Senza questo ascolto, da quel momento le
@@ -110,6 +111,26 @@ class PushRegistry {
       // cinque cose diverse. Una riga nel profilo costa niente e le distingue
       // tutte.
       await _annota(userId, 'errore: $errore');
+    }
+  }
+
+  /// Segna che questa persona e' passata di qui.
+  ///
+  /// **Serve a sapere chi non si fa piu' vedere.** Un'app di gare vive di
+  /// ritorni: chi apre tutti i giorni non ha bisogno di niente, chi sparisce
+  /// per una settimana non torna da solo. Senza una data non c'e' modo di
+  /// distinguerli, e mandare un richiamo a tutti — anche a chi era qui dieci
+  /// minuti fa — e' il modo piu' veloce per far spegnere le notifiche.
+  ///
+  /// Si scrive all'avvio, una volta per sessione: e' una scrittura sola al
+  /// giorno per persona, e non pesa niente.
+  Future<void> segnaPassaggio(String userId) async {
+    try {
+      await _firestore.collection('users').doc(userId).set({
+        'lastSeenAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } on Object catch (_) {
+      // Se non riesce, il richiamo arrivera' un giorno dopo. Pazienza.
     }
   }
 

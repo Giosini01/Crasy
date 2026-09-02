@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import UserNotifications
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -22,6 +23,25 @@ import UIKit
     application.registerForRemoteNotifications()
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  /// **Il numero sull'icona si azzera entrando.**
+  ///
+  /// Quel pallino rosso vuol dire "c'e' qualcosa che non hai letto": una volta
+  /// che l'app e' aperta non e' piu' vero, e lasciarlo li' lo trasforma in una
+  /// decorazione permanente che nessuno guarda piu'. E il giorno in cui
+  /// significa davvero qualcosa, non se ne accorge nessuno.
+  ///
+  /// Si azzera a ogni ritorno in primo piano, non solo al primo avvio: le
+  /// notifiche arrivano anche mentre l'app sta in secondo piano.
+  override func applicationDidBecomeActive(_ application: UIApplication) {
+    super.applicationDidBecomeActive(application)
+
+    if #available(iOS 16.0, *) {
+      UNUserNotificationCenter.current().setBadgeCount(0)
+    } else {
+      application.applicationIconBadgeNumber = 0
+    }
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {

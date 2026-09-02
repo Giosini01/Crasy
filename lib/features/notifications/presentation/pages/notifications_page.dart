@@ -71,6 +71,16 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   /// Se la sezione di partenza e' gia' stata scelta.
   bool _sezioneScelta = false;
 
+  /// Le sezioni che sono state guardate da quando si e' aperta la campanella.
+  ///
+  /// **Il numero accanto a una sezione sparisce mentre la si legge.** I conti
+  /// restano congelati per tutte le altre — e' quello che si e' venuti a
+  /// vedere — ma tenere il numero anche su quella che si ha davanti agli occhi
+  /// e' come lasciare acceso un avviso su una cosa gia' fatta: dopo due volte
+  /// non lo si guarda piu', e il giorno che significa qualcosa non se ne
+  /// accorge nessuno.
+  final _viste = <NotificationGroup>{};
+
   @override
   void initState() {
     super.initState();
@@ -118,6 +128,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
     }
 
     final prima = conNovita.first;
+    _viste.add(prima);
 
     // Dopo la frame: cambiare lo stato di un provider mentre l'albero si sta
     // costruendo e' il modo classico di prendersi un errore che non nomina la
@@ -179,7 +190,12 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
               )
             : Column(
                 children: [
-                  _Filters(notifications: notifications, seenAt: seenAt),
+                  _Filters(
+                    notifications: notifications,
+                    seenAt: seenAt,
+                    viste: _viste,
+                    onGuardata: (gruppo) => setState(() => _viste.add(gruppo)),
+                  ),
                   Expanded(
                     child: visibili.isEmpty
                         ? const _NothingHere()
@@ -228,10 +244,21 @@ final notificationFilterProvider = StateProvider.autoDispose<NotificationGroup>(
 /// notizie nuove ci sono la' dentro. Le gia' lette non si contano — un numero
 /// che non cala mai smette di voler dire qualcosa dopo due giorni.
 class _Filters extends ConsumerWidget {
-  const _Filters({required this.notifications, required this.seenAt});
+  const _Filters({
+    required this.notifications,
+    required this.seenAt,
+    required this.viste,
+    required this.onGuardata,
+  });
 
   final List<AppNotification> notifications;
   final DateTime? seenAt;
+
+  /// Le sezioni gia' guardate: il loro numero non si mostra piu'.
+  final Set<NotificationGroup> viste;
+
+  /// Si chiama quando si passa a una sezione.
+  final ValueChanged<NotificationGroup> onGuardata;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -240,6 +267,12 @@ class _Filters extends ConsumerWidget {
     final texts = context.texts;
 
     int nuove(NotificationGroup group) {
+      // Guardata: il conto sparisce. Non e' un dato diverso, e' lo stesso dato
+      // che ha finito di servire.
+      if (viste.contains(group)) {
+        return 0;
+      }
+
       return notifications
           .where((riga) => riga.group == group && riga.isUnreadSince(seenAt))
           .length;
@@ -261,8 +294,10 @@ class _Filters extends ConsumerWidget {
           children: [
             for (final group in NotificationGroup.values)
               GestureDetector(
-                onTap: () =>
-                    ref.read(notificationFilterProvider.notifier).state = group,
+                onTap: () {
+                  onGuardata(group);
+                  ref.read(notificationFilterProvider.notifier).state = group;
+                },
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
                   padding: const EdgeInsets.only(right: AppSpacing.md),
@@ -593,6 +628,11 @@ class _Face extends StatelessWidget {
       NotificationKind.ended => (Icons.flag_rounded, palette.textPrimary),
       NotificationKind.comment => (
         Icons.mode_comment_outlined,
+        palette.textPrimary,
+      ),
+      // Il richiamo: la fiamma vuota, come dire "qui si stava giocando".
+      NotificationKind.comeback => (
+        Icons.local_fire_department_outlined,
         palette.textPrimary,
       ),
     };

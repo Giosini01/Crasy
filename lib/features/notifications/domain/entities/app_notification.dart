@@ -43,6 +43,16 @@ enum NotificationKind {
   /// chiude appena finisce: resta una notizia sola, che serve a chi ha
   /// partecipato per sapere che e' il momento di andare a vedere com'e' andata.
   ended,
+
+  /// Un richiamo per chi non si fa vedere da qualche giorno.
+  ///
+  /// **E' l'unica che non nasce da un fatto.** Tutte le altre raccontano
+  /// qualcosa che e' successo a chi le riceve; questa la manda il server perche'
+  /// fa comodo a noi. Per questo va spesa con parsimonia — e per questo esiste
+  /// come tipo a se': mescolata alle altre non si distinguerebbe, e la prima
+  /// cosa che si vorra' fare il giorno in cui da' fastidio e' poterla spegnere
+  /// da sola.
+  comeback,
 }
 
 /// In quale sezione della campanella finisce una notizia.
@@ -127,6 +137,7 @@ class AppNotification {
     NotificationKind.mention => '@$actorUsername ti ha nominato in un commento',
     NotificationKind.friendRequest =>
       '@$actorUsername ti ha chiesto l\'amicizia',
+    NotificationKind.comeback => 'Ci sono missioni nuove che ti aspettano',
     NotificationKind.win => 'Hai vinto',
     NotificationKind.ended => 'La missione e\' finita: guarda chi ha vinto',
     NotificationKind.comment => '@\$actorUsername ha commentato la tua foto',
@@ -152,7 +163,9 @@ class AppNotification {
     NotificationKind.fire => NotificationGroup.fires,
     NotificationKind.comment ||
     NotificationKind.mention => NotificationGroup.comments,
-    NotificationKind.win || NotificationKind.ended => NotificationGroup.wins,
+    NotificationKind.win ||
+    NotificationKind.ended ||
+    NotificationKind.comeback => NotificationGroup.wins,
     NotificationKind.participation ||
     NotificationKind.friendRequest => NotificationGroup.participations,
   };

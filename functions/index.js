@@ -511,16 +511,31 @@ exports.sendPushOnNotification = onDocumentCreated(
 
     // Una riga per tipo. Corte apposta: sullo schermo bloccato di un telefono
     // ne entrano due, e la seconda la legge quasi nessuno.
+    // **Il titolo e' sempre CRASY, il resto e' una riga sola e generica.**
+    //
+    // Due ragioni. La prima: sullo schermo bloccato quello che si legge per
+    // primo e' il titolo, ed e' li' che deve stare **il nome**, non il tipo di
+    // avviso. Chi guarda il telefono da lontano deve capire da chi arriva prima
+    // ancora di leggere cosa dice.
+    //
+    // La seconda: senza il nome di chi ha fatto la cosa, la notifica **non
+    // rivela niente a chi ha il telefono in mano** — e uno schermo bloccato lo
+    // leggono anche gli altri. Chi vuole sapere chi e' stato apre l'app, dove
+    // la campanella lo dice per esteso.
     const testi = {
-      win: ['Hai vinto.', gara ? `La tua foto ha vinto ${gara}.` : 'La tua foto ha vinto.'],
-      fire: ['Una fiamma in piu', `@${chi} ha acceso una fiamma sulla tua foto.`],
-      participation: ['Qualcuno e sceso in gara', gara ? `@${chi} ha partecipato a ${gara}.` : `@${chi} ha partecipato.`],
-      comment: ['Nuovo commento', `@${chi} ha commentato la tua foto.`],
-      mention: ['Ti hanno nominato', `@${chi} ti ha nominato in un commento.`],
-      friendRequest: ['Richiesta di amicizia', `@${chi} vuole essere tuo amico.`],
+      win: gara ? `Hai vinto ${gara}` : 'Hai vinto',
+      fire: 'Una fiamma nuova sulla tua foto',
+      participation: gara
+        ? `Qualcuno e sceso in gara: ${gara}`
+        : 'Qualcuno e sceso in gara nella tua missione',
+      comment: 'Nuovo commento sotto la tua foto',
+      mention: 'Ti hanno nominato in un commento',
+      friendRequest: 'Hai una richiesta di amicizia',
+      comeback: 'Ci sono missioni nuove che ti aspettano',
     };
 
-    const [titolo, corpo] = testi[dati.kind] || ['CRASY', `@${chi} ha fatto qualcosa.`];
+    const titolo = 'CRASY';
+    const corpo = testi[dati.kind] || 'Qualcosa di nuovo ti aspetta';
 
     // Gli indirizzi dei telefoni di questa persona. Senza nessun dispositivo
     // registrato non c'e' niente da fare: la notifica resta nel database e si
@@ -602,5 +617,104 @@ exports.sendPushOnNotification = onDocumentCreated(
       fallite: esito.failureCount,
       ripulite: morti.length,
     });
+  }
+);
+
+/**
+ * Dopo quanti giorni di assenza si prova a richiamare qualcuno.
+ *
+ * **Tre.** Uno o due sono troppi: chi salta un giorno non se n'e' andato, e
+ * ricevere un "ci manchi" dopo ventiquattro ore e' molesto. Oltre la settimana
+ * e' tardi: chi ha smesso da dieci giorni ha gia' disinstallato o ha deciso.
+ */
+const GIORNI_DI_ASSENZA = 3;
+
+/**
+ * Ogni quanti giorni si puo' richiamare la stessa persona.
+ *
+ * **Sette.** Un richiamo e' utile una volta; ripetuto ogni tre giorni diventa
+ * la ragione per cui uno spegne le notifiche — e spente restano spente per
+ * sempre, anche per la notifica che gli avrebbe fatto piacere ricevere.
+ */
+const GIORNI_FRA_UN_RICHIAMO_E_L_ALTRO = 7;
+
+/**
+ * Richiama chi non si fa vedere da qualche giorno.
+ *
+ * **E' l'unica notifica che non nasce da un fatto.** Tutte le altre raccontano
+ * qualcosa che e' successo a chi le riceve — una fiamma, un commento, una
+ * vittoria — e per questo sono sempre benvenute. Questa invece la mandiamo noi
+ * perche' ci fa comodo, e quel privilegio va speso con parsimonia: solo dopo
+ * qualche giorno di silenzio, non piu' di una a settimana, e solo se ci sono
+ * davvero delle gare aperte da guardare.
+ *
+ * Quest'ultima condizione e' la piu' importante: promettere "ci sono missioni
+ * per te" e far trovare una schermata vuota e' peggio che non scrivere niente.
+ */
+exports.remindQuietUsers = onSchedule(
+  { schedule: '0 18 * * *', timeZone: 'Europe/Rome' },
+  async () => {
+    const adesso = Date.now();
+    const soglia = new Date(adesso - GIORNI_DI_ASSENZA * 86400000);
+    const ultimoRichiamo = new Date(
+      adesso - GIORNI_FRA_UN_RICHIAMO_E_L_ALTRO * 86400000
+    );
+
+    // **Prima si guarda se c'e' qualcosa da mostrare.** Senza gare aperte il
+    // richiamo sarebbe una bugia, e una bugia sola basta a far spegnere le
+    // notifiche a qualcuno per sempre.
+    const gare = await db
+      .collection('challenges')
+      .where('endsAt', '>', new Date())
+      .limit(1)
+      .get();
+
+    if (gare.empty) {
+      logger.info('nessuna gara aperta: nessun richiamo');
+
+      return;
+    }
+
+    // Le sei del pomeriggio e' l'ora in cui la gente ha il telefono in mano e
+    // il tempo per uscire a fare una foto. Alle nove di mattina no.
+    const assenti = await db
+      .collection('users')
+      .where('lastSeenAt', '<', soglia)
+      .limit(200)
+      .get();
+
+    let mandati = 0;
+
+    for (const persona of assenti.docs) {
+      const dati = persona.data();
+      const gia = dati.lastReminderAt?.toDate?.();
+
+      if (gia && gia > ultimoRichiamo) {
+        continue;
+      }
+
+      await db
+        .collection('users')
+        .doc(persona.id)
+        .collection('notifications')
+        .doc(`comeback__${new Date().toISOString().slice(0, 10)}`)
+        .set({
+          kind: 'comeback',
+          actorId: '',
+          actorUsername: '',
+          challengeId: '',
+          challengeTitle: '',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+      await db.collection('users').doc(persona.id).set(
+        { lastReminderAt: admin.firestore.FieldValue.serverTimestamp() },
+        { merge: true }
+      );
+
+      mandati += 1;
+    }
+
+    logger.info('richiami mandati', { mandati, esaminati: assenti.size });
   }
 );
