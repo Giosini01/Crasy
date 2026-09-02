@@ -99,6 +99,31 @@ void main() {
     await tearDownTree(tester);
   });
 
+  testWidgets('il link del messaggio passa anche senza sessione', (
+    tester,
+  ) async {
+    // **E' la prova che il muro non si mangia il link.** Chi clicca la
+    // conferma dell'indirizzo arriva dal browser senza niente in mano: se la
+    // porta d'ingresso lo dirotta come dirotta tutti gli altri, il codice che
+    // aprirebbe quella porta se ne va insieme all'indirizzo da cui lo stiamo
+    // portando via, e resta chiuso fuori per sempre — con l'unica via
+    // d'uscita di farsi rimandare il messaggio e ricascarci uguale.
+    final container = await pumpApp(
+      tester,
+      authRepository: FakeAuthRepository(),
+    );
+
+    container
+        .read(goRouterProvider)
+        .go('${AppRoutes.emailAction}?mode=verifyEmail&oobCode=abc123');
+    await tester.pumpAndSettle();
+
+    expect(find.text('TUTTO\nA POSTO.', findRichText: true), findsOneWidget);
+    expect(find.text('BENTORNATO.', findRichText: true), findsNothing);
+
+    await tearDownTree(tester);
+  });
+
   testWidgets('con l\'email non confermata si resta fuori', (tester) async {
     await pumpApp(
       tester,

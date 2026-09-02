@@ -85,17 +85,36 @@ class FirebaseAuthRepository implements AuthRepository {
     }
   }
 
+  @override
+  Future<void> applyActionCode(String code) =>
+      _firebaseAuth.applyActionCode(code);
+
+  @override
+  Future<String> checkPasswordResetCode(String code) =>
+      _firebaseAuth.verifyPasswordResetCode(code);
+
+  @override
+  Future<void> confirmPasswordReset({
+    required String code,
+    required String newPassword,
+  }) {
+    return _firebaseAuth.confirmPasswordReset(
+      code: code,
+      newPassword: newPassword,
+    );
+  }
+
   /// Dove si finisce dopo aver confermato l'indirizzo.
   ///
-  /// Senza, l'ultima cosa che vede chi si registra e' una pagina bianca di
-  /// Firebase con scritto "indirizzo verificato" e nessuna via d'uscita: ha
-  /// appena fatto tutto giusto e si ritrova fuori dall'app, su un indirizzo che
-  /// non ha mai sentito nominare. Con questo, sulla stessa pagina compare un
-  /// collegamento che riporta dentro CRASY.
+  /// **Adesso il link non porta piu' a una pagina di Firebase.** Il gestore dei
+  /// messaggi e' stato spostato su `crasy.web.app/#/conferma`, che e' una
+  /// schermata nostra — vedi `EmailActionPage` e `tool/pagina_dei_messaggi.py`.
+  /// Chi conferma l'indirizzo resta dentro CRASY dall'inizio alla fine, invece
+  /// di finire su una pagina bianca con sopra il vecchio nome del progetto.
   ///
-  /// **Non cambia il dominio del link** — quello e' l'indirizzo del gestore di
-  /// Firebase e si sposta solo dalla Console. Cambia dove si atterra dopo, che
-  /// e' la meta' del problema che si puo' risolvere da qui.
+  /// Questo indirizzo resta comunque, e viaggia nel link come `continueUrl`:
+  /// e' dove si torna dopo, ed e' l'unica via d'uscita per chi ha aperto il
+  /// messaggio da un telefono diverso da quello dove ha l'app.
   static final ActionCodeSettings _backToCrasy = ActionCodeSettings(
     url: 'https://crasy.web.app/',
     handleCodeInApp: false,

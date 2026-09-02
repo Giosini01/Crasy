@@ -77,7 +77,18 @@ class DefaultFirebaseOptions {
     appId: '1:781052311292:web:4e9ed36cc12836f6264979',
     messagingSenderId: '781052311292',
     projectId: 'daily-dating-app',
-    authDomain: 'daily-dating-app.firebaseapp.com',
+    // **Il dominio di casa nostra, non quello del vecchio nome.**
+    //
+    // Da qui passano le finestre di Firebase che si aprono sul web: il
+    // controllo anti-robot della verifica del numero, e i rimandi
+    // dell'accesso. Con il vecchio indirizzo, chi guardava la barra si vedeva
+    // comparire `daily-dating-app` — un nome che su CRASY non compare da
+    // nessun'altra parte, nel momento esatto in cui gli si chiede di fidarsi
+    // e scrivere il proprio numero.
+    //
+    // `crasy.web.app` e' lo stesso sito dell'app ed e' gia' fra i domini
+    // autorizzati: serve le stesse pagine di servizio sotto `/__/auth/`.
+    authDomain: 'crasy.web.app',
     storageBucket: 'daily-dating-app.firebasestorage.app',
   );
 }

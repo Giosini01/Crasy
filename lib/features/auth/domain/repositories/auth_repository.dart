@@ -22,6 +22,28 @@ abstract class AuthRepository {
   /// sbagliato a scrivere se ne accorge dal messaggio che non arriva.
   Future<void> sendPasswordReset({required String email});
 
+  /// Consegna a Firebase il codice usa e getta che sta dentro il link.
+  ///
+  /// Vale per la conferma dell'indirizzo e per il cambio di indirizzo: sono
+  /// operazioni che il server sa gia' fare da sole, e da qui non serve altro
+  /// che passargli il codice.
+  Future<void> applyActionCode(String code);
+
+  /// Controlla che il codice per rifarsi la password sia ancora buono, e dice
+  /// a chi appartiene.
+  ///
+  /// **Si chiede prima di mostrare il campo della password.** Un codice
+  /// scaduto — dura un'ora — va detto subito: farlo scoprire dopo che uno ha
+  /// scelto e riscritto una password nuova e' il modo piu' veloce di fargli
+  /// pensare che sia colpa sua.
+  Future<String> checkPasswordResetCode(String code);
+
+  /// Scrive la password nuova.
+  Future<void> confirmPasswordReset({
+    required String code,
+    required String newPassword,
+  });
+
   /// Richiede al server lo stato aggiornato dell'utente.
   ///
   /// Serve perche' la conferma dell'email avviene **fuori dall'app** — in una

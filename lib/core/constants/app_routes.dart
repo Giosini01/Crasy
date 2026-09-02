@@ -10,6 +10,15 @@ abstract final class AppRoutes {
 
   static const onboarding = '/onboarding';
 
+  /// Dove porta il link dentro un nostro messaggio.
+  ///
+  /// **E' l'unica rotta che non chiede niente a nessuno.** Ci si arriva dal
+  /// browser, con in mano un codice e nessuna sessione: fermare chi arriva qui
+  /// davanti al muro della conferma vorrebbe dire lasciarcelo per sempre,
+  /// perche' il codice che apre quel muro e' proprio quello che non gli
+  /// abbiamo lasciato consegnare.
+  static const emailAction = '/conferma';
+
   /// I consensi: cosa accetti prima di entrare.
   static const consents = '/consensi';
 

@@ -53,6 +53,18 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> applyActionCode(String code) async {}
+
+  @override
+  Future<String> checkPasswordResetCode(String code) async => 'a@b.it';
+
+  @override
+  Future<void> confirmPasswordReset({
+    required String code,
+    required String newPassword,
+  }) async {}
+
+  @override
   Future<AppUser?> reload() async => currentUser;
 
   @override

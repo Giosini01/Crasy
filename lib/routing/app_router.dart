@@ -2,6 +2,7 @@ import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/legal/legal_documents.dart';
 import 'package:crasy/core/routing/swipe_back_page.dart';
 import 'package:crasy/features/auth/presentation/pages/auth_page.dart';
+import 'package:crasy/features/auth/presentation/pages/email_action_page.dart';
 import 'package:crasy/features/auth/presentation/pages/verify_email_page.dart';
 import 'package:crasy/features/auth/presentation/pages/verify_phone_page.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
@@ -175,6 +176,19 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       _tabRoute(AppRoutes.splash, const SplashPage()),
       _tabRoute(AppRoutes.auth, const AuthPage()),
       _tabRoute(AppRoutes.verifyEmail, const VerifyEmailPage()),
+      // Il link dei messaggi. `mode` dice che operazione e', `oobCode` e' il
+      // codice usa e getta: li scrive Firebase in coda all'indirizzo, e sono
+      // tutto quello che serve.
+      GoRoute(
+        path: AppRoutes.emailAction,
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: EmailActionPage(
+            mode: state.uri.queryParameters['mode'] ?? '',
+            code: state.uri.queryParameters['oobCode'] ?? '',
+          ),
+        ),
+      ),
       _tabRoute(AppRoutes.onboarding, const OnboardingPage()),
       _tabRoute(AppRoutes.verifyPhone, const VerifyPhonePage()),
       _tabRoute(AppRoutes.consents, const ConsentPage()),
@@ -217,6 +231,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     ],
     redirect: (context, state) {
       final location = state.matchedLocation;
+
+      // **Il link dei messaggi passa comunque.** Chi arriva qui non ha una
+      // sessione completa — di solito e' li' proprio per completarla — e
+      // rimandarlo al muro della conferma vuol dire lasciarcelo per sempre: il
+      // codice che apre quel muro e' nell'indirizzo da cui lo stiamo
+      // portando via.
+      if (location == AppRoutes.emailAction) {
+        return null;
+      }
 
       // Finche' una porta non e' passata, quella porta e' l'unico posto in cui
       // si puo' stare. Il controllo e' scritto una volta sola e vale per tutte:
