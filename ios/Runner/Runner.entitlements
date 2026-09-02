@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- **Il permesso di parlare con Apple, senza il quale non arriva niente.**
+
+	     Le notifiche su iPhone non passano da noi: le consegna Apple, e per
+	     poterle consegnare deve prima riconoscere l'app. Il riconoscimento
+	     avviene all'avvio, e avviene **solo se l'app dichiara qui che le
+	     notifiche le usa**. Senza questa riga il telefono non chiede nessun
+	     indirizzo, l'app non ne riceve nessuno, e il registro dei dispositivi
+	     resta vuoto — che e' esattamente cio' che stava succedendo: la funzione
+	     sul server era pronta e non aveva nessuno a cui mandare.
+
+	     `production` e non `development`: tutte le nostre build vengono firmate
+	     per l'App Store, ed e' quello l'ambiente in cui girano TestFlight e
+	     l'app pubblicata. Una build firmata per l'App Store con dichiarato
+	     l'ambiente di sviluppo non riceverebbe niente lo stesso. -->
+	<key>aps-environment</key>
+	<string>production</string>
+</dict>
+</plist>

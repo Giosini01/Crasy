@@ -382,6 +382,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				PRODUCT_BUNDLE_IDENTIFIER = app.crasy.mobile;
 				DEVELOPMENT_TEAM = NGH625EL4B;
 				CODE_SIGN_STYLE = Automatic;
@@ -566,6 +567,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				PRODUCT_BUNDLE_IDENTIFIER = app.crasy.mobile;
 				DEVELOPMENT_TEAM = NGH625EL4B;
 				CODE_SIGN_STYLE = Automatic;
@@ -590,6 +592,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				PRODUCT_BUNDLE_IDENTIFIER = app.crasy.mobile;
 				DEVELOPMENT_TEAM = NGH625EL4B;
 				CODE_SIGN_STYLE = Automatic;

@@ -33,6 +33,18 @@
 
 	     Il valore e' l'identificativo dell'app su Firebase con i due punti
 	     trasformati in trattini. Non e' un segreto: sta gia' dentro l'app. -->
+	<!-- **Le notifiche silenziose.**
+
+	     Servono a due cose diverse che senza questa riga funzionano tutte e due a
+	     meta'. La prima e' la verifica del numero di telefono: Firebase prova a
+	     confermare l'app mandandole una notifica che non si vede, e solo se
+	     fallisce ripiega sul controllo anti-robot con la pagina web. La seconda e'
+	     la consegna in secondo piano, che permette all'app di prepararsi prima che
+	     la notifica compaia sullo schermo bloccato. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
