@@ -511,6 +511,14 @@ exports.sendPushOnNotification = onDocumentCreated(
       comment: ['Nuovo commento', `@${chi} ha commentato la tua foto.`],
       mention: ['Ti hanno nominato', `@${chi} ti ha nominato in un commento.`],
       friendRequest: ['Richiesta di amicizia', `@${chi} vuole essere tuo amico.`],
+      friendChallenge: [
+        'Un amico ha lanciato una missione',
+        gara ? `@${chi}: ${gara}` : `@${chi} ha lanciato una missione.`,
+      ],
+      friendEntry: [
+        'Un amico e sceso in gara',
+        gara ? `@${chi} e in gara: ${gara}` : `@${chi} ha mandato una foto.`,
+      ],
     };
 
     const [titolo, corpo] = testi[dati.kind] || ['CRASY', `@${chi} ha fatto qualcosa.`];
@@ -586,5 +594,138 @@ exports.sendPushOnNotification = onDocumentCreated(
       fallite: esito.failureCount,
       ripulite: morti.length,
     });
+  }
+);
+
+/**
+ * Quanti amici si avvisano al massimo, per una cosa sola.
+ *
+ * **Il tetto non e' tecnico, e' di buon senso.** Con cento amici e cinque
+ * partecipazioni al giorno a testa, la campanella di una persona popolare
+ * diventerebbe illeggibile in una settimana — e la notizia che ha vinto
+ * finirebbe sotto trenta righe di gente che ha mandato una foto. Cinquanta e'
+ * gia' piu' di quante persone uno segua davvero.
+ */
+const MAX_AMICI_DA_AVVISARE = 50;
+
+/** Gli identificativi degli amici di qualcuno. */
+async function amiciDi(userId) {
+  const elenco = await db
+    .collection('users')
+    .doc(userId)
+    .collection('friends')
+    .limit(MAX_AMICI_DA_AVVISARE)
+    .get();
+
+  return elenco.docs.map((doc) => doc.id);
+}
+
+/** Scrive la stessa notizia nella casella di piu' persone, in un colpo solo. */
+async function avvisa(destinatari, id, dati) {
+  if (destinatari.length === 0) {
+    return 0;
+  }
+
+  const scrittura = db.batch();
+
+  destinatari.forEach((userId) => {
+    scrittura.set(
+      db.collection('users').doc(userId).collection('notifications').doc(id),
+      { ...dati, createdAt: admin.firestore.FieldValue.serverTimestamp() }
+    );
+  });
+
+  await scrittura.commit();
+
+  return destinatari.length;
+}
+
+/**
+ * Avvisa gli amici quando qualcuno lancia una missione.
+ *
+ * **Deve girare qui e non sul telefono.** Per avvisare venti amici bisogna
+ * sapere chi sono e scrivere nella casella di ognuno, e il telefono di chi
+ * lancia la gara non ha — giustamente — il permesso di scrivere nelle caselle
+ * altrui: se ce l'avesse, chiunque potrebbe riempire di notifiche chiunque. Il
+ * server ha quel permesso perche' non passa dalle regole, ed e' l'unico che
+ * puo' averlo.
+ */
+exports.notifyFriendsOnChallenge = onDocumentCreated(
+  'challenges/{challengeId}',
+  async (event) => {
+    const gara = event.data?.data();
+
+    if (!gara) {
+      return;
+    }
+
+    const autore = gara.createdByUserId || '';
+
+    // Le sfide del giorno le lancia CRASY, e non ha amici: avvisare tutti di
+    // una gara che compare gia' in cima alla home sarebbe rumore puro.
+    if (!autore || gara.kind === 'daily') {
+      return;
+    }
+
+    const destinatari = await amiciDi(autore);
+
+    const quanti = await avvisa(
+      destinatari,
+      `friendChallenge__${event.params.challengeId}`,
+      {
+        kind: 'friendChallenge',
+        actorId: autore,
+        actorUsername: gara.createdByUsername || '',
+        challengeId: event.params.challengeId,
+        challengeTitle: gara.title || '',
+      }
+    );
+
+    logger.info('amici avvisati di una missione', { autore, quanti });
+  }
+);
+
+/**
+ * Avvisa gli amici quando qualcuno scende in gara.
+ *
+ * Chi ha lanciato la gara riceve gia' la sua notizia dall'app: quella e' un
+ * fatto suo — qualcuno e' entrato in casa sua — e non passa di qui. Qui si
+ * avvisano gli amici di chi ha mandato la foto, che e' un'altra cosa: e'
+ * l'invito a scendere in gara insieme.
+ */
+exports.notifyFriendsOnEntry = onDocumentCreated(
+  'challenges/{challengeId}/entries/{entryId}',
+  async (event) => {
+    const foto = event.data?.data();
+
+    if (!foto) {
+      return;
+    }
+
+    const autore = foto.userId || '';
+
+    if (!autore) {
+      return;
+    }
+
+    const destinatari = (await amiciDi(autore)).filter(
+      // Chi ha lanciato la gara riceve gia' l'avviso dall'app: due notifiche
+      // per lo stesso gesto sono una di troppo.
+      (userId) => userId !== event.data.ref.parent.parent?.id
+    );
+
+    const quanti = await avvisa(
+      destinatari,
+      `friendEntry__${event.params.challengeId}__${event.params.entryId}`,
+      {
+        kind: 'friendEntry',
+        actorId: autore,
+        actorUsername: foto.authorName || '',
+        challengeId: event.params.challengeId,
+        challengeTitle: foto.challengeTitle || '',
+      }
+    );
+
+    logger.info('amici avvisati di una partecipazione', { autore, quanti });
   }
 );
