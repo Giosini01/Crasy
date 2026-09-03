@@ -74,6 +74,26 @@ const PORTE = [
 const PAGINA = 'https://crasy.web.app/conferma';
 
 /**
+ * Il marchio, come immagine.
+ *
+ * **Non e' una parola scritta con un carattere.** Il segno di CRASY ha la esse
+ * e la ipsilon rosse, e quel disegno non si ottiene componendo lettere: si
+ * ottiene solo mettendoci il marchio. Scritto a mano con del testo era una
+ * parola qualunque in grassetto — leggibile, e di nessuno.
+ *
+ * **Sta su un indirizzo del nostro sito e non allegata al messaggio.** Allegata
+ * si vedrebbe anche a immagini spente, ma comparirebbe come graffetta in fondo
+ * a ogni email — e una conferma con un allegato somiglia molto a quello che la
+ * gente ha imparato a non aprire.
+ *
+ * Il file ha il fondo bianco dentro, non trasparente: su un programma di posta
+ * in tema scuro un PNG trasparente si appoggia sul nero, e meta' della parola
+ * sparisce. E la misura e' il doppio di quella a cui si vede, perche' gli
+ * schermi di adesso hanno due punti per ogni punto.
+ */
+const MARCHIO = 'https://crasy.web.app/brand/crasy-wordmark.png';
+
+/**
  * Ogni quanti secondi si puo' rimandare la stessa email allo stesso indirizzo.
  *
  * **Sessanta.** Il tasto "rimandamela" e' li' per chi non l'ha ricevuta, e chi
@@ -120,7 +140,7 @@ async function spedisci(messaggio) {
     }
   }
 
-  throw new HttpsError('unavailable', 'La posta non e partita.', ultimoGuaio);
+  throw new HttpsError('unavailable', 'La posta non è partita.', ultimoGuaio);
 }
 
 /**
@@ -137,7 +157,13 @@ function vestito({ titolo, testo, tasto, link, nota }) {
     '<!DOCTYPE html><html lang="it"><body style="margin:0;padding:0;background:#F7F5F2;">',
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F7F5F2;padding:32px 16px;"><tr><td align="center">',
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:420px;background:#FFFFFF;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">',
-    '<tr><td style="font-size:22px;font-weight:800;letter-spacing:.14em;color:#111111;padding-bottom:28px;">CRASY<span style="color:#C8102E;">.</span></td></tr>',
+    // `alt` non e' un dettaglio di cortesia: **e' quello che si legge quando le
+    // immagini sono spente**, e con Outlook lo sono quasi sempre al primo
+    // messaggio da un mittente nuovo. Senza, in cima all'email ci sarebbe un
+    // riquadro vuoto.
+    '<tr><td style="padding-bottom:28px;"><img src="' +
+      MARCHIO +
+      '" width="140" alt="CRASY" style="display:block;border:0;outline:none;width:140px;height:auto;font-size:20px;font-weight:800;letter-spacing:.14em;color:#111111;"></td></tr>',
     '<tr><td style="font-size:26px;font-weight:800;line-height:1.15;color:#111111;">' +
       titolo +
       '<span style="color:#C8102E;">.</span></td></tr>',
@@ -232,7 +258,7 @@ exports.mandaLaConferma = onCall(
         'Conferma il tuo indirizzo per entrare in CRASY:' +
         '\n\n' +
         link +
-        '\n\nIl link vale un ora. Se non ti sei registrato tu, ignora questa email.',
+        "\n\nIl link vale un'ora. Se non ti sei registrato tu, ignora questa email.",
       html: vestito({
         titolo: 'CI SIAMO',
         testo:
@@ -339,7 +365,7 @@ exports.mandaIlRecupero = onCall(
         'Hai chiesto di rifare la password di CRASY:' +
         '\n\n' +
         link +
-        '\n\nIl link vale un ora. Se non sei stato tu, ignora questa email: la password resta quella di prima.',
+        "\n\nIl link vale un'ora. Se non sei stato tu, ignora questa email: la password resta quella di prima.",
       html: vestito({
         titolo: 'RIFACCIAMOLA',
         testo:
