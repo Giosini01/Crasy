@@ -93,7 +93,23 @@ class FirebaseAuthRepository implements AuthRepository {
   /// che e' partita — perche' e' partita, un minuto fa.
   @override
   Future<void> sendEmailVerification() async {
-    await _functions.httpsCallable('mandaLaConferma').call<Object?>();
+    try {
+      await _functions.httpsCallable('mandaLaConferma').call<Object?>();
+    } on Object catch (_) {
+      // **Se la nostra posta non parte, parte quella di Firebase.**
+      //
+      // E' brutta — porta a una pagina bianca sul vecchio nome del progetto —
+      // ma **un'email brutta e' infinitamente meglio di nessuna email**: senza,
+      // chi si e' appena registrato resta fermo davanti a un muro che gli dice
+      // di controllare una casella dove non arrivera' mai niente, e l'unica
+      // cosa che puo' fare e' chiudere l'app.
+      //
+      // Le cose che possono andare storte adesso non riguardano piu' solo
+      // Firebase: una casella di posta che non risponde, una porta chiusa, una
+      // funzione ancora da pubblicare. Nessuna di queste deve poter fermare una
+      // registrazione.
+      await _firebaseAuth.currentUser?.sendEmailVerification(_tornaSuCrasy);
+    }
   }
 
   @override
@@ -110,9 +126,28 @@ class FirebaseAuthRepository implements AuthRepository {
   /// arriva.
   @override
   Future<void> sendPasswordReset({required String email}) async {
-    await _functions.httpsCallable('mandaIlRecupero').call<Object?>({
-      'email': email,
-    });
+    try {
+      await _functions.httpsCallable('mandaIlRecupero').call<Object?>({
+        'email': email,
+      });
+    } on Object catch (_) {
+      // Stessa rete della conferma, e qui serve anche di piu': chi ha perso la
+      // password e' gia' chiuso fuori, e un messaggio che non arriva lo lascia
+      // fuori per sempre.
+      try {
+        await _firebaseAuth.sendPasswordResetEmail(
+          email: email,
+          actionCodeSettings: _tornaSuCrasy,
+        );
+      } on FirebaseAuthException catch (errore) {
+        // **Un indirizzo sconosciuto non e' un errore da mostrare.** Ripeterlo
+        // a schermo trasformerebbe la schermata in uno strumento per sapere chi
+        // sta su CRASY: si provano indirizzi finche' uno non risponde di si'.
+        if (errore.code != 'user-not-found' && errore.code != 'invalid-email') {
+          rethrow;
+        }
+      }
+    }
   }
 
   @override
@@ -134,10 +169,17 @@ class FirebaseAuthRepository implements AuthRepository {
     );
   }
 
-  // **Le impostazioni del link non stanno piu' qui.** Servivano a dire a
-  // Firebase dove far tornare chi apriva il messaggio; adesso i messaggi li
-  // costruiamo noi, e quel "dove si torna dopo" sta dove viene deciso — dentro
-  // `functions/posta.js`, accanto al testo dell'email che lo contiene.
+  /// Dove si torna dopo, **nelle email di riserva**.
+  ///
+  /// Le nostre non ne hanno bisogno: il "dove si torna dopo" sta dove viene
+  /// deciso, dentro `functions/posta.js`, accanto al testo che lo contiene.
+  /// Questo serve solo alle email di Firebase, quelle che partono quando la
+  /// nostra posta non parte — e serve perche' altrimenti l'ultima cosa che si
+  /// vede e' una pagina bianca senza nessuna via d'uscita.
+  static final ActionCodeSettings _tornaSuCrasy = ActionCodeSettings(
+    url: 'https://crasy.web.app/',
+    handleCodeInApp: false,
+  );
 
   @override
   Future<AppUser?> reload() async {
