@@ -801,5 +801,23 @@ service cloud.firestore {
         }
       }
     }
+
+    // **I guasti che l'app incontra da sola.**
+    //
+    // Ci si scrive e basta: nessuno li rilegge dall'app, si guardano dalla
+    // console. Il permesso e' di sola scrittura anche per chi li scrive — un
+    // elenco di errori leggibile da chiunque racconterebbe come e' fatta l'app
+    // dentro, e a chi succedono.
+    //
+    // Solo chi ha fatto l'accesso, perche' un indirizzo aperto a chiunque
+    // diventa un posto dove scaricare roba a spese nostre.
+    match /crashes/{crashId} {
+      allow read, update, delete: if false;
+
+      allow create: if signedIn()
+                    && request.resource.data.guasto is string
+                    && request.resource.data.guasto.size() <= 500;
+    }
+
   }
 }
