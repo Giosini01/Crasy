@@ -51,9 +51,24 @@ const CANALE_DI_TUTTI = 'tutti';
  * app possa farsi — per dire una cosa che sta gia' in prima pagina. Qui
  * l'annuncio serve solo a far accendere lo schermo di chi non ha l'app aperta.
  */
+/**
+ * Oltre questo numero di telefoni, l'annuncio passa dal canale.
+ *
+ * **Sotto, si va a bussare a uno per uno.** Il canale costa un messaggio solo a
+ * qualunque numero di persone, ma raggiunge **solo chi si e' iscritto** — e
+ * iscriversi lo fa l'app, quindi solo chi ha una versione abbastanza nuova.
+ * Bussare a uno per uno costa una lettura per telefono, che con dieci telefoni
+ * e' niente e con diecimila e' il conto piu' salato dell'app.
+ *
+ * Finche' siamo in pochi vince il secondo modo, per una ragione che non ha a
+ * che fare con i soldi: **funziona su tutte le versioni**, anche su quelle
+ * gia' installate. Quando saremo in tanti, saranno tutti su versioni che si
+ * iscrivono da sole, e si passera' al canale senza toccare niente.
+ */
+const TELEFONI_OLTRE_I_QUALI_CONVIENE_IL_CANALE = 2000;
+
 async function annuncia(corpo, dati) {
-  await admin.messaging().send({
-    topic: CANALE_DI_TUTTI,
+  const messaggio = {
     notification: { title: 'CRASY', body: corpo },
     data: dati,
     apns: { payload: { aps: { sound: SUONO_APPLE, badge: 1 } } },
@@ -61,7 +76,63 @@ async function annuncia(corpo, dati) {
       priority: 'high',
       notification: { sound: SUONO_ANDROID, color: ROSSO },
     },
-  });
+  };
+
+  // Uno in piu' del limite: se arrivano tutti, vuol dire che ce n'e' almeno
+  // uno oltre, e tanto basta per decidere senza contarli davvero.
+  const telefoni = await db
+    .collectionGroup('devices')
+    .limit(TELEFONI_OLTRE_I_QUALI_CONVIENE_IL_CANALE + 1)
+    .get();
+
+  if (telefoni.size > TELEFONI_OLTRE_I_QUALI_CONVIENE_IL_CANALE) {
+    await admin.messaging().send({ ...messaggio, topic: CANALE_DI_TUTTI });
+    logger.info('annuncio dal canale', { corpo });
+
+    return;
+  }
+
+  if (telefoni.empty) {
+    logger.warn('annuncio senza nessuno a cui mandarlo', { corpo });
+
+    return;
+  }
+
+  const indirizzi = telefoni.docs.map((doc) => doc.id);
+  let inviate = 0;
+  let fallite = 0;
+
+  // A cinquecento per volta: e' il tetto di una spedizione sola.
+  for (let inizio = 0; inizio < indirizzi.length; inizio += 500) {
+    const pezzo = indirizzi.slice(inizio, inizio + 500);
+    const esito = await admin
+      .messaging()
+      .sendEachForMulticast({ ...messaggio, tokens: pezzo });
+
+    inviate += esito.successCount;
+    fallite += esito.failureCount;
+
+    // Gli indirizzi morti si tolgono qui come si tolgono nelle notifiche
+    // personali: lasciandoli, ogni annuncio futuro prova a raggiungerli e
+    // fallisce, e dopo qualche mese l'elenco e' fatto piu' di morti che di vivi.
+    await Promise.all(
+      esito.responses.map((risposta, i) => {
+        const codice = risposta.error?.code || '';
+
+        if (
+          codice === 'messaging/registration-token-not-registered' ||
+          codice === 'messaging/invalid-registration-token' ||
+          codice === 'messaging/invalid-argument'
+        ) {
+          return telefoni.docs[inizio + i].ref.delete();
+        }
+
+        return null;
+      })
+    );
+  }
+
+  logger.info('annuncio mandato', { corpo, inviate, fallite });
 }
 
 // I soldi stanno in un file a parte, e le sue funzioni si esportano da qui:
