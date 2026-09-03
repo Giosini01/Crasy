@@ -775,22 +775,28 @@ exports.sendPushOnNotification = onDocumentCreated(
 /**
  * Dopo quante ore di assenza si prova a richiamare qualcuno.
  *
- * **Venti, ed erano tre giorni.** Il cambio non e' una taratura: e' un
- * cambio di ruolo. Finche' ogni missione nuova faceva squillare i telefoni,
- * questo era un "ci manchi" da spendere con parsimonia; adesso che gli annunci
- * per missione non ci sono piu', **e' l'unica cosa che riporta indietro chi non
- * ha ancora l'abitudine di aprire l'app** — e a tre giorni di distanza quella
+ * **Dieci, ed erano tre giorni.** Il cambio non e' una taratura: e' un cambio
+ * di ruolo. Finche' ogni missione nuova faceva squillare i telefoni, questo era
+ * un "ci manchi" da spendere con parsimonia; adesso che gli annunci per
+ * missione non ci sono piu', **e' l'unica cosa che riporta indietro chi non ha
+ * ancora l'abitudine di aprire l'app** — e a tre giorni di distanza quella
  * abitudine non si forma, perche' nel frattempo non e' successo niente.
  *
- * Venti ore e non ventiquattro perche' il richiamo parte a un'ora fissa: con
- * ventiquattro, chi ha aperto l'app ieri alle sei e un minuto salterebbe il
- * giro di oggi per un minuto, e ne aspetterebbe un altro giorno.
+ * Dieci ore e non ventiquattro perche' il richiamo parte alle sei di sera: con
+ * ventiquattro chiedeva di aver saltato un giorno intero, e chi aveva aperto
+ * l'app ieri a tarda sera restava fuori dal giro di oggi. Con dieci basta non
+ * aver aperto **da stamattina**, che e' la differenza fra un richiamo che
+ * arriva mentre la giornata si puo' ancora recuperare e uno che arriva quando
+ * e' andata.
  *
  * Su CRASY una giornata e' un'unita' vera: le partecipazioni sono cinque al
  * giorno, la sfida cambia a mezzanotte, le gare scadono. Chi salta un giorno
  * non ha saltato un momento qualunque — ha saltato tutto quello che c'era.
+ *
+ * Quante volte arriva non lo decide questo numero ma quello qui sotto: dieci
+ * ore allarga **chi** viene richiamato, non ogni quanto.
  */
-const ORE_DI_ASSENZA = 20;
+const ORE_DI_ASSENZA = 10;
 
 /**
  * Ogni quante ore si puo' richiamare la stessa persona.
