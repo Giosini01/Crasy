@@ -844,19 +844,33 @@ exports.remindQuietUsers = onSchedule(
 );
 
 /**
- * Ogni quanto si puo' annunciare una missione nuova.
+ * Quanto deve passare fra due annunci di missione.
  *
- * **Novanta minuti.** Non e' una scelta di gusto: chiunque puo' lanciare una
- * missione, e il giorno in cui ne partono venti in un pomeriggio venti
- * notifiche arrivano a tutti. Nessuno le legge, e qualcuno spegne le notifiche
+ * **Un quarto d'ora, ed era novanta minuti.** Novanta erano tarati su un'app
+ * piena di gente che lancia gare tutto il giorno; su un'app che ne vede tre in
+ * un pomeriggio erano solo un modo per far arrivare la prima e mangiarsi le
+ * altre due. **Perdere un annuncio, adesso, e' molto peggio che riceverne uno
+ * di troppo**: sono poche, e ognuna e' la ragione per cui uno riapre l'app.
+ *
+ * Il quarto d'ora resta perche' due notifiche a un minuto l'una dall'altra
+ * arrivano insieme e valgono per una — la seconda la si scarta senza leggerla.
+ */
+const MINUTI_FRA_UN_ANNUNCIO_E_L_ALTRO = 15;
+
+/**
+ * Quanti annunci di missione, al massimo, in una giornata.
+ *
+ * **E' questo il freno vero, non il quarto d'ora.** Chiunque puo' lanciare una
+ * missione, e il giorno in cui ne partono trenta in un pomeriggio trenta
+ * notifiche arrivano a tutti: nessuno le legge, e qualcuno spegne le notifiche
  * per sempre — anche quelle che gli avrebbero fatto piacere ricevere.
  *
- * Alcune missioni resteranno quindi senza annuncio, e va bene: si vedono
- * comunque in prima pagina. Il freno si sente solo quando ce n'e' bisogno,
- * cioe' quando le gare sono tante — e quando le gare sono tante, una in piu'
- * annunciata non cambia niente a nessuno.
+ * Otto e' un numero che in una giornata normale non si tocca mai, e in una
+ * giornata storta e' quello che salva le notifiche di tutti gli altri giorni.
+ * Le missioni oltre l'ottava restano senza annuncio e si vedono comunque in
+ * prima pagina, che e' dove uno le cerca.
  */
-const MINUTI_FRA_UN_ANNUNCIO_E_L_ALTRO = 90;
+const ANNUNCI_AL_GIORNO = 8;
 
 /** Dove il server si segna le cose che ha gia' fatto. */
 const MEMORIA = db.collection('system').doc('annunci');
@@ -892,13 +906,31 @@ exports.announceNewChallenge = onDocumentCreated(
       return;
     }
 
-    const memoria = await MEMORIA.get();
-    const ultimo = memoria.data()?.ultimaMissioneAt?.toDate?.();
+    const memoria = (await MEMORIA.get()).data() || {};
+    const ultimo = memoria.ultimaMissioneAt?.toDate?.();
     const limite = new Date(Date.now() - MINUTI_FRA_UN_ANNUNCIO_E_L_ALTRO * 60000);
 
     if (ultimo && ultimo > limite) {
       logger.info('missione non annunciata: troppo presto', {
         challengeId: event.params.challengeId,
+      });
+
+      return;
+    }
+
+    // Il conto riparte da zero a mezzanotte italiana, che e' la mezzanotte di
+    // chi usa l'app. `sv-SE` scrive le date come `2026-09-03`.
+    const oggi = new Date().toLocaleDateString('sv-SE', {
+      timeZone: 'Europe/Rome',
+    });
+    const quanteOggi = memoria.giornoDegliAnnunci === oggi
+      ? Number(memoria.annunciFatti || 0)
+      : 0;
+
+    if (quanteOggi >= ANNUNCI_AL_GIORNO) {
+      logger.info('missione non annunciata: gia troppe oggi', {
+        challengeId: event.params.challengeId,
+        quanteOggi,
       });
 
       return;
@@ -925,7 +957,11 @@ exports.announceNewChallenge = onDocumentCreated(
     );
 
     await MEMORIA.set(
-      { ultimaMissioneAt: admin.firestore.FieldValue.serverTimestamp() },
+      {
+        ultimaMissioneAt: admin.firestore.FieldValue.serverTimestamp(),
+        giornoDegliAnnunci: oggi,
+        annunciFatti: quanteOggi + 1,
+      },
       { merge: true }
     );
 
