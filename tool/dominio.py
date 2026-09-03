@@ -119,19 +119,41 @@ def main():
     if NUOVO not in domini:
         domini = domini + [NUOVO]
 
+    # **Le due scritture vanno separate, e l'ho scoperto sbattendoci.**
+    #
+    # Mandandole insieme, il rifiuto della seconda annulla anche la prima:
+    # l'API risponde `EMAIL_TEMPLATE_UPDATE_NOT_ALLOWED` e non scrive niente,
+    # nemmeno la parte che avrebbe potuto scrivere. Separate, il dominio si
+    # aggiunge comunque e resta da fare una cosa sola.
     dopo = chiama(
-        CONFIG + "?updateMask=authorizedDomains,notification.sendEmail.callbackUri",
+        CONFIG + "?updateMask=authorizedDomains",
         permesso,
         "PATCH",
-        {
-            "authorizedDomains": domini,
-            "notification": {"sendEmail": {"callbackUri": GESTORE}},
-        },
+        {"authorizedDomains": domini},
     )
 
-    print("\nadesso:")
-    print("   domini: %s" % ", ".join(dopo.get("authorizedDomains", [])))
-    print("   link:   %s" % dopo["notification"]["sendEmail"].get("callbackUri"))
+    print("\ndomini adesso: %s" % ", ".join(dopo.get("authorizedDomains", [])))
+
+    # **L'indirizzo dei link non si sposta da qui.** Fa parte dei modelli
+    # dell'email, e quelli l'API li lascia toccare solo ai progetti passati a
+    # Identity Platform: a noi risponde `EMAIL_TEMPLATE_UPDATE_NOT_ALLOWED`.
+    # Non e' un permesso mancante ne' una chiave sbagliata: e' una porta chiusa
+    # a chiave, e l'unica aperta e' la console.
+    try:
+        chiama(
+            CONFIG + "?updateMask=notification.sendEmail.callbackUri",
+            permesso,
+            "PATCH",
+            {"notification": {"sendEmail": {"callbackUri": GESTORE}}},
+        )
+        print("link adesso:   %s" % GESTORE)
+    except RuntimeError as errore:
+        if "EMAIL_TEMPLATE_UPDATE_NOT_ALLOWED" not in str(errore):
+            raise
+
+        print("\nIl link va spostato a mano, da qui non si puo':")
+        print("   Console -> Authentication -> Templates -> matita")
+        print("   -> Personalizza URL azione -> %s" % GESTORE)
 
 
 if __name__ == "__main__":
