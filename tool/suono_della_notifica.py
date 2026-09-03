@@ -30,9 +30,24 @@ ha, e ci sono tutte e tre qui dentro:
    sente come *dove* sta la cosa che suona. Toglierlo lascia una nota sospesa nel
    vuoto, ed e' esattamente il suono di un file.
 
-Le note sono tre — Do, Sol, Do — cioe' una quinta e un'ottava: l'intervallo piu'
-aperto che ci sia, quello delle campane e dei richiami. Non un accordo che
-festeggia: un accordo che chiama.
+## Perche' queste note e non altre
+
+Quattro note, un'ottava piu' su di dove stavano prima: **Do, Mi, Sol, Do**.
+
+La nota che fa la differenza e' la seconda. Do-Sol-Do e' una quinta e un'ottava:
+l'intervallo delle campane e dei richiami — aperto, serio, un po' solenne.
+Infilando il **Mi** in mezzo l'accordo diventa maggiore, ed e' quello, e solo
+quello, che in musica occidentale suona come una cosa bella che e' appena
+successa. Non e' un'opinione sui gusti: e' l'intervallo con cui finiscono le
+canzoni allegre da quattrocento anni.
+
+L'ottava piu' su serve alla leggerezza. Le note basse hanno un corpo che si
+sente addosso; le stesse note piu' in alto le si sente **davanti**, e in mezzo a
+una giornata rumorosa passano sopra il rumore invece di combatterci — e' il
+motivo per cui i campanelli sono acuti e i tuoni no.
+
+E in coda ci sono due scintille: due note altissime, cortissime, quasi
+inudibili da sole. Sono i coriandoli — non si contano, si vedono cadere.
 
 Uso:
 
@@ -52,19 +67,27 @@ import struct
 import wave
 
 CAMPIONI = 44100
-DURATA = 0.95
+DURATA = 0.80
 
-# Do, Sol, Do: una quinta e un'ottava, e quando entrano.
-NOTE = [(523.25, 0.00), (783.99, 0.115), (1046.50, 0.230)]
+# Do, Mi, Sol, Do: l'accordo maggiore per intero, e quando entrano.
+# Ravvicinate: una fila lenta e' una cerimonia, una veloce e' una festa.
+NOTE = [(1046.50, 0.000), (1318.51, 0.070), (1567.98, 0.140), (2093.00, 0.210)]
+
+# I coriandoli: due note altissime, appena accennate, dopo l'ultima.
+SCINTILLE = [(2637.02, 0.285, 0.30), (3135.96, 0.330, 0.22)]
 
 # Le armoniche di una lamella vera: **un filo stonate, e sempre piu' corte**.
 # (quante volte la fondamentale, quanto forte, quanto ci mette a spegnersi)
 ARMONICHE = [
-    (1.000, 1.00, 0.42),
-    (2.008, 0.34, 0.20),
-    (3.021, 0.15, 0.13),
-    (4.970, 0.07, 0.08),
-    (6.910, 0.03, 0.05),
+    (1.000, 1.00, 0.32),
+    (2.010, 0.22, 0.17),
+    # **La stonata che fa il campanello.** Due volte e tre quarti la
+    # fondamentale non e' un'armonica di niente: e' il rapporto che hanno le
+    # barre di metallo percosse, ed e' quello che distingue un carillon da un
+    # organo. Senza, la nota e' pulita e non brilla.
+    (2.760, 0.26, 0.13),
+    (5.404, 0.10, 0.07),
+    (8.930, 0.04, 0.04),
 ]
 
 # **Mezzo secondo di suono e poi silenzio.** Una coda lunga sta bene su una
@@ -75,11 +98,11 @@ ARMONICHE = [
 ATTACCO = 0.003
 
 
-def colpo(dentro, quando, forza=0.16):
+def colpo(dentro, quando, forza=0.09):
     """Il rumore del legno che tocca, prima che si senta la nota."""
 
     inizio = int(quando * CAMPIONI)
-    quanti = int(0.008 * CAMPIONI)
+    quanti = int(0.005 * CAMPIONI)
     caso = random.Random(int(quando * 100000) + 7)
     memoria = 0.0
 
@@ -90,11 +113,11 @@ def colpo(dentro, quando, forza=0.16):
         t = i / CAMPIONI
         # Un rumore bianco crudo e' un "ps": passato per una media mobile
         # diventa un "toc", che e' il suono di una cosa che ne tocca un'altra.
-        memoria = 0.55 * memoria + 0.45 * caso.uniform(-1.0, 1.0)
-        dentro[inizio + i] += forza * memoria * math.exp(-t / 0.0022)
+        memoria = 0.45 * memoria + 0.55 * caso.uniform(-1.0, 1.0)
+        dentro[inizio + i] += forza * memoria * math.exp(-t / 0.0016)
 
 
-def nota(dentro, frequenza, quando):
+def nota(dentro, frequenza, quando, forza=1.0, accorcia=1.0):
     inizio = int(quando * CAMPIONI)
 
     for i in range(inizio, len(dentro)):
@@ -104,11 +127,11 @@ def nota(dentro, frequenza, quando):
         for rapporto, peso, coda in ARMONICHE:
             valore += (
                 peso
-                * math.exp(-t / coda)
+                * math.exp(-t / (coda * accorcia))
                 * math.sin(2 * math.pi * frequenza * rapporto * t)
             )
 
-        dentro[i] += valore * min(1.0, t / ATTACCO)
+        dentro[i] += forza * valore * min(1.0, t / ATTACCO)
 
 
 def stanza(secco, ritardo, ritorno):
@@ -123,7 +146,7 @@ def stanza(secco, ritardo, ritorno):
         # Le pareti vere si mangiano gli acuti per prime: senza questo, il
         # ritorno e' metallico e si sente come un effetto invece che come un
         # posto.
-        scuro = 0.62 * vecchio + 0.38 * scuro
+        scuro = 0.78 * vecchio + 0.22 * scuro
         eco[i] = secco[i] + ritorno * scuro
 
     return eco
@@ -137,16 +160,22 @@ def main():
         colpo(secco, quando)
         nota(secco, frequenza, quando)
 
+    # Le scintille non hanno il colpo di legno: non sono note suonate, sono
+    # luccichii. Un attacco percosso le farebbe sentire come una quinta e una
+    # sesta nota, e la fila e' finita al Do.
+    for frequenza, quando, forza in SCINTILLE:
+        nota(secco, frequenza, quando, forza=forza, accorcia=0.45)
+
     # Tre ritardi diversi e primi fra loro: con uno solo si sentirebbe l'eco
     # battere a tempo, che non e' una stanza — e' un effetto.
     code = [
-        stanza(secco, 0.0297, 0.30),
-        stanza(secco, 0.0371, 0.27),
-        stanza(secco, 0.0411, 0.24),
+        stanza(secco, 0.0231, 0.26),
+        stanza(secco, 0.0289, 0.23),
+        stanza(secco, 0.0331, 0.20),
     ]
 
     campo = [
-        secco[i] + 0.20 * (code[0][i] + code[1][i] + code[2][i]) / 3
+        secco[i] + 0.18 * (code[0][i] + code[1][i] + code[2][i]) / 3
         for i in range(quanti)
     ]
 
