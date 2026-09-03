@@ -691,9 +691,62 @@ async function dropLosingMedia(challenge, losers) {
  */
 const UNVERIFIED_WINDOW_HOURS = 1;
 
+/**
+ * Quante ore si aspetta chi non ha confermato **il numero di telefono**.
+ *
+ * **Ventiquattro, e non una come per l'email.** Non e' incoerenza: i due muri
+ * costano cose diverse a chi ci resta davanti.
+ *
+ * L'email si conferma con un tocco su un messaggio che e' gia' arrivato, dallo
+ * stesso telefono che si ha in mano. Chi non lo fa entro un'ora non lo fara'
+ * mai, e nel frattempo tiene bloccato il proprio indirizzo — che e' il vero
+ * danno: non puo' nemmeno rifare la registrazione.
+ *
+ * Il numero invece vuole un SMS, cioe' qualcosa che dipende da un operatore, da
+ * una scheda, dal campo. **Uno che si iscrive alle undici di sera con il
+ * telefono di lavoro in mano e finisce la mattina dopo esiste davvero**, e con
+ * un'ora sola gli avremmo cancellato l'account mentre dormiva — insieme al nome
+ * utente che aveva appena scelto.
+ *
+ * Ventiquattro ore sono abbastanza perche' nessuno perda niente per un
+ * contrattempo, e abbastanza poche perche' un nome utente non resti prenotato
+ * per mesi da un account che non puo' fare niente.
+ */
+const PHONE_WINDOW_HOURS = 24;
+
+/**
+ * Butta il profilo e tutto quello che gli sta sotto.
+ *
+ * **Cancellare l'account non cancella il profilo**, e sono due cose separate:
+ * uno sta in Firebase Authentication, l'altro nel database. Chi si ferma al
+ * muro del telefono ha gia' fatto l'onboarding, quindi un profilo ce l'ha — e
+ * dentro c'e' il nome utente. Buttando solo l'account, quel nome resterebbe
+ * prenotato per sempre da qualcuno che non esiste piu'.
+ *
+ * Le sottoraccolte non se ne vanno con il padre: cancellare `users/pippo`
+ * lascia in vita `users/pippo/devices`, che resta li' invisibile e continua a
+ * ricevere notifiche. Si chiedono a Firestore invece di elencarle a mano, cosi'
+ * il giorno che ne nasce una nuova questa funzione la butta senza che nessuno
+ * si ricordi di aggiungerla qui.
+ */
+async function buttaIlProfilo(userId) {
+  const profilo = db.collection('users').doc(userId);
+
+  for (const sotto of await profilo.listCollections()) {
+    const righe = await sotto.limit(500).get();
+
+    await Promise.all(righe.docs.map((riga) => riga.ref.delete()));
+  }
+
+  await profilo.delete();
+}
+
 exports.purgeUnverifiedAccounts = onSchedule('every 60 minutes', async () => {
-  const cutoff = Date.now() - UNVERIFIED_WINDOW_HOURS * 60 * 60 * 1000;
-  const daButtare = [];
+  const adesso = Date.now();
+  const scadenzaEmail = adesso - UNVERIFIED_WINDOW_HOURS * 60 * 60 * 1000;
+  const scadenzaTelefono = adesso - PHONE_WINDOW_HOURS * 60 * 60 * 1000;
+  const senzaEmail = [];
+  const senzaTelefono = [];
   let pagina;
 
   do {
@@ -702,13 +755,37 @@ exports.purgeUnverifiedAccounts = onSchedule('every 60 minutes', async () => {
     for (const persona of elenco.users) {
       const nato = Date.parse(persona.metadata.creationTime);
 
-      if (!persona.emailVerified && nato < cutoff) {
-        daButtare.push(persona.uid);
+      if (!persona.emailVerified) {
+        if (nato < scadenzaEmail) {
+          senzaEmail.push(persona.uid);
+        }
+
+        continue;
+      }
+
+      // **Il numero si legge dall'account, non dal profilo.**
+      //
+      // Quando si conferma il codice, il numero viene *agganciato* all'account
+      // che gia' esiste: da quel momento sta li', accanto all'email. Leggerlo
+      // da qui costa zero, mentre andarlo a cercare nel profilo di ognuno
+      // vorrebbe dire una lettura del database per ogni iscritto, ogni ora, per
+      // sempre — e sarebbe il conto piu' salato dell'app per una funzione che
+      // il novanta per cento delle volte non trova niente da fare.
+      if (!persona.phoneNumber && nato < scadenzaTelefono) {
+        senzaTelefono.push(persona.uid);
       }
     }
 
     pagina = elenco.pageToken;
   } while (pagina);
+
+  // Chi si e' fermato al telefono ha gia' un profilo con dentro il nome utente:
+  // va buttato anche quello, o il nome resta prenotato da nessuno.
+  for (const userId of senzaTelefono) {
+    await buttaIlProfilo(userId);
+  }
+
+  const daButtare = senzaEmail.concat(senzaTelefono);
 
   if (daButtare.length === 0) {
     return;
@@ -719,7 +796,10 @@ exports.purgeUnverifiedAccounts = onSchedule('every 60 minutes', async () => {
     await admin.auth().deleteUsers(daButtare.slice(i, i + 1000));
   }
 
-  logger.info(`Buttati ${daButtare.length} account mai confermati.`);
+  logger.info('account mai completati, buttati', {
+    senzaEmail: senzaEmail.length,
+    senzaTelefono: senzaTelefono.length,
+  });
 });
 
 /**
