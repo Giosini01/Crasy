@@ -11,6 +11,12 @@ admin.initializeApp();
 
 const db = admin.firestore();
 
+// **L'email di conferma la scriviamo e la mandiamo noi.** Vedi `posta.js`:
+// l'indirizzo a cui portano i link di Firebase non si puo' cambiare su questo
+// progetto, e girandoci intorno si e' arrivati a una soluzione migliore di
+// quella che si voleva.
+exports.mandaLaConferma = require('./posta').mandaLaConferma;
+
 /**
  * Il suono di CRASY: tre note che salgono, mezzo secondo.
  *

@@ -1,14 +1,18 @@
 import 'dart:async';
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:crasy/features/auth/domain/entities/app_user.dart';
 import 'package:crasy/features/auth/domain/repositories/auth_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 class FirebaseAuthRepository implements AuthRepository {
-  FirebaseAuthRepository(this._firebaseAuth);
+  FirebaseAuthRepository(this._firebaseAuth, this._functions);
 
   final FirebaseAuth _firebaseAuth;
+
+  /// Serve per una cosa sola: chiedere al server di mandare la conferma.
+  final FirebaseFunctions _functions;
 
   /// `userChanges` e non `authStateChanges`.
   ///
@@ -55,14 +59,41 @@ class FirebaseAuthRepository implements AuthRepository {
     // Il messaggio parte subito, senza che nessuno debba chiederlo: chi si e'
     // appena registrato ha l'app in mano e la casella aperta, ed e' l'unico
     // momento in cui confermare costa zero.
-    await credential.user?.sendEmailVerification(_backToCrasy);
+    //
+    // **Se non parte, la registrazione vale lo stesso.** L'invio adesso passa
+    // dal nostro server, quindi puo' fallire per cose che non riguardano chi si
+    // sta iscrivendo: la casella di posta che non risponde, una funzione ancora
+    // da pubblicare. Lasciando salire l'errore, l'account verrebbe creato e la
+    // schermata direbbe che la registrazione non e' riuscita — e chi riprova si
+    // sentirebbe dire che l'indirizzo e' gia' in uso. Un vicolo cieco creato da
+    // noi, per un messaggio che si puo' rimandare con un tocco.
+    try {
+      await sendEmailVerification();
+    } on Object catch (_) {
+      // Vedi sopra: c'e' il tasto "rimandamela" nella schermata dopo.
+    }
 
     return _mapFirebaseUser(credential.user);
   }
 
+  /// **La conferma la manda il server, non Firebase.**
+  ///
+  /// Non e' un capriccio: l'indirizzo a cui portano i link di Firebase su
+  /// questo progetto **non si puo' cambiare** — l'API risponde
+  /// `EMAIL_TEMPLATE_UPDATE_NOT_ALLOWED` a qualunque valore, e la console
+  /// fallisce allo stesso modo. L'email arrivava dal nostro dominio e portava
+  /// a una pagina bianca ospitata sul vecchio nome del progetto.
+  ///
+  /// La funzione `mandaLaConferma` chiede a Firebase il codice, se lo prende e
+  /// lo mette dentro un messaggio nostro con un link nostro. Vedi
+  /// `functions/posta.js`.
+  ///
+  /// Non lancia se il server dice di no: l'unico caso in cui succede e' un
+  /// invio troppo ravvicinato, e a chi ha appena premuto "rimandamela" va detto
+  /// che e' partita — perche' e' partita, un minuto fa.
   @override
   Future<void> sendEmailVerification() async {
-    await _firebaseAuth.currentUser?.sendEmailVerification(_backToCrasy);
+    await _functions.httpsCallable('mandaLaConferma').call<Object?>();
   }
 
   @override

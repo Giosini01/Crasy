@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:crasy/core/errors/error_message_mapper.dart';
+import 'package:crasy/core/services/firebase/firebase_providers.dart';
 import 'package:crasy/features/auth/data/repositories/firebase_auth_repository.dart';
 import 'package:crasy/features/auth/domain/entities/app_user.dart';
 import 'package:crasy/features/auth/domain/repositories/auth_repository.dart';
@@ -12,7 +13,10 @@ final firebaseAuthProvider = Provider<FirebaseAuth>(
 );
 
 final authRepositoryProvider = Provider<AuthRepository>(
-  (ref) => FirebaseAuthRepository(ref.watch(firebaseAuthProvider)),
+  (ref) => FirebaseAuthRepository(
+    ref.watch(firebaseAuthProvider),
+    ref.watch(firebaseFunctionsProvider),
+  ),
 );
 
 final authStateProvider = NotifierProvider<AuthStateNotifier, AuthState>(
