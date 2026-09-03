@@ -130,6 +130,29 @@ class FirestoreNotificationsRepository {
     }
   }
 
+  /// Toglie una notifica che avevamo mandato noi.
+  ///
+  /// **Serve quando la cosa che l'aveva provocata non c'e' piu'.** Una fiamma
+  /// tolta lascerebbe in campanella la notizia di un mi piace che non esiste:
+  /// chi la legge apre la propria foto e va a cercare una fiamma che non
+  /// trovera'. Un avviso che racconta una cosa falsa e' peggio di nessun
+  /// avviso — dopo due volte non lo si guarda piu'.
+  ///
+  /// Come [push], non lancia: se la cancellazione non riesce resta una riga di
+  /// troppo in campanella, che e' molto meno grave di una fiamma che non si
+  /// riesce a togliere perche' e' fallito un dettaglio di contorno.
+  Future<void> remove({required String toUserId, required String id}) async {
+    if (toUserId.isEmpty) {
+      return;
+    }
+
+    try {
+      await _inbox(toUserId).doc(id).delete();
+    } on FirebaseException catch (_) {
+      // Vedi sopra.
+    }
+  }
+
   /// Il nome del documento di una fiamma. Stessa persona, stessa foto, stesso
   /// nome: la notifica esiste una volta sola.
   static String fireId({required String voteKey, required String actorId}) =>

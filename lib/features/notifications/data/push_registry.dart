@@ -87,6 +87,25 @@ class PushRegistry {
         return;
       }
 
+      // **Le notifiche si vedono anche ad app aperta.**
+      //
+      // Su iPhone, come impostazione di fabbrica, una notifica che arriva
+      // mentre l'app e' in primo piano **non viene mostrata**: il sistema la
+      // consegna in silenzio e da' per scontato che l'app abbia gia' detto lei
+      // quello che c'era da dire. Da fuori sembra che non sia arrivata niente,
+      // e non c'e' nessuna traccia da nessuna parte — il server ha mandato, il
+      // telefono ha ricevuto, e a schermo non e' successo niente.
+      //
+      // E' esattamente il caso in cui uno si accorge di piu': stai guardando
+      // CRASY, qualcuno mette una fiamma sulla tua foto, e non lo sai. Peggio:
+      // le notifiche che arrivano mentre l'app e' chiusa si vedono, quindi
+      // sembra che alcune funzionino e altre no.
+      await _messaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
       final token = await _chiediIlRecapito();
 
       if (token == null) {

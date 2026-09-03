@@ -423,15 +423,21 @@ class VoteController {
           voted: voted,
         );
 
-    if (voted && signedIn) {
-      // L'avviso parte **dopo** che la fiamma e' stata scritta, e non aspetta:
-      // se la notifica fallisse, la fiamma resterebbe comunque data. E' un
+    if (signedIn) {
+      // L'avviso si scrive **dopo** che la fiamma e' stata scritta, e non si
+      // aspetta: se fallisse, la fiamma resterebbe comunque data. E' un
       // dettaglio di contorno, non deve poter rompere il gesto principale
       // dell'app.
       //
-      // Non si avvisa quando la fiamma si toglie: nessuno vuole leggere che
-      // qualcuno ci ha ripensato.
-      unawaited(_notifyAuthor(entry, actorId: userId));
+      // **E se la fiamma si toglie, l'avviso se ne va con lei.** Prima restava
+      // li': in campanella c'era la notizia di un mi piace che non esisteva
+      // piu', e chi la leggeva apriva la propria foto per cercare una fiamma
+      // che non avrebbe trovato. Un avviso che racconta una cosa falsa e'
+      // peggio di nessun avviso — dopo due volte non lo si guarda piu'.
+      //
+      // Rimettendo la fiamma l'avviso torna, ed e' giusto cosi': quello che si
+      // legge in campanella deve dire com'e' adesso, non com'e' stato.
+      unawaited(_notifyAuthor(entry, actorId: userId, voted: voted));
     }
 
     return VoteOutcome.done;
@@ -440,6 +446,7 @@ class VoteController {
   Future<void> _notifyAuthor(
     ChallengeEntry entry, {
     required String actorId,
+    required bool voted,
   }) async {
     final notifications = _ref.read(notificationsRepositoryProvider);
 
@@ -447,17 +454,25 @@ class VoteController {
       return;
     }
 
+    // **Lo stesso nome ogni volta**, che sia per scrivere o per cancellare: e'
+    // quello che lega l'avviso alla fiamma che lo ha provocato, e senza un nome
+    // prevedibile togliendo la fiamma non si saprebbe quale riga togliere.
+    final id = FirestoreNotificationsRepository.fireId(
+      voteKey: entry.voteKey,
+      actorId: actorId,
+    );
+
+    if (!voted) {
+      await notifications.remove(toUserId: entry.userId, id: id);
+
+      return;
+    }
+
     final me = _ref.read(currentUserProfileProvider).valueOrNull;
 
     await notifications.push(
       toUserId: entry.userId,
-      // Lo stesso nome ogni volta: chi toglie e rimette la fiamma venti volte
-      // non manda venti notifiche, manda venti volte la stessa — e le regole
-      // ne accettano solo la prima.
-      id: FirestoreNotificationsRepository.fireId(
-        voteKey: entry.voteKey,
-        actorId: actorId,
-      ),
+      id: id,
       kind: NotificationKind.fire,
       actorId: actorId,
       actorUsername: me?.username ?? '',

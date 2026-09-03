@@ -235,7 +235,22 @@ service cloud.firestore {
       }
 
       match /notifications/{notificationId} {
-        allow read, delete: if signedIn() && request.auth.uid == userId;
+        allow read: if signedIn() && request.auth.uid == userId;
+
+        // **La cancella chi l'ha ricevuta, e chi l'ha provocata.**
+        //
+        // Il secondo permesso serve a una cosa sola: chi toglie una fiamma
+        // deve poter togliere anche l'avviso che l'aveva annunciata. Senza,
+        // resterebbe in campanella la notizia di un mi piace che non esiste
+        // piu' — e chi la legge va a cercare una fiamma che non trovera'.
+        //
+        // Non e' un permesso largo: si puo' cancellare **solo cio' che si e'
+        // scritto**, perche' il confronto e' con `actorId`, che al momento
+        // della creazione le regole hanno gia' obbligato a essere chi scriveva.
+        // Nessuno puo' zittire le notifiche di qualcun altro.
+        allow delete: if signedIn()
+                      && (request.auth.uid == userId
+                          || request.auth.uid == resource.data.actorId);
 
         allow create: if signedIn()
                       && request.resource.data.actorId == request.auth.uid
