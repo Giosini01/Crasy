@@ -41,17 +41,6 @@ void main() {
         isNotNull,
       );
     });
-
-    test('la citta\' segue la stessa regola', () {
-      expect(OnboardingValidators.validateCity(null), isNull);
-      expect(OnboardingValidators.validateCity('Napoli'), isNull);
-      expect(
-        OnboardingValidators.validateCity(
-          'a' * (OnboardingValidators.cityMaxLength + 1),
-        ),
-        isNotNull,
-      );
-    });
   });
 
   group('eta\'', () {

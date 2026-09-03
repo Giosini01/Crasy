@@ -20,6 +20,19 @@ class CrasyApp extends ConsumerWidget {
     // la sessione. Guardato da qui, vive quanto l'app.
     ref.watch(pushRegistrationProvider);
 
+    // **E qui si ascolta chi tocca una notifica.** Sta accanto al registro per
+    // lo stesso motivo: il tocco puo' arrivare in qualunque momento — anche
+    // nell'istante in cui l'app parte, se e' stata proprio la notifica ad
+    // averla aperta — e non c'e' nessuna schermata che sia gia' in piedi
+    // quando succede.
+    ref.listen(pushTapsProvider, (_, tocco) {
+      final dove = tocco.valueOrNull?.route;
+
+      if (dove != null) {
+        router.go(dove);
+      }
+    });
+
     return MaterialApp.router(
       title: 'CRASY',
       debugShowCheckedModeBanner: false,

@@ -13,18 +13,12 @@ class ProfileEditController extends AsyncNotifier<void> {
   @override
   void build() {}
 
-  Future<void> updateDetails(
-    UserProfile profile, {
-    required String bio,
-    required String city,
-  }) async {
+  Future<void> updateDetails(UserProfile profile, {required String bio}) async {
     state = const AsyncLoading<void>();
     state = await AsyncValue.guard(
       () => ref
           .read(userProfileRepositoryProvider)
-          .updateUserProfile(
-            profile.copyWith(bio: bio.trim(), city: city.trim()),
-          ),
+          .updateUserProfile(profile.copyWith(bio: bio.trim())),
     );
   }
 

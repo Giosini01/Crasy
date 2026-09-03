@@ -845,10 +845,13 @@ exports.announceNewChallenge = onDocumentCreated(
     // In piu' una riga sempre uguale si riconosce senza leggerla, e non
     // promette niente di preciso: e' la differenza fra un invito e un
     // volantino.
-    await annuncia('Missione nuova', {
-      kind: 'newChallenge',
-      challengeId: String(event.params.challengeId),
-    });
+    await annuncia(
+      "C'è una missione nuova. Prova a vincere il premio",
+      {
+        kind: 'newChallenge',
+        challengeId: String(event.params.challengeId),
+      }
+    );
 
     await MEMORIA.set(
       { ultimaMissioneAt: admin.firestore.FieldValue.serverTimestamp() },

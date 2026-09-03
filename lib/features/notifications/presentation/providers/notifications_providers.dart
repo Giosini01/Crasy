@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/services/firebase/firebase_providers.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/notifications/data/push_registry.dart';
@@ -7,6 +8,7 @@ import 'package:crasy/features/notifications/data/repositories/firestore_notific
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final notificationsRepositoryProvider =
@@ -185,4 +187,58 @@ final pushRegistrationProvider = Provider<void>((ref) {
   }
 
   unawaited(registro.register(userId));
+});
+
+/// Un tocco su una notifica arrivata sullo schermo bloccato.
+///
+/// **Il momento serve quanto la destinazione.** Senza, due tocchi di fila sullo
+/// stesso tipo di notifica sarebbero lo stesso identico valore, e chi ascolta i
+/// cambiamenti non vedrebbe cambiare niente: il secondo tocco non porterebbe da
+/// nessuna parte.
+typedef PushTap = ({String route, int quando});
+
+/// Dove portare chi tocca una notifica.
+///
+/// **Aprire l'app e basta e' un vicolo cieco.** Una notifica dice che e'
+/// successo qualcosa; toccarla e ritrovarsi sulla schermata dove si era rimasti
+/// l'altro ieri costringe a cercare da soli la cosa di cui parlava — e nove
+/// volte su dieci non la si cerca.
+///
+/// Due strade sole, perche' due sono le specie di notizia. Una missione nuova o
+/// la sfida del giorno riguardano **una gara**: si va dove stanno le gare. Una
+/// fiamma, un commento, una nomina, una vittoria riguardano **te**: si va in
+/// campanella, che e' il posto in cui c'e' scritto chi e' stato e sotto cosa.
+///
+/// Non si apre la singola gara nemmeno quando l'annuncio ne conosce
+/// l'identificativo: l'annuncio non dice quale sia — di proposito — e portare
+/// dritti dentro una gara che nessuno aveva nominato toglie il momento in cui
+/// la si sceglie, che e' mezzo il gioco.
+final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
+  // Sul web le notifiche non sono accese: non c'e' nessun tocco da ascoltare.
+  if (kIsWeb || !ref.watch(firebaseBootstrapResultProvider).isConfigured) {
+    return;
+  }
+
+  PushTap dove(RemoteMessage messaggio) {
+    final kind = messaggio.data['kind'] ?? '';
+    final gara = kind == 'newChallenge' || kind == 'daily';
+
+    return (
+      route: gara ? AppRoutes.challenges : AppRoutes.notifications,
+      quando: DateTime.now().microsecondsSinceEpoch,
+    );
+  }
+
+  // **Chi arriva da un'app chiusa passa di qui.** Toccando una notifica con
+  // CRASY spenta, l'app parte da zero e il tocco non lo racconta nessuno: resta
+  // solo questo messaggio, che va chiesto una volta all'avvio. Senza, la
+  // notifica funziona solo per chi aveva gia' l'app aperta in sottofondo —
+  // cioe' quasi mai.
+  final iniziale = await FirebaseMessaging.instance.getInitialMessage();
+
+  if (iniziale != null) {
+    yield dove(iniziale);
+  }
+
+  yield* FirebaseMessaging.onMessageOpenedApp.map(dove);
 });

@@ -240,7 +240,6 @@ class _Identity extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final palette = context.palette;
     final texts = context.texts;
 
     return Column(
@@ -248,9 +247,7 @@ class _Identity extends ConsumerWidget {
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _Avatar(profile: profile, onTap: () => _changePhoto(context, ref)),
-          ],
+          children: [_Avatar(profile: profile, onTap: () => _changePhoto(ref))],
         ),
         const SizedBox(height: AppSpacing.md),
         Text('@${profile.username}', style: texts.displaySmall),
@@ -258,49 +255,29 @@ class _Identity extends ConsumerWidget {
           const SizedBox(height: AppSpacing.xxs),
           Text(profile.bio, style: texts.bodyMedium),
         ],
-        if (profile.city.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            profile.city.toUpperCase(),
-            style: texts.labelSmall?.copyWith(color: palette.textFaint),
-          ),
-        ],
       ],
     );
   }
 
-  Future<void> _changePhoto(BuildContext context, WidgetRef ref) async {
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('Scatta una foto'),
-              onTap: () => Navigator.of(context).pop(ImageSource.camera),
-            ),
-            // Qui la galleria c'e', a differenza delle challenge: la foto
-            // profilo non e' una gara, e obbligare a farsi un selfie sul
-            // momento per cambiarla sarebbe una regola senza motivo.
-            ListTile(
-              leading: const Icon(Icons.image_outlined),
-              title: const Text('Scegli dalla galleria'),
-              onTap: () => Navigator.of(context).pop(ImageSource.gallery),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (source == null) {
-      return;
-    }
-
+  /// Cambia la faccia del profilo, prendendola dalla galleria.
+  ///
+  /// **Non si scatta piu' sul momento, e non c'e' piu' niente da scegliere.**
+  /// Prima si apriva un foglio con due voci; adesso si apre direttamente la
+  /// galleria.
+  ///
+  /// Due ragioni. La foto del profilo non e' una gara: e' la faccia con cui uno
+  /// si presenta, e la si sceglie fra quelle che ha gia' — quella buona,
+  /// quella di quella sera — non facendosi un selfie in quel preciso istante,
+  /// che e' il momento peggiore possibile per farselo. Chi la vuole nuova la
+  /// scatta col telefono e poi la prende da li': un passaggio in piu' per il
+  /// caso raro, zero passaggi per quello normale.
+  ///
+  /// E un foglio che si apre per far scegliere fra due cose, quando una delle
+  /// due non la sceglie quasi nessuno, e' solo un tocco in mezzo alla strada.
+  Future<void> _changePhoto(WidgetRef ref) async {
     await ref
         .read(profileEditControllerProvider.notifier)
-        .pickAndUploadPhoto(profile, source);
+        .pickAndUploadPhoto(profile, ImageSource.gallery);
   }
 }
 
@@ -674,7 +651,6 @@ Future<void> editProfile(
   UserProfile profile,
 ) async {
   final bio = TextEditingController(text: profile.bio);
-  final city = TextEditingController(text: profile.city);
 
   final saved = await ModalSheet.show<bool>(
     context: context,
@@ -695,15 +671,6 @@ Future<void> editProfile(
                 hintText: 'Faccio cose assurde.',
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
-            TextField(
-              controller: city,
-              maxLength: OnboardingValidators.cityMaxLength,
-              decoration: const InputDecoration(
-                labelText: 'CITTA\'',
-                hintText: 'Napoli',
-              ),
-            ),
           ],
         ),
       ),
@@ -713,9 +680,8 @@ Future<void> editProfile(
   if (saved ?? false) {
     await ref
         .read(profileEditControllerProvider.notifier)
-        .updateDetails(profile, bio: bio.text, city: city.text);
+        .updateDetails(profile, bio: bio.text);
   }
 
   bio.dispose();
-  city.dispose();
 }

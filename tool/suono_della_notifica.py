@@ -5,146 +5,159 @@ o si paga una licenza, o prima o poi arriva la richiesta di toglierlo. Questo
 nasce qui, da una manciata di numeri, e si rifa' diverso in dieci secondi
 cambiando le note.
 
-**Com'e' fatto: un "pop" e una scaletta che sale.**
+## Cosa lo fa sembrare vero
 
-Il primo pezzo e' uno schiocco — una frequenza che precipita da novecento a
-duecento hertz in quaranta millesimi. E' il suono di una bolla che scoppia, e
-serve a far girare la testa: una notifica che comincia con una nota comincia
-gia' a meta', perche' i primi cinquanta millesimi il cervello li usa per capire
-che sta arrivando qualcosa.
+La versione di prima era un'onda quadra: il timbro dei videogiochi. Carina per
+dieci volte, e poi si sente che e' finta — perche' **nessuna cosa vera al mondo
+fa quel suono**.
 
-Poi quattro note che salgono, suonate con un'onda quadra addolcita — il timbro
-dei videogiochi, quello che si sente quando si raccoglie una moneta. L'ultima
-si tira su di un tono mentre suona. **E' questo il pezzo sfizioso**: una nota
-che sale mentre la ascolti dice *e' andata bene*, e lo dice senza parole.
+Un suono suonato da qualcosa di reale ha tre cose che una nota sintetizzata non
+ha, e ci sono tutte e tre qui dentro:
 
-Sotto c'e' una marimba che raddoppia la prima e l'ultima nota. Da sola l'onda
-quadra e' un giocattolo di plastica; con un po' di legno sotto diventa uno
-strumento.
+1. **Un colpo prima della nota.** Il legno che tocca la lamella, il martelletto
+   sulla corda: qualche millesimo di rumore, prima che l'altezza si senta. E' la
+   cosa che il cervello usa per capire *che cos'e'* che sta suonando, e senza si
+   riconosce subito un computer.
 
-Mezzo secondo e' una scelta: una notifica si sente mentre si sta facendo altro,
-e un suono che dura piu' di un respiro smette di essere un avviso e diventa
-un'interruzione. Quello di iOS dura 0,4 secondi.
+2. **Armoniche stonate, che si spengono prima.** Su una corda vera le armoniche
+   non stanno esattamente al doppio e al triplo: sono un filo piu' su, e muoiono
+   molto prima della nota fondamentale. E' per questo che un pianoforte comincia
+   brillante e finisce scuro. Una somma di seni perfetti resta uguale a se stessa
+   dal primo all'ultimo istante, ed e' quello a suonare di plastica.
+
+3. **Una stanza intorno.** Nessun suono, in natura, arriva senza il muro dietro
+   che lo rimanda indietro. Un filo di riverbero non si sente come riverbero: si
+   sente come *dove* sta la cosa che suona. Toglierlo lascia una nota sospesa nel
+   vuoto, ed e' esattamente il suono di un file.
+
+Le note sono tre — Do, Sol, Do — cioe' una quinta e un'ottava: l'intervallo piu'
+aperto che ci sia, quello delle campane e dei richiami. Non un accordo che
+festeggia: un accordo che chiama.
 
 Uso:
 
     python tool/suono_della_notifica.py
 
-Riscrive `ios/Runner/crasy.wav` e la copia dentro le risorse di Android. Su
-iPhone il file deve stare nel pacchetto dell'app, non sul server: il suono lo
-sceglie il telefono leggendo il nome che gli arriva nella notifica, e se quel
-nome non corrisponde a niente suona quello di sistema — senza dirlo a nessuno.
+Riscrive `ios/Runner/crasy.wav` e lo copia fra le risorse di Android. Su iPhone
+il file deve stare nel pacchetto dell'app, non sul server: il suono lo sceglie
+il telefono leggendo il nome che gli arriva nella notifica, e se quel nome non
+corrisponde a niente suona quello di sistema — senza dirlo a nessuno.
 """
 
 import math
 import os
+import random
 import shutil
 import struct
 import wave
 
 CAMPIONI = 44100
-DURATA = 0.62
+DURATA = 0.95
 
-# Do, Mi, Sol, Do: la scaletta che sale. Non e' un accordo scelto a caso — e'
-# il maggiore, che in musica vuol dire "e' successa una cosa bella".
-SCALETTA = [1046.50, 1318.51, 1567.98, 2093.00]
+# Do, Sol, Do: una quinta e un'ottava, e quando entrano.
+NOTE = [(523.25, 0.00), (783.99, 0.115), (1046.50, 0.230)]
 
-# Quando entra ciascuna nota e quanto dura. Settanta millesimi l'una: sotto i
-# cinquanta diventa un trillo unico, sopra i cento si sente la fila.
-PASSO = 0.075
-INIZIO_SCALETTA = 0.055
+# Le armoniche di una lamella vera: **un filo stonate, e sempre piu' corte**.
+# (quante volte la fondamentale, quanto forte, quanto ci mette a spegnersi)
+ARMONICHE = [
+    (1.000, 1.00, 0.42),
+    (2.008, 0.34, 0.20),
+    (3.021, 0.15, 0.13),
+    (4.970, 0.07, 0.08),
+    (6.910, 0.03, 0.05),
+]
 
-# L'ultima si tira su di un tono mentre suona.
-BENDA = 2 ** (2 / 12)
+# **Mezzo secondo di suono e poi silenzio.** Una coda lunga sta bene su una
+# cosa che si ascolta; una notifica si sente mentre si sta facendo altro, e un
+# suono che continua a ronzare dopo che si e' capito cos'era diventa la ragione
+# per cui uno le spegne.
+
+ATTACCO = 0.003
 
 
-def schiocco(dentro):
-    """Il "pop" iniziale: una frequenza che precipita."""
+def colpo(dentro, quando, forza=0.16):
+    """Il rumore del legno che tocca, prima che si senta la nota."""
 
-    quanti = int(0.045 * CAMPIONI)
-    fase = 0.0
+    inizio = int(quando * CAMPIONI)
+    quanti = int(0.008 * CAMPIONI)
+    caso = random.Random(int(quando * 100000) + 7)
+    memoria = 0.0
 
     for i in range(quanti):
+        if inizio + i >= len(dentro):
+            break
+
         t = i / CAMPIONI
-        # Da 900 a 200 hertz, in fretta. La discesa e' esponenziale perche'
-        # l'orecchio sente le altezze in proporzione, non in differenza: una
-        # discesa lineare si sentirebbe tutta schiacciata alla fine.
-        frequenza = 900 * math.exp(-t / 0.018) + 200
-        fase += 2 * math.pi * frequenza / CAMPIONI
-        dentro[i] += 0.85 * math.sin(fase) * math.exp(-t / 0.016)
+        # Un rumore bianco crudo e' un "ps": passato per una media mobile
+        # diventa un "toc", che e' il suono di una cosa che ne tocca un'altra.
+        memoria = 0.55 * memoria + 0.45 * caso.uniform(-1.0, 1.0)
+        dentro[inizio + i] += forza * memoria * math.exp(-t / 0.0022)
 
 
-def quadra(frequenza, t):
-    """Un'onda quadra addolcita: solo le prime armoniche dispari.
-
-    Quella vera ne ha infinite e frigge. Fermandosi alla nona resta il timbro
-    da videogioco senza il fischio che fa stringere i denti.
-    """
-
-    valore = 0.0
-
-    for n in (1, 3, 5, 7, 9):
-        valore += math.sin(2 * math.pi * frequenza * n * t) / n
-
-    return valore
-
-
-def nota(frequenza, ritardo, dentro, ultima=False):
-    inizio = int(ritardo * CAMPIONI)
-    coda = 0.20 if ultima else 0.055
-    fase = 0.0
+def nota(dentro, frequenza, quando):
+    inizio = int(quando * CAMPIONI)
 
     for i in range(inizio, len(dentro)):
         t = (i - inizio) / CAMPIONI
-        # L'ultima sale di un tono nei primi ottanta millesimi e poi resta li'.
-        tira = BENDA ** min(1.0, t / 0.08) if ultima else 1.0
-        fase += 2 * math.pi * frequenza * tira / CAMPIONI
-        salita = min(1.0, t / 0.003)
         valore = 0.0
 
-        for n in (1, 3, 5, 7, 9):
-            valore += math.sin(fase * n) / n
+        for rapporto, peso, coda in ARMONICHE:
+            valore += (
+                peso
+                * math.exp(-t / coda)
+                * math.sin(2 * math.pi * frequenza * rapporto * t)
+            )
 
-        dentro[i] += 0.45 * valore * salita * math.exp(-t / coda)
+        dentro[i] += valore * min(1.0, t / ATTACCO)
 
 
-def marimba(frequenza, ritardo, dentro):
-    """Il legno sotto: da sola l'onda quadra e' un giocattolo di plastica."""
+def stanza(secco, ritardo, ritorno):
+    """Un muro dietro: quello che suona torna indietro, piu' piano e piu' scuro."""
 
-    inizio = int(ritardo * CAMPIONI)
+    passi = int(ritardo * CAMPIONI)
+    eco = [0.0] * len(secco)
+    scuro = 0.0
 
-    for i in range(inizio, len(dentro)):
-        t = (i - inizio) / CAMPIONI
-        valore = (
-            math.sin(2 * math.pi * frequenza * t)
-            + 0.25 * math.sin(2 * math.pi * frequenza * 2 * t)
-            + 0.08 * math.sin(2 * math.pi * frequenza * 4.62 * t)
-        )
-        dentro[i] += 0.55 * valore * min(1.0, t / 0.004) * math.exp(-t / 0.12)
+    for i in range(len(secco)):
+        vecchio = eco[i - passi] if i >= passi else 0.0
+        # Le pareti vere si mangiano gli acuti per prime: senza questo, il
+        # ritorno e' metallico e si sente come un effetto invece che come un
+        # posto.
+        scuro = 0.62 * vecchio + 0.38 * scuro
+        eco[i] = secco[i] + ritorno * scuro
+
+    return eco
 
 
 def main():
     quanti = int(DURATA * CAMPIONI)
-    campo = [0.0] * quanti
+    secco = [0.0] * quanti
 
-    schiocco(campo)
+    for frequenza, quando in NOTE:
+        colpo(secco, quando)
+        nota(secco, frequenza, quando)
 
-    for indice, frequenza in enumerate(SCALETTA):
-        quando = INIZIO_SCALETTA + indice * PASSO
-        ultima = indice == len(SCALETTA) - 1
-        nota(frequenza, quando, campo, ultima=ultima)
+    # Tre ritardi diversi e primi fra loro: con uno solo si sentirebbe l'eco
+    # battere a tempo, che non e' una stanza — e' un effetto.
+    code = [
+        stanza(secco, 0.0297, 0.30),
+        stanza(secco, 0.0371, 0.27),
+        stanza(secco, 0.0411, 0.24),
+    ]
 
-        if indice == 0 or ultima:
-            marimba(frequenza / 2, quando, campo)
+    campo = [
+        secco[i] + 0.20 * (code[0][i] + code[1][i] + code[2][i]) / 3
+        for i in range(quanti)
+    ]
 
     # Si normalizza al 90 per cento: sopra, i campioni si tagliano e il taglio
     # si sente come una crepa.
     piu_forte = max(abs(valore) for valore in campo) or 1.0
     guadagno = 0.9 / piu_forte
 
-    # Gli ultimi cinque millesimi scendono a zero: un file che finisce mentre
-    # l'onda e' ancora alta fa un colpo secco in coda.
-    fine = int(0.005 * CAMPIONI)
+    # Gli ultimi venti millesimi scendono a zero: un file che finisce mentre
+    # l'onda e' ancora viva fa un colpo secco in coda.
+    fine = int(0.02 * CAMPIONI)
     dati = bytearray()
 
     for i, valore in enumerate(campo):
@@ -160,7 +173,6 @@ def main():
         file.setframerate(CAMPIONI)
         file.writeframes(bytes(dati))
 
-    # Android lo vuole fra le proprie risorse, con lo stesso nome.
     android = os.path.join('android', 'app', 'src', 'main', 'res', 'raw', 'crasy.wav')
     shutil.copyfile(percorso, android)
 

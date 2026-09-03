@@ -124,10 +124,16 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
               caption: _caption,
               onCapture: () => _capture(challenge.mediaKind),
               onSubmit: () => _submit(challenge),
-              onClear: () {
-                _caption.clear();
-                setState(() => _media = null);
-              },
+              // **Rifare lo scatto riapre la fotocamera, non svuota la
+              // pagina.** Prima si tornava a una schermata vuota con il
+              // bottone da premere di nuovo: due tocchi per rifare una cosa
+              // che si rifa' perche' la prima non andava bene — e nel mezzo
+              // la foto scompariva prima che ce ne fosse un'altra.
+              //
+              // Adesso si riapre direttamente, e quella di prima resta finche'
+              // non ne arriva una nuova: chiudere la fotocamera senza scattare
+              // non fa perdere niente.
+              onRetake: () => _capture(challenge.mediaKind),
             );
           },
         ),
@@ -369,7 +375,7 @@ class _Form extends StatelessWidget {
     required this.caption,
     required this.onCapture,
     required this.onSubmit,
-    required this.onClear,
+    required this.onRetake,
   });
 
   final Challenge challenge;
@@ -384,7 +390,7 @@ class _Form extends StatelessWidget {
   final TextEditingController caption;
   final VoidCallback onCapture;
   final VoidCallback onSubmit;
-  final VoidCallback onClear;
+  final VoidCallback onRetake;
 
   @override
   Widget build(BuildContext context) {
@@ -422,7 +428,7 @@ class _Form extends StatelessWidget {
             media: picked,
             kind: challenge.mediaKind,
             caption: caption,
-            onRetake: onClear,
+            onRetake: onRetake,
           ),
         if (error != null) ...[
           const SizedBox(height: AppSpacing.md),

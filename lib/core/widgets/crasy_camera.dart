@@ -87,6 +87,18 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
   CameraController? _controller;
   List<CameraDescription> _cameras = const [];
   var _frontale = false;
+
+  /// Il flash, fra quelli che hanno senso per quello che si sta facendo.
+  ///
+  /// **Tre modi per la foto, due per il video.** Sulla foto il lampo puo'
+  /// partire da solo quando serve — e' quello che uno si aspetta e quasi
+  /// nessuno tocca; sul video non esiste un lampo, esiste una torcia che resta
+  /// accesa, e "automatica" non vorrebbe dire niente.
+  var _flash = 0;
+
+  List<FlashMode> get _modiDelFlash => widget.video
+      ? const [FlashMode.off, FlashMode.torch]
+      : const [FlashMode.off, FlashMode.auto, FlashMode.always];
   var _pronta = false;
   var _sta = false;
   String? _errore;
@@ -155,6 +167,7 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
       );
 
       await controller.initialize();
+      await _applicaIlFlash(controller);
 
       if (!mounted) {
         await controller.dispose();
@@ -176,6 +189,31 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
         );
       }
     }
+  }
+
+  /// Dice alla fotocamera come deve comportarsi il flash.
+  ///
+  /// Non lancia: **quasi nessuna fotocamera frontale ce l'ha**, e su quelle il
+  /// comando fallisce. Fallire in silenzio qui vuol dire che il comando non c'e'
+  /// e basta; lasciar passare l'errore vorrebbe dire una fotocamera che non si
+  /// apre per un lampo che nessuno aveva chiesto.
+  Future<void> _applicaIlFlash(CameraController controller) async {
+    try {
+      await controller.setFlashMode(_modiDelFlash[_flash]);
+    } catch (_) {
+      // Vedi sopra.
+    }
+  }
+
+  Future<void> _cambiaIlFlash() async {
+    final controller = _controller;
+
+    if (controller == null || !_pronta) {
+      return;
+    }
+
+    setState(() => _flash = (_flash + 1) % _modiDelFlash.length);
+    await _applicaIlFlash(controller);
   }
 
   Future<void> _giraLaFotocamera() async {
@@ -286,14 +324,40 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
                 ),
               ),
             ),
+          // **Due veli, sopra e sotto.** I comandi sono bianchi e la scena
+          // dietro puo' essere qualunque cosa: una parete chiara, il cielo,
+          // un foglio. Senza, la croce per chiudere sparisce proprio nelle
+          // inquadrature piu' luminose — che sono la meta' di quelle che uno
+          // fa. Il velo scurisce solo i bordi e non tocca il centro, cioe' non
+          // tocca la foto.
+          const IgnorePointer(child: _Velo(alto: true)),
+          const IgnorePointer(child: _Velo(alto: false)),
           SafeArea(
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.close_rounded, color: AppColors.paper),
-                tooltip: 'Chiudi',
-              ),
+            child: Row(
+              children: [
+                _Tondo(
+                  icona: Icons.close_rounded,
+                  etichetta: 'Chiudi',
+                  onTap: () => Navigator.of(context).pop(),
+                ),
+                const Spacer(),
+                // Il flash non si mostra sulla lente frontale: quasi nessuna
+                // ce l'ha, e un comando che non fa niente e' peggio di un
+                // comando che non c'e'.
+                if (_pronta && !_frontale)
+                  _Tondo(
+                    icona: switch (_modiDelFlash[_flash]) {
+                      FlashMode.off => Icons.flash_off_rounded,
+                      FlashMode.auto => Icons.flash_auto_rounded,
+                      _ => Icons.flash_on_rounded,
+                    },
+                    etichetta: 'Flash',
+                    // Acceso e' rosso: e' l'unica cosa qui dentro che cambia
+                    // come viene la foto, e deve vedersi che e' inserita.
+                    acceso: _modiDelFlash[_flash] != FlashMode.off,
+                    onTap: registrando ? null : _cambiaIlFlash,
+                  ),
+              ],
             ),
           ),
           SafeArea(
@@ -304,20 +368,16 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    const SizedBox(width: 48),
+                    const SizedBox(width: 52),
                     _Shutter(
                       recording: registrando,
                       busy: _sta && !registrando,
                       onTap: _scatta,
                     ),
-                    IconButton(
-                      onPressed: registrando ? null : _giraLaFotocamera,
-                      icon: const Icon(
-                        Icons.cameraswitch_rounded,
-                        color: AppColors.paper,
-                        size: 28,
-                      ),
-                      tooltip: 'Gira la fotocamera',
+                    _Tondo(
+                      icona: Icons.cameraswitch_rounded,
+                      etichetta: 'Gira la fotocamera',
+                      onTap: registrando ? null : _giraLaFotocamera,
                     ),
                   ],
                 ),
@@ -330,7 +390,90 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
   }
 }
 
-/// Il tasto dello scatto: un cerchio bianco, grande come un pollice.
+/// Il velo che scurisce un bordo dello schermo.
+///
+/// Nero che sfuma nel niente, non una fascia: una fascia si vede e diventa una
+/// cornice, questo si sente e basta.
+class _Velo extends StatelessWidget {
+  const _Velo({required this.alto});
+
+  final bool alto;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: alto ? Alignment.topCenter : Alignment.bottomCenter,
+      child: Container(
+        height: alto ? 140 : 200,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: alto ? Alignment.topCenter : Alignment.bottomCenter,
+            end: alto ? Alignment.bottomCenter : Alignment.topCenter,
+            colors: const [Color(0x8C000000), Color(0x00000000)],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Un comando della fotocamera: icona bianca dentro un tondo scuro.
+///
+/// **Il tondo non e' decorazione.** Un'icona bianca appoggiata direttamente
+/// sull'inquadratura scompare su qualunque cosa sia chiara, e i comandi di una
+/// fotocamera devono essere trovabili senza guardarli — le mani sono impegnate
+/// a tenere fermo il telefono.
+class _Tondo extends StatelessWidget {
+  const _Tondo({
+    required this.icona,
+    required this.etichetta,
+    required this.onTap,
+    this.acceso = false,
+  });
+
+  final IconData icona;
+  final String etichetta;
+  final VoidCallback? onTap;
+  final bool acceso;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.xs),
+      child: Semantics(
+        button: true,
+        label: etichetta,
+        child: Tooltip(
+          message: etichetta,
+          child: GestureDetector(
+            onTap: onTap,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: acceso ? AppColors.crasyRed : const Color(0x59000000),
+              ),
+              child: Icon(icona, color: AppColors.paper, size: 22),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Il tasto dello scatto: un anello bianco e dentro il rosso di CRASY.
+///
+/// **Il rosso e' il segno dell'app, e qui e' al suo posto.** Dentro CRASY il
+/// rosso vuol dire premio, fiamma, in corso — le cose che contano — e questo e'
+/// il gesto da cui nasce tutto: senza uno scatto non c'e' una gara. Bianco come
+/// su ogni altra fotocamera del mondo, era il tasto di chiunque; rosso e' il
+/// nostro, ed e' anche la cosa piu' visibile dello schermo, che per un tasto da
+/// premere senza guardare non e' un dettaglio.
+///
+/// Mentre registra si ribalta — anello rosso, dentro un quadrato bianco — cosi'
+/// i due stati non si confondono nemmeno con la coda dell'occhio.
 class _Shutter extends StatelessWidget {
   const _Shutter({
     required this.recording,
@@ -349,22 +492,31 @@ class _Shutter extends StatelessWidget {
       label: recording ? 'Ferma' : 'Scatta',
       child: GestureDetector(
         onTap: busy ? null : onTap,
-        child: Container(
-          width: 76,
-          height: 76,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          width: 78,
+          height: 78,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: AppColors.paper, width: 4),
+            border: Border.all(
+              color: recording ? AppColors.crasyRed : AppColors.paper,
+              width: 4,
+            ),
           ),
           child: Padding(
             padding: const EdgeInsets.all(6),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                // Rosso mentre registra: e' l'unico momento in cui il tasto
-                // dice qualcosa invece di aspettare.
-                color: recording ? AppColors.crasyRed : AppColors.paper,
-                shape: recording ? BoxShape.rectangle : BoxShape.circle,
-                borderRadius: recording ? BorderRadius.circular(8) : null,
+            child: AnimatedOpacity(
+              // Mentre la foto sta salendo il tasto si smorza: e' l'unico modo
+              // che ha di dire "l'ho presa, aspetta" senza scriverlo.
+              duration: const Duration(milliseconds: 160),
+              opacity: busy ? 0.45 : 1,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: recording ? AppColors.paper : AppColors.crasyRed,
+                  shape: recording ? BoxShape.rectangle : BoxShape.circle,
+                  borderRadius: recording ? BorderRadius.circular(10) : null,
+                ),
               ),
             ),
           ),

@@ -26,7 +26,6 @@ class OnboardingController extends AsyncNotifier<void> {
     required String username,
     required DateTime birthDate,
     String bio = '',
-    String city = '',
     Uint8List? photo,
     String? photoContentType,
   }) async {
@@ -37,7 +36,6 @@ class OnboardingController extends AsyncNotifier<void> {
       username: username.trim().toLowerCase(),
       birthDate: birthDate,
       bio: bio.trim(),
-      city: city.trim(),
       createdAt: null,
       updatedAt: null,
       onboardingCompleted: true,

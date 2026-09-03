@@ -63,30 +63,14 @@ abstract final class OnboardingValidators {
     return ContentPolicy.validate(bio);
   }
 
-  static const int cityMaxLength = 40;
-
-  /// Anche la citta' e' facoltativa: serve a riconoscere le challenge locali,
-  /// non a entrare.
-  static String? validateCity(String? value) {
-    final city = value?.trim() ?? '';
-
-    if (city.length > cityMaxLength) {
-      return 'Al massimo $cityMaxLength caratteri.';
-    }
-
-    return null;
-  }
-
   static bool canComplete({
     required String username,
     required DateTime? birthDate,
     String bio = '',
-    String city = '',
     DateTime? now,
   }) {
     return validateUsername(username) == null &&
         validateBirthDate(birthDate, now: now) == null &&
-        validateBio(bio) == null &&
-        validateCity(city) == null;
+        validateBio(bio) == null;
   }
 }

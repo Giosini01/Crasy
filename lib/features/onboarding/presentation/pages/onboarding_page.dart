@@ -35,7 +35,6 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   final _formKey = GlobalKey<FormState>();
   final _username = TextEditingController();
   final _bio = TextEditingController();
-  final _city = TextEditingController();
 
   /// Quello che c'e' scritto adesso nel campo del nome.
   ///
@@ -53,13 +52,11 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   void dispose() {
     _username.dispose();
     _bio.dispose();
-    _city.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final texts = context.texts;
     final state = ref.watch(onboardingControllerProvider);
     final error = state.error;
 
@@ -127,30 +124,16 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(
                   controller: _bio,
-                  textInputAction: TextInputAction.next,
+                  // Era il penultimo campo e ora e' l'ultimo: il tasto della
+                  // tastiera deve dire "fatto", non "avanti" verso niente.
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _submit(),
                   maxLength: OnboardingValidators.bioMaxLength,
                   validator: OnboardingValidators.validateBio,
                   decoration: const InputDecoration(
                     labelText: 'UNA RIGA SU DI TE — FACOLTATIVA',
                     hintText: 'Faccio cose assurde.',
                   ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                TextFormField(
-                  controller: _city,
-                  textInputAction: TextInputAction.done,
-                  maxLength: OnboardingValidators.cityMaxLength,
-                  validator: OnboardingValidators.validateCity,
-                  onFieldSubmitted: (_) => _submit(),
-                  decoration: const InputDecoration(
-                    labelText: 'CITTA\' — FACOLTATIVA',
-                    hintText: 'Napoli',
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'La citta\' serve solo a farti trovare le challenge locali.',
-                  style: texts.bodySmall,
                 ),
                 if (error != null) ...[
                   const SizedBox(height: AppSpacing.md),
@@ -248,7 +231,6 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
           username: _username.text,
           birthDate: _birthDate!,
           bio: _bio.text,
-          city: _city.text,
           photo: _photo,
           photoContentType: _photoContentType,
         );
