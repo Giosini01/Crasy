@@ -55,6 +55,28 @@
 				<string>app-1-781052311292-ios-cf2f5293adc52143264979</string>
 			</array>
 		</dict>
+		<!-- **Il nome con cui l'app si fa chiamare da fuori.**
+
+		     Serve a chi finisce sul sito partendo dall'app: dopo aver rifatto
+		     la password, la pagina di conferma puo' dire al telefono "riapri
+		     CRASY" invece di lasciare qualcuno dentro un browser, sul sito,
+		     davanti a un bottone che lo rimanda al punto di partenza.
+
+		     `crasy` e non un indirizzo vero: i collegamenti universali —
+		     quelli che aprono l'app toccando un link a crasyapp.com — vogliono
+		     il dominio collegato a Hosting e un file di associazione firmato,
+		     e finche' non c'e' quello questo e' l'unico modo per riaprire
+		     l'app dal browser. -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.crasy.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>crasy</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>

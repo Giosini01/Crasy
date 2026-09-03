@@ -6,9 +6,11 @@ import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Dove si atterra cliccando il link di un messaggio di CRASY.
 ///
@@ -158,6 +160,45 @@ class _EmailActionPageState extends ConsumerState<EmailActionPage> {
     }
   }
 
+  /// Cosa c'e' scritto sul tasto di uscita.
+  ///
+  /// Su un telefono si esce **verso l'app**, ovunque si sia arrivati da: e' da
+  /// li' che si veniva. Su un computer l'app non c'e', e l'unico posto dove
+  /// andare e' il sito.
+  String get _etichettaDelTasto =>
+      _daTelefono ? 'Apri CRASY' : 'Entra in CRASY';
+
+  bool get _daTelefono =>
+      defaultTargetPlatform == TargetPlatform.iOS ||
+      defaultTargetPlatform == TargetPlatform.android;
+
+  /// Riapre l'app, e se non ci riesce resta sul sito.
+  ///
+  /// **Il ripiego non e' una cortesia: e' il caso normale per meta' della
+  /// gente.** Chi apre il messaggio dal computer, o dal telefono di qualcun
+  /// altro, l'app non ce l'ha — e un tasto che non fa niente e' peggio di un
+  /// tasto che porta nel posto sbagliato.
+  Future<void> _esci() async {
+    if (_daTelefono) {
+      try {
+        final aperta = await launchUrl(
+          Uri.parse('crasy://'),
+          mode: LaunchMode.externalApplication,
+        );
+
+        if (aperta) {
+          return;
+        }
+      } on Object catch (_) {
+        // App non installata, o browser che non lascia provare: si resta qui.
+      }
+    }
+
+    if (mounted) {
+      context.go(AppRoutes.splash);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final rifaLaPassword = widget.mode == 'resetPassword';
@@ -258,10 +299,12 @@ class _EmailActionPageState extends ConsumerState<EmailActionPage> {
       // **Non e' un ornamento: e' la via d'uscita.** Senza, questa resta una
       // pagina del browser senza nessun posto dove andare, che e' esattamente
       // la sensazione che si voleva togliere.
-      CrasyButton(
-        label: 'Entra in CRASY',
-        onPressed: () => context.go(AppRoutes.splash),
-      ),
+      //
+      // Sul telefono prova a **riaprire l'app**, che e' da dove si veniva: chi
+      // ha appena rifatto la password non voleva visitare un sito, voleva
+      // rientrare. Restare qui vorrebbe dire rifare l'accesso dentro un
+      // browser per poi rifarlo un'altra volta nell'app.
+      CrasyButton(label: _etichettaDelTasto, onPressed: _esci),
       const SizedBox(height: AppSpacing.md),
       Center(
         child: Text(

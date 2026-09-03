@@ -86,10 +86,15 @@ const PAGINA = 'https://crasy.web.app/conferma';
  * a ogni email — e una conferma con un allegato somiglia molto a quello che la
  * gente ha imparato a non aprire.
  *
- * Il file ha il fondo bianco dentro, non trasparente: su un programma di posta
- * in tema scuro un PNG trasparente si appoggia sul nero, e meta' della parola
- * sparisce. E la misura e' il doppio di quella a cui si vede, perche' gli
- * schermi di adesso hanno due punti per ogni punto.
+ * **Il fondo e' trasparente.** Ce l'aveva bianco, per un motivo vero: su un
+ * programma di posta in tema scuro un PNG trasparente lascia le lettere nere
+ * sul nero. Ma il rimedio si vedeva sempre e il problema solo qualche volta —
+ * dentro un riquadro gia' bianco, un'immagine con il proprio bianco dentro fa
+ * un rettangolo che si nota. Meglio il caso raro storto che il caso normale
+ * brutto.
+ *
+ * La misura e' il doppio di quella a cui si vede, perche' gli schermi di adesso
+ * hanno due punti per ogni punto.
  */
 const MARCHIO = 'https://crasy.web.app/brand/crasy-wordmark.png';
 
