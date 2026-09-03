@@ -1003,3 +1003,102 @@ exports.announceDailyChallenge = onSchedule(
     logger.info('sfida del giorno annunciata', { oggi, titolo });
   }
 );
+
+/**
+ * Quante persone diverse devono segnalare una foto perche' esca dalla gara.
+ *
+ * **Trenta persone, non trenta segnalazioni.** La differenza e' tutta qui, e
+ * non e' un controllo aggiunto apposta: il nome del documento di una
+ * segnalazione mette insieme chi segnala e cosa, quindi la stessa persona che
+ * tocca il tasto trenta volte riscrive trenta volte la stessa riga. A contare
+ * e' l'elenco `reporters` scritto sulla foto, che e' un insieme.
+ *
+ * **Perche' un numero alto.** Una foto tolta e' un premio perso da qualcuno che
+ * non ha fatto niente di male, se il numero e' sbagliato. Con una soglia bassa
+ * bastano tre amici d'accordo per togliere di mezzo chi sta vincendo — e in una
+ * gara con dei soldi in palio quel movente c'e' eccome. Trenta persone che si
+ * mettono d'accordo sono un'organizzazione, non un dispetto.
+ *
+ * **Il rovescio, detto adesso.** Con pochi utenti trenta non si raggiunge mai:
+ * di fatto questo controllo e' spento finche' CRASY non e' grande. E' voluto —
+ * finche' le segnalazioni sono due al giorno si guardano a mano, ed e' meglio —
+ * ma va ricordato, perche' un impianto che non e' mai scattato sembra rotto
+ * quando serve. Il numero sta scritto qui e si cambia in una riga.
+ */
+const SEGNALAZIONI_PER_TOGLIERE = 30;
+
+/**
+ * Toglie dalla gara una foto che troppe persone hanno segnalato.
+ *
+ * **Non la cancella: la mette da parte.** `rejected` e' lo stesso stato che usa
+ * il controllo automatico delle immagini — la foto sparisce dalla gara, non
+ * prende piu' fiamme e non puo' vincere (`closeChallenge` salta le rifiutate),
+ * ma il documento resta. Cancellare vorrebbe dire non poter piu' tornare
+ * indietro su una decisione presa da un contatore, e un contatore non ha mai
+ * guardato la foto.
+ *
+ * Si attacca alle segnalazioni e non alle foto di proposito: una foto viene
+ * riscritta a ogni fiamma, e una funzione attaccata li' girerebbe a ogni voto
+ * di ogni gara per non fare niente novecentonovantanove volte su mille.
+ */
+exports.hideHeavilyReportedEntry = onDocumentCreated(
+  'reports/{reportId}',
+  async (event) => {
+    const dati = event.data?.data();
+
+    if (!dati || dati.kind !== 'entry') {
+      return;
+    }
+
+    const challengeId = String(dati.challengeId || '');
+    const entryId = String(dati.entryId || '');
+
+    if (!challengeId || !entryId) {
+      return;
+    }
+
+    const foto = db
+      .collection('challenges')
+      .doc(challengeId)
+      .collection('entries')
+      .doc(entryId);
+
+    const adesso = await foto.get();
+
+    if (!adesso.exists) {
+      return;
+    }
+
+    // L'elenco lo scrive l'app dentro la stessa scrittura della segnalazione:
+    // quando questa funzione parte, chi ha appena segnalato e' gia' dentro.
+    const chiHaSegnalato = adesso.get('reporters');
+    const quanti = Array.isArray(chiHaSegnalato) ? chiHaSegnalato.length : 0;
+
+    if (quanti < SEGNALAZIONI_PER_TOGLIERE) {
+      return;
+    }
+
+    // Gia' fuori: non si riscrive. Serve a non rifare la stessa scrittura a
+    // ogni segnalazione che arriva dopo la trentesima.
+    if (adesso.get('moderation') === 'rejected') {
+      return;
+    }
+
+    await foto.update({
+      moderation: 'rejected',
+      // **Perche' e' uscita, scritto sulla foto stessa.** Fra una tolta dal
+      // riconoscimento immagini e una tolta dalle persone c'e' una differenza
+      // enorme il giorno in cui qualcuno chiede spiegazioni, e senza questo
+      // campo le due sono identiche.
+      moderationReason: 'reports',
+      moderatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    logger.warn('foto tolta dalla gara per segnalazioni', {
+      challengeId,
+      entryId,
+      quanti,
+      autore: String(dati.reportedUserId || ''),
+    });
+  }
+);
