@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRASY</title>
+<!--
+  Una porta, non una pagina.
+
+  **A cosa serve.** L'app sul web tiene la propria rotta dopo il cancelletto:
+  `crasy.web.app/#/conferma`. Firebase pero' vuole scrivere il proprio indirizzo
+  d'azione senza cancelletto — e con `mode` e `oobCode` appesi come domanda,
+  cioe' nella parte di indirizzo che l'app, cosi' com'e' costruita, non guarda.
+  Arrivando li' si aprirebbe la home come se il link non avesse detto niente.
+
+  Questo file sta a `/conferma`, e' un file vero e viene servito prima della
+  regola che manda tutto all'app. Fa una cosa sola: prende quello che c'e' dopo
+  il punto interrogativo e lo rimette dopo il cancelletto, dove l'app lo legge.
+
+  `replace` e non `href`: cosi' questo passaggio non finisce nella cronologia, e
+  il tasto indietro del browser non ci ricasca dentro in un ciclo.
+-->
+<style>
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: #F7F5F2;
+    color: #111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .marchio { font-size: 22px; font-weight: 800; letter-spacing: .14em; }
+  .punto { color: #C8102E; }
+</style>
+</head>
+<body>
+  <!-- Si vede per un battito di ciglia, ma **quel battito deve essere nostro**:
+       una pagina bianca vuota, anche per mezzo secondo, sembra un errore. -->
+  <div class="marchio">CRASY<span class="punto">.</span></div>
+  <script>
+    location.replace('/#/conferma' + (location.search || ''));
+  </script>
+</body>
+</html>
