@@ -29,6 +29,24 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- **Il nome con cui l'app si fa chiamare da fuori.**
+
+                 E' la meta' Android della stessa cosa dichiarata in
+                 `ios/Runner/Info.plist`: senza, il tasto "Apri CRASY" della
+                 pagina di conferma chiederebbe al telefono di aprire
+                 `crasy://` e il telefono risponderebbe che non conosce
+                 nessuno con quel nome.
+
+                 `BROWSABLE` e' la categoria che conta: senza quella l'app
+                 risulta raggiungibile da un'altra app ma **non da un
+                 browser** — cioe' non dall'unico posto da cui serve, visto
+                 che si arriva li' cliccando il link di un'email. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="crasy"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
