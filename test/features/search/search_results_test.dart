@@ -62,12 +62,10 @@ void main() {
 
     container.read(searchQueryProvider.notifier).state = query;
 
-    // Le aperte davanti alle finite: a una gara chiusa non si puo' piu'
-    // partecipare, e chi cerca una challenge quasi sempre la cerca per entrarci.
-    return [
-      ...container.read(liveChallengeResultsProvider),
-      ...container.read(endedChallengeResultsProvider),
-    ];
+    // **Solo le aperte.** A una gara chiusa non si puo' piu' partecipare, e chi
+    // cerca una missione la cerca per entrarci: le finite si guardano nella
+    // scheda dei vincitori, in ordine di ora e senza scrivere niente.
+    return container.read(liveChallengeResultsProvider);
   }
 
   /// Cosa torna con un filtro acceso.
@@ -137,18 +135,18 @@ void main() {
     },
   );
 
-  test('le gare aperte vengono prima di quelle chiuse', () async {
-    // A una gara chiusa non si puo' piu' partecipare, e chi cerca una challenge
-    // quasi sempre la cerca per entrarci.
+  test('le gare chiuse non si trovano piu', () async {
+    // **A una gara chiusa non si puo' piu' partecipare**, e chi cerca una
+    // missione la cerca per entrarci. Prima uscivano dopo le aperte, cioe'
+    // occupavano mezzo elenco con roba su cui non c'era niente da fare; per
+    // guardare com'e' andata c'e' la scheda dei vincitori, che le tiene tutte
+    // in ordine di ora senza dover scrivere niente.
     final container = containerWith(
       live: [challenge(id: 'aperta', title: 'Cartello aperto')],
       ended: [challenge(id: 'chiusa', title: 'Cartello chiuso')],
     );
 
-    expect((await search(container, 'cartello')).map((c) => c.id), [
-      'aperta',
-      'chiusa',
-    ]);
+    expect((await search(container, 'cartello')).map((c) => c.id), ['aperta']);
   });
 
   test('quello che non corrisponde resta fuori', () async {
@@ -173,21 +171,6 @@ void main() {
     );
 
     expect(found.map((c) => c.id), ['aperta']);
-  });
-
-  test('il filtro sulle finite lascia fuori quelle aperte', () async {
-    final container = containerWith(
-      live: [challenge(id: 'aperta', title: 'Cartello aperto')],
-      ended: [challenge(id: 'chiusa', title: 'Cartello chiuso')],
-    );
-
-    final found = await searchWith(
-      container,
-      'cartello',
-      SearchFilter.endedChallenges,
-    );
-
-    expect(found.map((c) => c.id), ['chiusa']);
   });
 
   test('cercando le persone non si trovano gare', () async {

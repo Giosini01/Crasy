@@ -4,6 +4,7 @@ import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
+import 'package:crasy/core/widgets/count_dot.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/core/widgets/media_gestures.dart';
@@ -481,26 +482,16 @@ class _Stat extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (waiting > 0) ...[
-                  const SizedBox(width: 4),
-                  Container(
-                    margin: const EdgeInsets.only(top: 4),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: palette.accent,
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                    ),
-                    child: Text(
-                      '$waiting',
-                      style: texts.labelSmall?.copyWith(
-                        color: palette.onAccent,
-                        fontSize: 9,
-                        height: 1.3,
-                        letterSpacing: 0,
-                      ),
-                    ),
+                  const SizedBox(width: 5),
+                  // **Lo stesso pallino della campanella, non uno somigliante.**
+                  // Prima era una pastiglia schiacciata larga quanto le cifre
+                  // che aveva dentro: due segni rossi che vogliono dire la
+                  // stessa cosa e non si assomigliano si leggono come due cose
+                  // diverse. Senza bordo perche' qui sta su un fondo pulito,
+                  // non sopra un'icona.
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: CountDot(count: waiting, withBorder: false),
                   ),
                 ],
               ],

@@ -24,8 +24,12 @@ final searchQueryProvider = StateProvider.autoDispose<String>((ref) => '');
 /// diverso — rivedere com'e' andata.
 enum SearchFilter {
   all('TUTTO'),
-  liveChallenges('APERTE'),
-  endedChallenges('FINITE'),
+  // **Era "APERTE", e non c\'e\' piu\' niente da cui distinguerle.** Le gare
+  // finite non si cercano piu\': cercare serve a trovare qualcosa da fare, e a
+  // una gara chiusa non si puo\' partecipare — si guarda chi ha vinto, e per
+  // quello c\'e\' la scheda dei vincitori, che le tiene tutte in ordine di ora
+  // senza bisogno di scrivere niente.
+  liveChallenges('MISSIONI'),
   people('PERSONE');
 
   const SearchFilter(this.label);
@@ -110,38 +114,10 @@ final liveChallengeResultsProvider = Provider.autoDispose<List<Challenge>>((
     return const [];
   }
 
-  if (ref.watch(searchFilterProvider) == SearchFilter.endedChallenges) {
-    return const [];
-  }
-
   final live = ref.watch(liveChallengesProvider).valueOrNull ?? const [];
 
   return [
     for (final challenge in live)
-      if (_matches(challenge, needle)) challenge,
-  ];
-});
-
-/// Le gare **finite** che corrispondono.
-///
-/// Sono quelle degli ultimi due giorni: piu' indietro non esistono nemmeno —
-/// il server le cancella. Vedi `Challenge.winnersWindow`.
-final endedChallengeResultsProvider = Provider.autoDispose<List<Challenge>>((
-  ref,
-) {
-  final needle = _normalize(ref.watch(searchQueryProvider));
-  final filter = ref.watch(searchFilterProvider);
-
-  if (needle.length < searchMinimumLength ||
-      !filter.wantsChallenges ||
-      filter == SearchFilter.liveChallenges) {
-    return const [];
-  }
-
-  final ended = ref.watch(endedChallengesProvider).valueOrNull ?? const [];
-
-  return [
-    for (final challenge in ended)
       if (_matches(challenge, needle)) challenge,
   ];
 });

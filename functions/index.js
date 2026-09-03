@@ -209,6 +209,94 @@ setGlobalOptions({
 });
 
 /**
+ * Manda una notifica ai telefoni di una persona sola.
+ *
+ * **Stava dentro la funzione delle notifiche, e adesso serve a due.** Le
+ * richieste di amicizia hanno bisogno esattamente di questo lavoro — trovare i
+ * telefoni, mandare, buttare gli indirizzi morti — e copiarlo avrebbe voluto
+ * dire due versioni della stessa cosa che si separano al primo cambiamento: si
+ * corregge il suono in una e resta vecchio nell'altra.
+ */
+async function mandaAUnaPersona(userId, corpo, dati) {
+  // Gli indirizzi dei telefoni di questa persona. Senza nessun dispositivo
+  // registrato non c'e' niente da fare: la notizia resta nel database e si
+  // vedra' riaprendo l'app.
+  const dispositivi = await db
+    .collection('users')
+    .doc(userId)
+    .collection('devices')
+    .get();
+
+  const indirizzi = dispositivi.docs.map((doc) => doc.id);
+
+  // **Uscire in silenzio qui era un buco nella diagnosi.**
+  //
+  // Senza questa riga, nei registri "non e' partita" e "e' partita e non aveva
+  // nessuno a cui mandare" si assomigliano: in tutti e due i casi non c'e'
+  // scritto niente. Sono pero' due problemi opposti — uno sta nell'app che non
+  // scrive la notizia, l'altro nel telefono che non si e' registrato — e
+  // cercarli alla cieca costa un pomeriggio.
+  if (indirizzi.length === 0) {
+    logger.warn('nessun dispositivo registrato', { userId, ...dati });
+
+    return;
+  }
+
+  const esito = await admin.messaging().sendEachForMulticast({
+    tokens: indirizzi,
+    notification: { title: 'CRASY', body: corpo },
+    // Serve all'app per sapere dove portare chi tocca la notifica.
+    data: dati,
+    apns: { payload: { aps: { sound: SUONO_APPLE, badge: 1 } } },
+    android: {
+      priority: 'high',
+      notification: { sound: SUONO_ANDROID, color: ROSSO },
+    },
+  });
+
+  // **Gli indirizzi morti si cancellano subito.**
+  //
+  // Un telefono formattato, un'app disinstallata, un permesso revocato: da quel
+  // momento l'indirizzo non risponde piu'. Lasciandolo li', ogni notifica
+  // futura di quella persona prova a raggiungerlo e fallisce — e dopo qualche
+  // mese l'elenco e' fatto piu' di morti che di vivi.
+  const morti = [];
+
+  esito.responses.forEach((risposta, i) => {
+    const codice = risposta.error?.code || '';
+
+    if (
+      codice === 'messaging/registration-token-not-registered' ||
+      codice === 'messaging/invalid-registration-token' ||
+      codice === 'messaging/invalid-argument'
+    ) {
+      morti.push(indirizzi[i]);
+    }
+  });
+
+  await Promise.all(
+    morti.map((token) =>
+      db
+        .collection('users')
+        .doc(userId)
+        .collection('devices')
+        .doc(token)
+        .delete()
+        .catch(() => {})
+    )
+  );
+
+  logger.info('notifica mandata', {
+    userId,
+    ...dati,
+    inviate: esito.successCount,
+    fallite: esito.failureCount,
+    ripulite: morti.length,
+  });
+}
+
+
+/**
  * Guarda ogni foto appena arrivata, e decide se puo' stare in gara.
  *
  * **Questo controllo deve girare sul server e non sull'app**, e non e' una
@@ -686,88 +774,44 @@ exports.sendPushOnNotification = onDocumentCreated(
       comeback: 'Ci sono missioni aperte. Entra e prova a vincere',
     };
 
-    const titolo = 'CRASY';
     const corpo = testi[dati.kind] || 'Qualcosa di nuovo ti aspetta';
 
-    // Gli indirizzi dei telefoni di questa persona. Senza nessun dispositivo
-    // registrato non c'e' niente da fare: la notifica resta nel database e si
-    // vedra' riaprendo l'app.
-    const dispositivi = await db
-      .collection('users')
-      .doc(userId)
-      .collection('devices')
-      .get();
-
-    const indirizzi = dispositivi.docs.map((doc) => doc.id);
-
-    // **Uscire in silenzio qui era un buco nella diagnosi.**
-    //
-    // Senza questa riga, nei registri "non e' partita" e "e' partita e non
-    // aveva nessuno a cui mandare" si assomigliano: in tutti e due i casi non
-    // c'e' scritto niente. Sono pero' due problemi opposti — uno sta nell'app
-    // che non scrive la notifica, l'altro nel telefono che non si e'
-    // registrato — e cercarli alla cieca costa un pomeriggio.
-    if (indirizzi.length === 0) {
-      logger.warn('nessun dispositivo registrato', { userId, kind: dati.kind });
-
-      return;
-    }
-
-    const esito = await admin.messaging().sendEachForMulticast({
-      tokens: indirizzi,
-      notification: { title: titolo, body: corpo },
-      // Serve all'app per sapere dove portare chi tocca la notifica.
-      data: {
-        kind: String(dati.kind || ''),
-        challengeId: String(dati.challengeId || ''),
-      },
-      apns: {
-        payload: { aps: { sound: SUONO_APPLE, badge: 1 } },
-      },
-      android: {
-        priority: 'high',
-        notification: { sound: SUONO_ANDROID, color: ROSSO },
-      },
+    await mandaAUnaPersona(userId, corpo, {
+      kind: String(dati.kind || ''),
+      challengeId: String(dati.challengeId || ''),
     });
+  }
+);
 
-    // **Gli indirizzi morti si cancellano subito.**
-    //
-    // Un telefono formattato, un'app disinstallata, un permesso revocato: da
-    // quel momento l'indirizzo non risponde piu'. Lasciandolo li', ogni
-    // notifica futura di quella persona prova a raggiungerlo e fallisce — e
-    // dopo qualche mese l'elenco e' fatto piu' di morti che di vivi.
-    const morti = [];
-
-    esito.responses.forEach((risposta, i) => {
-      const codice = risposta.error?.code || '';
-
-      if (
-        codice === 'messaging/registration-token-not-registered' ||
-        codice === 'messaging/invalid-registration-token' ||
-        codice === 'messaging/invalid-argument'
-      ) {
-        morti.push(indirizzi[i]);
-      }
-    });
-
-    await Promise.all(
-      morti.map((token) =>
-        db
-          .collection('users')
-          .doc(userId)
-          .collection('devices')
-          .doc(token)
-          .delete()
-          .catch(() => {})
-      )
-    );
-
-    logger.info('notifica mandata', {
-      userId,
-      kind: dati.kind,
-      inviate: esito.successCount,
-      fallite: esito.failureCount,
-      ripulite: morti.length,
+/**
+ * Avvisa chi ha ricevuto una richiesta di amicizia.
+ *
+ * **Perche' ci vuole una funzione a parte.** Le richieste di amicizia non sono
+ * scritte come notifiche: la campanella le **ricava** dall'elenco delle
+ * richieste, che e' l'unica verita' su chi ha suonato al campanello. E' una
+ * scelta giusta — una notifica scritta sarebbe una copia che va fuori sincrono
+ * appena qualcuno ritira la richiesta, e in campanella resterebbe l'avviso di
+ * una cosa che non c'e' piu'.
+ *
+ * Il prezzo di quella scelta e' che la funzione che manda le notifiche non si
+ * accorge di niente: aspetta che nasca un documento fra le notifiche, e qui non
+ * ne nasce nessuno. Percio' si guarda direttamente il posto dove la richiesta
+ * arriva.
+ *
+ * **E' l'unica cosa dell'app che aspetta una risposta.** Tutto il resto e' roba
+ * che e' successa e che si guarda quando si vuole; una richiesta lasciata la'
+ * tiene qualcun altro ad aspettare, e quel qualcuno non ha modo di sapere se
+ * l'hai vista.
+ */
+exports.sendPushOnFriendRequest = onDocumentCreated(
+  'users/{userId}/friendRequests/{fromId}',
+  async (event) => {
+    // Chi l'ha mandata non si dice: uno schermo bloccato lo leggono anche gli
+    // altri, ed e' la stessa regola che vale per le fiamme e i commenti. Il
+    // nome sta in campanella, che e' anche il posto dove si accetta.
+    await mandaAUnaPersona(event.params.userId, 'Hai una richiesta di amicizia', {
+      kind: 'friendRequest',
+      challengeId: '',
     });
   }
 );

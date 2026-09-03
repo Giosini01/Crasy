@@ -1,5 +1,5 @@
 import 'package:crasy/core/constants/app_routes.dart';
-import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/widgets/count_dot.dart';
 import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,7 +15,6 @@ class NotificationBell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final palette = context.palette;
     final unread = ref.watch(unreadNotificationsProvider);
 
     return IconButton(
@@ -30,30 +29,7 @@ class NotificationBell extends ConsumerWidget {
                 : Icons.notifications_none_rounded,
           ),
           if (unread > 0)
-            Positioned(
-              top: -4,
-              right: -6,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 17),
-                height: 17,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: palette.accent,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: palette.background, width: 1.5),
-                ),
-                child: Text(
-                  unread > 9 ? '9+' : '$unread',
-                  style: context.texts.labelSmall?.copyWith(
-                    color: palette.background,
-                    fontSize: 10,
-                    height: 1,
-                    letterSpacing: 0,
-                  ),
-                ),
-              ),
-            ),
+            Positioned(top: -4, right: -6, child: CountDot(count: unread)),
         ],
       ),
     );

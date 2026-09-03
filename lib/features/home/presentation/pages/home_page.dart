@@ -1,9 +1,11 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/widgets/count_dot.dart';
 import 'package:crasy/features/challenges/presentation/pages/challenges_page.dart';
 import 'package:crasy/features/challenges/presentation/pages/winners_page.dart';
 import 'package:crasy/features/friends/presentation/pages/friends_activity_page.dart';
+import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/profile/presentation/pages/profile_page.dart';
 import 'package:crasy/features/search/presentation/pages/search_page.dart';
 import 'package:flutter/gestures.dart';
@@ -256,12 +258,21 @@ class _NavItem extends ConsumerWidget {
     final palette = context.palette;
     final color = active ? palette.accent : palette.textFaint;
 
-    // **Nessun numero sopra le icone di questa barra.**
+    // **Un numero solo in questa barra, e sta sul profilo.**
     //
-    // Ce n'era uno solo, sulla scheda degli amici: una richiesta di amicizia e'
-    // l'unica cosa dell'app che aspetta una risposta da te. Quella scheda non
-    // c'e' piu', e il numero l'ha seguita — sta sul profilo, accanto al conto
-    // degli amici, che e' dove adesso si entra.
+    // Una richiesta di amicizia e' l'unica cosa dell'app che **aspetta una
+    // risposta da te**: tutto il resto e' roba che e' successa e che si guarda
+    // quando si vuole. Il conto dentro la pagina del profilo non bastava — per
+    // vederlo bisogna essere gia' andati sul profilo, cioe' sapere di doverci
+    // andare — e chi manda una richiesta aspetterebbe per sempre.
+    //
+    // Sta sul profilo e non sulla scheda degli amici perche' e' dal profilo che
+    // si apre l'elenco: quella scheda mostra cosa stanno combinando, non chi ha
+    // suonato al campanello.
+    final richieste = tab.route == AppRoutes.profile
+        ? (ref.watch(incomingRequestsProvider).valueOrNull ?? const []).length
+        : 0;
+
     return Semantics(
       selected: active,
       button: true,
@@ -272,7 +283,24 @@ class _NavItem extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(active ? tab.activeIcon : tab.icon, size: 22, color: color),
+            // Il pallino esce dal quadrato dell'icona, come sulla campanella:
+            // dentro non ci starebbe senza rimpicciolire il disegno.
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  active ? tab.activeIcon : tab.icon,
+                  size: 22,
+                  color: color,
+                ),
+                if (richieste > 0)
+                  Positioned(
+                    top: -5,
+                    right: -8,
+                    child: CountDot(count: richieste),
+                  ),
+              ],
+            ),
             const SizedBox(height: AppSpacing.xxs),
             Text(
               tab.label.toUpperCase(),

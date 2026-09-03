@@ -85,7 +85,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final query = ref.watch(searchQueryProvider).trim();
     final filter = ref.watch(searchFilterProvider);
     final live = ref.watch(liveChallengeResultsProvider);
-    final ended = ref.watch(endedChallengeResultsProvider);
     final people = ref.watch(peopleResultsProvider);
     final peopleFound = people.valueOrNull ?? const <UserProfile>[];
     final waiting =
@@ -93,11 +92,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         query.length >= searchMinimumLength &&
         people.isLoading;
     final nothing =
-        query.isNotEmpty &&
-        !waiting &&
-        live.isEmpty &&
-        ended.isEmpty &&
-        peopleFound.isEmpty;
+        query.isNotEmpty && !waiting && live.isEmpty && peopleFound.isEmpty;
 
     return Scaffold(
       body: AppBackground(
@@ -174,7 +169,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 child: _Results(
                   query: query,
                   live: live,
-                  ended: ended,
                   people: peopleFound,
                   waiting: waiting,
                   nothing: nothing,
@@ -194,8 +188,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 /// niente fondi, niente bordi, niente badge. **Quello scelto e' rosso**, ed e'
 /// esattamente il significato che il rosso ha qui dentro: cio' che e' attivo.
 ///
-/// Restano sempre tutti e quattro visibili invece di nascondersi in un menu a
-/// tendina: sono quattro parole corte, ci stanno in una riga, e un filtro che
+/// Restano sempre tutti e tre visibili invece di nascondersi in un menu a
+/// tendina: sono tre parole corte, ci stanno in una riga, e un filtro che
 /// bisogna aprire per sapere che esiste non lo usa nessuno.
 class _Filters extends ConsumerWidget {
   const _Filters();
@@ -242,7 +236,6 @@ class _Results extends StatelessWidget {
   const _Results({
     required this.query,
     required this.live,
-    required this.ended,
     required this.people,
     required this.waiting,
     required this.nothing,
@@ -250,7 +243,6 @@ class _Results extends StatelessWidget {
 
   final String query;
   final List<Challenge> live;
-  final List<Challenge> ended;
   final List<UserProfile> people;
   final bool waiting;
   final bool nothing;
@@ -263,9 +255,9 @@ class _Results extends StatelessWidget {
         child: EmptyState(
           title: 'Cosa cerchi',
           message:
-              'Il titolo di una challenge, il posto in cui si svolge, o il '
-              'nome di chi l\'ha lanciata. Le persone si trovano scrivendo il '
-              'loro nome dall\'inizio.',
+              'Il titolo di una missione aperta, o il nome di chi l\'ha '
+              'lanciata. Le persone si trovano scrivendo il loro nome '
+              'dall\'inizio.',
         ),
       );
     }
@@ -276,8 +268,8 @@ class _Results extends StatelessWidget {
         child: EmptyState(
           title: 'Niente',
           message:
-              'Nessuna challenge e nessuno che si chiami "$query". I nomi si '
-              'cercano dall\'inizio, non a pezzi.',
+              'Nessuna missione aperta e nessuno che si chiami "$query". I '
+              'nomi si cercano dall\'inizio, non a pezzi.',
         ),
       );
     }
@@ -291,13 +283,8 @@ class _Results extends StatelessWidget {
       ),
       children: [
         if (live.isNotEmpty) ...[
-          _SectionLabel(label: 'CHALLENGE APERTE', count: live.length),
+          _SectionLabel(label: 'MISSIONI', count: live.length),
           for (final challenge in live) _ChallengeResult(challenge: challenge),
-          const SizedBox(height: AppSpacing.lg),
-        ],
-        if (ended.isNotEmpty) ...[
-          _SectionLabel(label: 'CHALLENGE FINITE', count: ended.length),
-          for (final challenge in ended) _ChallengeResult(challenge: challenge),
           const SizedBox(height: AppSpacing.lg),
         ],
         if (people.isNotEmpty) ...[
