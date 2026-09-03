@@ -159,8 +159,8 @@ async function spedisci(messaggio) {
  */
 function vestito({ titolo, testo, tasto, link, nota }) {
   return [
-    '<!DOCTYPE html><html lang="it"><body style="margin:0;padding:0;background:#F7F5F2;">',
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F7F5F2;padding:32px 16px;"><tr><td align="center">',
+    '<!DOCTYPE html><html lang="it"><body style="margin:0;padding:0;background:#F4F4F5;">',
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F4F5;padding:32px 16px;"><tr><td align="center">',
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:420px;background:#FFFFFF;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">',
     // `alt` non e' un dettaglio di cortesia: **e' quello che si legge quando le
     // immagini sono spente**, e con Outlook lo sono quasi sempre al primo
@@ -168,22 +168,22 @@ function vestito({ titolo, testo, tasto, link, nota }) {
     // riquadro vuoto.
     '<tr><td style="padding-bottom:28px;"><img src="' +
       MARCHIO +
-      '" width="140" alt="CRASY" style="display:block;border:0;outline:none;width:140px;height:auto;font-size:20px;font-weight:800;letter-spacing:.14em;color:#111111;"></td></tr>',
-    '<tr><td style="font-size:26px;font-weight:800;line-height:1.15;color:#111111;">' +
+      '" width="140" alt="CRASY" style="display:block;border:0;outline:none;width:140px;height:auto;font-size:20px;font-weight:800;letter-spacing:.14em;color:#0A0A0B;"></td></tr>',
+    '<tr><td style="font-size:26px;font-weight:800;line-height:1.15;color:#0A0A0B;">' +
       titolo +
-      '<span style="color:#C8102E;">.</span></td></tr>',
-    '<tr><td style="font-size:15px;line-height:1.5;color:#555555;padding-top:10px;">' +
+      '<span style="color:#FA0000;">.</span></td></tr>',
+    '<tr><td style="font-size:15px;line-height:1.5;color:#6B6B70;padding-top:10px;">' +
       testo +
       '</td></tr>',
     '<tr><td style="padding-top:26px;"><a href="' +
       link +
-      '" style="display:block;background:#C8102E;color:#FFFFFF;text-decoration:none;text-align:center;font-size:15px;font-weight:700;letter-spacing:.06em;padding:16px;border-radius:12px;">' +
+      '" style="display:block;background:#FA0000;color:#FFFFFF;text-decoration:none;text-align:center;font-size:15px;font-weight:700;letter-spacing:.06em;padding:16px;border-radius:12px;">' +
       tasto +
       '</a></td></tr>',
-    '<tr><td style="font-size:12px;line-height:1.5;color:#999999;padding-top:22px;">' +
+    '<tr><td style="font-size:12px;line-height:1.5;color:#A1A1A6;padding-top:22px;">' +
       nota +
       '</td></tr>',
-    '<tr><td style="font-size:12px;color:#BBBBBB;padding-top:22px;border-top:1px solid #EEEEEE;">crasyapp.com</td></tr>',
+    '<tr><td style="font-size:12px;color:#A1A1A6;padding-top:22px;border-top:1px solid #E8E8EA;">crasyapp.com</td></tr>',
     '</table></td></tr></table></body></html>',
   ].join('');
 }

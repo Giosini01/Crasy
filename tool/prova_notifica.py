@@ -106,7 +106,7 @@ def main():
                     "apns": {"payload": {"aps": {"sound": "crasy.wav", "badge": 1}}},
                     "android": {
                         "priority": "high",
-                        "notification": {"sound": "crasy", "color": "#C8102E"},
+                        "notification": {"sound": "crasy", "color": "#FA0000"},
                     },
                 }
             },

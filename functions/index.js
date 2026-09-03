@@ -33,7 +33,7 @@ const SUONO_APPLE = 'crasy.wav';
 const SUONO_ANDROID = 'crasy';
 
 /** Il rosso di CRASY, che su Android colora l'icona della notifica. */
-const ROSSO = '#C8102E';
+const ROSSO = '#FA0000';
 
 /**
  * Il canale su cui ascoltano tutti i telefoni.

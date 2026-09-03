@@ -109,13 +109,20 @@ def inParagrafi(corpo):
     return '\n'.join(pezzi)
 
 
+# **La tavolozza e' quella dell'app, non una che le somiglia.**
+#
+# I valori vengono da `lib/core/theme/app_colors.dart`: il rosso e' `crasyRed`,
+# il fondo e' `paper`, le righe sono `line`, il testo e' `ink` e `inkSoft`. Un
+# sito con un rosso di mezzo tono diverso da quello del marchio non si nota
+# guardandolo da solo — si nota quando lo si mette accanto all'app, ed e' li'
+# che sembra la copia di qualcun altro.
 STILE = """
 :root { color-scheme: light; }
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  background: #F7F5F2;
-  color: #111;
+  background: #FFFFFF;
+  color: #0A0A0B;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -130,43 +137,43 @@ h1 {
   font-weight: 800;
   text-transform: uppercase;
 }
-h1 .punto { color: #C8102E; }
+h1 .punto { color: #FA0000; }
 h2 {
   font-size: 13px;
   letter-spacing: .1em;
   text-transform: uppercase;
-  color: #C8102E;
+  color: #FA0000;
   margin: 34px 0 8px;
   font-weight: 700;
 }
-p, li { color: #444; font-size: 16px; margin: 0 0 12px; }
+p, li { color: #6B6B70; font-size: 16px; margin: 0 0 12px; }
 ul { padding-left: 20px; margin: 0 0 12px; }
-a { color: #C8102E; }
+a { color: #FA0000; }
 .avviso {
-  border: 1px solid #E7DFDA;
+  border: 1px solid #E8E8EA;
   border-radius: 12px;
   padding: 14px 16px;
-  background: #FFF;
+  background: #F4F4F5;
   font-size: 14px;
-  color: #666;
+  color: #6B6B70;
   margin-top: 18px;
 }
-.data { font-size: 13px; color: #999; margin-top: 4px; }
+.data { font-size: 13px; color: #A1A1A6; margin-top: 4px; }
 footer {
   margin-top: 56px;
   padding-top: 22px;
-  border-top: 1px solid #E7DFDA;
+  border-top: 1px solid #E8E8EA;
   font-size: 14px;
-  color: #999;
+  color: #A1A1A6;
 }
 footer a { margin-right: 16px; text-decoration: none; }
-@media (prefers-color-scheme: dark) {
-  body { background: #111; color: #F5F5F5; }
-  p, li { color: #BDBDBD; }
-  .avviso { background: #1A1A1A; border-color: #2A2A2A; color: #A0A0A0; }
-  footer { border-color: #2A2A2A; }
-}
 """
+
+# **Niente versione scura, ed e' la stessa scelta dell'app.** CRASY e' bloccata
+# sul chiaro perche' le foto devono cadere sempre sullo stesso fondo e il rosso
+# deve avere sempre lo stesso peso: su fondo nero lo stesso rosso urla, su fondo
+# bianco chiama. Un sito che si gira da solo quando il telefono e' in tema scuro
+# non sarebbe coerente con l'app che sta descrivendo.
 
 
 def pagina(titolo, sottotitolo, contenuto, descrizione):
@@ -222,7 +229,7 @@ def versione():
 
 def vetrina():
     return """
-  <p style="font-size:19px;color:#222;">Qualcuno mette in palio dei soldi veri e
+  <p style="font-size:19px;color:#0A0A0B;">Qualcuno mette in palio dei soldi veri e
   lancia una missione. Tu la fai, mandi la foto, e vince quella che piace di
   piu' agli altri.</p>
 
@@ -254,7 +261,7 @@ def vetrina():
   </div>
 
   <p style="margin-top:26px;">
-    <a href="%s" style="display:inline-block;background:#C8102E;color:#fff;
+    <a href="%s" style="display:inline-block;background:#FA0000;color:#fff;
     text-decoration:none;font-weight:700;letter-spacing:.06em;padding:15px 26px;
     border-radius:12px;">PROVA CRASY</a>
   </p>
