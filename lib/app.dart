@@ -20,6 +20,11 @@ class CrasyApp extends ConsumerWidget {
     // la sessione. Guardato da qui, vive quanto l'app.
     ref.watch(pushRegistrationProvider);
 
+    // **E il numero rosso sull'icona non resta mai acceso a sproposito.** Vale
+    // per le notifiche che arrivano ad app aperta: il ritorno in primo piano lo
+    // vede il codice nativo, questo caso lo vede solo Dart.
+    ref.watch(pushBadgeProvider);
+
     // **E qui si ascolta chi tocca una notifica.** Sta accanto al registro per
     // lo stesso motivo: il tocco puo' arrivare in qualunque momento — anche
     // nell'istante in cui l'app parte, se e' stata proprio la notifica ad

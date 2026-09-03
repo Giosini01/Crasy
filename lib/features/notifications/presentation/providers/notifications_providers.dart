@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/services/firebase/firebase_providers.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/notifications/data/icon_badge.dart';
 import 'package:crasy/features/notifications/data/push_registry.dart';
 import 'package:crasy/features/notifications/data/repositories/firestore_notifications_repository.dart';
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
@@ -241,4 +242,31 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
   }
 
   yield* FirebaseMessaging.onMessageOpenedApp.map(dove);
+});
+
+/// Tiene spento il numero rosso sull'icona.
+///
+/// **Chiude la meta' del difetto che il codice nativo non puo' vedere.** Quando
+/// l'app torna in primo piano, ad azzerare il pallino ci pensa iOS insieme a
+/// noi; ma una notifica che arriva **mentre l'app e' gia' aperta** non fa
+/// tornare l'app da nessuna parte — c'e' gia' — e il numero comparirebbe sotto
+/// gli occhi di chi sta guardando lo schermo per poi restare acceso all'uscita.
+///
+/// L'unico che sa che in quel momento e' arrivato qualcosa e' questo ascolto.
+final pushBadgeProvider = Provider<void>((ref) {
+  if (kIsWeb || !ref.watch(firebaseBootstrapResultProvider).isConfigured) {
+    return;
+  }
+
+  const pallino = IconBadge();
+
+  // All'avvio: chi apre l'app dalla schermata di casa senza toccare la
+  // notifica passa da qui.
+  unawaited(pallino.clear());
+
+  final ascolto = FirebaseMessaging.onMessage.listen(
+    (_) => unawaited(pallino.clear()),
+  );
+
+  ref.onDispose(ascolto.cancel);
 });
