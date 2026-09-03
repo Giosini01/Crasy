@@ -97,23 +97,22 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   @override
+  /// **Anche questa la manda il nostro server.** Stessa ragione della conferma:
+  /// il link di Firebase porta a una pagina che su questo progetto non si puo'
+  /// spostare. Vedi `functions/posta.js`.
+  ///
+  /// **Un indirizzo sconosciuto non e' un errore da mostrare**, e adesso non
+  /// arriva nemmeno fin qui: la funzione risponde allo stesso modo per un
+  /// indirizzo che esiste e per uno che non esiste. Ripetere a schermo "questa
+  /// email non e' registrata" trasformerebbe la schermata in uno strumento per
+  /// sapere chi sta su CRASY — si provano indirizzi finche' uno non risponde di
+  /// si'. Chi ha sbagliato a scrivere se ne accorge dal messaggio che non
+  /// arriva.
+  @override
   Future<void> sendPasswordReset({required String email}) async {
-    try {
-      await _firebaseAuth.sendPasswordResetEmail(
-        email: email,
-        actionCodeSettings: _backToCrasy,
-      );
-    } on FirebaseAuthException catch (error) {
-      // **Un indirizzo sconosciuto non e' un errore da mostrare.** Firebase lo
-      // dice — `user-not-found` — e ripeterlo a schermo trasformerebbe questa
-      // schermata in uno strumento per sapere chi e' iscritto a CRASY: si
-      // provano indirizzi finche' uno non risponde "esiste". Qui il caso si
-      // ingoia, e chi ha sbagliato a scrivere se ne accorge dal messaggio che
-      // non arriva.
-      if (error.code != 'user-not-found' && error.code != 'invalid-email') {
-        rethrow;
-      }
-    }
+    await _functions.httpsCallable('mandaIlRecupero').call<Object?>({
+      'email': email,
+    });
   }
 
   @override
@@ -135,21 +134,10 @@ class FirebaseAuthRepository implements AuthRepository {
     );
   }
 
-  /// Dove si finisce dopo aver confermato l'indirizzo.
-  ///
-  /// **Adesso il link non porta piu' a una pagina di Firebase.** Il gestore dei
-  /// messaggi e' stato spostato su `crasy.web.app/#/conferma`, che e' una
-  /// schermata nostra — vedi `EmailActionPage` e `tool/pagina_dei_messaggi.py`.
-  /// Chi conferma l'indirizzo resta dentro CRASY dall'inizio alla fine, invece
-  /// di finire su una pagina bianca con sopra il vecchio nome del progetto.
-  ///
-  /// Questo indirizzo resta comunque, e viaggia nel link come `continueUrl`:
-  /// e' dove si torna dopo, ed e' l'unica via d'uscita per chi ha aperto il
-  /// messaggio da un telefono diverso da quello dove ha l'app.
-  static final ActionCodeSettings _backToCrasy = ActionCodeSettings(
-    url: 'https://crasy.web.app/',
-    handleCodeInApp: false,
-  );
+  // **Le impostazioni del link non stanno piu' qui.** Servivano a dire a
+  // Firebase dove far tornare chi apriva il messaggio; adesso i messaggi li
+  // costruiamo noi, e quel "dove si torna dopo" sta dove viene deciso — dentro
+  // `functions/posta.js`, accanto al testo dell'email che lo contiene.
 
   @override
   Future<AppUser?> reload() async {

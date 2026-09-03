@@ -16,6 +16,7 @@ const db = admin.firestore();
 // progetto, e girandoci intorno si e' arrivati a una soluzione migliore di
 // quella che si voleva.
 exports.mandaLaConferma = require('./posta').mandaLaConferma;
+exports.mandaIlRecupero = require('./posta').mandaIlRecupero;
 
 /**
  * Il suono di CRASY: tre note che salgono, mezzo secondo.
