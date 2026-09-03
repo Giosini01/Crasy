@@ -31,6 +31,14 @@ import 'package:go_router/go_router.dart';
 /// che qualcuno chiede di rifarsi la password troverebbe una schermata che non
 /// sa cosa fare del suo codice — e resterebbe fuori dal proprio account. Il
 /// tipo di operazione arriva scritto nel link, e qui si guarda quello.
+///
+/// ## Non e' una schermata dell'app: e' una pagina web
+///
+/// E questo cambia come va composta. Chi arriva qui e' quasi sempre **dentro un
+/// browser**, spesso su un computer, e una schermata pensata per un telefono
+/// aperta a tutta larghezza diventa una riga di testo lunga trenta centimetri.
+/// Per questo il contenuto sta dentro una colonna stretta e centrata: e' la
+/// stessa cosa che fa qualunque pagina fatta per essere letta.
 class EmailActionPage extends ConsumerStatefulWidget {
   const EmailActionPage({required this.mode, required this.code, super.key});
 
@@ -152,115 +160,183 @@ class _EmailActionPageState extends ConsumerState<EmailActionPage> {
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.palette;
-    final texts = context.texts;
     final rifaLaPassword = widget.mode == 'resetPassword';
 
     return Scaffold(
       body: AppBackground(
         child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.page,
-              AppSpacing.xl,
-              AppSpacing.page,
-              AppSpacing.xxl,
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.page,
+                vertical: AppSpacing.xxl,
+              ),
+              child: ConstrainedBox(
+                // **Una colonna stretta, non tutta la finestra.** Una riga di
+                // testo lunga quanto un monitor si legge male: l'occhio, alla
+                // fine della riga, non ritrova l'inizio di quella dopo. E'
+                // il motivo per cui i giornali hanno le colonne.
+                constraints: const BoxConstraints(maxWidth: 380),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Center(child: CrasyWordmark()),
+                    const SizedBox(height: AppSpacing.xxl),
+                    if (rifaLaPassword && _fase == _Fase.chiediLaPassword)
+                      ..._formDellaPassword(context)
+                    else
+                      ..._risposta(context, rifaLaPassword),
+                  ],
+                ),
+              ),
             ),
-            children: [
-              const CrasyWordmark(),
-              const SizedBox(height: AppSpacing.xxl),
-              switch (_fase) {
-                _Fase.lavora => const _Attesa(),
-                _Fase.fatto => _Fatto(rifaLaPassword: rifaLaPassword),
-                _Fase.chiediLaPassword => const DisplayTitle('UNA\nNUOVA'),
-                _Fase.errore => const DisplayTitle('QUESTO\nLINK NO'),
-              },
-              if (_fase == _Fase.chiediLaPassword) ...[
-                const SizedBox(height: AppSpacing.sm),
-                HighlightedText(
-                  'Scrivi la password nuova per '
-                  '${_indirizzo ?? 'il tuo account'}.',
-                  highlight: _indirizzo ?? '',
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                TextField(
-                  controller: _password,
-                  obscureText: true,
-                  autofillHints: const [AutofillHints.newPassword],
-                  decoration: const InputDecoration(
-                    labelText: 'Password nuova',
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                CrasyButton(
-                  label: 'Salva',
-                  loading: _inCorso,
-                  onPressed: _salvaLaPassword,
-                ),
-              ],
-              if (_errore case final messaggio?) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  messaggio,
-                  style: texts.bodyMedium?.copyWith(color: palette.accent),
-                ),
-              ],
-              if (_fase == _Fase.fatto || _fase == _Fase.errore) ...[
-                const SizedBox(height: AppSpacing.xl),
-                // **Non e' un ornamento: e' la via d'uscita.** Senza, questa
-                // resta una pagina del browser senza nessun posto dove andare,
-                // che e' esattamente la sensazione che si voleva togliere.
-                CrasyButton(
-                  label: 'Entra in CRASY',
-                  onPressed: () => context.go(AppRoutes.splash),
-                ),
-              ],
-            ],
           ),
         ),
       ),
     );
   }
-}
 
-class _Attesa extends StatelessWidget {
-  const _Attesa();
+  /// Le tre schermate che non chiedono niente: sto lavorando, e' fatta, non va.
+  ///
+  /// Sono **centrate e con un segno grande sopra**, e non e' decorazione: un
+  /// simbolo si legge in mezzo secondo e una frase in tre. Chi arriva qui vuole
+  /// sapere una cosa sola — e' andata o no — e deve saperla prima di mettersi a
+  /// leggere.
+  List<Widget> _risposta(BuildContext context, bool rifaLaPassword) {
+    final palette = context.palette;
+    final texts = context.texts;
 
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(top: AppSpacing.xxl),
-      child: Center(
-        child: SizedBox(
-          width: 28,
-          height: 28,
-          child: CircularProgressIndicator(strokeWidth: 2),
+    if (_fase == _Fase.lavora) {
+      return const [
+        SizedBox(height: AppSpacing.xl),
+        Center(
+          child: SizedBox(
+            width: 26,
+            height: 26,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      ];
+    }
+
+    final andata = _fase == _Fase.fatto;
+
+    return [
+      Center(
+        child: _Bollo(
+          icona: andata ? Icons.check_rounded : Icons.link_off_rounded,
+          pieno: andata,
         ),
       ),
-    );
+      const SizedBox(height: AppSpacing.lg),
+      Center(
+        child: DisplayTitle(
+          andata
+              ? (rifaLaPassword ? 'PASSWORD\nCAMBIATA' : 'TUTTO\nA POSTO')
+              : 'QUESTO\nLINK NO',
+          style: texts.displaySmall,
+        ),
+      ),
+      const SizedBox(height: AppSpacing.sm),
+      Center(
+        child: HighlightedText(
+          andata
+              ? (rifaLaPassword
+                    ? 'Adesso entra con quella nuova.'
+                    : "Il tuo indirizzo e' confermato. Se hai l'app aperta, "
+                          "torna li': ti fa passare da sola.")
+              : (_errore ??
+                    "Il link e' scaduto, o e' gia' stato usato una volta."),
+          highlight: andata
+              ? (rifaLaPassword ? 'quella nuova' : 'confermato')
+              : '',
+          style: texts.bodyMedium?.copyWith(color: palette.textSecondary),
+        ),
+      ),
+      const SizedBox(height: AppSpacing.xxl),
+      // **Non e' un ornamento: e' la via d'uscita.** Senza, questa resta una
+      // pagina del browser senza nessun posto dove andare, che e' esattamente
+      // la sensazione che si voleva togliere.
+      CrasyButton(
+        label: 'Entra in CRASY',
+        onPressed: () => context.go(AppRoutes.splash),
+      ),
+      const SizedBox(height: AppSpacing.md),
+      Center(
+        child: Text(
+          'crasyapp.com',
+          style: texts.labelSmall?.copyWith(color: palette.textFaint),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _formDellaPassword(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+
+    return [
+      const DisplayTitle('UNA\nNUOVA'),
+      const SizedBox(height: AppSpacing.sm),
+      HighlightedText(
+        'Scrivi la password nuova per ${_indirizzo ?? 'il tuo account'}.',
+        highlight: _indirizzo ?? '',
+        style: texts.bodyMedium?.copyWith(color: palette.textSecondary),
+      ),
+      const SizedBox(height: AppSpacing.xl),
+      TextField(
+        controller: _password,
+        obscureText: true,
+        autofillHints: const [AutofillHints.newPassword],
+        onSubmitted: (_) => _salvaLaPassword(),
+        decoration: const InputDecoration(labelText: 'Password nuova'),
+      ),
+      if (_errore case final messaggio?) ...[
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          messaggio,
+          style: texts.bodyMedium?.copyWith(color: palette.accent),
+        ),
+      ],
+      const SizedBox(height: AppSpacing.xl),
+      CrasyButton(
+        label: 'Salva',
+        loading: _inCorso,
+        onPressed: _salvaLaPassword,
+      ),
+    ];
   }
 }
 
-class _Fatto extends StatelessWidget {
-  const _Fatto({required this.rifaLaPassword});
+/// Il segno tondo sopra il titolo.
+///
+/// Pieno di rosso quando e' andata, vuoto con il solo contorno quando non e'
+/// andata: **la differenza si vede anche senza distinguere i colori**, ed e' la
+/// stessa regola delle fotocamere in cima alla home.
+class _Bollo extends StatelessWidget {
+  const _Bollo({required this.icona, required this.pieno});
 
-  final bool rifaLaPassword;
+  final IconData icona;
+  final bool pieno;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        DisplayTitle(rifaLaPassword ? 'PASSWORD\nCAMBIATA' : 'TUTTO\nA POSTO'),
-        const SizedBox(height: AppSpacing.sm),
-        HighlightedText(
-          rifaLaPassword
-              ? 'Adesso entra con quella nuova.'
-              : "Il tuo indirizzo e' confermato. Se hai l'app aperta, "
-                    "torna li': ti fa passare da sola.",
-          highlight: rifaLaPassword ? 'quella nuova' : 'confermato',
-        ),
-      ],
+    final palette = context.palette;
+
+    return Container(
+      width: 76,
+      height: 76,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: pieno ? palette.accent : null,
+        border: pieno ? null : Border.all(color: palette.line, width: 2),
+      ),
+      child: Icon(
+        icona,
+        size: 38,
+        color: pieno ? palette.onAccent : palette.textFaint,
+      ),
     );
   }
 }
