@@ -324,14 +324,22 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
                 ),
               ),
             ),
-          // **Due veli, sopra e sotto.** I comandi sono bianchi e la scena
-          // dietro puo' essere qualunque cosa: una parete chiara, il cielo,
-          // un foglio. Senza, la croce per chiudere sparisce proprio nelle
-          // inquadrature piu' luminose — che sono la meta' di quelle che uno
-          // fa. Il velo scurisce solo i bordi e non tocca il centro, cioe' non
-          // tocca la foto.
-          const IgnorePointer(child: _Velo(alto: true)),
-          const IgnorePointer(child: _Velo(alto: false)),
+          // **Niente veli sopra e sotto, e li avevo messi io.**
+          //
+          // Servivano a far risaltare i comandi bianchi su un'inquadratura
+          // chiara. Il problema e' che l'anteprima non riempie lo schermo: il
+          // sensore vede in quattro terzi, il telefono e' molto piu' lungo, e
+          // sopra e sotto resta del nero. Quel nero **c'era gia'**, e il velo
+          // ci si sommava: due fasce nere piu' nere del resto, con la croce
+          // dentro. Sembrava un difetto, ed era un rimedio applicato a un
+          // problema che in quel punto non esisteva.
+          //
+          // I comandi si difendono da soli: ognuno sta dentro il proprio tondo
+          // scuro, che e' la stessa protezione ma solo dove serve — grande
+          // quanto l'icona, non quanto lo schermo. E l'anteprima resta
+          // **intera**: riempirla tagliando i lati farebbe uscire una foto piu'
+          // larga di quella che si e' inquadrata, e qui vale una regola sola —
+          // quello che vedi e' quello che mandi.
           // **In alto c'e' solo la via d'uscita.** La croce sta da sola
           // nell'angolo dove le mani non arrivano per sbaglio: e' il comando
           // che non deve costare un pensiero quando lo si cerca, e nemmeno
@@ -396,33 +404,6 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Il velo che scurisce un bordo dello schermo.
-///
-/// Nero che sfuma nel niente, non una fascia: una fascia si vede e diventa una
-/// cornice, questo si sente e basta.
-class _Velo extends StatelessWidget {
-  const _Velo({required this.alto});
-
-  final bool alto;
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: alto ? Alignment.topCenter : Alignment.bottomCenter,
-      child: Container(
-        height: alto ? 140 : 200,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: alto ? Alignment.topCenter : Alignment.bottomCenter,
-            end: alto ? Alignment.bottomCenter : Alignment.topCenter,
-            colors: const [Color(0x8C000000), Color(0x00000000)],
-          ),
-        ),
       ),
     );
   }

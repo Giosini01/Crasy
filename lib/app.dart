@@ -31,10 +31,21 @@ class CrasyApp extends ConsumerWidget {
     // averla aperta — e non c'e' nessuna schermata che sia gia' in piedi
     // quando succede.
     ref.listen(pushTapsProvider, (_, tocco) {
-      final dove = tocco.valueOrNull?.route;
+      final dove = tocco.valueOrNull;
 
-      if (dove != null) {
-        router.go(dove);
+      if (dove == null) {
+        return;
+      }
+
+      // **Prima la scheda, poi quello che si apre sopra.** Con un salto solo
+      // sulla campanella si finiva su una pagina sospesa nel vuoto: nessuna
+      // freccia, nessun gesto per tornare, e l'unica via d'uscita era chiudere
+      // l'app. `go` azzera la pila, `push` ci appoggia sopra una pagina — e per
+      // appoggiare qualcosa sopra ci vuole un sotto.
+      router.go(dove.scheda);
+
+      if (dove.apri case final pagina?) {
+        router.push(pagina);
       }
     });
 

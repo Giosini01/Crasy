@@ -192,11 +192,22 @@ final pushRegistrationProvider = Provider<void>((ref) {
 
 /// Un tocco su una notifica arrivata sullo schermo bloccato.
 ///
+/// **Sono due indirizzi e non uno, e la differenza e' tutta qui.** La
+/// campanella non e' una scheda: e' una pagina che si **apre sopra** le schede,
+/// e come tutte quelle ha una freccia per tornare indietro. Aprirla come se
+/// fosse una scheda la lascia sola, senza niente sotto: la freccia non compare,
+/// il gesto per tornare non ha dove andare, e chi ci arriva e' in trappola —
+/// gli resta solo chiudere l'app.
+///
+/// Percio' un tocco dice due cose: su quale **scheda** appoggiarsi, e quale
+/// **pagina** aprirci sopra. Per una missione nuova la seconda non serve: la
+/// scheda delle gare e' essa stessa la destinazione.
+///
 /// **Il momento serve quanto la destinazione.** Senza, due tocchi di fila sullo
 /// stesso tipo di notifica sarebbero lo stesso identico valore, e chi ascolta i
 /// cambiamenti non vedrebbe cambiare niente: il secondo tocco non porterebbe da
 /// nessuna parte.
-typedef PushTap = ({String route, int quando});
+typedef PushTap = ({String scheda, String? apri, int quando});
 
 /// Dove portare chi tocca una notifica.
 ///
@@ -225,7 +236,11 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
     final gara = kind == 'newChallenge' || kind == 'daily';
 
     return (
-      route: gara ? AppRoutes.challenges : AppRoutes.notifications,
+      // Si atterra sempre sulla prima scheda: e' il fondo su cui appoggiare
+      // quello che si apre, ed e' anche il posto giusto in cui restare dopo
+      // aver chiuso.
+      scheda: AppRoutes.challenges,
+      apri: gara ? null : AppRoutes.notifications,
       quando: DateTime.now().microsecondsSinceEpoch,
     );
   }

@@ -122,8 +122,19 @@ class _FullscreenMediaState extends ConsumerState<FullscreenMedia> {
   Widget build(BuildContext context) {
     final entries = _entries();
 
+    // **Niente da mostrare non vuol dire niente da disegnare.**
+    //
+    // Qui c'era un riquadro vuoto, e sotto sta un fondo nero: il risultato era
+    // uno schermo nero e basta — nessuna scritta, nessuna freccia, e il gesto
+    // per tornare indietro che non chiude niente perche' questa e' una
+    // finestra aperta sopra, non una pagina. L'unica via d'uscita era chiudere
+    // l'app.
+    //
+    // Non importa quanto sia raro il caso: **quando capita, uno resta chiuso
+    // dentro**. E un riquadro vuoto e' la cosa piu' facile da scrivere e la
+    // piu' difficile da diagnosticare, perche' non lascia niente da leggere.
     if (entries.isEmpty) {
-      return const SizedBox.shrink();
+      return const _NienteDaVedere(messaggio: "Questa foto non c'e' piu'.");
     }
 
     final current = entries[_index.clamp(0, entries.length - 1)];
@@ -171,8 +182,19 @@ class _Slide extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final url = entry.mediaUrl;
 
+    // Vedi `_NienteDaVedere`: un riquadro vuoto su fondo nero e' uno schermo
+    // nero, e chi ci finisce non ha modo di sapere che non e' un guasto suo.
     if (url.isEmpty) {
-      return const SizedBox.shrink();
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.page),
+          child: Text(
+            'Questa foto non si carica.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.paper),
+          ),
+        ),
+      );
     }
 
     // **Niente didascalia qui.** Sulla miniatura la scritta attorno dice cosa
@@ -193,6 +215,49 @@ class _Slide extends ConsumerWidget {
       // `giveFire` sa gia' che a gara finita non si vota, e sa anche che una
       // fiamma gia' accesa non si riaccende: la regola sta in un posto solo.
       child: Center(child: media),
+    );
+  }
+}
+
+/// Cosa si vede quando non c'e' niente da vedere.
+///
+/// **Una scritta e una via d'uscita.** Sono le due cose che mancavano: senza la
+/// prima non si capisce se sia un guasto o una cosa normale, senza la seconda
+/// non si esce — questa e' una finestra aperta sopra la schermata, e il gesto
+/// per tornare indietro non la chiude da solo.
+class _NienteDaVedere extends StatelessWidget {
+  const _NienteDaVedere({required this.messaggio});
+
+  final String messaggio;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.ink,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Align(
+              alignment: Alignment.topLeft,
+              child: IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close_rounded, color: AppColors.paper),
+                tooltip: 'Chiudi',
+              ),
+            ),
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.page),
+                child: Text(
+                  messaggio,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.paper),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
