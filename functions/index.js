@@ -98,7 +98,28 @@ async function annuncia(corpo, dati) {
     return;
   }
 
-  const indirizzi = telefoni.docs.map((doc) => doc.id);
+  // **Lo stesso telefono, una volta sola.**
+  //
+  // Un indirizzo puo' comparire sotto due persone diverse: chi cambia account
+  // senza uscire pulito lascia il proprio telefono scritto anche nella casella
+  // di prima, e da quel momento e' registrato due volte. Per le notifiche
+  // personali non e' un problema — sono di uno e vanno a uno — ma un annuncio
+  // va a tutti, e senza questa riga quel telefono suona due volte per la stessa
+  // cosa. E' il difetto che si vede subito e fa pensare che l'impianto sia
+  // rotto, mentre sta solo facendo diligentemente quello che gli si era detto.
+  //
+  // Vince il primo che si incontra: l'altro e' una copia, e cancellare copie
+  // che potrebbero essere ancora vive non e' compito di chi manda un annuncio.
+  const perIndirizzo = new Map();
+
+  for (const doc of telefoni.docs) {
+    if (!perIndirizzo.has(doc.id)) {
+      perIndirizzo.set(doc.id, doc);
+    }
+  }
+
+  const unici = [...perIndirizzo.values()];
+  const indirizzi = unici.map((doc) => doc.id);
   let inviate = 0;
   let fallite = 0;
 
@@ -124,7 +145,7 @@ async function annuncia(corpo, dati) {
           codice === 'messaging/invalid-registration-token' ||
           codice === 'messaging/invalid-argument'
         ) {
-          return telefoni.docs[inizio + i].ref.delete();
+          return unici[inizio + i].ref.delete();
         }
 
         return null;
@@ -132,7 +153,14 @@ async function annuncia(corpo, dati) {
     );
   }
 
-  logger.info('annuncio mandato', { corpo, inviate, fallite });
+  logger.info('annuncio mandato', {
+    corpo,
+    inviate,
+    fallite,
+    // Quanti erano scritti due volte: se questo numero cresce, c'e' gente che
+    // cambia account senza uscire pulito.
+    doppioni: telefoni.size - unici.length,
+  });
 }
 
 // I soldi stanno in un file a parte, e le sue funzioni si esportano da qui:
@@ -655,7 +683,7 @@ exports.sendPushOnNotification = onDocumentCreated(
       comment: 'Nuovo commento sotto la tua foto',
       mention: 'Ti hanno nominato in un commento',
       friendRequest: 'Hai una richiesta di amicizia',
-      comeback: 'Ci sono missioni nuove che ti aspettano',
+      comeback: 'Ci sono missioni aperte. Entra e prova a vincere',
     };
 
     const titolo = 'CRASY';
@@ -745,22 +773,36 @@ exports.sendPushOnNotification = onDocumentCreated(
 );
 
 /**
- * Dopo quanti giorni di assenza si prova a richiamare qualcuno.
+ * Dopo quante ore di assenza si prova a richiamare qualcuno.
  *
- * **Tre.** Uno o due sono troppi: chi salta un giorno non se n'e' andato, e
- * ricevere un "ci manchi" dopo ventiquattro ore e' molesto. Oltre la settimana
- * e' tardi: chi ha smesso da dieci giorni ha gia' disinstallato o ha deciso.
+ * **Venti, ed erano tre giorni.** Il cambio non e' una taratura: e' un
+ * cambio di ruolo. Finche' ogni missione nuova faceva squillare i telefoni,
+ * questo era un "ci manchi" da spendere con parsimonia; adesso che gli annunci
+ * per missione non ci sono piu', **e' l'unica cosa che riporta indietro chi non
+ * ha ancora l'abitudine di aprire l'app** — e a tre giorni di distanza quella
+ * abitudine non si forma, perche' nel frattempo non e' successo niente.
+ *
+ * Venti ore e non ventiquattro perche' il richiamo parte a un'ora fissa: con
+ * ventiquattro, chi ha aperto l'app ieri alle sei e un minuto salterebbe il
+ * giro di oggi per un minuto, e ne aspetterebbe un altro giorno.
+ *
+ * Su CRASY una giornata e' un'unita' vera: le partecipazioni sono cinque al
+ * giorno, la sfida cambia a mezzanotte, le gare scadono. Chi salta un giorno
+ * non ha saltato un momento qualunque — ha saltato tutto quello che c'era.
  */
-const GIORNI_DI_ASSENZA = 3;
+const ORE_DI_ASSENZA = 20;
 
 /**
- * Ogni quanti giorni si puo' richiamare la stessa persona.
+ * Ogni quante ore si puo' richiamare la stessa persona.
  *
- * **Sette.** Un richiamo e' utile una volta; ripetuto ogni tre giorni diventa
- * la ragione per cui uno spegne le notifiche — e spente restano spente per
- * sempre, anche per la notifica che gli avrebbe fatto piacere ricevere.
+ * **Quarantotto.** Un richiamo al giorno diventa carta da parati: si smette di
+ * leggerlo dopo tre volte, e la quarta e' quella in cui uno va nelle
+ * impostazioni e spegne tutto — e spente restano spente per sempre, anche per
+ * la fiamma sulla sua foto che gli avrebbe fatto piacere ricevere.
+ *
+ * Un giorno si, un giorno no: si nota ancora, e non stanca.
  */
-const GIORNI_FRA_UN_RICHIAMO_E_L_ALTRO = 7;
+const ORE_FRA_UN_RICHIAMO_E_L_ALTRO = 48;
 
 /**
  * Richiama chi non si fa vedere da qualche giorno.
@@ -768,8 +810,8 @@ const GIORNI_FRA_UN_RICHIAMO_E_L_ALTRO = 7;
  * **E' l'unica notifica che non nasce da un fatto.** Tutte le altre raccontano
  * qualcosa che e' successo a chi le riceve — una fiamma, un commento, una
  * vittoria — e per questo sono sempre benvenute. Questa invece la mandiamo noi
- * perche' ci fa comodo, e quel privilegio va speso con parsimonia: solo dopo
- * qualche giorno di silenzio, non piu' di una a settimana, e solo se ci sono
+ * perche' ci fa comodo, e quel privilegio va speso con misura: solo dopo un
+ * giorno di silenzio, non piu' di una ogni due giorni, e solo se ci sono
  * davvero delle gare aperte da guardare.
  *
  * Quest'ultima condizione e' la piu' importante: promettere "ci sono missioni
@@ -779,9 +821,9 @@ exports.remindQuietUsers = onSchedule(
   { schedule: '0 18 * * *', timeZone: 'Europe/Rome' },
   async () => {
     const adesso = Date.now();
-    const soglia = new Date(adesso - GIORNI_DI_ASSENZA * 86400000);
+    const soglia = new Date(adesso - ORE_DI_ASSENZA * 3600000);
     const ultimoRichiamo = new Date(
-      adesso - GIORNI_FRA_UN_RICHIAMO_E_L_ALTRO * 86400000
+      adesso - ORE_FRA_UN_RICHIAMO_E_L_ALTRO * 3600000
     );
 
     // **Prima si guarda se c'e' qualcosa da mostrare.** Senza gare aperte il
@@ -843,137 +885,20 @@ exports.remindQuietUsers = onSchedule(
   }
 );
 
-/**
- * Quanto deve passare fra due annunci di missione.
- *
- * **Un quarto d'ora, ed era novanta minuti.** Novanta erano tarati su un'app
- * piena di gente che lancia gare tutto il giorno; su un'app che ne vede tre in
- * un pomeriggio erano solo un modo per far arrivare la prima e mangiarsi le
- * altre due. **Perdere un annuncio, adesso, e' molto peggio che riceverne uno
- * di troppo**: sono poche, e ognuna e' la ragione per cui uno riapre l'app.
- *
- * Il quarto d'ora resta perche' due notifiche a un minuto l'una dall'altra
- * arrivano insieme e valgono per una — la seconda la si scarta senza leggerla.
- */
-const MINUTI_FRA_UN_ANNUNCIO_E_L_ALTRO = 15;
-
-/**
- * Quanti annunci di missione, al massimo, in una giornata.
- *
- * **E' questo il freno vero, non il quarto d'ora.** Chiunque puo' lanciare una
- * missione, e il giorno in cui ne partono trenta in un pomeriggio trenta
- * notifiche arrivano a tutti: nessuno le legge, e qualcuno spegne le notifiche
- * per sempre — anche quelle che gli avrebbero fatto piacere ricevere.
- *
- * Otto e' un numero che in una giornata normale non si tocca mai, e in una
- * giornata storta e' quello che salva le notifiche di tutti gli altri giorni.
- * Le missioni oltre l'ottava restano senza annuncio e si vedono comunque in
- * prima pagina, che e' dove uno le cerca.
- */
-const ANNUNCI_AL_GIORNO = 8;
 
 /** Dove il server si segna le cose che ha gia' fatto. */
 const MEMORIA = db.collection('system').doc('annunci');
 
 /**
- * Dice a tutti che c'e' una missione nuova con dei soldi in palio.
- *
- * **Solo quelle aperte a tutti, e solo quelle con un premio.** Una missione fra
- * amici riguarda dieci persone: mandarla a diecimila e' rumore per novemila
- * novecentonovanta. E una senza premio non e' una notizia — la notizia e' che
- * c'e' qualcosa da vincere.
- */
-exports.announceNewChallenge = onDocumentCreated(
-  'challenges/{challengeId}',
-  async (event) => {
-    const dati = event.data?.data();
-
-    if (!dati) {
-      return;
-    }
-
-    // La sfida del giorno ha il suo annuncio, alla sua ora. Qui va saltata per
-    // un motivo pratico: le sfide si scrivono in anticipo, sessanta alla
-    // volta, e senza questa riga partirebbero sessanta notifiche in fila.
-    if (dati.kind === 'daily') {
-      return;
-    }
-
-    const aperta = Array.isArray(dati.audience) && dati.audience.includes('*');
-    const centesimi = Number(dati.prizeCents || 0);
-
-    if (!aperta || centesimi <= 0) {
-      return;
-    }
-
-    const memoria = (await MEMORIA.get()).data() || {};
-    const ultimo = memoria.ultimaMissioneAt?.toDate?.();
-    const limite = new Date(Date.now() - MINUTI_FRA_UN_ANNUNCIO_E_L_ALTRO * 60000);
-
-    if (ultimo && ultimo > limite) {
-      logger.info('missione non annunciata: troppo presto', {
-        challengeId: event.params.challengeId,
-      });
-
-      return;
-    }
-
-    // Il conto riparte da zero a mezzanotte italiana, che e' la mezzanotte di
-    // chi usa l'app. `sv-SE` scrive le date come `2026-09-03`.
-    const oggi = new Date().toLocaleDateString('sv-SE', {
-      timeZone: 'Europe/Rome',
-    });
-    const quanteOggi = memoria.giornoDegliAnnunci === oggi
-      ? Number(memoria.annunciFatti || 0)
-      : 0;
-
-    if (quanteOggi >= ANNUNCI_AL_GIORNO) {
-      logger.info('missione non annunciata: gia troppe oggi', {
-        challengeId: event.params.challengeId,
-        quanteOggi,
-      });
-
-      return;
-    }
-
-    // **Due parole, e basta.**
-    //
-    // Il titolo e la cifra stavano bene in una vetrina e male su uno schermo
-    // bloccato, che e' un posto pubblico: lo leggono in metropolitana, sul
-    // tavolo di un ufficio, chi passa dietro. Una notifica che annuncia
-    // trenta euro dice a chiunque guardi quel telefono cosa ci si puo'
-    // portare a casa — e non e' un'informazione che serve prima di aprire
-    // l'app: chi apre la trova in prima pagina, con dentro tutto.
-    //
-    // In piu' una riga sempre uguale si riconosce senza leggerla, e non
-    // promette niente di preciso: e' la differenza fra un invito e un
-    // volantino.
-    await annuncia(
-      "C'è una missione nuova. Prova a vincere il premio",
-      {
-        kind: 'newChallenge',
-        challengeId: String(event.params.challengeId),
-      }
-    );
-
-    await MEMORIA.set(
-      {
-        ultimaMissioneAt: admin.firestore.FieldValue.serverTimestamp(),
-        giornoDegliAnnunci: oggi,
-        annunciFatti: quanteOggi + 1,
-      },
-      { merge: true }
-    );
-
-    logger.info('missione annunciata', {
-      challengeId: event.params.challengeId,
-      premio: centesimi,
-    });
-  }
-);
-
-/**
  * Annuncia la sfida del giorno.
+ *
+ * **E' l'unico annuncio che parte da noi**, ed e' uno al giorno. Gli annunci
+ * per ogni missione nuova sono stati tolti: chiunque puo' lanciare una gara, e
+ * il giorno in cui l'app va bene sono decine di telefoni che squillano per
+ * decine di gare — nessuno le legge, e chi si stufa spegne le notifiche per
+ * sempre, comprese quelle che gli servivano. La sfida del giorno invece e'
+ * una, e' a un'ora fissa, ed e' la stessa per tutti: si riconosce e si
+ * aspetta, invece di sorprendere.
  *
  * **Non a mezzanotte, quando comincia.** La sfida dura ventiquattro ore esatte
  * e si apre allo scoccare, ma una notifica a quell'ora la sente solo chi non

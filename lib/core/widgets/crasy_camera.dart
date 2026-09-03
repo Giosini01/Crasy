@@ -332,32 +332,18 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
           // tocca la foto.
           const IgnorePointer(child: _Velo(alto: true)),
           const IgnorePointer(child: _Velo(alto: false)),
+          // **In alto c'e' solo la via d'uscita.** La croce sta da sola
+          // nell'angolo dove le mani non arrivano per sbaglio: e' il comando
+          // che non deve costare un pensiero quando lo si cerca, e nemmeno
+          // essere premuto per errore quando non lo si cercava.
           SafeArea(
-            child: Row(
-              children: [
-                _Tondo(
-                  icona: Icons.close_rounded,
-                  etichetta: 'Chiudi',
-                  onTap: () => Navigator.of(context).pop(),
-                ),
-                const Spacer(),
-                // Il flash non si mostra sulla lente frontale: quasi nessuna
-                // ce l'ha, e un comando che non fa niente e' peggio di un
-                // comando che non c'e'.
-                if (_pronta && !_frontale)
-                  _Tondo(
-                    icona: switch (_modiDelFlash[_flash]) {
-                      FlashMode.off => Icons.flash_off_rounded,
-                      FlashMode.auto => Icons.flash_auto_rounded,
-                      _ => Icons.flash_on_rounded,
-                    },
-                    etichetta: 'Flash',
-                    // Acceso e' rosso: e' l'unica cosa qui dentro che cambia
-                    // come viene la foto, e deve vedersi che e' inserita.
-                    acceso: _modiDelFlash[_flash] != FlashMode.off,
-                    onTap: registrando ? null : _cambiaIlFlash,
-                  ),
-              ],
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: _Tondo(
+                icona: Icons.close_rounded,
+                etichetta: 'Chiudi',
+                onTap: () => Navigator.of(context).pop(),
+              ),
             ),
           ),
           SafeArea(
@@ -365,10 +351,35 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
               alignment: Alignment.bottomCenter,
               child: Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+                // **I tre comandi dello scatto stanno tutti a portata di
+                // pollice.** Il flash era in cima, all'angolo opposto: per
+                // accenderlo bisognava spostare la mano da sotto il telefono e
+                // riprenderlo, con l'inquadratura gia' pronta. Sono le due
+                // cose che si toccano *mentre* si guarda dentro — flash e
+                // lente — e stanno ai lati di quella che si tocca per ultima.
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    const SizedBox(width: 52),
+                    // Sulla lente frontale il posto resta vuoto invece di
+                    // sparire: senza, lo scatto si sposterebbe di lato ogni
+                    // volta che si gira la fotocamera, e il pollice lo
+                    // cercherebbe dove non c'e' piu'.
+                    if (_pronta && !_frontale)
+                      _Tondo(
+                        icona: switch (_modiDelFlash[_flash]) {
+                          FlashMode.off => Icons.flash_off_rounded,
+                          FlashMode.auto => Icons.flash_auto_rounded,
+                          _ => Icons.flash_on_rounded,
+                        },
+                        etichetta: 'Flash',
+                        // Acceso e' rosso: e' l'unica cosa qui dentro che
+                        // cambia come viene la foto, e deve vedersi che e'
+                        // inserita.
+                        acceso: _modiDelFlash[_flash] != FlashMode.off,
+                        onTap: registrando ? null : _cambiaIlFlash,
+                      )
+                    else
+                      const SizedBox(width: 60),
                     _Shutter(
                       recording: registrando,
                       busy: _sta && !registrando,
