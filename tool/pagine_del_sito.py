@@ -28,6 +28,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import leggi_legale
+import vetrina
 
 SORGENTE = os.path.join('lib', 'core', 'legal', 'legal_documents.dart')
 DOVE = 'web'
@@ -235,94 +236,6 @@ def versione():
     return leggi_legale.tutti(SORGENTE)[1]
 
 
-def bottoniDegliStore():
-    """I due tasti per scaricare l'app.
-
-    **Finche' non ci sono i link, i tasti restano spenti e lo dicono.** Un
-    bottone che sembra vivo e non porta da nessuna parte fa perdere fiducia in
-    tutto il resto della pagina: chi lo tocca e non succede niente non pensa
-    "non e' ancora uscita", pensa "e' rotto". Spento e con scritto *presto*, la
-    stessa persona capisce e magari torna.
-
-    Il giorno che l'app e' sugli store si riempiono le due costanti qui sopra e
-    si rilancia questo file: i tasti si accendono da soli.
-    """
-
-    def uno(nome, sopra, indirizzo):
-        spento = not indirizzo
-        stile = (
-            'display:flex;align-items:center;gap:10px;text-decoration:none;'
-            'border-radius:12px;padding:12px 18px;font-family:inherit;'
-        )
-
-        if spento:
-            stile += 'background:#F4F4F5;color:#A1A1A6;border:1px solid #E8E8EA;'
-        else:
-            stile += 'background:#0A0A0B;color:#FFFFFF;'
-
-        dentro = (
-            '<span style="font-size:11px;letter-spacing:.08em;opacity:.7;'
-            'display:block;">%s</span>'
-            '<span style="font-size:16px;font-weight:700;display:block;">%s</span>'
-        ) % (sopra if not spento else 'PRESTO SU', nome)
-
-        if spento:
-            return '<div style="%s"><span>%s</span></div>' % (stile, dentro)
-
-        return '<a href="%s" style="%s"><span>%s</span></a>' % (
-            indirizzo,
-            stile,
-            dentro,
-        )
-
-    return (
-        '<div style="display:flex;gap:12px;flex-wrap:wrap;margin:26px 0 10px;">'
-        + uno('App Store', 'SCARICA SU', APP_STORE)
-        + uno('Google Play', 'SCARICA SU', PLAY_STORE)
-        + '</div>'
-    )
-
-
-def vetrina():
-    return """
-  <p style="font-size:20px;line-height:1.45;color:#0A0A0B;max-width:34ch;">
-  Qualcuno mette in palio dei soldi veri e lancia una missione. Tu la fai, mandi
-  la foto, e vince quella che piace di piu' agli altri.</p>
-
-  %s
-
-  <p style="font-size:14px;color:#A1A1A6;margin-top:0;">
-  Stiamo finendo di prepararla. <a href="/app/">Sei tra chi la sta provando?
-  Entra da qui.</a></p>
-
-  <h2>Come funziona</h2>
-  <p><strong>Una missione, un premio.</strong> Chi la lancia mette i soldi in
-  palio prima che cominci. Non e' una promessa: il premio e' gia' li'.</p>
-  <p><strong>Si partecipa con una foto scattata sul momento.</strong> Non con
-  quella che avevi in galleria. Cinque partecipazioni al giorno, non una di
-  piu': quando sono cinque, si sceglie dove spenderle.</p>
-  <p><strong>Vince chi prende piu' fiamme.</strong> Non decide chi ha messo i
-  soldi: decidono gli altri. E finche' la gara e' aperta <strong>le fiamme sono
-  nascoste a tutti</strong>, anche a te — si scopre com'e' andata alla fine,
-  tutti insieme.</p>
-
-  <h2>La sfida del giorno</h2>
-  <p>Ogni mattina ce n'e' una nuova, uguale per tutti e gratis. Dura
-  ventiquattro ore esatte e non consuma nessuna delle tue cinque
-  partecipazioni.</p>
-
-  <h2>Non e' un gioco di fortuna</h2>
-  <p>Partecipare non costa niente e l'esito non dipende dal caso: dipende da
-  quanto piace quello che hai fatto. Si entra da maggiorenni, con un account per
-  persona.</p>
-
-  <div class="avviso">
-    <strong>CRASY e' in prova.</strong> Le cose cambiano spesso e qualcosa si
-    rompe. Se trovi qualcosa che non va scrivici a
-    <a href="mailto:%s">%s</a>: leggiamo tutto.
-  </div>
-""" % (bottoniDegliStore(), POSTA, POSTA)
-
 def supporto():
     return """
   <p>Scrivici: <a href="mailto:%s">%s</a>. Rispondiamo a tutto, e in fretta —
@@ -400,16 +313,13 @@ def main():
             'l account.',
         ),
     )
-    scrivi(
-        'benvenuto',
-        pagina(
-            'Le sfide\nche pagano',
-            '',
-            vetrina(),
-            'CRASY: qualcuno mette in palio dei soldi e lancia una missione, '
-            'tu la fai con una foto. Vince quella che piace di piu.',
-        ).replace('Le sfide\nche pagano', 'Le sfide<br>che pagano'),
-    )
+    # La vetrina ha un vestito suo: vedi `tool/vetrina.py`. Un documento si
+    # apre per cercare una riga, una vetrina ha dieci secondi per farsi
+    # capire da chi non ha chiesto niente — due mestieri, due impaginazioni.
+    dove = os.path.join(DOVE, 'benvenuto', 'index.html')
+    os.makedirs(os.path.dirname(dove), exist_ok=True)
+    vetrina.scrivi(dove, POSTA, APP, APP_STORE, PLAY_STORE)
+    print('%-28s vetrina' % dove)
 
     print('\ntesti legali: versione %s, presi da %s' % (v, SORGENTE))
 

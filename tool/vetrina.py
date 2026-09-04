@@ -1,4 +1,98 @@
-<!DOCTYPE html>
+"""La vetrina di crasyapp.com: la pagina che vede chi non ha ancora l'app.
+
+**Sta a parte dalle altre pagine, e non e' disordine.** Privacy, termini e
+supporto sono documenti: si aprono per cercare una riga, e tutto quello che non
+e' quella riga e' un ostacolo — margini larghi, niente colore, niente
+movimento. Questa e' l'opposto: ha dieci secondi per far capire cos'e' CRASY a
+qualcuno che non lo sa e non ha chiesto niente.
+
+Due mestieri diversi vogliono due vestiti diversi. Tenerli nello stesso stampo
+avrebbe voluto dire o una vetrina che sembra un contratto, o un contratto pieno
+di animazioni.
+
+## Il movimento c'e', ma non e' decorazione
+
+Le consegne che scorrono nel titolo sono **quelle vere**, lette dallo stesso
+elenco che l'app pubblica ogni giorno (`tool/sfide_del_giorno.py`). Una vetrina
+che dice "lancia una missione" resta un'astrazione; una che ti fa vedere *"La
+cosa piu' brutta che hai in casa"* ha gia' spiegato tutto.
+
+E chi ha chiesto di non vedere animazioni non ne vede: `prefers-reduced-motion`
+spegne tutto. Non e' una gentilezza — per certe persone il movimento su una
+pagina provoca nausea vera.
+"""
+
+import io
+
+# Il glifo della mela e quello del triangolo di Google Play, disegnati qui.
+#
+# **Non sono le immagini ufficiali dei due negozi**, e non lo sono di proposito:
+# quelle vanno scaricate dai rispettivi kit, hanno regole d'uso proprie e
+# arrivano come file da tenere aggiornati. Questi sono due tracciati dentro la
+# pagina: pesano zero, restano nitidi a qualunque ingrandimento e prendono il
+# colore del testo che gli sta accanto.
+MELA = (
+    '<svg viewBox="0 0 384 512" width="20" height="20" fill="currentColor" '
+    'aria-hidden="true"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>'
+)
+
+PLAY = (
+    '<svg viewBox="0 0 512 512" width="20" height="20" fill="currentColor" '
+    'aria-hidden="true"><path d="M325.3 234.3 104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c18-14.3 18-46.5-1.2-60.8zM104.6 499l280.8-161.2-60.1-60.1L104.6 499z"/></svg>'
+)
+
+
+def consegneVere():
+    """Qualche consegna presa dall'elenco che l'app pubblica davvero."""
+
+    try:
+        import sfide_del_giorno
+
+        return [titolo for titolo, _, _ in sfide_del_giorno.CONSEGNE]
+    except Exception:  # noqa: BLE001 — senza, la vetrina si scrive lo stesso
+        return []
+
+
+def _scelte(quante=6):
+    tutte = consegneVere()
+
+    if len(tutte) < quante:
+        return [
+            'La cosa piu&#39; brutta che hai in casa',
+            'La faccia che fai appena sveglio',
+            'Travestiti con quello che trovi in casa',
+            'Il posto piu&#39; assurdo in cui riesci a farti una foto',
+            'Costruisci una faccia con del cibo',
+            'Il tuo pranzo, com&#39;e&#39; davvero',
+        ]
+
+    # Prese distanziate lungo l'elenco: prendendo le prime sei si vedrebbe
+    # sempre lo stesso inizio, e l'elenco e' lungo mesi.
+    passo = max(1, len(tutte) // quante)
+
+    return [
+        t.replace("'", '&#39;') for t in tutte[::passo][:quante]
+    ]
+
+
+def _tastoStore(nome, glifo, indirizzo):
+    spento = not indirizzo
+    classe = 'store' + (' store--spento' if spento else '')
+    dentro = (
+        '<span class="store__glifo">' + glifo + '</span>'
+        '<span class="store__testo">'
+        '<span class="store__sopra">' + ('PRESTO SU' if spento else 'SCARICA SU') + '</span>'
+        '<span class="store__nome">' + nome + '</span>'
+        '</span>'
+    )
+
+    if spento:
+        return '<span class="' + classe + '">' + dentro + '</span>'
+
+    return '<a class="' + classe + '" href="' + indirizzo + '">' + dentro + '</a>'
+
+
+STAMPO = """<!DOCTYPE html>
 <html lang="it">
 <head>
 <meta charset="utf-8">
@@ -265,13 +359,13 @@ footer a { margin-right: 18px; text-decoration: none; }
     <div class="consegna entra r3">
       <div class="consegna__etichetta">OGGI SI FA QUESTO</div>
       <div class="finestra">
-        <div class="nastro"><span>La cosa piu&#39; brutta che hai in casa</span><span>Imita qualcuno che conosci</span><span>Ricrea la copertina di un disco</span><span>L&#39;oggetto piu&#39; vecchio che possiedi</span><span>La cosa piu&#39; inutile che hai comprato</span><span>Il tuo angolo di casa piu&#39; bello</span><span>La cosa piu&#39; brutta che hai in casa</span></div>
+        <div class="nastro">@NASTRO@</div>
       </div>
     </div>
 
-    <div class="negozi entra r4"><span class="store store--spento"><span class="store__glifo"><svg viewBox="0 0 384 512" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg></span><span class="store__testo"><span class="store__sopra">PRESTO SU</span><span class="store__nome">App Store</span></span></span><span class="store store--spento"><span class="store__glifo"><svg viewBox="0 0 512 512" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M325.3 234.3 104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c18-14.3 18-46.5-1.2-60.8zM104.6 499l280.8-161.2-60.1-60.1L104.6 499z"/></svg></span><span class="store__testo"><span class="store__sopra">PRESTO SU</span><span class="store__nome">Google Play</span></span></span></div>
+    <div class="negozi entra r4">@NEGOZI@</div>
     <p class="sottotasti entra r5">Stiamo finendo di prepararla.
-    <a href="/app/">Sei tra chi la sta provando? Entra da qui.</a></p>
+    <a href="@APP@">Sei tra chi la sta provando? Entra da qui.</a></p>
   </div>
 </header>
 
@@ -326,7 +420,7 @@ footer a { margin-right: 18px; text-decoration: none; }
     <div class="nota" style="margin-top:26px;">
       <strong style="color:var(--inchiostro);">CRASY e&#39; in prova.</strong>
       Le cose cambiano spesso e qualcosa si rompe. Se trovi qualcosa che non va
-      scrivici a <a href="mailto:register@crasyapp.com">register@crasyapp.com</a>: leggiamo tutto.
+      scrivici a <a href="mailto:@POSTA@">@POSTA@</a>: leggiamo tutto.
     </div>
 
     <footer>
@@ -341,3 +435,27 @@ footer a { margin-right: 18px; text-decoration: none; }
 
 </body>
 </html>
+"""
+
+
+def html(posta, app, appStore, playStore):
+    scelte = _scelte()
+    # L'ultima riga ripete la prima: l'animazione torna al principio senza che
+    # si veda il salto.
+    nastro = ''.join('<span>' + t + '</span>' for t in scelte + scelte[:1])
+    negozi = _tastoStore('App Store', MELA, appStore) + _tastoStore(
+        'Google Play', PLAY, playStore
+    )
+
+    return (
+        STAMPO.replace('@NASTRO@', nastro)
+        .replace('@NEGOZI@', negozi)
+        .replace('@POSTA@', posta)
+        .replace('@APP@', app)
+    )
+
+
+def scrivi(percorso, posta, app, appStore, playStore):
+    io.open(percorso, 'w', encoding='utf-8', newline='\n').write(
+        html(posta, app, appStore, playStore)
+    )
