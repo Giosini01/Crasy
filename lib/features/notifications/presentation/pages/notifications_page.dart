@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
@@ -47,7 +49,15 @@ import 'package:go_router/go_router.dart';
 /// notizie, non fuoco. Se fosse rosso tutto, il rosso smetterebbe di dire
 /// qualcosa gia' alla terza riga.
 class NotificationsPage extends ConsumerStatefulWidget {
-  const NotificationsPage({super.key});
+  const NotificationsPage({this.evidenzia, super.key});
+
+  /// Quale riga accendere, arrivando da una notifica toccata.
+  ///
+  /// **Aprire la campanella non basta.** Chi tocca un avviso sullo schermo
+  /// bloccato ha in testa una cosa sola — quella — e ritrovarsi in un elenco
+  /// dove c'e' anche quella vuol dire cercarsela in mezzo alle altre. Il nome
+  /// del documento arriva dentro il messaggio, e serve a puntarla.
+  final String? evidenzia;
 
   @override
   ConsumerState<NotificationsPage> createState() => _NotificationsPageState();
@@ -81,9 +91,27 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   /// accorge nessuno.
   final _viste = <NotificationGroup>{};
 
+  /// La riga accesa, finche' dura.
+  String? _accesa;
+
+  /// **Si spegne da sola dopo due secondi e mezzo.** Un segno che resta acceso
+  /// smette di indicare qualcosa e diventa un colore di sfondo: serve il tempo
+  /// di posarci l'occhio, non uno di piu'. E si spegne sfumando, perche' una
+  /// cosa che sparisce di colpo si legge come un difetto.
+  Timer? _spegnimento;
+
   @override
   void initState() {
     super.initState();
+    _accesa = widget.evidenzia;
+
+    if (_accesa != null) {
+      _spegnimento = Timer(const Duration(milliseconds: 2600), () {
+        if (mounted) {
+          setState(() => _accesa = null);
+        }
+      });
+    }
 
     // Dopo la prima frame, non durante: qui si scrive sul database, e farlo
     // mentre l'albero dei widget si sta costruendo e' il modo classico di
@@ -96,6 +124,12 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
         repository.markSeen(userId);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _spegnimento?.cancel();
+    super.dispose();
   }
 
   /// Apre sulla sezione dove c'e' qualcosa di nuovo.
@@ -114,6 +148,28 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
     }
 
     _sezioneScelta = true;
+
+    // **Se si arriva da una notifica toccata, comanda quella.** Il resto della
+    // regola qui sotto sceglie la sezione con le novita' piu' importanti, che e'
+    // giusto quando si apre la campanella da soli — ma chi ha toccato un avviso
+    // preciso ha gia' detto cosa vuole vedere.
+    final puntata = _accesa;
+
+    if (puntata != null) {
+      final riga = notifiche.where((n) => n.id == puntata).firstOrNull;
+
+      if (riga != null) {
+        _viste.add(riga.group);
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ref.read(notificationFilterProvider.notifier).state = riga.group;
+          }
+        });
+
+        return;
+      }
+    }
 
     final conNovita = [
       for (final gruppo in NotificationGroup.values)
@@ -212,7 +268,10 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                                 recenti.length + (vecchie.isEmpty ? 0 : 1),
                             itemBuilder: (context, index) {
                               if (index < recenti.length) {
-                                return _Row(notification: recenti[index]);
+                                return _Row(
+                                  notification: recenti[index],
+                                  accesa: recenti[index].id == _accesa,
+                                );
                               }
 
                               return _Older(notifications: vecchie);
@@ -408,9 +467,12 @@ class _OlderState extends State<_Older> {
 }
 
 class _Row extends ConsumerWidget {
-  const _Row({required this.notification});
+  const _Row({required this.notification, this.accesa = false});
 
   final AppNotification notification;
+
+  /// Se e' la riga per cui si e' arrivati qui.
+  final bool accesa;
 
   void _open(BuildContext context) {
     if (notification.kind == NotificationKind.friendRequest) {
@@ -436,7 +498,14 @@ class _Row extends ConsumerWidget {
     return GestureDetector(
       onTap: () => _open(context),
       behavior: HitTestBehavior.opaque,
-      child: Container(
+      child: AnimatedContainer(
+        // **Il tempo dello spegnimento, non dell'accensione.** Arrivando da una
+        // notifica toccata la riga e' gia' rossa alla prima frame: quello che si
+        // vede animare e' il rosso che se ne va, ed e' giusto cosi' — un segno
+        // che si accende sotto gli occhi si guarda accendersi, uno che si spegne
+        // lascia dietro di se' la riga che indicava.
+        duration: const Duration(milliseconds: 900),
+        curve: Curves.easeOut,
         margin: const EdgeInsets.only(bottom: AppSpacing.xxs),
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm,
@@ -445,7 +514,12 @@ class _Row extends ConsumerWidget {
         decoration: BoxDecoration(
           // Un velo, non una scheda: niente bordo, niente ombra. Dice "questa
           // non l'hai ancora vista" e sparisce da solo alla visita dopo.
-          color: unread ? palette.accentTint : null,
+          //
+          // Accesa e' **piu' forte**, non di un altro colore: e' la stessa cosa
+          // detta piu' forte per due secondi, e non un secondo segno da imparare.
+          color: accesa
+              ? palette.accent.withValues(alpha: 0.22)
+              : (unread ? palette.accentTint : null),
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         child: Row(

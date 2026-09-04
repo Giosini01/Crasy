@@ -207,7 +207,12 @@ final pushRegistrationProvider = Provider<void>((ref) {
 /// stesso tipo di notifica sarebbero lo stesso identico valore, e chi ascolta i
 /// cambiamenti non vedrebbe cambiare niente: il secondo tocco non porterebbe da
 /// nessuna parte.
-typedef PushTap = ({String scheda, String? apri, int quando});
+typedef PushTap = ({
+  String scheda,
+  String? apri,
+  String? evidenzia,
+  int quando,
+});
 
 /// Dove portare chi tocca una notifica.
 ///
@@ -233,14 +238,37 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
 
   PushTap dove(RemoteMessage messaggio) {
     final kind = messaggio.data['kind'] ?? '';
-    final gara = kind == 'newChallenge' || kind == 'daily';
 
+    // Una missione nuova o la sfida del giorno riguardano **una gara**: si va
+    // dove stanno le gare, e non c'e' niente da aprire sopra.
+    if (kind == 'newChallenge' || kind == 'daily') {
+      return (
+        scheda: AppRoutes.challenges,
+        apri: null,
+        evidenzia: null,
+        quando: DateTime.now().microsecondsSinceEpoch,
+      );
+    }
+
+    // **Una richiesta di amicizia non finisce in campanella.** Non c'e' una
+    // riga da accendere: c'e' una scheda con i tasti per accettare o rifiutare,
+    // ed e' li' che serve arrivare. Portare in campanella chi ha toccato quella
+    // notifica vorrebbe dire fargli cercare da solo dove si risponde.
+    if (kind == 'friendRequest') {
+      return (
+        scheda: AppRoutes.profile,
+        apri: AppRoutes.friends,
+        evidenzia: null,
+        quando: DateTime.now().microsecondsSinceEpoch,
+      );
+    }
+
+    // Tutto il resto — fiamme, commenti, nomine, vittorie — riguarda **te**: si
+    // va in campanella, sulla riga precisa da cui si e' arrivati.
     return (
-      // Si atterra sempre sulla prima scheda: e' il fondo su cui appoggiare
-      // quello che si apre, ed e' anche il posto giusto in cui restare dopo
-      // aver chiuso.
       scheda: AppRoutes.challenges,
-      apri: gara ? null : AppRoutes.notifications,
+      apri: AppRoutes.notifications,
+      evidenzia: messaggio.data['notificationId'],
       quando: DateTime.now().microsecondsSinceEpoch,
     );
   }

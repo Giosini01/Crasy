@@ -48,6 +48,17 @@
         { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION" },
         { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
       ]
+    },
+    {
+      "comment": "Un telefono appartiene a un account alla volta. Quando si registra sotto qualcuno, il server cerca lo stesso indirizzo sotto tutti gli altri e lo toglie: e' una query sul gruppo di collezioni, e per quelle l'indice a campo singolo Firestore NON lo crea da se'. Le tre voci con scope COLLECTION sono quelle automatiche, ripetute qui perche' un fieldOverride sostituisce l'automatismo invece di aggiungersi.",
+      "collectionGroup": "devices",
+      "fieldPath": "token",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" },
+        { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION" },
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
     }
   ]
 }

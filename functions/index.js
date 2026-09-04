@@ -866,6 +866,11 @@ exports.sendPushOnNotification = onDocumentCreated(
     await mandaAUnaPersona(userId, corpo, {
       kind: String(dati.kind || ''),
       challengeId: String(dati.challengeId || ''),
+      // **Quale riga, non solo quale specie.** Senza questo, toccare la
+      // notifica apre la campanella e poi tocca a chi guarda ritrovare da solo
+      // la cosa per cui era venuto, in mezzo a tutte le altre. Con il nome del
+      // documento l'app la trova e la accende.
+      notificationId: String(event.params.notificationId || ''),
     });
   }
 );
@@ -899,6 +904,9 @@ exports.sendPushOnFriendRequest = onDocumentCreated(
     await mandaAUnaPersona(event.params.userId, 'Hai una richiesta di amicizia', {
       kind: 'friendRequest',
       challengeId: '',
+      // Le richieste non sono documenti della campanella: la riga si ricava
+      // dall'elenco delle richieste, e il suo nome e' chi l'ha mandata.
+      notificationId: 'amicizia_' + String(event.params.fromId || ''),
     });
   }
 );
@@ -1186,6 +1194,56 @@ exports.hideHeavilyReportedEntry = onDocumentCreated(
       entryId,
       quanti,
       autore: String(dati.reportedUserId || ''),
+    });
+  }
+);
+
+/**
+ * Un telefono appartiene a un account alla volta.
+ *
+ * **E' il difetto che faceva arrivare a uno le notifiche di un altro.** Chi
+ * prova l'app con due account sullo stesso telefono — cosa normalissima mentre
+ * si sviluppa, e non rara fra chi ha un profilo personale e uno di lavoro —
+ * lasciava lo stesso indirizzo scritto in tutte e due le caselle. Da quel
+ * momento il telefono riceveva **le notifiche di entrambi**: si metteva una
+ * fiamma con un account e squillava per l'altro, come se ci si fosse avvisati
+ * da soli.
+ *
+ * L'app toglie il proprio indirizzo quando qualcuno esce davvero, ma chi cambia
+ * account senza uscire — o chi esce mentre la rete non va — lo lascia li'. E
+ * dall'app non si puo' rimediare: le regole non lasciano a nessuno il permesso
+ * di scrivere dentro la casella di qualcun altro, ed e' giusto cosi'.
+ *
+ * Quindi lo fa il server, appena l'indirizzo compare da qualche parte: lo cerca
+ * ovunque e lo lascia **solo dove e' arrivato per ultimo**.
+ */
+exports.oneDevicePerAccount = onDocumentCreated(
+  'users/{userId}/devices/{token}',
+  async (event) => {
+    const userId = event.params.userId;
+    const token = event.params.token;
+
+    // Si cerca per campo e non per nome del documento: il nome, in una query
+    // sul gruppo di collezioni, vuole il percorso intero — che e' proprio
+    // quello che non si conosce.
+    const copie = await db
+      .collectionGroup('devices')
+      .where('token', '==', token)
+      .get();
+
+    const altrove = copie.docs.filter(
+      (doc) => doc.ref.parent.parent.id !== userId
+    );
+
+    if (altrove.length === 0) {
+      return;
+    }
+
+    await Promise.all(altrove.map((doc) => doc.ref.delete()));
+
+    logger.info('telefono tolto dagli account vecchi', {
+      userId,
+      tolti: altrove.length,
     });
   }
 );

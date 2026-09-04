@@ -210,7 +210,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       _pushedRoute(
         AppRoutes.notifications,
-        (state) => const NotificationsPage(),
+        // `evidenzia` dice quale riga accendere: ci arriva chi ha toccato una
+        // notifica sullo schermo bloccato, e ha in testa quella sola.
+        (state) => NotificationsPage(
+          evidenzia: state.uri.queryParameters['evidenzia'],
+        ),
       ),
       // Gli amici non sono piu' una scheda: si aprono dal numero sul profilo,
       // e si chiudono col dito come tutte le pagine che stanno sopra.

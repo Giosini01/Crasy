@@ -45,7 +45,16 @@ class CrasyApp extends ConsumerWidget {
       router.go(dove.scheda);
 
       if (dove.apri case final pagina?) {
-        router.push(pagina);
+        final quale = dove.evidenzia;
+
+        // La riga da accendere viaggia nell'indirizzo: cosi' la schermata la
+        // riceve gia' costruita, senza uno stato da tenere da qualche parte per
+        // il tempo di un salto.
+        router.push(
+          quale == null || quale.isEmpty
+              ? pagina
+              : '$pagina?evidenzia=${Uri.encodeComponent(quale)}',
+        );
       }
     });
 
