@@ -145,7 +145,7 @@ PASSI = [
     ),
     (
         'Gli altri votano.',
-        'Doppio tocco sulla foto, e parte una fiamma. Ma <strong '
+        'Una fiamma alla foto che ti piace, e basta. Ma <strong '
         'class="rosso">nessuno vede quante ne hai prese</strong>, nemmeno tu.',
     ),
     (
@@ -275,8 +275,8 @@ h1 {
    ancora nessuna foto**, e questa e' esattamente la card che si vede in quel
    momento. Le foto si guardano dentro l'app, dove c'e' anche il doppio tocco
    vero.
-   Qui la striscia fa da bersaglio: un doppio tocco su una card intera non si
-   capisce dove vada dato. */
+   Qui la striscia fa da bersaglio: su una card intera non si capirebbe dove
+   toccare, e chi non capisce dove toccare non tocca. */
 .striscia {
   margin-top: 12px; border-radius: 14px; border: 1px solid var(--riga);
   background: var(--spento); padding: 13px 16px;
@@ -450,9 +450,9 @@ footer a { margin-right: 18px; text-decoration: none; }
         </div>
 
         <div class="striscia" id="foto" role="button" tabindex="0"
-             aria-label="Doppio tocco per dare una fiamma">
+             aria-label="Dai una fiamma">
           <span class="striscia__f">@FIAMMA_PICCOLA@</span>
-          <span class="conto" id="conto">DOPPIO TOCCO</span>
+          <span class="conto" id="conto">METTI UNA FIAMMA</span>
           <div class="botto" id="botto">@FIAMMA@</div>
         </div>
       </div>
@@ -631,7 +631,6 @@ footer a { margin-right: 18px; text-decoration: none; }
 
   var quante = 0;
   var SVELA = 3;
-  var ultimo = 0;
   var disegno = botto.querySelector('svg').outerHTML;
 
   function scintille(x, y) {
@@ -678,21 +677,17 @@ footer a { margin-right: 18px; text-decoration: none; }
     conto.textContent = 'NASCOSTE FINO ALLA FINE';
   }
 
-  // **Il doppio tocco, come nell'app.** Due colpi entro trecentocinquanta
-  // millesimi: piu' larghi e un tocco distratto vale come un voto, piu' stretti
-  // e chi non ha le dita svelte non ci riesce mai.
+  // **Un tocco solo, e nell'app sono due.** Non e' una svista.
+  //
+  // Dentro CRASY il doppio tocco protegge una cosa che costa: una fiamma e' un
+  // voto su una gara con dei soldi in mezzo, e un dito appoggiato per sbaglio
+  // mentre si scorre non deve poter votare. Qui non costa niente e non decide
+  // niente — chiedere due tocchi vorrebbe dire solo far fallire il primo
+  // tentativo di chi sta capendo cos'e' CRASY, cioe' l'unico che conta.
   foto.addEventListener('click', function (e) {
-    var adesso = Date.now();
     var dove = foto.getBoundingClientRect();
 
-    if (adesso - ultimo < 350) {
-      ultimo = 0;
-      fiamma(e.clientX - dove.left, e.clientY - dove.top);
-
-      return;
-    }
-
-    ultimo = adesso;
+    fiamma(e.clientX - dove.left, e.clientY - dove.top);
   });
 
   // Con la tastiera si preme invio: un gesto che esiste solo col dito taglia
