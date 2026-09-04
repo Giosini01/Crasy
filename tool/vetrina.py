@@ -131,31 +131,6 @@ def _tastoStore(nome, glifo, indirizzo):
     return '<a class="' + classe + '" href="' + indirizzo + '">' + dentro + '</a>'
 
 
-# Le vincite del portafoglio d'esempio.
-#
-# **Sono dichiaratamente un esempio**, e sulla scheda c'e' scritto: mostrare
-# numeri inventati come se fossero veri sarebbe una promessa che non abbiamo
-# fatto a nessuno. Le consegne pero' sono quelle vere dell'app, perche' vedere
-# accanto a una cifra una gara che esiste davvero dice piu' di qualunque frase.
-MOVIMENTI = [
-    ('Il posto piu&#39; assurdo in cui riesci a farti una foto', 'IERI', '+&euro;25,00'),
-    ('La faccia che fai appena sveglio', '3 GIORNI FA', '+&euro;12,50'),
-    ('La cosa piu&#39; brutta che hai in casa', 'LA SCORSA SETTIMANA', '+&euro;10,00'),
-]
-
-
-def _movimenti():
-    return ''.join(
-        '<div class="movimento">'
-        '<div style="display:flex;gap:10px;align-items:flex-start;">'
-        '<span class="movimento__fiamma">' + FIAMMA + '</span>'
-        '<div><div class="movimento__cosa">%s</div>'
-        '<div class="movimento__quando">%s</div></div></div>'
-        '<div class="movimento__quanto">%s</div></div>' % riga
-        for riga in MOVIMENTI
-    )
-
-
 PASSI = [
     (
         'Qualcuno mette i soldi.',
@@ -176,7 +151,9 @@ PASSI = [
     (
         'Allo scadere si scopre.',
         'Le fiamme si contano tutte insieme, e chi ne ha di piu&#39; prende i '
-        'soldi. <strong class="rosso">Nello stesso istante, per tutti.</strong>',
+        'soldi, <strong class="rosso">nello stesso istante per tutti</strong>. '
+        'Su quella somma CRASY trattiene una percentuale, scritta prima che i '
+        'soldi si mettano.',
     ),
 ]
 
@@ -257,7 +234,7 @@ h1 {
    reagisce a dove stai guardando smette di essere un'immagine e diventa un
    oggetto, e un oggetto lo si vuole toccare. Si spegne sui telefoni — li' non
    c'e' un puntatore da seguire, e il tocco serve alla fiamma. */
-.telefono { display: flex; justify-content: center; perspective: 1200px; }
+.telefono { display: flex; flex-direction: column; align-items: center; perspective: 1200px; }
 .carta { transform-style: preserve-3d; transition: transform .3s cubic-bezier(.2,.8,.3,1); }
 .carta > * { transform: translateZ(18px); }
 .carta .foto { transform: translateZ(34px); }
@@ -412,65 +389,6 @@ h1 {
 }
 .borsello__nota { color: var(--tenue); font-size: 13px; margin: 0; }
 
-/* Le vincite, sotto, nello stesso foglio. */
-.movimenti {
-  background: #FFF; border: 1px solid var(--riga); border-top: 0;
-  border-radius: 0 0 22px 22px; padding: 0 24px 8px;
-}
-.movimento {
-  display: flex; align-items: center; justify-content: space-between; gap: 14px;
-  padding: 13px 0; border-bottom: 1px solid var(--riga); font-size: 14px;
-}
-.movimento:last-child { border-bottom: 0; }
-.movimento__fiamma { width: 15px; height: 15px; color: var(--rosso); flex: none; }
-.movimento__cosa { color: var(--inchiostro); font-weight: 700; line-height: 1.3; }
-.movimento__quando { color: var(--fioco); font-size: 10px; font-weight: 800; letter-spacing: .12em; margin-top: 2px; }
-.movimento__quanto { color: var(--rosso); font-weight: 800; white-space: nowrap; font-size: 15px; }
-
-/* --- la figurina --- */
-.premi { display: grid; gap: 22px; grid-template-columns: 1fr; align-items: start; }
-@media (min-width: 820px) { .premi { grid-template-columns: 1fr 190px; gap: 30px; } }
-
-.trofeo { perspective: 900px; }
-.trofeo__carta {
-  position: relative; width: 100%; aspect-ratio: 3 / 4.2; cursor: pointer;
-  transform-style: preserve-3d; transition: transform .65s cubic-bezier(.3,.8,.3,1);
-}
-.trofeo__carta.girata { transform: rotateY(180deg); }
-.faccia {
-  position: absolute; inset: 0; border-radius: 14px; overflow: hidden;
-  -webkit-backface-visibility: hidden; backface-visibility: hidden;
-  display: flex; flex-direction: column;
-}
-/* **L'oro e' l'unica sfumatura rimasta, ed e' materiale non decorazione.**
-   Nel codice dell'app c'e' scritto perche': un oro a tinta unita e' senape.
-   Tre toni sono la luce che scorre su un metallo, e senza quelli la figurina
-   non sembra un oggetto — sembra un rettangolo giallo. */
-.faccia--fronte {
-  background: linear-gradient(150deg, #F6DFA0 0%, #C9A227 46%, #8C6D1F 100%);
-  padding: 7px;
-}
-.trofeo__foto {
-  flex: 1; border-radius: 9px; background: var(--spento);
-  display: flex; align-items: center; justify-content: center;
-}
-.trofeo__foto svg { width: 34px; height: 34px; color: #C9A227; opacity: .5; }
-.trofeo__piede { padding: 8px 4px 2px; }
-.trofeo__vinta { font-size: 8px; font-weight: 800; letter-spacing: .18em; color: #6B4E12; }
-.trofeo__gara {
-  font-size: 11px; font-weight: 800; line-height: 1.15; color: #3A2C09;
-  text-transform: uppercase; margin-top: 2px;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-}
-.faccia--retro {
-  background: var(--inchiostro); color: #FFF; transform: rotateY(180deg);
-  padding: 16px; justify-content: space-between;
-}
-.retro__marchio { font-size: 17px; font-weight: 800; letter-spacing: .1em; }
-.retro__marchio i { font-style: normal; color: var(--rosso); }
-.retro__riga { font-size: 9px; font-weight: 800; letter-spacing: .14em; color: rgba(255,255,255,.45); }
-.retro__valore { font-size: 12px; font-weight: 800; color: #FFF; margin-top: 2px; }
-.girala { font-size: 11px; font-weight: 800; letter-spacing: .12em; color: var(--fioco); text-align: center; margin: 10px 0 0; }
 
 /* --- la sfida del giorno --- */
 .giornaliera { border: 2px solid var(--rosso); border-radius: 18px; padding: 24px; }
@@ -533,6 +451,19 @@ footer a { margin-right: 18px; text-decoration: none; }
           <span class="conto" id="conto">FINISCE FRA 4H</span>
         </div>
       </div>
+
+      <div class="borsa" id="borsa">
+        <div class="carta__soldi">
+          <span class="esempio">ESEMPIO</span>
+          <div class="borsello__titolo">IL TUO PORTAFOGLIO</div>
+          <div class="borsello__riga">
+            <div class="borsello__saldo" id="saldo">&euro;0,00</div>
+            <span class="borsello__preleva">Preleva</span>
+          </div>
+          <p class="borsello__nota">Da &euro;10,00 in su li puoi prelevare sul
+          tuo conto. CRASY trattiene una percentuale, scritta prima.</p>
+        </div>
+      </div>
     </div>
   </div>
 </header>
@@ -541,55 +472,6 @@ footer a { margin-right: 18px; text-decoration: none; }
   <section class="dentro">
     <h2 class="sezione appare">Come si gioca</h2>
     <ol class="passi">@PASSI@</ol>
-  </section>
-
-  <section class="dentro">
-    <h2 class="sezione appare" style="margin-top:56px;">Quando vinci</h2>
-    <div class="premi">
-    <div class="borsa appare" id="borsa">
-      <div class="carta__soldi">
-        <span class="esempio">ESEMPIO</span>
-        <div class="borsello__titolo">IL TUO PORTAFOGLIO</div>
-        <div class="borsello__saldo" id="saldo">&euro;0,00</div>
-        <div class="borsello__riga">
-          <span class="borsello__preleva">Preleva</span>
-          <p class="borsello__nota">Da &euro;10,00 in su,<br>sul tuo conto.</p>
-        </div>
-      </div>
-      <div class="movimenti">@MOVIMENTI@</div>
-    </div>
-
-    <div class="appare">
-      <div class="trofeo">
-        <div class="trofeo__carta" id="trofeo" role="button" tabindex="0"
-             aria-label="Gira la figurina">
-          <div class="faccia faccia--fronte">
-            <div class="trofeo__foto">@FIAMMA@</div>
-            <div class="trofeo__piede">
-              <div class="trofeo__vinta">VINTA</div>
-              <div class="trofeo__gara">La cosa piu&#39; brutta che hai in casa</div>
-            </div>
-          </div>
-          <div class="faccia faccia--retro">
-            <div class="retro__marchio">cra<i>sy</i></div>
-            <div>
-              <div class="retro__riga">PREMIO</div>
-              <div class="retro__valore">&euro;25,00</div>
-              <div class="retro__riga" style="margin-top:10px;">FIAMME</div>
-              <div class="retro__valore">48</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <p class="girala">GIRALA &rarr;</p>
-    </div>
-    </div>
-
-    <p class="appare" style="color:var(--tenue);max-width:52ch;margin-top:16px;">
-    Il premio arriva qui appena la gara si chiude. Da CRASY se ne va una
-    percentuale, scritta prima che tu metta i soldi — e non c&#39;e&#39; nessun
-    altro passaggio: <strong class="rosso">quello che vedi e&#39; quello che
-    prelevi</strong>.</p>
   </section>
 
   <section class="fascia">
@@ -706,22 +588,6 @@ footer a { margin-right: 18px; text-decoration: none; }
         });
       }, { threshold: .4 }).observe(borsa);
     }
-  }
-
-  // --- la figurina che si gira ---------------------------------------------
-  //
-  // Nell'app si trascina col dito e continua a girare; qui basta un tocco. Il
-  // motivo per cui c'e' un retro e' lo stesso: **una figurina che non si gira
-  // e' un'immagine**, e chi vince non si porta a casa un'immagine.
-  var trofeo = document.getElementById('trofeo');
-
-  if (trofeo) {
-    var gira = function () { trofeo.classList.toggle('girata'); };
-
-    trofeo.addEventListener('click', gira);
-    trofeo.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); gira(); }
-    });
   }
 
   // --- la card che si inclina ----------------------------------------------
@@ -869,7 +735,6 @@ def html(posta, app, appStore, playStore):
         STAMPO.replace('@NASTRO@', nastro)
         .replace('@NEGOZI@', negozi)
         .replace('@PASSI@', _passi())
-        .replace('@MOVIMENTI@', _movimenti())
         .replace('@FIAMMA_PICCOLA@', FIAMMA)
         .replace('@FIAMMA@', FIAMMA)
         .replace('@POSTA@', posta)
