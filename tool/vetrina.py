@@ -44,6 +44,12 @@ pagina provoca nausea.
 """
 
 import io
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import accenti
 
 # Il glifo della mela e quello del triangolo di Google Play, disegnati qui.
 #
@@ -748,6 +754,7 @@ def html(posta, app, appStore, playStore):
 
 
 def scrivi(percorso, posta, app, appStore, playStore):
-    io.open(percorso, 'w', encoding='utf-8', newline='\n').write(
-        html(posta, app, appStore, playStore)
-    )
+    # Gli accenti veri al posto degli apostrofi, fuori dal codice della
+    # pagina: vedi `tool/accenti.py`.
+    finito = accenti.nellaPagina(html(posta, app, appStore, playStore))
+    io.open(percorso, 'w', encoding='utf-8', newline='\n').write(finito)

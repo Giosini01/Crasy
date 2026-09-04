@@ -27,6 +27,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import accenti
 import leggi_legale
 import vetrina
 
@@ -256,8 +257,12 @@ def scrivi(cartella, html):
     percorso = os.path.join(DOVE, cartella)
     os.makedirs(percorso, exist_ok=True)
     file = os.path.join(percorso, 'index.html')
-    io.open(file, 'w', encoding='utf-8', newline='\n').write(html)
-    print('%-28s %d byte' % (file, len(html.encode('utf-8'))))
+    # **Gli accenti si mettono qui, non nei sorgenti.** Il progetto scrive
+    # `e'` e `piu'` per tenere i file in puro ASCII; su una pagina pubblica
+    # quella convenzione e' solo italiano sbagliato. Vedi `tool/accenti.py`.
+    finito = accenti.nellaPagina(html)
+    io.open(file, 'w', encoding='utf-8', newline='\n').write(finito)
+    print('%-28s %d byte' % (file, len(finito.encode('utf-8'))))
 
 
 def versione():
