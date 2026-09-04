@@ -71,7 +71,7 @@ const PORTE = [
 ];
 
 /** Dove portano i link: la nostra pagina, non quella di Firebase. */
-const PAGINA = 'https://crasy.web.app/conferma';
+const PAGINA = 'https://crasyapp.com/conferma';
 
 /**
  * Il marchio, come immagine.
@@ -96,7 +96,7 @@ const PAGINA = 'https://crasy.web.app/conferma';
  * La misura e' il doppio di quella a cui si vede, perche' gli schermi di adesso
  * hanno due punti per ogni punto.
  */
-const MARCHIO = 'https://crasy.web.app/brand/crasy-wordmark.png';
+const MARCHIO = 'https://crasyapp.com/brand/crasy-wordmark.png';
 
 /**
  * Ogni quanti secondi si puo' rimandare la stessa email allo stesso indirizzo.
@@ -247,7 +247,7 @@ exports.mandaLaConferma = onCall(
         await admin
           .auth()
           .generateEmailVerificationLink(persona.email, {
-            url: 'https://crasy.web.app/',
+            url: 'https://crasyapp.com/',
           })
       )
     );
@@ -350,7 +350,7 @@ exports.mandaIlRecupero = onCall(
         'resetPassword',
         codiceDentro(
           await admin.auth().generatePasswordResetLink(indirizzo, {
-            url: 'https://crasy.web.app/',
+            url: 'https://crasyapp.com/',
           })
         )
       );

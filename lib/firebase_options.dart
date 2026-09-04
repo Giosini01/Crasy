@@ -88,7 +88,7 @@ class DefaultFirebaseOptions {
     //
     // `crasy.web.app` e' lo stesso sito dell'app ed e' gia' fra i domini
     // autorizzati: serve le stesse pagine di servizio sotto `/__/auth/`.
-    authDomain: 'crasy.web.app',
+    authDomain: 'crasyapp.com',
     storageBucket: 'daily-dating-app.firebasestorage.app',
   );
 }

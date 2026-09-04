@@ -23,6 +23,7 @@
   "hosting": {
     "site": "crasy",
     "public": "build/web",
+    "predeploy": ["python tool/prepara_il_sito.py"],
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
