@@ -131,6 +131,28 @@ def _tastoStore(nome, glifo, indirizzo):
     return '<a class="' + classe + '" href="' + indirizzo + '">' + dentro + '</a>'
 
 
+# Le vincite del portafoglio d'esempio.
+#
+# **Sono dichiaratamente un esempio**, e sulla scheda c'e' scritto: mostrare
+# numeri inventati come se fossero veri sarebbe una promessa che non abbiamo
+# fatto a nessuno. Le consegne pero' sono quelle vere dell'app, perche' vedere
+# accanto a una cifra una gara che esiste davvero dice piu' di qualunque frase.
+MOVIMENTI = [
+    ('Il posto piu&#39; assurdo in cui riesci a farti una foto', 'IERI', '+&euro;25,00'),
+    ('La faccia che fai appena sveglio', '3 GIORNI FA', '+&euro;12,50'),
+    ('La cosa piu&#39; brutta che hai in casa', 'LA SCORSA SETTIMANA', '+&euro;10,00'),
+]
+
+
+def _movimenti():
+    return ''.join(
+        '<div class="movimento"><div><div class="movimento__cosa">%s</div>'
+        '<div class="movimento__quando">%s</div></div>'
+        '<div class="movimento__quanto">%s</div></div>' % riga
+        for riga in MOVIMENTI
+    )
+
+
 PASSI = [
     (
         'Qualcuno mette i soldi.',
@@ -234,7 +256,15 @@ h1 {
 }
 
 /* --- la card, come nell'app --- */
-.telefono { display: flex; justify-content: center; }
+/* **La card si inclina seguendo il dito.** Non e' un effetto: una scheda che
+   reagisce a dove stai guardando smette di essere un'immagine e diventa un
+   oggetto, e un oggetto lo si vuole toccare. Si spegne sui telefoni — li' non
+   c'e' un puntatore da seguire, e il tocco serve alla fiamma. */
+.telefono { display: flex; justify-content: center; perspective: 1200px; }
+.carta { transform-style: preserve-3d; transition: transform .3s cubic-bezier(.2,.8,.3,1); }
+.carta > * { transform: translateZ(18px); }
+.carta .foto { transform: translateZ(34px); }
+.carta .premio { transform: translateZ(46px); }
 .carta {
   width: 100%; max-width: 380px;
   border: 1px solid var(--riga); border-radius: 22px; padding: 20px;
@@ -342,16 +372,44 @@ h1 {
   line-height: 1.1;
 }
 .passo p { color: var(--tenue); margin: 7px 0 0; font-size: 16px; max-width: 52ch; }
-.passo::after {
-  content: ''; position: absolute; left: 5px; top: 26px; bottom: -22px;
-  width: 2px; background: linear-gradient(rgba(250,0,0,.35), rgba(250,0,0,0));
-}
-.passo:last-child::after { display: none; }
+/* **Il filo che univa i passi e' stato tolto.** Passava sotto la colonna dei
+   numeri e li attraversava: da lontano sembrava che 01 e 02 fossero barrati.
+   Un filetto che unisce non vale il prezzo di far sembrare cancellato quello
+   che unisce — e le righe di separazione qui sopra dividono i passi gia'
+   benissimo. */
 
 /* --- la fascia nera --- */
 .fascia { background: var(--inchiostro); color: #FFF; padding: 64px 0; margin: 74px 0; position: relative; overflow: hidden; }
 .fascia h2 { font-size: clamp(28px, 5.5vw, 46px); line-height: 1.02; letter-spacing: -.03em; font-weight: 800; margin: 0; text-transform: uppercase; }
 .fascia p { color: #B9B9BE; max-width: 46ch; margin: 16px 0 0; }
+
+/* --- il portafoglio ---
+   E' l'unico riquadro colorato dell'app e si merita l'eccezione: e' il posto in
+   cui CRASY mantiene la promessa che fa in prima pagina. Qui vale lo stesso. */
+.borsello {
+  background: #FFF0F0; border-radius: 18px; padding: 24px; position: relative;
+  max-width: 460px;
+}
+.esempio {
+  position: absolute; top: 16px; right: 16px;
+  font-size: 9px; font-weight: 800; letter-spacing: .16em;
+  color: var(--rosso); border: 1px solid rgba(250,0,0,.35);
+  border-radius: 999px; padding: 3px 9px;
+}
+.borsello__titolo { font-size: 10px; font-weight: 800; letter-spacing: .16em; color: var(--rosso); }
+.borsello__riga { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-top: 6px; }
+.borsello__saldo { font-size: 40px; font-weight: 800; letter-spacing: -.04em; color: var(--rosso); line-height: 1; }
+.borsello__preleva { font-size: 16px; font-weight: 800; color: var(--rosso); }
+.borsello__nota { color: var(--tenue); font-size: 14px; margin: 12px 0 0; }
+.movimenti { margin-top: 18px; border-top: 1px solid rgba(250,0,0,.18); }
+.movimento {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+  padding: 11px 0; border-bottom: 1px solid rgba(250,0,0,.12); font-size: 14px;
+}
+.movimento:last-child { border-bottom: 0; }
+.movimento__cosa { color: var(--inchiostro); font-weight: 700; }
+.movimento__quando { color: var(--fioco); font-size: 11px; font-weight: 800; letter-spacing: .1em; }
+.movimento__quanto { color: var(--rosso); font-weight: 800; white-space: nowrap; }
 
 /* --- la sfida del giorno --- */
 .giornaliera { border: 2px solid var(--rosso); border-radius: 18px; padding: 24px; }
@@ -424,6 +482,26 @@ footer a { margin-right: 18px; text-decoration: none; }
     <ol class="passi">@PASSI@</ol>
   </section>
 
+  <section class="dentro">
+    <h2 class="sezione appare" style="margin-top:56px;">Quando vinci</h2>
+    <div class="borsello appare">
+      <span class="esempio">ESEMPIO</span>
+      <div class="borsello__titolo">IL TUO PORTAFOGLIO</div>
+      <div class="borsello__riga">
+        <div class="borsello__saldo">&euro;47,50</div>
+        <span class="borsello__preleva">Preleva</span>
+      </div>
+      <p class="borsello__nota">I soldi sono tuoi e stanno su CRASY.
+      Da &euro;10,00 in su li puoi prelevare sul tuo conto.</p>
+      <div class="movimenti">@MOVIMENTI@</div>
+    </div>
+    <p class="appare" style="color:var(--tenue);max-width:52ch;margin-top:16px;">
+    Il premio arriva qui appena la gara si chiude. Da CRASY se ne va una
+    percentuale, scritta prima che tu metta i soldi — e non c&#39;e&#39; nessun
+    altro passaggio: <strong class="rosso">quello che vedi e&#39; quello che
+    prelevi</strong>.</p>
+  </section>
+
   <section class="fascia">
     <div class="dentro">
       <h2 class="appare">Le fiamme sono<br><span class="rosso">nascoste.</span></h2>
@@ -487,6 +565,32 @@ footer a { margin-right: 18px; text-decoration: none; }
     }, { rootMargin: '0px 0px -12% 0px' });
 
     pezzi.forEach(function (p) { occhio.observe(p); });
+  }
+
+  // --- la card che si inclina ----------------------------------------------
+  //
+  // Solo dove c'e' un puntatore vero: sui telefoni non c'e' niente da seguire,
+  // e il dito serve alla fiamma. `hover: hover` distingue un mouse da un dito
+  // meglio di qualunque controllo sul tipo di apparecchio.
+  var scena = document.querySelector('.telefono');
+  var carta = document.querySelector('.carta');
+  var puntatore = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  if (scena && carta && puntatore && !calmo) {
+    scena.addEventListener('mousemove', function (e) {
+      var q = carta.getBoundingClientRect();
+      var x = (e.clientX - q.left) / q.width - 0.5;
+      var y = (e.clientY - q.top) / q.height - 0.5;
+
+      // Otto gradi al massimo. Di piu' e la scheda si deforma invece di
+      // inclinarsi, e quello che era un oggetto torna a essere un disegno.
+      carta.style.transform =
+        'rotateY(' + (x * 9).toFixed(2) + 'deg) rotateX(' + (-y * 9).toFixed(2) + 'deg)';
+    });
+
+    scena.addEventListener('mouseleave', function () {
+      carta.style.transform = '';
+    });
   }
 
   // --- la prova dell'app ---------------------------------------------------
@@ -608,6 +712,7 @@ def html(posta, app, appStore, playStore):
         STAMPO.replace('@NASTRO@', nastro)
         .replace('@NEGOZI@', negozi)
         .replace('@PASSI@', _passi())
+        .replace('@MOVIMENTI@', _movimenti())
         .replace('@FIAMMA_PICCOLA@', FIAMMA)
         .replace('@FIAMMA@', FIAMMA)
         .replace('@POSTA@', posta)
