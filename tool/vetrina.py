@@ -212,7 +212,7 @@ a { color: var(--rosso); }
    un'applicazione che non sfuma. */
 .cielo { position: relative; padding: 46px 0 60px; }
 
-.testata { display: grid; gap: 40px; grid-template-columns: 1fr; align-items: center; }
+.testata { display: grid; gap: 40px; grid-template-columns: 1fr; align-items: start; }
 @media (min-width: 900px) { .testata { grid-template-columns: 1.05fr .95fr; gap: 56px; } }
 
 .marchio { width: 138px; height: auto; display: block; }
@@ -237,7 +237,7 @@ h1 {
 .telefono { display: flex; flex-direction: column; align-items: center; perspective: 1200px; }
 .carta { transform-style: preserve-3d; transition: transform .3s cubic-bezier(.2,.8,.3,1); }
 .carta > * { transform: translateZ(18px); }
-.carta .foto { transform: translateZ(34px); }
+.carta .striscia { transform: translateZ(30px); }
 .carta .premio { transform: translateZ(46px); }
 .carta {
   width: 100%; max-width: 380px;
@@ -270,26 +270,28 @@ h1 {
   100%    { transform: translateY(-336px); }
 }
 
-.foto {
-  margin-top: 14px; border-radius: 16px; aspect-ratio: 1 / 1;
-  background: var(--spento);
-  border: 1px solid var(--riga);
-  display: flex; align-items: center; justify-content: center;
-  position: relative; overflow: hidden; cursor: pointer;
+/* **La striscia della fiamma, al posto della foto.**
+   La foto non c'e' e non e' un ripiego: una missione appena lanciata **non ha
+   ancora nessuna foto**, e questa e' esattamente la card che si vede in quel
+   momento. Le foto si guardano dentro l'app, dove c'e' anche il doppio tocco
+   vero.
+   Qui la striscia fa da bersaglio: un doppio tocco su una card intera non si
+   capisce dove vada dato. */
+.striscia {
+  margin-top: 12px; border-radius: 14px; border: 1px solid var(--riga);
+  background: var(--spento); padding: 13px 16px;
+  display: flex; align-items: center; gap: 10px;
+  position: relative; cursor: pointer; overflow: visible;
   touch-action: manipulation; -webkit-user-select: none; user-select: none;
+  transition: border-color .2s ease, background .2s ease;
 }
-.foto__aiuto {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 13px; font-weight: 700; color: var(--fioco);
-  border: 1px solid var(--riga); background: rgba(255,255,255,.8);
-  padding: 8px 14px; border-radius: 999px;
-  transition: opacity .3s ease;
-}
-.foto__aiuto svg { width: 16px; height: 16px; }
-.foto.tocca .foto__aiuto { opacity: 0; }
+.striscia:hover { border-color: rgba(250,0,0,.4); }
+.striscia.tocca { background: #FFF; border-color: rgba(250,0,0,.5); }
+.striscia__f { width: 17px; height: 17px; color: var(--rosso); flex: none; }
+.striscia__f svg { width: 100%; height: 100%; display: block; }
 .botto {
-  position: absolute; width: 96px; height: 96px; color: var(--rosso);
-  opacity: 0; pointer-events: none;
+  position: absolute; width: 84px; height: 84px; color: var(--rosso);
+  opacity: 0; pointer-events: none; z-index: 3;
 }
 .botto svg { width: 100%; height: 100%; display: block; }
 .botto.parte { animation: esplode .75s cubic-bezier(.2,.9,.3,1) forwards; }
@@ -308,9 +310,11 @@ h1 {
 
 .meta {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  margin-top: 14px; font-size: 11px; font-weight: 800; letter-spacing: .1em; color: var(--fioco);
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--riga);
+  font-size: 11px; font-weight: 800; letter-spacing: .1em; color: var(--fioco);
 }
-.conto { color: var(--inchiostro); }
+.conto { font-size: 11px; font-weight: 800; letter-spacing: .1em; color: var(--fioco); }
+.striscia.tocca .conto { color: var(--inchiostro); }
 .conto.svelato { color: var(--rosso); }
 
 /* --- i tasti dei negozi --- */
@@ -440,15 +444,16 @@ footer a { margin-right: 18px; text-decoration: none; }
         </div>
         <div class="finestra"><div class="nastro">@NASTRO@</div></div>
 
-        <div class="foto" id="foto" role="button" tabindex="0"
-             aria-label="Doppio tocco per dare una fiamma">
-          <div class="foto__aiuto" id="aiuto">@FIAMMA_PICCOLA@ doppio tocco</div>
-          <div class="botto" id="botto">@FIAMMA@</div>
-        </div>
-
         <div class="meta">
           <span>7 IN GARA &middot; 3 POSTI</span>
-          <span class="conto" id="conto">FINISCE FRA 4H</span>
+          <span>FINISCE FRA 4H</span>
+        </div>
+
+        <div class="striscia" id="foto" role="button" tabindex="0"
+             aria-label="Doppio tocco per dare una fiamma">
+          <span class="striscia__f">@FIAMMA_PICCOLA@</span>
+          <span class="conto" id="conto">DOPPIO TOCCO</span>
+          <div class="botto" id="botto">@FIAMMA@</div>
         </div>
       </div>
 
@@ -620,7 +625,7 @@ footer a { margin-right: 18px; text-decoration: none; }
   var foto = document.getElementById('foto');
   var botto = document.getElementById('botto');
   var conto = document.getElementById('conto');
-  var aiuto = document.getElementById('aiuto');
+  var aiuto = document.getElementById('foto');
 
   if (!foto) { return; }
 
@@ -651,8 +656,8 @@ footer a { margin-right: 18px; text-decoration: none; }
     quante++;
     foto.classList.add('tocca');
 
-    botto.style.left = (x - 48) + 'px';
-    botto.style.top = (y - 48) + 'px';
+    botto.style.left = (x - 42) + 'px';
+    botto.style.top = (y - 42) + 'px';
     botto.classList.remove('parte');
     void botto.offsetWidth;   // rimette l'animazione al principio
     botto.classList.add('parte');
@@ -703,9 +708,14 @@ footer a { margin-right: 18px; text-decoration: none; }
   if (!calmo) {
     setTimeout(function () {
       if (quante === 0 && aiuto) {
-        aiuto.style.transition = 'transform .5s ease';
-        aiuto.style.transform = 'scale(1.08)';
-        setTimeout(function () { aiuto.style.transform = 'none'; }, 500);
+        aiuto.style.transition = 'transform .45s ease, border-color .45s ease';
+        aiuto.style.transform = 'scale(1.03)';
+        aiuto.style.borderColor = 'rgba(250,0,0,.5)';
+
+        setTimeout(function () {
+          aiuto.style.transform = 'none';
+          aiuto.style.borderColor = '';
+        }, 450);
       }
     }, 3200);
   }
