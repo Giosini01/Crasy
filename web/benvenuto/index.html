@@ -30,116 +30,142 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
-.dentro { width: 100%; max-width: 860px; margin: 0 auto; padding: 0 22px; }
+.dentro { width: 100%; max-width: 900px; margin: 0 auto; padding: 0 22px; position: relative; z-index: 1; }
 a { color: var(--rosso); }
-
-/* Il rosso di CRASY, usato come si usa in casa: poco, e sulle cose che
-   contano. Se lo mettessimo dappertutto smetterebbe di voler dire qualcosa. */
 .rosso { color: var(--rosso); }
 
 /* --- l'apertura --- */
-.cielo {
-  position: relative;
-  padding: 52px 0 70px;
-  overflow: hidden;
-}
-/* Un alone rosso appena accennato dietro il titolo: si sente, non si vede. */
+.cielo { position: relative; padding: 48px 0 64px; overflow: hidden; }
 .cielo::before {
   content: '';
   position: absolute;
-  top: -280px; left: 50%;
-  width: 760px; height: 620px;
+  top: -300px; left: 50%;
+  width: 820px; height: 660px;
   transform: translateX(-50%);
-  background: radial-gradient(closest-side, rgba(250,0,0,.10), rgba(250,0,0,0));
+  background: radial-gradient(closest-side, rgba(250,0,0,.11), rgba(250,0,0,0));
   pointer-events: none;
   animation: respiro 7s ease-in-out infinite;
 }
 @keyframes respiro {
-  0%, 100% { opacity: .75; transform: translateX(-50%) scale(1); }
-  50%      { opacity: 1;   transform: translateX(-50%) scale(1.08); }
+  0%, 100% { opacity: .7; transform: translateX(-50%) scale(1); }
+  50%      { opacity: 1;  transform: translateX(-50%) scale(1.09); }
 }
+
+/* Le fiamme che salgono, dietro tutto. Piccole e pallide: devono farsi
+   sentire con la coda dell'occhio, non farsi guardare. */
+.scintille { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.scintilla {
+  position: absolute;
+  bottom: -40px;
+  color: var(--rosso);
+  opacity: 0;
+  animation-name: sale;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.scintilla svg { width: 100%; height: 100%; display: block; }
+@keyframes sale {
+  0%   { transform: translateY(0) rotate(-6deg) scale(.9); opacity: 0; }
+  12%  { opacity: .16; }
+  70%  { opacity: .10; }
+  100% { transform: translateY(-88vh) rotate(8deg) scale(1.1); opacity: 0; }
+}
+
 .marchio { width: 138px; height: auto; display: block; }
 .beta {
-  display: inline-block;
-  margin-left: 6px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .14em;
-  color: var(--fioco);
-  vertical-align: super;
+  display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 800;
+  letter-spacing: .14em; color: var(--fioco); vertical-align: super;
 }
 h1 {
   font-size: clamp(40px, 9vw, 78px);
-  line-height: .95;
-  letter-spacing: -.035em;
-  font-weight: 800;
-  margin: 34px 0 0;
-  text-transform: uppercase;
+  line-height: .95; letter-spacing: -.035em; font-weight: 800;
+  margin: 32px 0 0; text-transform: uppercase;
 }
 .occhiello {
-  font-size: clamp(17px, 2.4vw, 20px);
-  color: var(--tenue);
-  max-width: 32ch;
-  margin: 18px 0 0;
+  font-size: clamp(17px, 2.4vw, 20px); color: var(--tenue);
+  max-width: 34ch; margin: 18px 0 0;
 }
 
-/* --- la consegna che cambia --- */
-.consegna {
-  margin-top: 30px;
+/* --- il pezzo con cui si gioca --- */
+.gioco {
+  margin-top: 34px;
   border: 1px solid var(--riga);
-  border-radius: 16px;
-  padding: 16px 18px;
-  max-width: 460px;
+  border-radius: 20px;
+  padding: 20px;
+  max-width: 470px;
   background: #FFF;
-  box-shadow: 0 10px 30px rgba(10,10,11,.05);
+  box-shadow: 0 14px 40px rgba(10,10,11,.07);
+  position: relative;
 }
-.consegna__etichetta {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .16em;
-  color: var(--rosso);
+.gioco__etichetta {
+  font-size: 10px; font-weight: 800; letter-spacing: .16em; color: var(--rosso);
 }
-.finestra { height: 30px; overflow: hidden; margin-top: 4px; }
+.finestra { height: 30px; overflow: hidden; margin-top: 2px; }
 .nastro { animation: scorri 15s cubic-bezier(.7,0,.3,1) infinite; }
 .nastro span {
-  display: block;
-  height: 30px;
-  line-height: 30px;
-  font-size: 17px;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: block; height: 30px; line-height: 30px; font-size: 18px;
+  font-weight: 800; letter-spacing: -.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 @keyframes scorri {
-  0%,13%   { transform: translateY(0); }
-  16%,29%  { transform: translateY(-30px); }
-  32%,45%  { transform: translateY(-60px); }
-  48%,61%  { transform: translateY(-90px); }
-  64%,77%  { transform: translateY(-120px); }
-  80%,93%  { transform: translateY(-150px); }
-  100%     { transform: translateY(-180px); }
+  0%,13%  { transform: translateY(0); }
+  16%,29% { transform: translateY(-30px); }
+  32%,45% { transform: translateY(-60px); }
+  48%,61% { transform: translateY(-90px); }
+  64%,77% { transform: translateY(-120px); }
+  80%,93% { transform: translateY(-150px); }
+  100%    { transform: translateY(-180px); }
+}
+.riga {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--riga);
+}
+.tasto {
+  display: inline-flex; align-items: center; gap: 9px;
+  border: 1px solid var(--riga); background: #FFF; color: var(--fioco);
+  border-radius: 999px; padding: 10px 18px; cursor: pointer;
+  font: inherit; font-weight: 800; font-size: 15px;
+  transition: transform .14s ease, background .18s ease, color .18s ease, border-color .18s ease;
+  position: relative;
+}
+.tasto svg { width: 19px; height: 19px; }
+.tasto:hover { border-color: rgba(250,0,0,.4); color: var(--rosso); }
+.tasto:active { transform: scale(.94); }
+.tasto.acceso { background: var(--rosso); border-color: var(--rosso); color: #FFF; }
+.tasto.invito { animation: bussa 1.6s ease-in-out 3; }
+@keyframes bussa {
+  0%,100%  { transform: none; }
+  30%      { transform: scale(1.07); }
+  45%      { transform: scale(.99); }
+  60%      { transform: scale(1.04); }
+}
+.conto { font-size: 14px; color: var(--fioco); text-align: right; min-width: 132px; }
+.conto b { color: var(--inchiostro); font-size: 17px; }
+.conto.svelato b { color: var(--rosso); }
+
+/* Le fiamme che schizzano via a ogni tocco. */
+.volo {
+  position: absolute; pointer-events: none; color: var(--rosso);
+  width: 16px; height: 16px; opacity: 0;
+}
+.volo svg { width: 100%; height: 100%; display: block; }
+@keyframes vola {
+  0%   { opacity: 1; transform: translate(0,0) scale(.5) rotate(0deg); }
+  100% { opacity: 0; transform: translate(var(--dx), -70px) scale(1.25) rotate(var(--gira)); }
 }
 
 /* --- i tasti dei negozi --- */
 .negozi { display: flex; gap: 12px; flex-wrap: wrap; margin: 30px 0 12px; }
 .store {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 20px;
-  border-radius: 14px;
-  text-decoration: none;
-  background: var(--inchiostro);
-  color: #FFF;
+  display: inline-flex; align-items: center; gap: 12px;
+  padding: 12px 20px; border-radius: 14px; text-decoration: none;
+  background: var(--inchiostro); color: #FFF;
   transition: transform .18s ease, box-shadow .18s ease;
 }
 .store:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(10,10,11,.22); }
 .store--spento {
-  background: var(--spento);
-  color: var(--fioco);
-  border: 1px solid var(--riga);
-  cursor: default;
+  background: var(--spento); color: var(--fioco);
+  border: 1px solid var(--riga); cursor: default;
 }
 .store--spento:hover { transform: none; box-shadow: none; }
 .store__glifo { display: flex; }
@@ -149,107 +175,78 @@ h1 {
 
 /* --- i tre passi --- */
 .passi { display: grid; gap: 14px; grid-template-columns: 1fr; margin: 0; padding: 0; }
-@media (min-width: 760px) { .passi { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 780px) { .passi { grid-template-columns: repeat(3, 1fr); } }
 .passo {
-  border: 1px solid var(--riga);
-  border-radius: 18px;
-  padding: 22px;
-  list-style: none;
-  background: #FFF;
+  border: 1px solid var(--riga); border-radius: 18px; padding: 22px;
+  list-style: none; background: #FFF;
   transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
 }
 .passo:hover {
-  transform: translateY(-4px);
-  border-color: rgba(250,0,0,.35);
-  box-shadow: 0 16px 34px rgba(10,10,11,.07);
+  transform: translateY(-5px); border-color: rgba(250,0,0,.35);
+  box-shadow: 0 18px 36px rgba(10,10,11,.08);
 }
 .passo__numero {
-  font-size: 34px;
-  font-weight: 800;
-  letter-spacing: -.04em;
-  color: var(--rosso);
-  line-height: 1;
+  font-size: 34px; font-weight: 800; letter-spacing: -.04em;
+  color: var(--rosso); line-height: 1;
 }
 .passo__titolo { font-weight: 800; margin: 12px 0 6px; font-size: 17px; }
 .passo p { color: var(--tenue); font-size: 15px; margin: 0; }
 
 /* --- la fascia nera --- */
 .fascia {
-  background: var(--inchiostro);
-  color: #FFF;
-  padding: 64px 0;
-  margin: 74px 0;
+  background: var(--inchiostro); color: #FFF;
+  padding: 64px 0; margin: 74px 0; position: relative; overflow: hidden;
 }
 .fascia h2 {
-  font-size: clamp(28px, 5.5vw, 46px);
-  line-height: 1.02;
-  letter-spacing: -.03em;
-  font-weight: 800;
-  margin: 0;
-  text-transform: uppercase;
+  font-size: clamp(28px, 5.5vw, 46px); line-height: 1.02;
+  letter-spacing: -.03em; font-weight: 800; margin: 0; text-transform: uppercase;
 }
 .fascia p { color: #B9B9BE; max-width: 46ch; margin: 16px 0 0; }
+.fascia .scintilla { opacity: 0; }
+.fascia .scintille { opacity: .55; }
 
 /* --- la sfida del giorno --- */
-.giornaliera {
-  border: 2px solid var(--rosso);
-  border-radius: 18px;
-  padding: 24px;
-  margin: 0 0 20px;
-}
+.giornaliera { border: 2px solid var(--rosso); border-radius: 18px; padding: 24px; }
 .giornaliera__etichetta {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .16em;
-  color: var(--rosso);
+  font-size: 10px; font-weight: 800; letter-spacing: .16em; color: var(--rosso);
 }
 .giornaliera h3 { margin: 8px 0 6px; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
 .giornaliera p { color: var(--tenue); margin: 0; }
 
 h2.sezione {
-  font-size: 11px;
-  letter-spacing: .18em;
-  text-transform: uppercase;
-  color: var(--rosso);
-  font-weight: 800;
-  margin: 0 0 18px;
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--rosso); font-weight: 800; margin: 0 0 18px;
 }
 .nota {
-  border: 1px solid var(--riga);
-  background: var(--spento);
-  border-radius: 14px;
-  padding: 16px 18px;
-  color: var(--tenue);
-  font-size: 14px;
+  border: 1px solid var(--riga); background: var(--spento);
+  border-radius: 14px; padding: 16px 18px; color: var(--tenue); font-size: 14px;
 }
 footer {
-  margin-top: 70px;
-  padding: 26px 0 60px;
-  border-top: 1px solid var(--riga);
-  font-size: 14px;
-  color: var(--fioco);
+  margin-top: 70px; padding: 26px 0 60px; border-top: 1px solid var(--riga);
+  font-size: 14px; color: var(--fioco);
 }
 footer a { margin-right: 18px; text-decoration: none; }
 
-/* Ogni pezzo entra da solo, poco dopo quello prima. */
+/* Ogni pezzo entra da solo, e quelli piu' in basso entrano scorrendo. */
 .entra { opacity: 0; transform: translateY(14px); animation: entrata .7s ease forwards; }
 .r1 { animation-delay: .05s; } .r2 { animation-delay: .13s; }
 .r3 { animation-delay: .21s; } .r4 { animation-delay: .29s; }
 .r5 { animation-delay: .37s; }
 @keyframes entrata { to { opacity: 1; transform: none; } }
+.appare { opacity: 0; transform: translateY(22px); transition: opacity .6s ease, transform .6s ease; }
+.appare.vista { opacity: 1; transform: none; }
 
-/* **Chi ha chiesto di non vedere animazioni non ne vede.** Non e' una
-   gentilezza: per certe persone il movimento su una pagina provoca nausea. */
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
-  .entra { opacity: 1; transform: none; }
-  .nastro { transform: none; }
+  .entra, .appare { opacity: 1; transform: none; }
+  .scintille { display: none; }
 }
 </style>
 </head>
 <body>
 
 <header class="cielo">
+  <div class="scintille" aria-hidden="true"><span class="scintilla" style="left:6%;width:16px;height:16px;animation-duration:9.5s;animation-delay:0.0s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:17%;width:22px;height:22px;animation-duration:12.0s;animation-delay:2.4s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:28%;width:13px;height:13px;animation-duration:10.5s;animation-delay:4.8s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:39%;width:26px;height:26px;animation-duration:13.5s;animation-delay:1.2s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:50%;width:18px;height:18px;animation-duration:11.0s;animation-delay:6.0s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:61%;width:14px;height:14px;animation-duration:14.0s;animation-delay:3.6s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:72%;width:24px;height:24px;animation-duration:10.0s;animation-delay:7.2s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:83%;width:15px;height:15px;animation-duration:12.5s;animation-delay:5.4s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:93%;width:20px;height:20px;animation-duration:11.5s;animation-delay:8.4s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span></div>
   <div class="dentro">
     <div class="entra r1">
       <img class="marchio" src="/brand/crasy-wordmark.png" alt="CRASY" width="138">
@@ -262,14 +259,18 @@ footer a { margin-right: 18px; text-decoration: none; }
     una missione. Tu la fai, mandi la foto, e vince quella che piace di piu&#39;
     agli altri.</p>
 
-    <div class="consegna entra r3">
-      <div class="consegna__etichetta">OGGI SI FA QUESTO</div>
-      <div class="finestra">
-        <div class="nastro"><span>La cosa piu&#39; brutta che hai in casa</span><span>Imita qualcuno che conosci</span><span>Ricrea la copertina di un disco</span><span>L&#39;oggetto piu&#39; vecchio che possiedi</span><span>La cosa piu&#39; inutile che hai comprato</span><span>Il tuo angolo di casa piu&#39; bello</span><span>La cosa piu&#39; brutta che hai in casa</span></div>
+    <div class="gioco entra r3" id="gioco">
+      <div class="gioco__etichetta">OGGI SI FA QUESTO</div>
+      <div class="finestra"><div class="nastro"><span>La cosa piu&#39; brutta che hai in casa</span><span>Imita qualcuno che conosci</span><span>Ricrea la copertina di un disco</span><span>L&#39;oggetto piu&#39; vecchio che possiedi</span><span>La cosa piu&#39; inutile che hai comprato</span><span>Il tuo angolo di casa piu&#39; bello</span><span>La cosa piu&#39; brutta che hai in casa</span></div></div>
+      <div class="riga">
+        <button class="tasto" id="fiamma" type="button" aria-label="Dai una fiamma">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg> <span>Fiamma</span>
+        </button>
+        <div class="conto" id="conto">provala: si fa cosi&#39;</div>
       </div>
     </div>
 
-    <div class="negozi entra r4"><span class="store store--spento"><span class="store__glifo"><svg viewBox="0 0 384 512" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg></span><span class="store__testo"><span class="store__sopra">PRESTO SU</span><span class="store__nome">App Store</span></span></span><span class="store store--spento"><span class="store__glifo"><svg viewBox="0 0 512 512" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M325.3 234.3 104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c18-14.3 18-46.5-1.2-60.8zM104.6 499l280.8-161.2-60.1-60.1L104.6 499z"/></svg></span><span class="store__testo"><span class="store__sopra">PRESTO SU</span><span class="store__nome">Google Play</span></span></span></div>
+    <div class="negozi entra r4"><span class="store store--spento"><span class="store__glifo"><svg viewBox="0 0 384 512" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg></span><span><span class="store__sopra">PRESTO SU</span><span class="store__nome">App Store</span></span></span><span class="store store--spento"><span class="store__glifo"><svg viewBox="0 0 512 512" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M325.3 234.3 104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c18-14.3 18-46.5-1.2-60.8zM104.6 499l280.8-161.2-60.1-60.1L104.6 499z"/></svg></span><span><span class="store__sopra">PRESTO SU</span><span class="store__nome">Google Play</span></span></span></div>
     <p class="sottotasti entra r5">Stiamo finendo di prepararla.
     <a href="/app/">Sei tra chi la sta provando? Entra da qui.</a></p>
   </div>
@@ -277,22 +278,22 @@ footer a { margin-right: 18px; text-decoration: none; }
 
 <main>
   <section class="dentro">
-    <h2 class="sezione">Come funziona</h2>
+    <h2 class="sezione appare">Come funziona</h2>
     <ol class="passi">
-      <li class="passo">
+      <li class="passo appare">
         <div class="passo__numero">01</div>
         <div class="passo__titolo">Una missione, un premio</div>
         <p>Chi la lancia mette i soldi in palio <strong class="rosso">prima</strong>
         che cominci. Non e&#39; una promessa: il premio e&#39; gia&#39; li&#39;.</p>
       </li>
-      <li class="passo">
+      <li class="passo appare">
         <div class="passo__numero">02</div>
         <div class="passo__titolo">Una foto, sul momento</div>
         <p>Non quella che avevi in galleria. <strong class="rosso">Cinque
         partecipazioni al giorno</strong>, non una di piu&#39;: si sceglie dove
         spenderle.</p>
       </li>
-      <li class="passo">
+      <li class="passo appare">
         <div class="passo__numero">03</div>
         <div class="passo__titolo">Vince chi piace</div>
         <p>Non decide chi ha messo i soldi: <strong class="rosso">decidono gli
@@ -302,28 +303,30 @@ footer a { margin-right: 18px; text-decoration: none; }
   </section>
 
   <section class="fascia">
+    <div class="scintille" aria-hidden="true"><span class="scintilla" style="left:6%;width:16px;height:16px;animation-duration:9.5s;animation-delay:0.0s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:17%;width:22px;height:22px;animation-duration:12.0s;animation-delay:2.4s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:28%;width:13px;height:13px;animation-duration:10.5s;animation-delay:4.8s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:39%;width:26px;height:26px;animation-duration:13.5s;animation-delay:1.2s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:50%;width:18px;height:18px;animation-duration:11.0s;animation-delay:6.0s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:61%;width:14px;height:14px;animation-duration:14.0s;animation-delay:3.6s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:72%;width:24px;height:24px;animation-duration:10.0s;animation-delay:7.2s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:83%;width:15px;height:15px;animation-duration:12.5s;animation-delay:5.4s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:93%;width:20px;height:20px;animation-duration:11.5s;animation-delay:8.4s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span></div>
     <div class="dentro">
-      <h2>Le fiamme sono<br><span class="rosso">nascoste.</span></h2>
-      <p>Finche&#39; la gara e&#39; aperta nessuno sa come sta andando — nemmeno
-      tu. Niente classifica da guardare, niente foto che parte avvantaggiata
-      perche&#39; e&#39; arrivata prima. Si scopre tutto alla fine, insieme.</p>
+      <h2 class="appare">Le fiamme sono<br><span class="rosso">nascoste.</span></h2>
+      <p class="appare">Finche&#39; la gara e&#39; aperta nessuno sa come sta
+      andando — nemmeno tu. Niente classifica da guardare, niente foto che parte
+      avvantaggiata perche&#39; e&#39; arrivata prima. Si scopre tutto alla fine,
+      insieme.</p>
     </div>
   </section>
 
   <section class="dentro">
-    <div class="giornaliera">
+    <div class="giornaliera appare">
       <div class="giornaliera__etichetta">SFIDA DEL GIORNO &middot; GRATIS</div>
       <h3>Ogni mattina ce n&#39;e&#39; una nuova.</h3>
       <p>Uguale per tutti, ventiquattro ore esatte, e non consuma nessuna delle
       tue cinque partecipazioni.</p>
     </div>
 
-    <h2 class="sezione" style="margin-top:52px;">Non e&#39; un gioco di fortuna</h2>
-    <p style="color:var(--tenue);max-width:56ch;">Partecipare non costa niente e
-    l&#39;esito non dipende dal caso: dipende da quanto piace quello che hai
-    fatto. Si entra da maggiorenni, con un account per persona.</p>
+    <h2 class="sezione appare" style="margin-top:52px;">Non e&#39; un gioco di fortuna</h2>
+    <p class="appare" style="color:var(--tenue);max-width:56ch;">Partecipare non
+    costa niente e l&#39;esito non dipende dal caso: dipende da quanto piace
+    quello che hai fatto. Si entra da maggiorenni, con un account per persona.</p>
 
-    <div class="nota" style="margin-top:26px;">
+    <div class="nota appare" style="margin-top:26px;">
       <strong style="color:var(--inchiostro);">CRASY e&#39; in prova.</strong>
       Le cose cambiano spesso e qualcosa si rompe. Se trovi qualcosa che non va
       scrivici a <a href="mailto:register@crasyapp.com">register@crasyapp.com</a>: leggiamo tutto.
@@ -338,6 +341,93 @@ footer a { margin-right: 18px; text-decoration: none; }
     </footer>
   </section>
 </main>
+
+<script>
+(function () {
+  var calmo = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // --- i blocchi che compaiono scorrendo -----------------------------------
+  //
+  // Con l'osservatore quando c'e', altrimenti si mostrano e basta: una pagina
+  // che nasconde meta' del contenuto quando un pezzo non funziona e' peggio di
+  // una pagina senza animazioni.
+  var pezzi = document.querySelectorAll('.appare');
+
+  if (calmo || !('IntersectionObserver' in window)) {
+    pezzi.forEach(function (p) { p.classList.add('vista'); });
+  } else {
+    var occhio = new IntersectionObserver(function (righe) {
+      righe.forEach(function (r, i) {
+        if (r.isIntersecting) {
+          setTimeout(function () { r.target.classList.add('vista'); }, i * 70);
+          occhio.unobserve(r.target);
+        }
+      });
+    }, { rootMargin: '0px 0px -12% 0px' });
+
+    pezzi.forEach(function (p) { occhio.observe(p); });
+  }
+
+  // --- il tasto della fiamma -----------------------------------------------
+  var tasto = document.getElementById('fiamma');
+  var conto = document.getElementById('conto');
+
+  if (!tasto) { return; }
+
+  var quante = 0;
+  var SVELA = 3;
+  var disegno = tasto.querySelector('svg').outerHTML;
+
+  function scintilla() {
+    if (calmo) { return; }
+
+    for (var i = 0; i < 6; i++) {
+      var f = document.createElement('span');
+      f.className = 'volo';
+      f.innerHTML = disegno;
+      f.style.left = (18 + Math.random() * 46) + 'px';
+      f.style.top = '6px';
+      f.style.setProperty('--dx', (Math.random() * 70 - 35).toFixed(0) + 'px');
+      f.style.setProperty('--gira', (Math.random() * 90 - 45).toFixed(0) + 'deg');
+      f.style.animation = 'vola ' + (0.7 + Math.random() * 0.5).toFixed(2) + 's ease-out forwards';
+      tasto.parentNode.appendChild(f);
+
+      (function (nodo) {
+        setTimeout(function () { nodo.remove(); }, 1400);
+      })(f);
+    }
+  }
+
+  tasto.addEventListener('click', function () {
+    quante++;
+    tasto.classList.remove('invito');
+    tasto.classList.add('acceso');
+    scintilla();
+
+    if (quante < SVELA) {
+      conto.className = 'conto';
+      conto.innerHTML = '<b>' + quante + '</b> fiamm' + (quante === 1 ? 'a' : 'e');
+
+      return;
+    }
+
+    // **Il momento per cui esiste tutto questo.** Al terzo tocco il numero
+    // sparisce: e' la regola piu' strana di CRASY, e detta cosi' — mentre uno
+    // sta contando le proprie fiamme — non si dimentica piu'.
+    conto.className = 'conto svelato';
+    conto.innerHTML = '<b>nascoste</b><br><span style="font-size:12px;">'
+      + 'si scoprono alla fine</span>';
+  });
+
+  // Dopo qualche secondo il tasto tremola: e' il modo piu' educato di dire
+  // "questo si preme" senza scriverlo da nessuna parte.
+  if (!calmo) {
+    setTimeout(function () {
+      if (quante === 0) { tasto.classList.add('invito'); }
+    }, 3200);
+  }
+})();
+</script>
 
 </body>
 </html>
