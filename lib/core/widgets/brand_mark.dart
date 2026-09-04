@@ -85,21 +85,26 @@ class CrasyWordmark extends StatelessWidget {
     // dall'altra parte. La riga stretta attorno tiene la colonna larga quanto
     // il segno, cosi' "a destra" vuol dire *a destra del marchio* e non *a
     // destra dello schermo*.
+    // **Accanto al marchio e in alto, non sotto.**
+    //
+    // Stava sotto la coda della "y", grande un terzo del segno e con "ta" in
+    // rosso: da lontano sembrava una seconda parola del marchio, come se l'app
+    // si chiamasse *crasy beta*. E il rosso peggiorava la cosa — qui dentro il
+    // rosso vuol dire premio, fiamma, attivo, e non c'e' niente di attivo
+    // nell'essere una versione di prova.
+    //
+    // Adesso e' una targhetta piccola e grigia appesa in alto a destra del
+    // segno, come sul sito: si legge se la si cerca, e smette di far parte del
+    // nome.
     return Row(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            segno,
-            Padding(
-              padding: EdgeInsets.only(top: size * 0.04, right: size * 0.02),
-              // Un terzo del marchio: sotto, la parola si leggeva come una
-              // macchia e non come una parola.
-              child: _BetaWord(size: size * 0.36),
-            ),
-          ],
+        segno,
+        SizedBox(width: size * 0.12),
+        Padding(
+          padding: EdgeInsets.only(top: size * 0.04),
+          child: _BetaWord(size: size * 0.26),
         ),
       ],
     );
@@ -349,24 +354,18 @@ class _BetaWord extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text.rich(
-      TextSpan(
-        children: [
-          const TextSpan(text: 'be'),
-          TextSpan(
-            text: 'ta',
-            style: TextStyle(color: context.palette.accent),
-          ),
-        ],
-      ),
+    return Text(
+      'BETA',
       style: TextStyle(
         fontSize: size,
         height: 1,
-        fontWeight: FontWeight.w900,
-        // Stretta: il logotipo ha le lettere quasi attaccate, e una parola
-        // spaziata sotto di lui sembrerebbe di un'altra famiglia.
-        letterSpacing: -size * 0.02,
-        color: context.palette.textPrimary,
+        fontWeight: FontWeight.w800,
+        // **Larga, non stretta.** Il logotipo ha le lettere quasi attaccate:
+        // una targhetta spaziata accanto si legge come una cosa diversa da lui,
+        // ed e' quello che deve essere. Stretta sarebbe sembrata la coda del
+        // nome.
+        letterSpacing: size * 0.14,
+        color: context.palette.textFaint,
       ),
     );
   }
