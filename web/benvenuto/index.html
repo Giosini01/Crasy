@@ -47,19 +47,6 @@ a { color: var(--rosso); }
   0%, 100% { opacity: .7; transform: translateX(-50%) scale(1); }
   50%      { opacity: 1;  transform: translateX(-50%) scale(1.09); }
 }
-.scintille { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.scintilla {
-  position: absolute; bottom: -40px; color: var(--rosso); opacity: 0;
-  animation-name: sale; animation-timing-function: linear;
-  animation-iteration-count: infinite;
-}
-.scintilla svg { width: 100%; height: 100%; display: block; }
-@keyframes sale {
-  0%   { transform: translateY(0) rotate(-6deg) scale(.9); opacity: 0; }
-  12%  { opacity: .16; }
-  70%  { opacity: .10; }
-  100% { transform: translateY(-88vh) rotate(8deg) scale(1.1); opacity: 0; }
-}
 
 .testata { display: grid; gap: 40px; grid-template-columns: 1fr; align-items: center; }
 @media (min-width: 900px) { .testata { grid-template-columns: 1.05fr .95fr; gap: 56px; } }
@@ -197,7 +184,6 @@ h1 {
 .fascia { background: var(--inchiostro); color: #FFF; padding: 64px 0; margin: 74px 0; position: relative; overflow: hidden; }
 .fascia h2 { font-size: clamp(28px, 5.5vw, 46px); line-height: 1.02; letter-spacing: -.03em; font-weight: 800; margin: 0; text-transform: uppercase; }
 .fascia p { color: #B9B9BE; max-width: 46ch; margin: 16px 0 0; }
-.fascia .scintille { opacity: .55; }
 
 /* --- la sfida del giorno --- */
 .giornaliera { border: 2px solid var(--rosso); border-radius: 18px; padding: 24px; }
@@ -220,14 +206,12 @@ footer a { margin-right: 18px; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
   .entra, .appare { opacity: 1; transform: none; }
-  .scintille { display: none; }
 }
 </style>
 </head>
 <body>
 
 <header class="cielo">
-  <div class="scintille" aria-hidden="true"><span class="scintilla" style="left:6%;width:16px;height:16px;animation-duration:9.5s;animation-delay:0.0s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:17%;width:22px;height:22px;animation-duration:12.0s;animation-delay:2.4s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:28%;width:13px;height:13px;animation-duration:10.5s;animation-delay:4.8s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:39%;width:26px;height:26px;animation-duration:13.5s;animation-delay:1.2s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:50%;width:18px;height:18px;animation-duration:11.0s;animation-delay:6.0s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:61%;width:14px;height:14px;animation-duration:14.0s;animation-delay:3.6s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:72%;width:24px;height:24px;animation-duration:10.0s;animation-delay:7.2s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:83%;width:15px;height:15px;animation-duration:12.5s;animation-delay:5.4s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:93%;width:20px;height:20px;animation-duration:11.5s;animation-delay:8.4s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span></div>
   <div class="dentro testata">
     <div>
       <div class="entra r1">
@@ -273,7 +257,6 @@ footer a { margin-right: 18px; text-decoration: none; }
   </section>
 
   <section class="fascia">
-    <div class="scintille" aria-hidden="true"><span class="scintilla" style="left:6%;width:16px;height:16px;animation-duration:9.5s;animation-delay:0.0s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:17%;width:22px;height:22px;animation-duration:12.0s;animation-delay:2.4s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:28%;width:13px;height:13px;animation-duration:10.5s;animation-delay:4.8s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:39%;width:26px;height:26px;animation-duration:13.5s;animation-delay:1.2s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:50%;width:18px;height:18px;animation-duration:11.0s;animation-delay:6.0s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:61%;width:14px;height:14px;animation-duration:14.0s;animation-delay:3.6s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:72%;width:24px;height:24px;animation-duration:10.0s;animation-delay:7.2s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:83%;width:15px;height:15px;animation-duration:12.5s;animation-delay:5.4s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span><span class="scintilla" style="left:93%;width:20px;height:20px;animation-duration:11.5s;animation-delay:8.4s;"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5c.6 3.3-1.1 5.2-2.8 6.9-1.7 1.8-3.4 3.4-3 6.6-2-1.2-2.6-3.6-2.6-3.6S3 13.6 3 16.3C3 20.6 7 23 12 23s9-2.6 9-7.2c0-5.6-4.5-7.5-4.5-7.5s.4 2.3-.8 3.6c-.2-2.3-1-6.5-2.2-10.4z"/></svg></span></div>
     <div class="dentro">
       <h2 class="appare">Le fiamme sono<br><span class="rosso">nascoste.</span></h2>
       <p class="appare">Finche&#39; la gara e&#39; aperta nessuno sa come sta

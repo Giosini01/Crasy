@@ -30,10 +30,17 @@ mentre uno sta contando le proprie fiamme, no.
 Chi non tocca niente la scopre lo stesso: dopo qualche secondo compare da sola
 la scritta che dice di provare.
 
-## Il movimento, e chi non lo vuole
+## Il movimento sta dove racconta qualcosa
 
-Con `prefers-reduced-motion` si spegne tutto e la pagina resta intera: non e'
-una gentilezza, per certe persone il movimento su una pagina provoca nausea.
+C'erano delle fiamme che salivano lente sullo sfondo, ed e' stato giusto
+toglierle: **il movimento che non racconta niente ruba attenzione a quello che
+racconta.** L'unica cosa da guardare qui e' la card, e ogni cosa che si muove
+intorno tira l'occhio da un'altra parte.
+
+Resta la consegna che scorre — dice cosa chiede l'app — la fiamma che esplode
+sotto il dito, e i blocchi che compaiono scorrendo. Con `prefers-reduced-motion`
+si spengono tutte: non e' una gentilezza, per certe persone il movimento su una
+pagina provoca nausea.
 """
 
 import io
@@ -124,27 +131,6 @@ def _tastoStore(nome, glifo, indirizzo):
     return '<a class="' + classe + '" href="' + indirizzo + '">' + dentro + '</a>'
 
 
-def _scintille():
-    """Le fiamme che salgono dal fondo.
-
-    Posizioni e tempi sono scritti nella pagina invece di essere sorteggiati a
-    ogni apertura: **una pagina che si disegna diversa ogni volta non si puo'
-    guardare due volte per capire se e' venuta bene.**
-    """
-
-    dove = [6, 17, 28, 39, 50, 61, 72, 83, 93]
-    tempi = [9.5, 12.0, 10.5, 13.5, 11.0, 14.0, 10.0, 12.5, 11.5]
-    ritardi = [0, 2.4, 4.8, 1.2, 6.0, 3.6, 7.2, 5.4, 8.4]
-    misure = [16, 22, 13, 26, 18, 14, 24, 15, 20]
-
-    return ''.join(
-        '<span class="scintilla" style="left:%d%%;width:%dpx;height:%dpx;'
-        'animation-duration:%.1fs;animation-delay:%.1fs;">%s</span>'
-        % (dove[i], misure[i], misure[i], tempi[i], ritardi[i], FIAMMA)
-        for i in range(len(dove))
-    )
-
-
 PASSI = [
     (
         'Qualcuno mette i soldi.',
@@ -228,19 +214,6 @@ a { color: var(--rosso); }
 @keyframes respiro {
   0%, 100% { opacity: .7; transform: translateX(-50%) scale(1); }
   50%      { opacity: 1;  transform: translateX(-50%) scale(1.09); }
-}
-.scintille { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.scintilla {
-  position: absolute; bottom: -40px; color: var(--rosso); opacity: 0;
-  animation-name: sale; animation-timing-function: linear;
-  animation-iteration-count: infinite;
-}
-.scintilla svg { width: 100%; height: 100%; display: block; }
-@keyframes sale {
-  0%   { transform: translateY(0) rotate(-6deg) scale(.9); opacity: 0; }
-  12%  { opacity: .16; }
-  70%  { opacity: .10; }
-  100% { transform: translateY(-88vh) rotate(8deg) scale(1.1); opacity: 0; }
 }
 
 .testata { display: grid; gap: 40px; grid-template-columns: 1fr; align-items: center; }
@@ -379,7 +352,6 @@ h1 {
 .fascia { background: var(--inchiostro); color: #FFF; padding: 64px 0; margin: 74px 0; position: relative; overflow: hidden; }
 .fascia h2 { font-size: clamp(28px, 5.5vw, 46px); line-height: 1.02; letter-spacing: -.03em; font-weight: 800; margin: 0; text-transform: uppercase; }
 .fascia p { color: #B9B9BE; max-width: 46ch; margin: 16px 0 0; }
-.fascia .scintille { opacity: .55; }
 
 /* --- la sfida del giorno --- */
 .giornaliera { border: 2px solid var(--rosso); border-radius: 18px; padding: 24px; }
@@ -402,14 +374,12 @@ footer a { margin-right: 18px; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
   .entra, .appare { opacity: 1; transform: none; }
-  .scintille { display: none; }
 }
 </style>
 </head>
 <body>
 
 <header class="cielo">
-  <div class="scintille" aria-hidden="true">@SCINTILLE@</div>
   <div class="dentro testata">
     <div>
       <div class="entra r1">
@@ -455,7 +425,6 @@ footer a { margin-right: 18px; text-decoration: none; }
   </section>
 
   <section class="fascia">
-    <div class="scintille" aria-hidden="true">@SCINTILLE@</div>
     <div class="dentro">
       <h2 class="appare">Le fiamme sono<br><span class="rosso">nascoste.</span></h2>
       <p class="appare">Finche&#39; la gara e&#39; aperta nessuno sa come sta
@@ -638,7 +607,6 @@ def html(posta, app, appStore, playStore):
     return (
         STAMPO.replace('@NASTRO@', nastro)
         .replace('@NEGOZI@', negozi)
-        .replace('@SCINTILLE@', _scintille())
         .replace('@PASSI@', _passi())
         .replace('@FIAMMA_PICCOLA@', FIAMMA)
         .replace('@FIAMMA@', FIAMMA)
