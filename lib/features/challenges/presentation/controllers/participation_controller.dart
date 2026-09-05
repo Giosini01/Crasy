@@ -46,7 +46,7 @@ class OutOfLivesException implements Exception {
 
   @override
   String toString() =>
-      'Hai gia\' partecipato a ${Challenge.livesPerDay} gare oggi. '
+      'Hai già partecipato a ${Challenge.livesPerDay} gare oggi. '
       'A mezzanotte ricominci.';
 }
 

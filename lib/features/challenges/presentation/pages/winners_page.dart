@@ -49,8 +49,8 @@ class WinnersPage extends ConsumerWidget {
                   ),
                   children: [
                     const HighlightedText(
-                      'Le challenge chiuse, e chi si e\' preso i soldi.',
-                      highlight: 'chi si e\' preso i soldi',
+                      'Le challenge chiuse, e chi si è preso i soldi.',
+                      highlight: 'chi si è preso i soldi',
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     challenges.when(
@@ -238,7 +238,7 @@ class _WinnerBlock extends ConsumerWidget {
                     style: texts.titleMedium,
                   ),
                   TextSpan(
-                    text: ' ha vinto ${challenge.prizeLabel} con piu\' fiamme',
+                    text: ' ha vinto ${challenge.prizeLabel} con più fiamme',
                     style: texts.bodyMedium,
                   ),
                 ],

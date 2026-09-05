@@ -126,7 +126,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                       const InlineBanner(
                         message:
                             'Non riusciamo a leggere cosa stanno facendo i tuoi '
-                            'amici. Riprova fra poco: se resta cosi\', non e\' '
+                            'amici. Riprova fra poco: se resta così, non è '
                             'colpa tua.',
                       ),
                       const SizedBox(height: AppSpacing.lg),
@@ -144,7 +144,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                           title: 'Non ne hai lanciata nessuna',
                           message:
                               'Una missione per i soli amici non compare nella home di '
-                              'nessun altro: la vedono loro e basta. E puo\' anche non '
+                              'nessun altro: la vedono loro e basta. E può anche non '
                               'avere un premio.',
                         )
                       else
@@ -163,10 +163,10 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                           _MissionRow(challenge: challenge)
                     else if (entries.isEmpty)
                       const EmptyState(
-                        title: 'Nessuno e\' in gara adesso',
+                        title: 'Nessuno è in gara adesso',
                         message:
                             'Appena un amico manda uno scatto lo vedi qui, e una tua '
-                            'fiamma puo\' essere quella che lo fa vincere.',
+                            'fiamma può essere quella che lo fa vincere.',
                       )
                     else
                       for (final entry in entries)
@@ -297,7 +297,7 @@ class _LaunchForFriends extends StatelessWidget {
                   // prima di aprire il modulo: chi la vede, e che puo' non
                   // costare niente. Nel modulo si sceglie SOLO AMICI.
                   Text(
-                    'La vedono soltanto loro, e il premio puo\' anche essere '
+                    'La vedono soltanto loro, e il premio può anche essere '
                     'zero. Nel modulo scegli SOLO AMICI.',
                     style: texts.bodySmall?.copyWith(
                       color: palette.textSecondary,

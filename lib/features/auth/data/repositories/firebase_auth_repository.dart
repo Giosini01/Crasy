@@ -338,7 +338,7 @@ class FirebaseAuthRepository implements AuthRepository {
       if (conferma == null) {
         throw FirebaseAuthException(
           code: 'session-expired',
-          message: 'Il codice e\' scaduto. Chiedine un altro.',
+          message: 'Il codice è scaduto. Chiedine un altro.',
         );
       }
 

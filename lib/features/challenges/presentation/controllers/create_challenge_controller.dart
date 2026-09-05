@@ -98,11 +98,11 @@ abstract final class ChallengeDraftValidators {
     }
 
     if (cents < prizeMinCents) {
-      return 'Il premio minimo e\' ${AppMoney.format(prizeMinCents)}.';
+      return 'Il premio minimo è ${AppMoney.format(prizeMinCents)}.';
     }
 
     if (cents > prizeMaxEuro * 100) {
-      return 'Troppo. Il massimo e\' $prizeMaxEuro euro.';
+      return 'Troppo. Il massimo è $prizeMaxEuro euro.';
     }
 
     return null;
@@ -142,7 +142,7 @@ abstract final class ChallengeDraftValidators {
     }
 
     return (value?.trim() ?? '').isEmpty
-        ? 'Scrivi la citta\' della challenge.'
+        ? 'Scrivi la città della challenge.'
         : null;
   }
 }

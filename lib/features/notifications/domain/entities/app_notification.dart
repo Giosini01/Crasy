@@ -139,7 +139,7 @@ class AppNotification {
       '@$actorUsername ti ha chiesto l\'amicizia',
     NotificationKind.comeback => 'Ci sono missioni nuove che ti aspettano',
     NotificationKind.win => 'Hai vinto',
-    NotificationKind.ended => 'La missione e\' finita: guarda chi ha vinto',
+    NotificationKind.ended => 'La missione è finita: guarda chi ha vinto',
     NotificationKind.comment => '@\$actorUsername ha commentato la tua foto',
   };
 

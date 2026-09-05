@@ -165,7 +165,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                     title: 'Non sei in nessuna gara',
                                     message:
                                         'Le foto che mandi alle challenge aperte stanno qui '
-                                        'finche\' la gara non finisce.',
+                                        'finché la gara non finisce.',
                                   )
                                 : _EntryGrid(entries: shown),
                           ProfileShelf.trophies =>
@@ -187,7 +187,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                 ? const _EmptyShelf(
                                     title: 'Non hai ancora fatto fare niente',
                                     message:
-                                        'Lancia una challenge: la vedi qui finche\' e\' '
+                                        'Lancia una challenge: la vedi qui finché è '
                                         'aperta, e quando finisce resta la foto che ha '
                                         'vinto — roba che hai fatto fare tu.',
                                   )

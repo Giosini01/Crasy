@@ -81,7 +81,7 @@ class PublicProfilePage extends ConsumerWidget {
                 padding: EdgeInsets.symmetric(horizontal: AppSpacing.page),
                 child: EmptyState(
                   title: 'Profilo non trovato',
-                  message: 'Questa persona non c\'e\' piu\'.',
+                  message: 'Questa persona non c\'è più.',
                 ),
               );
             }
@@ -184,7 +184,7 @@ class _BodyState extends ConsumerState<_Body> {
           ProfileShelf.live =>
             shown.isEmpty
                 ? const _EmptyShelf(
-                    title: 'Non e\' in nessuna gara',
+                    title: 'Non è in nessuna gara',
                     message:
                         'Quando partecipa a una challenge aperta lo vedi qui.',
                   )

@@ -11,16 +11,16 @@ enum ReportReason {
   /// Il caso piu' grave, e sta per primo apposta.
   danger(
     'Mette in pericolo qualcuno',
-    'Chiede o mostra qualcosa che puo\' far male a una persona.',
+    'Chiede o mostra qualcosa che può far male a una persona.',
   ),
 
-  sexual('Contenuto sessuale', 'Nudita\' o contenuti sessuali.'),
+  sexual('Contenuto sessuale', 'Nudità o contenuti sessuali.'),
 
   violence('Violenza', 'Aggressioni, crudelta\' su persone o animali.'),
 
   hate('Odio o insulti', 'Prende di mira una persona o un gruppo.'),
 
-  minor('C\'e\' un minore', 'Nella foto o nel video compare un minorenne.'),
+  minor('C\'è un minore', 'Nella foto o nel video compare un minorenne.'),
 
   other('Altro', 'Qualcosa che non dovrebbe stare qui.');
 

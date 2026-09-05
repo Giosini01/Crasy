@@ -342,8 +342,8 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.xxs),
                 child: Text(
-                  'Una possibilita\' su $_maxPartecipanti. Quando i posti '
-                  'finiscono, non si entra piu\'.',
+                  'Una possibilità su $_maxPartecipanti. Quando i posti '
+                  'finiscono, non si entra più.',
                   style: texts.bodySmall?.copyWith(color: palette.textFaint),
                 ),
               ),
@@ -480,7 +480,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
       if (!opened) {
         setState(() {
           _error =
-              'Non siamo riusciti ad aprire il pagamento. La challenge e\' '
+              'Non siamo riusciti ad aprire il pagamento. La challenge è '
               'salvata: riprova fra poco.';
         });
 

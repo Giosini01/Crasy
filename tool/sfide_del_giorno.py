@@ -134,6 +134,22 @@ def documento(giorno, consegna):
                 "timestampValue": quando(giorno + datetime.timedelta(days=1), 0)
             },
             "participantsCount": {"integerValue": "0"},
+            # **I due campi che nessuno guarda, e senza i quali le sfide non
+            # muoiono mai.**
+            #
+            # Le due funzioni di pulizia sul server cercano le gare da chiudere
+            # con `winnerEntryId == null` e quelle da svuotare con
+            # `purgedAt == null`. In Firestore un campo **che non c'e' non e'
+            # nullo**: e' assente, e una ricerca sul nullo non lo trova. Senza
+            # queste due righe le sfide del giorno restavano invisibili a tutte
+            # e due — non venivano mai chiuse dal server, e le foto non venivano
+            # mai cancellate.
+            #
+            # L'app li scrive da sempre sulle gare che crea lei (vedi
+            # `challenge_mapper.dart`); qui erano stati dimenticati, e il difetto
+            # non si vedeva perche' non produce nessun errore: produce silenzio.
+            "winnerEntryId": {"nullValue": None},
+            "purgedAt": {"nullValue": None},
             "prizeStatus": {"stringValue": "unpaid"},
             "rules": {"arrayValue": {"values": []}},
             # Chi la puo' vedere: tutti. Le gare riservate agli amici portano

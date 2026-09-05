@@ -44,7 +44,7 @@ abstract final class EmailPolicy {
   /// per tutto, senza secondi fini.
   static const String message =
       'Serve un indirizzo email vero: qui si vincono soldi, e senza un '
-      'contatto stabile non c\'e\' modo di farteli avere.';
+      'contatto stabile non c\'è modo di farteli avere.';
 
   /// I domini che non si accettano in registrazione.
   ///

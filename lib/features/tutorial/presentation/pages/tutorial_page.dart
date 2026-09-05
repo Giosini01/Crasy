@@ -200,8 +200,8 @@ class _TutorialStep {
       icon: Icons.local_fire_department_rounded,
       title: 'Qualcuno mette dei soldi\ne chiede una cosa',
       body:
-          'Una missione e\' una richiesta con un premio in palio: "fai questo, '
-          'chi lo fa meglio si prende i soldi". A metterli e\' una persona '
+          'Una missione è una richiesta con un premio in palio: "fai questo, '
+          'chi lo fa meglio si prende i soldi". A metterli è una persona '
           'come te, non CRASY.',
     ),
     const _TutorialStep(
@@ -228,15 +228,15 @@ class _TutorialStep {
       body:
           'Nessuno sa come sta andando, nemmeno chi ha mandato la foto: i '
           'numeri si scoprono tutti insieme alla sirena. E ognuno vede le foto '
-          'in un ordine diverso, cosi\' chi manda per primo non parte '
+          'in un ordine diverso, così chi manda per primo non parte '
           'avvantaggiato.',
     ),
     const _TutorialStep(
       icon: Icons.emoji_events_rounded,
-      title: 'Vince chi ha piu\' fiamme\nquando scade il tempo',
+      title: 'Vince chi ha più fiamme\nquando scade il tempo',
       body:
           'Nessuno decide al posto degli altri: alla sirena si contano le '
-          'fiamme, e il premio va alla foto che ne ha di piu\'. Quella foto ti '
+          'fiamme, e il premio va alla foto che ne ha di più. Quella foto ti '
           'resta nel profilo come trofeo, con quanto ti ha fatto incassare.',
     ),
   ];

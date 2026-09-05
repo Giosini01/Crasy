@@ -87,7 +87,7 @@ class _ProfileSettings extends StatelessWidget {
         // comando usabile.
         _SettingsRow(
           label: 'Persone bloccate',
-          note: 'Chi non vedi piu\'. Da qui li puoi sbloccare.',
+          note: 'Chi non vedi più. Da qui li puoi sbloccare.',
           onTap: () => onPick(_SettingsChoice.blocked),
         ),
         Divider(color: palette.line, height: 1),
@@ -97,7 +97,7 @@ class _ProfileSettings extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         _SettingsRow(
           label: 'Cancella account',
-          note: 'Per sempre. Dentro c\'e\' scritto cosa sparisce e cosa resta.',
+          note: 'Per sempre. Dentro c\'è scritto cosa sparisce e cosa resta.',
           danger: true,
           onTap: () => onPick(_SettingsChoice.deleteAccount),
         ),

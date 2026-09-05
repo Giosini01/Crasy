@@ -44,25 +44,25 @@ abstract final class ContentPolicy {
   /// frase sensata invece di un "non consentito" che non spiega niente.
   static const selfHarm = ContentViolation._(
     'autolesionismo',
-    'Non si puo\' chiedere a nessuno di farsi del male. Se stai passando un '
+    'Non si può chiedere a nessuno di farsi del male. Se stai passando un '
         'momento difficile, in Italia il Telefono Amico risponde al 02 2327 '
         '2327.',
   );
 
   static const violence = ContentViolation._(
     'violenza',
-    'Non si puo\' chiedere a nessuno di fare del male a qualcun altro, o a un '
+    'Non si può chiedere a nessuno di fare del male a qualcun altro, o a un '
         'animale.',
   );
 
   static const sexual = ContentViolation._(
     'sesso',
-    'Niente contenuti sessuali o nudita\': su CRASY non sono ammessi.',
+    'Niente contenuti sessuali o nudità: su CRASY non sono ammessi.',
   );
 
   static const danger = ContentViolation._(
     'pericolo',
-    'Questa challenge chiede qualcosa che puo\' finire male davvero. Non e\' '
+    'Questa challenge chiede qualcosa che può finire male davvero. Non è '
         'quel tipo di app.',
   );
 
@@ -73,7 +73,7 @@ abstract final class ContentPolicy {
 
   static const crime = ContentViolation._(
     'reato',
-    'Questa challenge chiede di commettere un reato. Non si puo\'.',
+    'Questa challenge chiede di commettere un reato. Non si può.',
   );
 
   /// Volgarita' e bestemmie.
@@ -84,7 +84,7 @@ abstract final class ContentPolicy {
   /// non fa male a nessuno in particolare; un insulto ha un bersaglio.
   static const profanity = ContentViolation._(
     'volgarita',
-    'Riscrivilo senza parolacce. Qui sotto ci passano tutti, e non e\' il '
+    'Riscrivilo senza parolacce. Qui sotto ci passano tutti, e non è il '
         'posto.',
   );
 

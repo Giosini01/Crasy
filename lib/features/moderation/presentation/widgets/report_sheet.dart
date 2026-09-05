@@ -53,7 +53,7 @@ Future<void> showReportSheet(
       SnackBar(
         content: Text(
           fatto
-              ? 'Hai bloccato @$reportedUsername. Non lo vedi piu\'.'
+              ? 'Hai bloccato @$reportedUsername. Non lo vedi più.'
               : 'Non siamo riusciti a bloccarlo. Riprova.',
         ),
       ),
@@ -84,7 +84,7 @@ Future<void> showReportSheet(
             // **Si dice cosa succede adesso, non "grazie".** Chi segnala vuole
             // sapere se e' servito a qualcosa: le due frasi qui sotto sono
             // tutte e due vere, ed e' il motivo per cui segnalera' di nuovo.
-            ? 'Segnalata. Tu non la vedi piu\', e la guardiamo entro 24 ore.'
+            ? 'Segnalata. Tu non la vedi più, e la guardiamo entro 24 ore.'
             : 'Segnalazione non riuscita. Riprova.',
       ),
     ),
@@ -131,7 +131,7 @@ class _ReportBody extends StatelessWidget {
           Text('Cosa non va in $cosa?', style: texts.titleMedium),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'La guardiamo entro 24 ore. Nel frattempo tu non la vedi piu\'.',
+            'La guardiamo entro 24 ore. Nel frattempo tu non la vedi più.',
             style: texts.bodySmall?.copyWith(color: palette.textSecondary),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -150,7 +150,7 @@ class _ReportBody extends StatelessWidget {
           _Row(
             label: 'Blocca @$username',
             detail:
-                'Non vedi piu\' le sue foto e i suoi commenti, e lui non vede '
+                'Non vedi più le sue foto e i suoi commenti, e lui non vede '
                 'i tuoi. Si toglie dalle impostazioni.',
             accent: true,
             onTap: () => onPick(const _Choice.block()),

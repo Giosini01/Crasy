@@ -105,7 +105,7 @@ class _VerifyEmailPageState extends ConsumerState<VerifyEmailPage> {
               ),
               const SizedBox(height: AppSpacing.md),
               const HighlightedText(
-                'Serve un indirizzo vero: e\' l\'unico modo per farti avere i '
+                'Serve un indirizzo vero: è l\'unico modo per farti avere i '
                 'premi che vinci.',
                 highlight: 'premi che vinci',
               ),

@@ -76,7 +76,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
             if (challenge == null) {
               return const _Notice(
                 title: 'Challenge non trovata',
-                message: 'Questa challenge non esiste piu\'.',
+                message: 'Questa challenge non esiste più.',
               );
             }
 
@@ -84,7 +84,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
               return const _Notice(
                 title: 'Tempo scaduto',
                 message:
-                    'Questa challenge si e\' chiusa. Guarda chi ha vinto o '
+                    'Questa challenge si è chiusa. Guarda chi ha vinto o '
                     'scegline un\'altra.',
               );
             }
@@ -94,7 +94,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
             // una gara.
             if (ref.watch(isMyChallengeProvider(widget.challengeId))) {
               return const _Notice(
-                title: 'E\' la tua challenge',
+                title: 'È la tua challenge',
                 message:
                     'Il premio lo metti tu, quindi non puoi correre per '
                     'vincerlo. Guarda cosa manda la gente e chi sta in testa.',
@@ -105,9 +105,9 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
             // il limite si spiega prima, non dopo lo scatto.
             if (myEntry != null) {
               return const _Notice(
-                title: 'Hai gia\' partecipato',
+                title: 'Hai già partecipato',
                 message:
-                    'Si manda una foto sola per challenge, e la tua e\' gia\' '
+                    'Si manda una foto sola per challenge, e la tua è già '
                     'in gara. La trovi nel feed insieme a quelle degli altri.',
               );
             }
@@ -244,7 +244,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
               // e' peggio di nessun avviso: quella non toglie niente, e chi la
               // legge deve saperlo prima di rinunciare.
               if (challenge.isDaily) ...[
-                const TextSpan(text: ' Ma e\' la sfida del giorno: '),
+                const TextSpan(text: ' Ma è la sfida del giorno: '),
                 TextSpan(
                   text: 'non ti costa nessuna partecipazione',
                   style: TextStyle(
@@ -446,7 +446,7 @@ class _Form extends StatelessWidget {
         if (outOfLives) ...[
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Hai gia\' partecipato a ${Challenge.livesPerDay} gare oggi. '
+            'Hai già partecipato a ${Challenge.livesPerDay} gare oggi. '
             'A mezzanotte ricominci.',
             style: texts.bodySmall?.copyWith(color: palette.accent),
           ),
@@ -480,11 +480,11 @@ class _Form extends StatelessWidget {
         // veri.
         Text(
           challenge.mediaKind.isVideo
-              ? 'Il video resta tuo. Mandandolo, CRASY puo\' mostrarlo qui '
-                    'dentro e usarlo per raccontare com\'e\' finita questa '
+              ? 'Il video resta tuo. Mandandolo, CRASY può mostrarlo qui '
+                    'dentro e usarlo per raccontare com\'è finita questa '
                     'challenge.'
-              : 'La foto resta tua. Mandandola, CRASY puo\' mostrarla qui '
-                    'dentro e usarla per raccontare com\'e\' finita questa '
+              : 'La foto resta tua. Mandandola, CRASY può mostrarla qui '
+                    'dentro e usarla per raccontare com\'è finita questa '
                     'challenge.',
           style: texts.bodySmall?.copyWith(color: palette.textFaint),
         ),

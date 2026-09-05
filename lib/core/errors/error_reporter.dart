@@ -124,7 +124,7 @@ class _RiquadroRotto extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Questa parte non si e\' caricata.',
+              'Questa parte non si è caricata.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Color(0xFF111111),

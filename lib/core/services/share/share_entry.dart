@@ -62,11 +62,11 @@ abstract final class ShareEntry {
     // app. Li' la foto non e' piu' in gara: e' andata come e' andata, e si
     // guarda.
     if (ended) {
-      return 'Guarda com\'e\' finita $title su CRASY.\n\n$link';
+      return 'Guarda com\'è finita $title su CRASY.\n\n$link';
     }
 
     return 'Sono in gara su CRASY con $title. Aprila e dammi una fiamma: '
-        'vince chi ne prende di piu\'.\n\n$link';
+        'vince chi ne prende di più.\n\n$link';
   }
 
   /// Apre il pannello di condivisione, e **se non c'e' copia il link**.

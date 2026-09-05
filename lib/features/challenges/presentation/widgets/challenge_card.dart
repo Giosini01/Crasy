@@ -138,7 +138,7 @@ class ChallengeCard extends ConsumerWidget {
               const SizedBox(width: AppSpacing.xs),
               Flexible(
                 child: Text(
-                  'Posti finiti. Questa gara e\' al completo.',
+                  'Posti finiti. Questa gara è al completo.',
                   style: texts.labelMedium?.copyWith(color: palette.textFaint),
                 ),
               ),
@@ -426,7 +426,7 @@ class AlreadyJoinedNote extends StatelessWidget {
         Icon(Icons.check_rounded, size: 16, color: palette.accent),
         const SizedBox(width: AppSpacing.xs),
         Text(
-          'Hai gia\' partecipato',
+          'Hai già partecipato',
           style: context.texts.labelLarge?.copyWith(color: palette.accent),
         ),
       ],

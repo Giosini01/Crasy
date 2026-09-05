@@ -98,7 +98,7 @@ class ChallengesPage extends ConsumerWidget {
                                 title: 'Nessuna challenge aperta',
                                 message:
                                     'Appena ne parte una la trovi qui, con quanto '
-                                    'c\'e\' in palio e quanto tempo hai.',
+                                    'c\'è in palio e quanto tempo hai.',
                               )
                             : _ChallengeList(
                                 // Senza la sfida del giorno, che sta gia'

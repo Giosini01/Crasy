@@ -183,7 +183,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                         horizontal: AppSpacing.sm,
                       ),
                       child: Text(
-                        _signingUp ? 'HAI GIA\' UN ACCOUNT?' : 'PRIMA VOLTA?',
+                        _signingUp ? 'HAI GIÀ UN ACCOUNT?' : 'PRIMA VOLTA?',
                         style: texts.labelSmall?.copyWith(
                           color: palette.textFaint,
                         ),
@@ -242,7 +242,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
       // meta' delle volte, e chi non lo trova pensa che l'app sia rotta.
       _resetSent =
           'Se esiste un account con $email, il messaggio per rifare la '
-          'password e\' partito. Guarda anche nello spam.';
+          'password è partito. Guarda anche nello spam.';
     });
   }
 

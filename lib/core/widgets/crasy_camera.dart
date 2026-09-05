@@ -254,7 +254,7 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _errore = 'Non e\' venuta. Riprova.');
+        setState(() => _errore = 'Non è venuta. Riprova.');
       }
     }
 

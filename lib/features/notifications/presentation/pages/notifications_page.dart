@@ -441,7 +441,7 @@ class _OlderState extends State<_Older> {
             child: Row(
               children: [
                 Text(
-                  'PIU\' VECCHIE · ${widget.notifications.length}',
+                  'PIÙ VECCHIE · ${widget.notifications.length}',
                   style: context.texts.labelSmall?.copyWith(
                     color: palette.textFaint,
                   ),

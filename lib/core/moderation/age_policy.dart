@@ -54,7 +54,7 @@ abstract final class AgePolicy {
     final today = now ?? DateTime.now();
 
     if (birthDate.isAfter(today)) {
-      return 'La data di nascita non puo\' essere nel futuro.';
+      return 'La data di nascita non può essere nel futuro.';
     }
 
     if (!isAdult(birthDate, now: today)) {

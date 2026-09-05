@@ -62,7 +62,7 @@ class _WalletCardState extends ConsumerState<WalletCard> {
           setState(() {
             _working = false;
             _message =
-                'Finisci la registrazione nella pagina che si e\' aperta, poi '
+                'Finisci la registrazione nella pagina che si è aperta, poi '
                 'torna qui e premi di nuovo.';
           });
         }
@@ -158,7 +158,7 @@ class _WalletCardState extends ConsumerState<WalletCard> {
     }
 
     if (wallet.balanceCents <= 0) {
-      return 'Qui finiscono i premi che vinci. Restano su CRASY finche\' non '
+      return 'Qui finiscono i premi che vinci. Restano su CRASY finché non '
           'li prelevi.';
     }
 
@@ -169,7 +169,7 @@ class _WalletCardState extends ConsumerState<WalletCard> {
     }
 
     return 'I soldi sono tuoi e stanno su CRASY. La prima volta che prelevi '
-        'servono nome, documento e IBAN: e\' la legge per chiunque riceva '
+        'servono nome, documento e IBAN: è la legge per chiunque riceva '
         'denaro, e si fa una volta sola.';
   }
 }

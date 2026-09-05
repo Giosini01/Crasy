@@ -24,10 +24,10 @@ final searchQueryProvider = StateProvider.autoDispose<String>((ref) => '');
 /// diverso — rivedere com'e' andata.
 enum SearchFilter {
   all('TUTTO'),
-  // **Era "APERTE", e non c\'e\' piu\' niente da cui distinguerle.** Le gare
-  // finite non si cercano piu\': cercare serve a trovare qualcosa da fare, e a
-  // una gara chiusa non si puo\' partecipare — si guarda chi ha vinto, e per
-  // quello c\'e\' la scheda dei vincitori, che le tiene tutte in ordine di ora
+  // **Era "APERTE", e non c\'è più niente da cui distinguerle.** Le gare
+  // finite non si cercano più: cercare serve a trovare qualcosa da fare, e a
+  // una gara chiusa non si può partecipare — si guarda chi ha vinto, e per
+  // quello c\'è la scheda dei vincitori, che le tiene tutte in ordine di ora
   // senza bisogno di scrivere niente.
   liveChallenges('MISSIONI'),
   people('PERSONE');

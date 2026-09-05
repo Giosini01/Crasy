@@ -52,7 +52,7 @@ class ChallengeDetailPage extends ConsumerWidget {
             if (challenge == null) {
               return const EmptyState(
                 title: 'Challenge non trovata',
-                message: 'Questa challenge non esiste piu\'.',
+                message: 'Questa challenge non esiste più.',
               );
             }
 
@@ -573,7 +573,7 @@ class _Verdict extends StatelessWidget {
           const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: Text(
-              'Ha vinto la foto con piu\' fiamme alla chiusura.',
+              'Ha vinto la foto con più fiamme alla chiusura.',
               style: context.texts.bodySmall?.copyWith(
                 color: palette.textSecondary,
               ),
@@ -623,7 +623,7 @@ class _DeleteChallengeState extends ConsumerState<_DeleteChallenge> {
       builder: (context) => AlertDialog(
         title: const Text('Cancellare la missione?'),
         content: const Text(
-          'Non ha ancora partecipato nessuno, quindi si puo\'. Sparisce dalla '
+          'Non ha ancora partecipato nessuno, quindi si può. Sparisce dalla '
           'home e non si recupera.',
         ),
         actions: [
@@ -661,9 +661,7 @@ class _DeleteChallengeState extends ConsumerState<_DeleteChallenge> {
         setState(() => _working = false);
         messenger?.showSnackBar(
           const SnackBar(
-            content: Text(
-              'Non si puo\' piu\': qualcuno ha appena partecipato.',
-            ),
+            content: Text('Non si può più: qualcuno ha appena partecipato.'),
           ),
         );
       }
@@ -724,8 +722,8 @@ class _GameRules extends StatelessWidget {
                   ? 'Posti esauriti.'
                   : 'Restano $posti posti su ${challenge.maxParticipants}.',
               detail: posti == 0
-                  ? 'Nessuno puo\' piu\' entrare in questa gara.'
-                  : 'Quando finiscono non si entra piu\'. Una possibilita\' su '
+                  ? 'Nessuno può più entrare in questa gara.'
+                  : 'Quando finiscono non si entra più. Una possibilità su '
                         '${challenge.maxParticipants}.',
               accent: true,
             )

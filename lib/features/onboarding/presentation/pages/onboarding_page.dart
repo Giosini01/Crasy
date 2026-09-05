@@ -80,7 +80,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 const DisplayTitle('COME TI\nCHIAMANO'),
                 const SizedBox(height: AppSpacing.xs),
                 const HighlightedText(
-                  'E\' il nome che sta sotto ogni foto che mandi. Minuscolo, '
+                  'È il nome che sta sotto ogni foto che mandi. Minuscolo, '
                   'senza spazi.',
                   highlight: 'sotto ogni foto che mandi',
                 ),
@@ -471,7 +471,7 @@ class _UsernameHint extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Gia\' preso.',
+            'Già preso.',
             style: texts.bodySmall?.copyWith(color: palette.accent),
           ),
           if (esito.suggestions.isNotEmpty) ...[
