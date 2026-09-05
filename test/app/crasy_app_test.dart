@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:crasy/app.dart';
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/legal/legal_documents.dart';
@@ -8,6 +10,7 @@ import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:crasy/routing/app_router.dart';
@@ -95,6 +98,51 @@ void main() {
     expect(find.text('REGISTRATI'), findsOneWidget);
     expect(find.text('CHALLENGE'), findsNothing);
     expect(find.text('NESSUNA CHALLENGE APERTA'), findsNothing);
+
+    await tearDownTree(tester);
+  });
+
+  testWidgets('il tocco su una notifica aspetta che la sessione sia in piedi', (
+    tester,
+  ) async {
+    // **E' il difetto che faceva sembrare le notifiche sconnesse.**
+    //
+    // Toccandone una ad app chiusa, l'app parte e per qualche istante non sa
+    // ancora chi sei: in quel momento ogni indirizzo viene dirottato al muro
+    // che tocca passare. Il salto verso la campanella partiva li' dentro e
+    // veniva sbattuto via insieme agli altri — e si finiva ogni volta in un
+    // posto diverso, a seconda di quanto ci metteva la rete.
+    final profilo = StreamController<UserProfile?>();
+    addTearDown(profilo.close);
+
+    await pumpApp(
+      tester,
+      authRepository: FakeAuthRepository(currentUser: verifiedUser),
+      overrides: [
+        currentUserProfileProvider.overrideWith((ref) => profilo.stream),
+        pushTapsProvider.overrideWith(
+          (ref) => Stream.value((
+            scheda: AppRoutes.challenges,
+            apri: AppRoutes.notifications,
+            evidenzia: null,
+            daFermo: true,
+            quando: 1,
+          )),
+        ),
+      ],
+    );
+
+    // Sessione non ancora completa: il tocco non deve portare da nessuna parte.
+    profilo.add(null);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Notifiche'), findsNothing);
+
+    // Sessione completa: adesso il tocco messo da parte si consuma.
+    profilo.add(completeProfile);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Notifiche'), findsOneWidget);
 
     await tearDownTree(tester);
   });

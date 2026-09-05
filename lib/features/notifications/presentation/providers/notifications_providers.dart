@@ -211,6 +211,18 @@ typedef PushTap = ({
   String scheda,
   String? apri,
   String? evidenzia,
+
+  /// Se l'app era **chiusa** e l'ha aperta questa notifica.
+  ///
+  /// Cambia tutto su come ci si muove. Ad app chiusa non c'e' niente sotto:
+  /// bisogna posare una scheda e poi appoggiarci sopra la pagina, o si finisce
+  /// su qualcosa da cui non si torna indietro.
+  ///
+  /// Ad app aperta invece **sotto c'e' gia' quello che si stava guardando**:
+  /// rimettere la scheda delle gare vuol dire strappare via una schermata e
+  /// farne scivolare un'altra sopra — due movimenti per una cosa sola, ed e'
+  /// quello che faceva sembrare tutto sconnesso.
+  bool daFermo,
   int quando,
 });
 
@@ -236,7 +248,7 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
     return;
   }
 
-  PushTap dove(RemoteMessage messaggio) {
+  PushTap dove(RemoteMessage messaggio, {required bool daFermo}) {
     final kind = messaggio.data['kind'] ?? '';
 
     // Una missione nuova o la sfida del giorno riguardano **una gara**: si va
@@ -246,6 +258,7 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
         scheda: AppRoutes.challenges,
         apri: null,
         evidenzia: null,
+        daFermo: daFermo,
         quando: DateTime.now().microsecondsSinceEpoch,
       );
     }
@@ -259,6 +272,7 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
         scheda: AppRoutes.profile,
         apri: AppRoutes.friends,
         evidenzia: null,
+        daFermo: daFermo,
         quando: DateTime.now().microsecondsSinceEpoch,
       );
     }
@@ -269,6 +283,7 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
       scheda: AppRoutes.challenges,
       apri: AppRoutes.notifications,
       evidenzia: messaggio.data['notificationId'],
+      daFermo: daFermo,
       quando: DateTime.now().microsecondsSinceEpoch,
     );
   }
@@ -278,13 +293,28 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
   // solo questo messaggio, che va chiesto una volta all'avvio. Senza, la
   // notifica funziona solo per chi aveva gia' l'app aperta in sottofondo —
   // cioe' quasi mai.
-  final iniziale = await FirebaseMessaging.instance.getInitialMessage();
+  // **Lo stesso messaggio non deve valere due volte.** Capita che il tocco
+  // arrivi sia come "messaggio che ha aperto l'app" sia sul flusso di quelli
+  // aperti: senza questo controllo si aprirebbero due campanelle, una sopra
+  // l'altra, e la prima freccia indietro riporterebbe alla seconda. E' uno dei
+  // modi in cui la faccenda sembrava sconnessa.
+  final gia = <String>{};
 
-  if (iniziale != null) {
-    yield dove(iniziale);
+  bool nuovo(RemoteMessage messaggio) {
+    final id = messaggio.messageId;
+
+    return id == null || gia.add(id);
   }
 
-  yield* FirebaseMessaging.onMessageOpenedApp.map(dove);
+  final iniziale = await FirebaseMessaging.instance.getInitialMessage();
+
+  if (iniziale != null && nuovo(iniziale)) {
+    yield dove(iniziale, daFermo: true);
+  }
+
+  yield* FirebaseMessaging.onMessageOpenedApp
+      .where(nuovo)
+      .map((messaggio) => dove(messaggio, daFermo: false));
 });
 
 /// Tiene spento il numero rosso sull'icona.
