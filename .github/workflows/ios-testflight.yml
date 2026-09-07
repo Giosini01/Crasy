@@ -86,7 +86,7 @@ jobs:
         # Prima di compilare, non dopo: trenta minuti di Mac per scoprire che
         # un test era rosso sono trenta minuti buttati.
         run: |
-          flutter analyze
+          flutter analyze lib test
           flutter test
 
       - name: Certificati
