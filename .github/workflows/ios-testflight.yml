@@ -1,151 +1,222 @@
 # .github/workflows/ios-testflight.yml
 #
-# Build iOS (Flutter) + upload automatico su TestFlight.
-# Nessun Mac necessario: la firma avviene sul runner macOS di GitHub
-# usando la App Store Connect API key (-allowProvisioningUpdates).
+# CRASY su TestFlight da GitHub Actions.
 #
-# Secret richiesti (Settings > Secrets and variables > Actions):
-#   APP_STORE_CONNECT_KEY_ID        es. 2X9ABC3DEF
-#   APP_STORE_CONNECT_ISSUER_ID     es. 69a6de70-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-#   APP_STORE_CONNECT_PRIVATE_KEY   contenuto integrale del file .p8
-#   APPLE_TEAM_ID                   es. AB12CD34EF
+# Porting fedele di codemagic.yaml: stessa logica, stessi strumenti
+# (codemagic-cli-tools sono open source e si installano con pip), stessa
+# gestione delle due chiavi. Cambia solo la macchina che esegue.
+#
+# Su repository PUBBLICO i runner macOS sono gratuiti e illimitati.
+#
+# ---------------------------------------------------------------------------
+# Secret da creare in Settings > Secrets and variables > Actions > Secrets:
+#
+#   APP_STORE_CONNECT_KEY_IDENTIFIER    il Key ID (A5PPT67BHM)
+#   APP_STORE_CONNECT_ISSUER_ID         l'Issuer ID, quello coi trattini
+#   APP_STORE_CONNECT_PRIVATE_KEY_B64   il .p8 in base64, una riga sola
+#   CERTIFICATE_PRIVATE_KEY_B64         la chiave del certificato di firma,
+#                                       in base64. E' LA STESSA che sta su
+#                                       Codemagic: se ne generi una nuova,
+#                                       Apple emette un certificato nuovo, e
+#                                       quelli di distribuzione sono contati.
+#
+# E in Settings > Secrets and variables > Actions > Variables (non secret):
+#
+#   APP_STORE_APP_ID                    facoltativa: il numero che Apple
+#                                       assegna all'app. Se manca, il numero
+#                                       di build usa il contatore di GitHub.
+# ---------------------------------------------------------------------------
 
-name: iOS - Build e TestFlight
+name: CRASY su TestFlight
 
 on:
-  workflow_dispatch:          # avvio manuale dal tab Actions
+  workflow_dispatch:
   push:
     branches: [ main ]
     paths-ignore:
       - '**.md'
-      - '.github/**'
-      - 'android/**'
+      - 'firestore.rules'
+      - 'storage.rules'
 
-# Su repo pubblico i secret NON sono accessibili alle PR da fork:
+# Su repo pubblico i secret non sono leggibili dalle pull request dei fork:
 # questo workflow gira solo su push a main e su avvio manuale.
 
 concurrency:
-  group: ios-${{ github.ref }}
+  group: ios-testflight
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build IPA e upload su TestFlight
-    runs-on: macos-15        # oppure macos-latest
-    timeout-minutes: 60
+  testflight:
+    name: Build firmata e caricamento
+    runs-on: macos-15
+    timeout-minutes: 45          # come max_build_duration su Codemagic
 
     env:
-      FLUTTER_VERSION: '3.35.0'   # <-- allinea alla tua (flutter --version)
-      ARCHIVE_PATH: ${{ github.workspace }}/build/Runner.xcarchive
-      EXPORT_PATH: ${{ github.workspace }}/build/ipa
+      BUNDLE_ID: app.crasy.mobile
+      APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_APP_ID: ${{ vars.APP_STORE_APP_ID }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Versione Xcode in uso
-        run: xcodebuild -version
-
-      - name: Setup Flutter
+      - name: Flutter 3.44.9
+        # Fissata, non "stable": una versione che cambia da sola sotto i piedi
+        # produce il guaio peggiore che ci sia.
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
+          flutter-version: '3.44.9'
           cache: true
 
-      - name: Dipendenze Dart
+      - name: Strumenti Codemagic
+        # Gli stessi `app-store-connect`, `keychain` e `xcode-project` che usa
+        # Codemagic. Installati in un venv perche' il python di sistema del
+        # runner rifiuta le installazioni dirette.
+        run: |
+          python3 -m venv "$RUNNER_TEMP/cmtools"
+          "$RUNNER_TEMP/cmtools/bin/pip" install --quiet --upgrade pip
+          "$RUNNER_TEMP/cmtools/bin/pip" install --quiet codemagic-cli-tools
+          echo "$RUNNER_TEMP/cmtools/bin" >> "$GITHUB_PATH"
+
+      - name: Dipendenze
         run: flutter pub get
 
-      - name: Cache CocoaPods
-        uses: actions/cache@v4
-        with:
-          path: ios/Pods
-          key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock') }}
-          restore-keys: pods-${{ runner.os }}-
-
-      - name: Numero build progressivo
+      - name: Analisi e prove
+        # Prima di compilare, non dopo: trenta minuti di Mac per scoprire che
+        # un test era rosso sono trenta minuti buttati.
         run: |
-          # Deve essere sempre maggiore dell'ultimo caricato su TestFlight.
-          # Alza l'offset 1000 se Codemagic ha gia' pubblicato numeri piu' alti.
-          echo "BUILD_NUMBER=$(( ${{ github.run_number }} + 1000 ))" >> "$GITHUB_ENV"
+          flutter analyze
+          flutter test
 
-      - name: Build Flutter (senza firma)
-        run: |
-          flutter build ios --release --no-codesign \
-            --build-number="$BUILD_NUMBER"
-
-      - name: Installa la App Store Connect API key
+      - name: Certificati
+        # Le chiavi sono due e fanno due mestieri diversi: la .p8 e' il
+        # lasciapassare per parlare con Apple, l'altra e' la chiave privata del
+        # certificato di firma. Arrivano in base64 perche' un PEM incollato in
+        # una casella di testo perde gli a capo e smette di essere una chiave.
         env:
-          ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
-          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY_B64: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY_B64 }}
+          CERTIFICATE_PRIVATE_KEY_B64: ${{ secrets.CERTIFICATE_PRIVATE_KEY_B64 }}
         run: |
-          mkdir -p "$HOME/private_keys"
-          printf '%s\n' "$ASC_PRIVATE_KEY" > "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
-          chmod 600 "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
-          echo "ASC_KEY_FILE=$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
+          set -e
 
-      - name: Genera ExportOptions.plist
-        env:
-          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          rimetti_in_riga() {
+            VALORE="$1"; DESTINAZIONE="$2"; NOME="$3"
+
+            if [ -z "$VALORE" ]; then
+              echo "La variabile di $NOME e' vuota: controlla il nome del secret."
+              exit 1
+            fi
+
+            case "$VALORE" in
+              *BEGIN*) TESTO="$VALORE" ;;
+              *) TESTO=$(printf '%s' "$VALORE" | tr -d ' \t\n\r' | openssl base64 -d -A) ;;
+            esac
+
+            APERTURA=$(printf '%s\n' "$TESTO" | grep -o -- '-----BEGIN [A-Z ]*-----' | head -1)
+            CHIUSURA=$(printf '%s\n' "$TESTO" | grep -o -- '-----END [A-Z ]*-----' | head -1)
+
+            if [ -z "$APERTURA" ]; then
+              echo "Quello che c'e' nella variabile di $NOME non e' una chiave."
+              exit 1
+            fi
+
+            CORPO=$(printf '%s\n' "$TESTO" \
+              | sed -e 's/-----BEGIN [A-Z ]*-----//' -e 's/-----END [A-Z ]*-----//' \
+              | tr -d ' \t\n\r')
+
+            {
+              echo "$APERTURA"
+              printf '%s\n' "$CORPO" | fold -w 64
+              echo "$CHIUSURA"
+            } > "$DESTINAZIONE"
+            chmod 600 "$DESTINAZIONE"
+
+            if ! openssl pkey -in "$DESTINAZIONE" -noout 2>/dev/null; then
+              echo "La chiave di $NOME si e' rotta per strada: rimettila in"
+              echo "base64, tutta su una riga."
+              exit 1
+            fi
+
+            echo "$NOME: a posto"
+          }
+
+          rimetti_in_riga "$APP_STORE_CONNECT_PRIVATE_KEY_B64" "$RUNNER_TEMP/authkey.p8" "App Store Connect"
+          rimetti_in_riga "$CERTIFICATE_PRIVATE_KEY_B64" "$RUNNER_TEMP/certificato.pem" "certificato di firma"
+
+          # --create registra il bundle id se manca, emette il certificato se
+          # non c'e', crea il profilo se non c'e'. Dalla seconda volta trova
+          # tutto. La chiave API deve avere ruolo App Manager.
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create \
+            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            --private-key @file:"$RUNNER_TEMP/authkey.p8" \
+            --certificate-key @file:"$RUNNER_TEMP/certificato.pem"
+
+          # Il portachiavi nasce vuoto a ogni build.
+          keychain initialize
+          keychain add-certificates
+
+      - name: Numero di build
+        # Deve salire a ogni caricamento, e App Store Connect rifiuta senza
+        # spiegarsi. Si chiede ad Apple qual e' l'ultimo; al primo giro, quando
+        # l'app non ha ancora build ne' APP_STORE_APP_ID, si ripiega sul
+        # contatore di GitHub, che parte da uno e sale sempre.
         run: |
-          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key><string>app-store</string>
-            <key>destination</key><string>export</string>
-            <key>teamID</key><string>${TEAM_ID}</string>
-            <key>signingStyle</key><string>automatic</string>
-            <key>uploadSymbols</key><true/>
-            <key>stripSwiftSymbols</key><true/>
-          </dict>
-          </plist>
-          PLIST
+          ULTIMO=$(app-store-connect get-latest-testflight-build-number \
+            "$APP_STORE_APP_ID" \
+            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            --private-key @file:"$RUNNER_TEMP/authkey.p8" 2>/dev/null || echo "")
 
-      - name: Archive (firma automatica via API key)
+          if [ -z "$ULTIMO" ]; then
+            NUMERO=${{ github.run_number }}
+          else
+            NUMERO=$((ULTIMO + 1))
+          fi
+
+          echo "Build numero $NUMERO"
+          echo "NUMERO=$NUMERO" >> "$GITHUB_ENV"
+
+      - name: Compila
+        # Flutter compila ma non firma: `flutter build ipa` cerca un
+        # certificato di sviluppo che qui non c'e' e non ci deve essere. Poi si
+        # applicano i profili sul progetto com'e' rimasto dopo pod install, e
+        # firma e impacchetta lo strumento di Codemagic.
         run: |
-          xcodebuild archive \
-            -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -archivePath "$ARCHIVE_PATH" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$ASC_KEY_FILE" \
-            -authenticationKeyID "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
-            -authenticationKeyIssuerID "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" \
-            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
-            CODE_SIGN_STYLE=Automatic
+          flutter build ios --release --no-codesign --build-number=$NUMERO
 
-      - name: Export IPA
+          sed -i '' '/DEVELOPMENT_TEAM = /d' ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
+          xcode-project use-profiles
+
+          xcode-project build-ipa --project "ios/Runner.xcodeproj" --scheme "Runner"
+
+      - name: Su TestFlight
+        # Si carica e basta: niente --testflight. Mandare in revisione a ogni
+        # build significa prendersi un 422 "Another build is in review" e
+        # tingere di rosso una build andata benissimo. I tester interni non
+        # passano da nessuna revisione.
         run: |
-          xcodebuild -exportArchive \
-            -archivePath "$ARCHIVE_PATH" \
-            -exportPath "$EXPORT_PATH" \
-            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$ASC_KEY_FILE" \
-            -authenticationKeyID "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
-            -authenticationKeyIssuerID "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"
-          ls -lh "$EXPORT_PATH"
-          echo "IPA_PATH=$(ls "$EXPORT_PATH"/*.ipa | head -n1)" >> "$GITHUB_ENV"
+          app-store-connect publish \
+            --path build/ios/ipa/*.ipa \
+            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            --private-key @file:"$RUNNER_TEMP/authkey.p8"
 
-      - name: Salva l'IPA come artifact
+      - name: Artefatti
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: crasy-ios-build-${{ env.BUILD_NUMBER }}
-          path: ${{ env.EXPORT_PATH }}/*.ipa
+          name: crasy-ios-${{ env.NUMERO }}
+          path: |
+            build/ios/ipa/*.ipa
+            /tmp/xcodebuild_logs/*.log
+          if-no-files-found: warn
           retention-days: 14
 
-      - name: Upload su TestFlight
-        uses: apple-actions/upload-testflight-build@v3
-        with:
-          app-path: ${{ env.IPA_PATH }}
-          issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
-
-      - name: Pulizia credenziali
+      - name: Pulizia chiavi
         if: always()
-        run: rm -rf "$HOME/private_keys"
+        run: rm -f "$RUNNER_TEMP/authkey.p8" "$RUNNER_TEMP/certificato.pem"
