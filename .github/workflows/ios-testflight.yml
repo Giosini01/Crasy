@@ -1,0 +1,151 @@
+# .github/workflows/ios-testflight.yml
+#
+# Build iOS (Flutter) + upload automatico su TestFlight.
+# Nessun Mac necessario: la firma avviene sul runner macOS di GitHub
+# usando la App Store Connect API key (-allowProvisioningUpdates).
+#
+# Secret richiesti (Settings > Secrets and variables > Actions):
+#   APP_STORE_CONNECT_KEY_ID        es. 2X9ABC3DEF
+#   APP_STORE_CONNECT_ISSUER_ID     es. 69a6de70-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+#   APP_STORE_CONNECT_PRIVATE_KEY   contenuto integrale del file .p8
+#   APPLE_TEAM_ID                   es. AB12CD34EF
+
+name: iOS - Build e TestFlight
+
+on:
+  workflow_dispatch:          # avvio manuale dal tab Actions
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+      - 'android/**'
+
+# Su repo pubblico i secret NON sono accessibili alle PR da fork:
+# questo workflow gira solo su push a main e su avvio manuale.
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build IPA e upload su TestFlight
+    runs-on: macos-15        # oppure macos-latest
+    timeout-minutes: 60
+
+    env:
+      FLUTTER_VERSION: '3.35.0'   # <-- allinea alla tua (flutter --version)
+      ARCHIVE_PATH: ${{ github.workspace }}/build/Runner.xcarchive
+      EXPORT_PATH: ${{ github.workspace }}/build/ipa
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Versione Xcode in uso
+        run: xcodebuild -version
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Dipendenze Dart
+        run: flutter pub get
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: pods-${{ runner.os }}-
+
+      - name: Numero build progressivo
+        run: |
+          # Deve essere sempre maggiore dell'ultimo caricato su TestFlight.
+          # Alza l'offset 1000 se Codemagic ha gia' pubblicato numeri piu' alti.
+          echo "BUILD_NUMBER=$(( ${{ github.run_number }} + 1000 ))" >> "$GITHUB_ENV"
+
+      - name: Build Flutter (senza firma)
+        run: |
+          flutter build ios --release --no-codesign \
+            --build-number="$BUILD_NUMBER"
+
+      - name: Installa la App Store Connect API key
+        env:
+          ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          mkdir -p "$HOME/private_keys"
+          printf '%s\n' "$ASC_PRIVATE_KEY" > "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          chmod 600 "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          echo "ASC_KEY_FILE=$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
+
+      - name: Genera ExportOptions.plist
+        env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store</string>
+            <key>destination</key><string>export</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+            <key>stripSwiftSymbols</key><true/>
+          </dict>
+          </plist>
+          PLIST
+
+      - name: Archive (firma automatica via API key)
+        run: |
+          xcodebuild archive \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$ARCHIVE_PATH" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_FILE" \
+            -authenticationKeyID "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" \
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            CODE_SIGN_STYLE=Automatic
+
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$EXPORT_PATH" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_FILE" \
+            -authenticationKeyID "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"
+          ls -lh "$EXPORT_PATH"
+          echo "IPA_PATH=$(ls "$EXPORT_PATH"/*.ipa | head -n1)" >> "$GITHUB_ENV"
+
+      - name: Salva l'IPA come artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: crasy-ios-build-${{ env.BUILD_NUMBER }}
+          path: ${{ env.EXPORT_PATH }}/*.ipa
+          retention-days: 14
+
+      - name: Upload su TestFlight
+        uses: apple-actions/upload-testflight-build@v3
+        with:
+          app-path: ${{ env.IPA_PATH }}
+          issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+
+      - name: Pulizia credenziali
+        if: always()
+        run: rm -rf "$HOME/private_keys"
