@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crasy/core/services/media/disk_upload_stub.dart'
+    if (dart.library.io) 'package:crasy/core/services/media/disk_upload_io.dart';
 import 'package:crasy/core/services/media/photo_compressor.dart';
 import 'package:crasy/features/challenges/data/mappers/challenge_mapper.dart';
 import 'package:crasy/features/challenges/domain/commissioned_order.dart';
@@ -307,6 +309,7 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     required String userId,
     required String authorName,
     required Uint8List bytes,
+    String? filePath,
     MediaKind mediaKind = MediaKind.photo,
     String? contentType,
     String caption = '',
@@ -363,7 +366,31 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     // Il file sale per primo. Se l'upload fallisce non resta un documento che
     // punta a una foto inesistente, cioe' una partecipazione vuota in gara per
     // un premio.
-    await reference.putData(bytes, SettableMetadata(contentType: type));
+    //
+    // **Un video sale dal disco, non dalla memoria.**
+    //
+    // `putData` vuole tutto il file dentro un unico blocco di memoria, e per
+    // una foto stretta a trecento chilobyte va benissimo. Un video di trenta
+    // secondi e' un'altra cosa: decine di megabyte, letti interi con
+    // `readAsBytes`, tenuti in mano per tutto il tempo dell'anteprima e poi
+    // **copiati una seconda volta** da chi li spedisce. Su un telefono che sta
+    // gia' tenendo aperta la fotocamera, e' la richiesta che il sistema rifiuta
+    // — e un rifiuto di memoria non e' un errore che si cattura: e' l'app che
+    // sparisce, con dentro la partecipazione di qualcuno.
+    //
+    // `putFile` legge dal disco a pezzi: la memoria che serve non dipende piu'
+    // da quanto e' lungo il video. Vale solo dove esiste un disco — sul web il
+    // file non ha un percorso e si resta ai byte, che li' arrivano comunque
+    // dal selettore gia' in memoria.
+    final dati = SettableMetadata(contentType: type);
+    final daDisco =
+        caricamentoDaDiscoDisponibile &&
+        filePath != null &&
+        filePath.isNotEmpty;
+
+    await (daDisco
+        ? caricaDalDisco(reference, filePath, dati)
+        : reference.putData(bytes, dati));
 
     // **La copia piccola sale insieme all'originale.**
     //

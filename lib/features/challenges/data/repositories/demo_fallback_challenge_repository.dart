@@ -137,6 +137,7 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
     required String userId,
     required String authorName,
     required Uint8List bytes,
+    String? filePath,
     MediaKind mediaKind = MediaKind.photo,
     String? contentType,
     String caption = '',

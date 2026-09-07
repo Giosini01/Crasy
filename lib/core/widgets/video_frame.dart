@@ -40,11 +40,62 @@ import 'package:video_player/video_player.dart';
 ///
 /// Sul web niente di tutto questo passa di qui: il video lo disegna il browser
 /// con i suoi comandi, e la regola e' la stessa. Vedi `html_video_web.dart`.
+/// Quanti video possono aprirsi **nello stesso momento**.
+///
+/// **Senza questo numero l'app si apriva lenta, e la colpa non era della
+/// rete.** Le griglie delle partecipazioni sono `GridView` con `shrinkWrap`,
+/// che non e' pigro: per sapere quanto e' alto deve costruire **tutti** i
+/// riquadri subito, anche i trenta che stanno sotto lo schermo. Ogni riquadro
+/// con un video apriva il proprio lettore e cominciava a scaricare — trenta
+/// scaricamenti in parallelo sulla stessa linea, dove il primo video, quello
+/// che uno sta effettivamente guardando, si prendeva un trentesimo della banda.
+///
+/// Tre alla volta, in fila. I riquadri si costruiscono in ordine, quindi i
+/// primi della coda sono quelli in cima allo schermo: la griglia si riempie
+/// dall'alto mentre si guarda, invece di restare tutta grigia e comparire
+/// insieme.
+class _Coda {
+  static const _insieme = 3;
+
+  static var _aperti = 0;
+  static final _attesa = <Completer<void>>[];
+
+  /// Aspetta il proprio turno. Da rilasciare **sempre** con [esci].
+  static Future<void> entra() {
+    if (_aperti < _insieme) {
+      _aperti += 1;
+
+      return Future<void>.value();
+    }
+
+    final mio = Completer<void>();
+    _attesa.add(mio);
+
+    return mio.future;
+  }
+
+  /// Lascia il posto a chi aspetta.
+  static void esci() {
+    if (_attesa.isNotEmpty) {
+      // Il posto passa di mano senza tornare libero: cosi' non si puo'
+      // infilare qualcuno arrivato dopo.
+      _attesa.removeAt(0).complete();
+
+      return;
+    }
+
+    if (_aperti > 0) {
+      _aperti -= 1;
+    }
+  }
+}
+
 class VideoFrame extends StatefulWidget {
   const VideoFrame({
     required this.url,
     this.caption,
     this.immersive = false,
+    this.autoplay = true,
     super.key,
   });
 
@@ -53,6 +104,20 @@ class VideoFrame extends StatefulWidget {
   /// Se il video e' **la cosa che si sta guardando** e non una riga di un
   /// elenco: a schermo intero arrivano audio e comandi, nell'elenco no.
   final bool immersive;
+
+  /// Se il video deve **partire da solo**.
+  ///
+  /// Vero dove il video e' il contenuto: la scheda di una gara, il feed degli
+  /// amici, lo schermo intero. Li' un video che chiede di premere play viene
+  /// saltato, e chi l'ha girato ha perso la sua occasione.
+  ///
+  /// **Falso nelle griglie**, ed e' la correzione di un difetto vero. Un
+  /// quadrato di due dita non e' il contenuto: e' un indice, e nell'indice si
+  /// guarda quale foto e' quale, non si guarda il video. Facendolo partire si
+  /// scaricava **tutto** il file — e in ciclo, quindi per sempre, anche a
+  /// schermo spento — per venti riquadri insieme. Fermo sul primo fotogramma
+  /// costa una manciata di byte e si vede esattamente uguale.
+  final bool autoplay;
 
   /// Cosa scrivere mentre il video sta arrivando.
   final String? caption;
@@ -95,6 +160,18 @@ class _VideoFrameState extends State<VideoFrame> {
   }
 
   Future<void> _open() async {
+    await _Coda.entra();
+
+    // Nel frattempo la schermata puo' essere stata chiusa, o si puo' essere
+    // scorso via: il posto in coda va restituito comunque, altrimenti la coda
+    // si stringe di uno a ogni riquadro sparito e alla fine non passa piu'
+    // nessuno.
+    if (!mounted) {
+      _Coda.esci();
+
+      return;
+    }
+
     final controller = VideoPlayerController.networkUrl(Uri.parse(widget.url));
 
     try {
@@ -104,6 +181,7 @@ class _VideoFrameState extends State<VideoFrame> {
       // si sa leggere. Tutto il resto — non parte, non fa rumore — e' un video
       // che c'e'.
       await controller.dispose();
+      _Coda.esci();
 
       if (mounted) {
         setState(() => _failed = true);
@@ -111,6 +189,12 @@ class _VideoFrameState extends State<VideoFrame> {
 
       return;
     }
+
+    // **Il posto si lascia qui**, appena il video e' pronto: la parte lenta e'
+    // quella che si e' appena conclusa. Tenerlo fino alla fine vorrebbe dire
+    // che tre video gia' aperti bloccano tutti gli altri finche' restano a
+    // schermo, cioe' per sempre.
+    _Coda.esci();
 
     if (!mounted) {
       await controller.dispose();
@@ -124,9 +208,14 @@ class _VideoFrameState extends State<VideoFrame> {
     // sul primo fotogramma, e non parte da solo. E' esattamente quello che i
     // browser dei telefoni si aspettano.
     try {
-      await controller.setLooping(true);
       await controller.setVolume(widget.immersive ? 1 : 0);
-      await controller.play();
+
+      // Nelle griglie si resta sul primo fotogramma: c'e' gia' il play in
+      // mezzo, e chi vuole vedere il video tocca e lo apre grande.
+      if (widget.autoplay) {
+        await controller.setLooping(true);
+        await controller.play();
+      }
     } on Object {
       // Silenzio voluto: c'e' il play in mezzo allo schermo.
     }
@@ -228,6 +317,7 @@ class _VideoFrameState extends State<VideoFrame> {
       final video = buildHtmlVideo(
         widget.url,
         immersive: widget.immersive,
+        autoplay: widget.autoplay,
         onTap: gestures?.onTap,
         onDoubleTap: gestures?.onDoubleTap,
       );

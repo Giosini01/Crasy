@@ -28,6 +28,7 @@ class MediaFrame extends StatelessWidget {
     this.caption,
     this.overlay,
     this.video = false,
+    this.autoplay = true,
     this.mine = false,
     super.key,
   });
@@ -49,6 +50,15 @@ class MediaFrame extends StatelessWidget {
   /// file sarebbe fragile — gli indirizzi di Storage finiscono con un gettone,
   /// non con `.mp4`.
   final bool video;
+
+  /// Se un video deve **partire da solo**.
+  ///
+  /// Vero dove il contenuto e' la cosa che si guarda. **Falso nelle griglie**:
+  /// li' ogni quadrato apriva il proprio lettore e mandava il video in ciclo —
+  /// venti file scaricati insieme e all'infinito per venti francobolli che
+  /// nessuno sta guardando. Vedi `VideoFrame.autoplay`.
+  final bool autoplay;
+
   final double aspectRatio;
   final double radius;
 
@@ -77,7 +87,7 @@ class MediaFrame extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (video)
-              VideoFrame(url: url!, caption: caption)
+              VideoFrame(url: url!, caption: caption, autoplay: autoplay)
             else
               _Surface(url: url!, caption: caption),
             ?overlay,

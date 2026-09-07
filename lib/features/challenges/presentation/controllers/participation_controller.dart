@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:crasy/core/services/media/photo_compressor.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
@@ -10,6 +9,7 @@ import 'package:crasy/features/notifications/data/repositories/firestore_notific
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
 import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -21,13 +21,36 @@ import 'package:image_picker/image_picker.dart';
 class PickedMedia {
   const PickedMedia({
     required this.bytes,
+    this.filePath,
     this.contentType,
     this.isVideo = false,
   });
 
   final Uint8List bytes;
+
+  /// Dove sta il file **sul telefono**, quando ci sta.
+  ///
+  /// **Serve ai video, e serve a non far chiudere l'app.** Una foto la
+  /// stringiamo noi a poche centinaia di chilobyte, e tenerla in memoria non
+  /// costa niente. Un video di trenta secondi no: sono decine di megabyte, e
+  /// leggerli tutti per poi consegnarli a chi li spedisce vuol dire chiederne
+  /// il doppio al sistema — nel momento peggiore, con la fotocamera ancora
+  /// aperta. Quando il sistema dice di no non arriva un errore da mostrare:
+  /// l'app si chiude, e la partecipazione e' persa.
+  ///
+  /// Con il percorso, il file sale **letto a pezzi dal disco** e in memoria non
+  /// ci passa mai. Vuoto sul web, dove i file un percorso non ce l'hanno.
+  final String? filePath;
+
   final String? contentType;
   final bool isVideo;
+
+  /// I byte veri, per l'anteprima e per le foto.
+  ///
+  /// Un video non li ha: non li legge nessuno — l'anteprima del video e' una
+  /// conferma scritta, non un fotogramma — e leggerli sarebbe esattamente il
+  /// costo che [filePath] esiste per evitare.
+  bool get inMemoria => bytes.isNotEmpty;
 }
 
 final participationControllerProvider =
@@ -119,20 +142,27 @@ class ParticipationController extends AsyncNotifier<void> {
     MediaKind kind, {
     bool mirror = false,
   }) async {
-    final original = await file.readAsBytes();
-
     if (kind.isVideo) {
       // **Un video non si ribalta.** Girarlo vorrebbe dire ricodificarlo tutto
       // sul telefono: decine di secondi di attesa e un file peggiore, per una
       // cosa che nessuno guarda cercandosi la riga dei capelli. Le scritte
       // nello sfondo restano al contrario, ed e' un compromesso — lo stesso che
       // fanno tutti.
+      //
+      // **E non si legge nemmeno.** Prima si facevano entrare in memoria tutti
+      // i suoi megabyte, e non li guardava nessuno: l'anteprima di un video e'
+      // una conferma scritta, non un fotogramma. Adesso viaggia il percorso, e
+      // il file resta sul disco fino al momento di salire. Vedi
+      // `PickedMedia.filePath`.
       return PickedMedia(
-        bytes: original,
+        bytes: Uint8List(0),
+        filePath: file.path,
         contentType: file.mimeType ?? 'video/mp4',
         isVideo: true,
       );
     }
+
+    final original = await file.readAsBytes();
 
     final shrunk = PhotoCompressor.shrink(original, mirror: mirror);
 
@@ -159,8 +189,12 @@ class ParticipationController extends AsyncNotifier<void> {
       return null;
     }
 
+    // Sul telefono il percorso c'e' e basta quello; sul web non c'e', e li' i
+    // byte sono l'unica strada — ma li' arrivano gia' dal browser, e non c'e'
+    // una fotocamera aperta a contendersi la memoria.
     return PickedMedia(
-      bytes: await picked.readAsBytes(),
+      bytes: kIsWeb ? await picked.readAsBytes() : Uint8List(0),
+      filePath: picked.path,
       contentType: picked.mimeType ?? 'video/mp4',
       isVideo: true,
     );
@@ -212,6 +246,7 @@ class ParticipationController extends AsyncNotifier<void> {
         // leggere anche il profilo di chi l'ha scattata.
         authorName: profile?.username ?? 'anonimo',
         bytes: media.bytes,
+        filePath: media.filePath,
         contentType: media.contentType,
         // La didascalia viaggia con la foto e nasce con lei: le regole non
         // danno all'autore nessun permesso di aggiornare la propria

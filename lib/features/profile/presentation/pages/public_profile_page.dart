@@ -460,6 +460,9 @@ class _EntryGrid extends StatelessWidget {
           child: MediaFrame(
             url: entry.previewUrl,
             video: entry.isVideo,
+            // Ferma sul primo fotogramma: e' una griglia, non un feed.
+            // Vedi `MediaFrame.autoplay`.
+            autoplay: false,
             aspectRatio: 1,
             radius: AppRadius.media,
             caption: entry.challengeTitle,

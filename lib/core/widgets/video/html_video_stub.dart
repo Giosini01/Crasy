@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 Widget? buildHtmlVideo(
   String url, {
   bool immersive = false,
+  bool autoplay = true,
   VoidCallback? onTap,
   VoidCallback? onDoubleTap,
 }) => null;

@@ -409,6 +409,13 @@ class _EntryGridTile extends ConsumerWidget {
             // con margine. L'originale si scarica toccandola.
             url: entry.previewUrl,
             video: entry.isVideo,
+            // **Ferma sul primo fotogramma.** Questa griglia costruisce tutti
+            // i riquadri insieme, anche quelli sotto lo schermo: con i video
+            // accesi erano venti file scaricati in ciclo per venti
+            // francobolli, e il video che uno stava davvero guardando aspettava
+            // il suo turno dietro gli altri diciannove. Si tocca e si apre
+            // grande.
+            autoplay: false,
             aspectRatio: 1,
             caption: entry.authorName,
             mine: entry.userId == ref.watch(currentUserIdProvider),

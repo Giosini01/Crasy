@@ -130,6 +130,7 @@ void _playAloud(web.HTMLVideoElement element) {
 Widget? buildHtmlVideo(
   String url, {
   bool immersive = false,
+  bool autoplay = true,
   VoidCallback? onTap,
   VoidCallback? onDoubleTap,
 }) {
@@ -137,7 +138,14 @@ Widget? buildHtmlVideo(
   // video nell'elenco e a schermo intero sono due elementi diversi, e lo stesso
   // video riaperto riusa la sua fabbrica invece di registrarne una nuova a ogni
   // ricostruzione.
-  final viewType = 'crasy-video-${immersive ? 'full' : 'feed'}-${url.hashCode}';
+  // Il mestiere entra nel nome: lo stesso video in griglia e nel feed sono
+  // due elementi diversi — uno resta fermo, l'altro parte — e con lo stesso
+  // nome il secondo riuserebbe la fabbrica del primo e ne erediterebbe il
+  // comportamento.
+  final quale = immersive
+      ? 'full'
+      : (autoplay ? 'feed' : 'grid');
+  final viewType = 'crasy-video-$quale-${url.hashCode}';
 
   _onTap[viewType] = onTap;
   _onDoubleTap[viewType] = onDoubleTap;
@@ -158,6 +166,14 @@ Widget? buildHtmlVideo(
       element.setAttribute('muted', '');
     }
 
+    // **L'attributo, non solo la proprieta'**, e prima dell'indirizzo: e' la
+    // forma che iPhone guarda per decidere se questo video ha il permesso di
+    // partire da solo. Nelle griglie non si mette affatto, perche' li' il
+    // permesso non serve: il video resta sul primo fotogramma.
+    if (autoplay) {
+      element.setAttribute('autoplay', '');
+    }
+
     element
       ..setAttribute('playsinline', '')
       // **Niente menu a tendina del browser.** Tenendo il dito su un video —
@@ -175,9 +191,7 @@ Widget? buildHtmlVideo(
       // ancora in giro conoscono solo quello, e senza aprono il video a tutto
       // schermo al primo play invece di lasciarlo nella pagina.
       ..setAttribute('webkit-playsinline', '')
-      ..setAttribute('autoplay', '')
-      ..autoplay = true
-      ..loop = true
+      ..loop = autoplay
       ..playsInline = true
       // **Niente comandi del browser, nemmeno a schermo intero.**
       //
@@ -189,6 +203,7 @@ Widget? buildHtmlVideo(
       // e a fermare e riprendere ci pensa il tocco.
       ..controls = false
       ..muted = !immersive
+      ..autoplay = autoplay
       ..preload = 'metadata'
       // Per ultimo: da qui parte il caricamento, e da qui in poi cambiare le
       // regole non serve piu' a niente.

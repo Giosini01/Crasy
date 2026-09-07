@@ -1247,3 +1247,94 @@ exports.oneDevicePerAccount = onDocumentCreated(
     });
   }
 );
+
+/**
+ * Un amico nuovo entra anche nelle gare fra amici gia' aperte.
+ *
+ * **Chi la puo' vedere e' scritto dentro la gara**, in `audience`, e quella
+ * lista si scrive una volta sola: al lancio, con gli amici di quel momento. E'
+ * la scelta giusta per come si leggono le gare — le regole non devono andare a
+ * leggere l'elenco degli amici per ogni gara di ogni schermata, che vorrebbe
+ * dire pagare una lettura in piu' a testa e, oltre una certa quantita', vedersi
+ * rifiutare la query da Firestore.
+ *
+ * Il prezzo pero' e' che quella lista **invecchia**: chi diventa amico un'ora
+ * dopo il lancio non vede una gara che dura sei ore, e non c'e' niente
+ * nell'app che glielo spieghi. Non e' un dettaglio di poco conto: uno aggiunge
+ * un amico **proprio perche'** gli ha detto di quella gara, apre la scheda
+ * degli amici, e la trova vuota.
+ *
+ * Qui la lista si tiene aggiornata. L'amicizia sono due documenti — uno per
+ * parte — e questa funzione scatta su tutti e due: quello di A aggiunge A alle
+ * gare di B, quello di B aggiunge B alle gare di A. Nessuno dei due caso va
+ * scritto a mano, la simmetria viene da sola.
+ *
+ * **Solo le gare ancora aperte.** Una finita non si puo' piu' giocare, e
+ * infilarcisi dentro vorrebbe dire comparire fra i destinatari di una cosa che
+ * si e' persa per definizione. `arrayUnion` non aggiunge due volte, quindi
+ * un'amicizia disfatta e rifatta non gonfia niente.
+ */
+exports.openFriendChallengesToNewFriend = onDocumentCreated(
+  'users/{userId}/friends/{friendId}',
+  async (event) => {
+    const nuovo = String(event.params.userId || '');
+    const padrone = String(event.params.friendId || '');
+
+    if (!nuovo || !padrone || nuovo === padrone) {
+      return;
+    }
+
+    const adesso = admin.firestore.Timestamp.now();
+
+    // Le gare **sue**, riservate agli amici, non ancora scadute. Il tetto e'
+    // basso di proposito: sono le gare aperte di una persona sola, e se
+    // qualcuno ne avesse lanciate cinquanta insieme il problema sarebbe
+    // quello, non questa funzione.
+    const aperte = await admin
+      .firestore()
+      .collection('challenges')
+      .where('createdByUserId', '==', padrone)
+      .where('endsAt', '>', adesso)
+      .limit(50)
+      .get();
+
+    const daAprire = aperte.docs.filter((doc) => {
+      const dati = doc.data() || {};
+      const pubblica = (dati.audience || ['*']).includes('*');
+
+      // **Le pubbliche si saltano.** Hanno `*` dentro `audience`: aggiungerci
+      // un identificativo non cambierebbe chi le vede, e allungherebbe una
+      // lista che ha un tetto di trecento nelle regole.
+      if (pubblica || dati.scope !== 'friends') {
+        return false;
+      }
+
+      const quanti = (dati.audience || []).length;
+
+      // Il tetto delle regole e' trecento. Superarlo qui vorrebbe dire scrivere
+      // un documento che poi **nessuno puo' piu' aggiornare**, nemmeno per
+      // correggerlo: la regola guarda la dimensione a ogni scrittura.
+      return quanti < 300 && !(dati.audience || []).includes(nuovo);
+    });
+
+    if (daAprire.length === 0) {
+      return;
+    }
+
+    const scrittura = admin.firestore().batch();
+
+    for (const doc of daAprire) {
+      scrittura.update(doc.ref, {
+        audience: admin.firestore.FieldValue.arrayUnion(nuovo),
+      });
+    }
+
+    await scrittura.commit();
+
+    logger.info('Gare fra amici aperte a chi e\' arrivato dopo', {
+      nuovo,
+      padrone,
+      quante: daAprire.length,
+    });
+  }
+);
