@@ -608,6 +608,8 @@ async function closeChallenge(challenge) {
       `${winner.get('votes') || 0} voti.`
   );
 
+  await avvisaCheEFinita(challenge, entries.docs);
+
   // Il premio finisce nel portafoglio del vincitore. Non parte nessun
   // bonifico: i soldi sono suoi da adesso e li preleva quando vuole.
   try {
@@ -617,6 +619,84 @@ async function closeChallenge(challenge) {
   }
 
   await dropLosingMedia(challenge, ranked.slice(1));
+}
+
+/**
+ * Dice a chi era in gara che la missione e' finita. **Senza dire chi ha vinto.**
+ *
+ * **Prima non lo diceva nessuno.** Le due righe *hai vinto* e *la missione e'
+ * finita* non erano scritte da nessuna parte: l'app se le ricavava da sola
+ * aprendo la campanella. Funzionava — ma solo per chi apriva la campanella.
+ * Fuori dall'app non partiva niente, quindi **vincere non faceva squillare il
+ * telefono**: una fiamma si', cinquanta euro no. Il momento piu' importante del
+ * prodotto era l'unico silenzioso.
+ *
+ * **E qui non c'e' scritto chi ha vinto, di proposito.** Il finale si scopre
+ * aprendo la missione, con il rullo di tamburi. Metterlo sulla schermata
+ * bloccata vorrebbe dire raccontarlo a tutti prima che qualcuno arrivi, e
+ * trasformare l'unico momento di attesa dell'app in una notifica gia' letta.
+ *
+ * **Va anche a chi ha messo i soldi**, che non e' fra i partecipanti: e' la
+ * persona che ha pagato il premio, ed era l'unica a non ricevere mai una parola
+ * su come fosse andata a finire la cosa che aveva lanciato.
+ *
+ * Il nome del documento e' sempre lo stesso — `finita_` piu' la gara — e non
+ * per ordine: e' cio' che rende innocuo un secondo passaggio. Riscrivendolo non
+ * nasce niente di nuovo, e il mestiere di mandare il push sta su **la nascita**
+ * di un documento.
+ */
+async function avvisaCheEFinita(challenge, partecipazioni) {
+  const titolo = challenge.get('title') || '';
+  const chi = new Set();
+
+  for (const entry of partecipazioni) {
+    const userId = entry.get('userId');
+
+    if (userId) {
+      chi.add(String(userId));
+    }
+  }
+
+  const padrone = challenge.get('createdByUserId');
+
+  if (padrone) {
+    chi.add(String(padrone));
+  }
+
+  if (chi.size === 0) {
+    return;
+  }
+
+  const scrittura = db.batch();
+
+  for (const userId of chi) {
+    scrittura.set(
+      db
+        .collection('users')
+        .doc(userId)
+        .collection('notifications')
+        .doc('finita_' + challenge.id),
+      {
+        kind: 'ended',
+        // Nessun attore: non l'ha fatto una persona, e' scaduto il tempo.
+        actorId: '',
+        actorUsername: '',
+        challengeId: challenge.id,
+        challengeTitle: titolo,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      }
+    );
+  }
+
+  try {
+    await scrittura.commit();
+    logger.info(`Challenge ${challenge.id}: avvisate ${chi.size} persone.`);
+  } catch (error) {
+    // **Non si rovescia la chiusura per un avviso.** Il vincitore e' gia'
+    // proclamato e i soldi sono gia' suoi: fallire qui e rifare tutto da capo
+    // sarebbe scambiare una notifica mancata con una gara da riaprire.
+    logger.error(`Challenge ${challenge.id}: avvisi non partiti.`, error);
+  }
 }
 
 /**
@@ -853,8 +933,13 @@ exports.sendPushOnNotification = onDocumentCreated(
       win: gara ? `Hai vinto ${gara}` : 'Hai vinto',
       fire: 'Una fiamma nuova sulla tua foto',
       participation: gara
-        ? `Qualcuno e sceso in gara: ${gara}`
-        : 'Qualcuno e sceso in gara nella tua missione',
+        ? `Qualcuno è sceso in gara: ${gara}`
+        : 'Qualcuno è sceso in gara nella tua missione',
+      // **Non dice chi ha vinto, e non e' una dimenticanza.** Chi tocca
+      // questa notifica atterra sulla missione, dove la vittoria si scopre con
+      // il rullo di tamburi. Scriverla qui vorrebbe dire raccontare il finale
+      // sulla schermata bloccata e far arrivare tutti a cose fatte.
+      ended: gara ? `È finita: ${gara}` : 'La missione è finita',
       comment: 'Nuovo commento sotto la tua foto',
       mention: 'Ti hanno nominato in un commento',
       friendRequest: 'Hai una richiesta di amicizia',

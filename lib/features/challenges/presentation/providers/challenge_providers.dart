@@ -6,6 +6,7 @@ import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/data/repositories/demo_fallback_challenge_repository.dart';
 import 'package:crasy/features/challenges/data/repositories/firestore_challenge_repository.dart';
 import 'package:crasy/features/challenges/data/repositories/sample_challenge_repository.dart';
+import 'package:crasy/features/challenges/data/reveal_seen_store.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
@@ -181,6 +182,34 @@ final challengeTopEntryProvider = StreamProvider.autoDispose
             live: ref.watch(challengeIsLiveProvider(challengeId)),
           );
     });
+
+/// Il ricordo di chi ha gia' visto proclamare una gara.
+///
+/// Nullo senza Firebase configurato — nelle prove e nella modalita'
+/// dimostrativa — e chi lo usa lo sa: li' non c'e' nessuna proclamazione vera
+/// da ricordare.
+final revealSeenStoreProvider = Provider<RevealSeenStore?>((ref) {
+  if (!ref.watch(firebaseBootstrapResultProvider).isConfigured) {
+    return null;
+  }
+
+  return RevealSeenStore(ref.watch(firebaseFirestoreProvider));
+});
+
+/// Le proclamazioni che ho gia' visto.
+///
+/// Vuoto quando non c'e' nessuno collegato, cosi' chi lo legge non deve
+/// chiedersi in che stato e'.
+final revealsSeenProvider = StreamProvider<Set<String>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  final store = ref.watch(revealSeenStoreProvider);
+
+  if (userId == null || store == null) {
+    return Stream.value(const <String>{});
+  }
+
+  return store.watchSeen(userId);
+});
 
 /// La foto che rappresenta una challenge: **quella con piu' fiamme**.
 ///

@@ -60,6 +60,7 @@ final notificationsProvider = Provider<List<AppNotification>>((ref) {
   final stored = ref.watch(storedNotificationsProvider).valueOrNull ?? const [];
   final myEntries = ref.watch(myEntriesProvider).valueOrNull ?? const [];
   final ended = ref.watch(endedChallengesProvider).valueOrNull ?? const [];
+  final viste = ref.watch(revealsSeenProvider).valueOrNull ?? const <String>{};
 
   // Le gare finite che non hanno ancora un vincitore proclamato: dura un
   // istante, perche' la chiude il primo che le apre.
@@ -86,8 +87,14 @@ final notificationsProvider = Provider<List<AppNotification>>((ref) {
           challengeTitle: challenge.title,
           createdAt: challenge.endsAt,
         ),
+    // **La vittoria compare solo dopo il rullo di tamburi.**
+    //
+    // Questa riga si ricava dalla partecipazione, quindi esisterebbe
+    // dall'istante della proclamazione: chi tocca la notifica *e' finita* e
+    // passa di qui leggerebbe il finale in campanella, e il rullo arriverebbe
+    // dopo a raccontare una cosa gia' saputa. Aspetta il suo turno.
     for (final entry in myEntries)
-      if (entry.isWinner)
+      if (entry.isWinner && viste.contains(entry.challengeId))
         AppNotification(
           id: 'vittoria_${entry.challengeId}',
           kind: NotificationKind.win,
@@ -261,6 +268,27 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
         daFermo: daFermo,
         quando: DateTime.now().microsecondsSinceEpoch,
       );
+    }
+
+    // **Una gara finita porta alla gara, non in campanella.**
+    //
+    // E' l'unica notifica che non racconta un fatto ma ne annuncia uno: dice
+    // che il tempo e' scaduto e **non dice chi ha vinto**. Il finale sta nella
+    // missione, dove si apre con il rullo di tamburi — portare chi tocca in
+    // campanella vorrebbe dire fargli leggere "la missione e' finita" e poi
+    // cercarsi da solo dove si guarda com'e' andata.
+    if (kind == 'ended') {
+      final gara = messaggio.data['challengeId'] ?? '';
+
+      if (gara.isNotEmpty) {
+        return (
+          scheda: AppRoutes.challenges,
+          apri: AppRoutes.challengeDetailOf(gara),
+          evidenzia: null,
+          daFermo: daFermo,
+          quando: DateTime.now().microsecondsSinceEpoch,
+        );
+      }
     }
 
     // **Una richiesta di amicizia non finisce in campanella.** Non c'e' una

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
@@ -7,6 +9,7 @@ import 'package:crasy/core/widgets/countdown_text.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
+import 'package:crasy/features/challenges/data/reveal_seen_store.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/controllers/challenge_closer.dart';
@@ -16,6 +19,7 @@ import 'package:crasy/features/challenges/presentation/widgets/challenge_card.da
 import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
+import 'package:crasy/features/challenges/presentation/widgets/winner_reveal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -253,11 +257,109 @@ class _Entries extends ConsumerStatefulWidget {
 class _EntriesState extends ConsumerState<_Entries> {
   bool _opened = false;
 
+  /// Se abbiamo gia' guardato se c'era una proclamazione da mostrare.
+  ///
+  /// Una volta sola per visita, e non una per ricostruzione: qui si ricostruisce
+  /// a ogni fiamma che qualcuno accende da qualunque parte del mondo.
+  bool _revealChiesto = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _openSharedEntry();
     _closeIfOver();
+    _proclamaSeServe();
+  }
+
+  @override
+  void didUpdateWidget(_Entries oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // **Anche qui, e non solo all'apertura.** La gara arriva spesso ancora
+    // aperta e viene chiusa un istante dopo — dal server o da noi stessi in
+    // `_closeIfOver`. Il vincitore compare in quel momento, con un widget
+    // nuovo: guardando soltanto all'ingresso, il rullo non partirebbe mai
+    // proprio nel caso piu' comune, cioe' chi arriva appena scaduto il tempo.
+    _proclamaSeServe();
+  }
+
+  /// Apre il rullo di tamburi, se c'e' qualcosa da proclamare a questa persona.
+  ///
+  /// **Le condizioni sono tutte necessarie, e ognuna toglie un modo di fare una
+  /// figuraccia.** Una gara senza vincitore non ha niente da dire; chi non era
+  /// in gara non ha nessun motivo di prendersi cinque secondi di animazione
+  /// addosso; e chi l'ha gia' vista non deve rivederla ogni volta che riapre la
+  /// missione per guardarsi la classifica.
+  void _proclamaSeServe() {
+    if (_revealChiesto) {
+      return;
+    }
+
+    final challenge = widget.challenge;
+    final vincitrice = challenge.winnerEntryId ?? '';
+
+    if (vincitrice.isEmpty || !challenge.isOver) {
+      return;
+    }
+
+    final io = ref.read(currentUserIdProvider);
+    final store = ref.read(revealSeenStoreProvider);
+
+    if (io == null || io.isEmpty || store == null) {
+      return;
+    }
+
+    // **Chi ha partecipato, piu' chi ha messo i soldi.** Sono le due persone
+    // per cui quel risultato e' una notizia; per tutti gli altri e' una
+    // classifica.
+    final dentro =
+        widget.entries.any((entry) => entry.userId == io) ||
+        challenge.createdByUserId == io;
+
+    if (!dentro) {
+      return;
+    }
+
+    final winner = widget.entries
+        .where((entry) => entry.id == vincitrice)
+        .firstOrNull;
+
+    if (winner == null) {
+      return;
+    }
+
+    _revealChiesto = true;
+
+    unawaited(_proclama(store: store, io: io, winner: winner));
+  }
+
+  Future<void> _proclama({
+    required RevealSeenStore store,
+    required String io,
+    required ChallengeEntry winner,
+  }) async {
+    final challenge = widget.challenge;
+
+    if (await store.seen(userId: io, challengeId: challenge.id)) {
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    // **Si segna prima, non dopo.** Chi chiude l'app a meta' l'ha visto
+    // abbastanza da sapere com'e' andata; segnandolo alla fine, un'uscita a
+    // meta' lo farebbe ripartire da capo alla riapertura, e cosi' ogni volta.
+    unawaited(store.markSeen(userId: io, challengeId: challenge.id));
+
+    await WinnerReveal.show(
+      context,
+      challenge: challenge,
+      entries: widget.entries,
+      winner: winner,
+      mine: winner.userId == io,
+    );
   }
 
   /// Chiude la gara se e' scaduta e nessuno l'ha ancora proclamata.

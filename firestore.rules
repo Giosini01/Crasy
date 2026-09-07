@@ -330,6 +330,22 @@ service cloud.firestore {
         allow read, write: if signedIn() && request.auth.uid == userId;
       }
 
+      // **Le proclamazioni che ho gia' guardato.**
+      //
+      // Una gara che finisce si scopre con il rullo di tamburi, e un rullo di
+      // tamburi si vede **una volta**: rifarlo a ogni apertura della missione
+      // lo trasformerebbe da momento in intralcio, e coprirebbe la classifica a
+      // chi era tornato per guardarla.
+      //
+      // Sta sul database e non sul telefono perche' deve valere per la persona,
+      // non per l'apparecchio: chi ha visto vincere dal telefono non deve
+      // rivedere lo stesso rullo aprendo l'app altrove.
+      //
+      // Un documento vuoto: conta che esista, e il suo nome e' la gara.
+      match /revealsSeen/{challengeId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
       match /friends/{friendId} {
         function pendingRequest(to, from) {
           return exists(
