@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:781052311292:android:3cc1796f149d9b04264979",
+        "mobilesdk_app_id": "1:781052311292:android:2a138cbaf926c84f264979",
         "android_client_info": {
-          "package_name": "com.example.app_incontri"
+          "package_name": "app.crasy.mobile"
         }
       },
       "oauth_client": [],

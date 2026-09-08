@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Il fondo dell'icona adattiva: lo stesso bianco dell'app.
+         La fiamma ci sta sopra su un livello separato, e il sistema
+         ritaglia i due insieme nella forma che preferisce. -->
+    <color name="ic_launcher_background">#FFFFFF</color>
+</resources>

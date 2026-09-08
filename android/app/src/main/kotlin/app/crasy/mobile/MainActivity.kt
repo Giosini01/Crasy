@@ -1,4 +1,4 @@
-package com.example.app_incontri
+package app.crasy.mobile
 
 import io.flutter.embedding.android.FlutterActivity
 
