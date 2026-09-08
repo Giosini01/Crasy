@@ -454,9 +454,6 @@ class FirestoreChallengeRepository implements ChallengeRepository {
       }
 
       transaction.set(entryRef, ChallengeEntryMapper.toCreateMap(entry));
-      transaction.update(challengeRef, {
-        'participantsCount': FieldValue.increment(1),
-      });
     });
 
     return entry;
@@ -540,7 +537,6 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     // partecipazioni si chiamano come il loro autore, quindi lo stesso nome
     // ricompare in ogni challenge a cui quella persona partecipa.
     final voteRef = _votes(userId).doc('${challengeId}__$entryId');
-    final entryRef = _entries(challengeId).doc(entryId);
 
     await _firestore.runTransaction((transaction) async {
       final existing = await transaction.get(voteRef);
@@ -550,26 +546,19 @@ class FirestoreChallengeRepository implements ChallengeRepository {
       // Se il voto e' gia' come lo si vuole non si scrive niente: due tocchi
       // rapidi, due schermate aperte sulla stessa foto, o la stessa azione
       // rifatta dopo un errore di rete non possono contare due volte.
+      //
+      // **E il contatore non si tocca da qui.** Lo aggiorna il server, guardando
+      // nascere e morire questo documento — vedi `countVote` fra le funzioni.
+      // Scritto dal telefono, la fiamma e il conteggio finivano nella stessa
+      // transazione: duecento persone che votano la stessa foto negli ultimi
+      // trenta secondi si scontrano tutte su **quel** documento — Firestore ne
+      // regge circa una scrittura al secondo — e la transazione che perde non
+      // rallenta, **fallisce**. Una fiamma persa, in una gara con dei soldi in
+      // palio. Adesso qui si scrive solo il proprio voto: un documento per
+      // persona, dove non c'e' nessuno con cui scontrarsi.
       if (existing.exists == voted) {
         return;
       }
-
-      // Il contatore si legge **dentro la transazione** e si riscrive per
-      // intero, invece di usare `FieldValue.increment`.
-      //
-      // E' la correzione di un bug che si vedeva a schermo: `increment(-1)` su
-      // una partecipazione **senza il campo `votes`** non lo porta a zero, lo
-      // crea a **meno uno**. Bastava una foto scritta da una versione dell'app
-      // che quel campo non lo salvava ancora, un mi piace tolto, e sotto quella
-      // foto compariva "-1" — un numero che non vuol dire niente, perche'
-      // nessuno puo' togliere un voto che non ha dato.
-      //
-      // Leggendo e riscrivendo il valore, il conto non puo' scendere sotto lo
-      // zero nemmeno partendo da un documento rotto: si aggiusta da solo alla
-      // prima fiamma.
-      final entry = await transaction.get(entryRef);
-      final current = (entry.data()?['votes'] as num?)?.toInt() ?? 0;
-      final next = _clampVotes(voted ? current + 1 : current - 1);
 
       if (voted) {
         transaction.set(voteRef, {
@@ -579,14 +568,6 @@ class FirestoreChallengeRepository implements ChallengeRepository {
         });
       } else {
         transaction.delete(voteRef);
-      }
-
-      // A zero, togliere una fiamma non tocca il contatore: resta zero. La
-      // scrittura si salta del tutto invece di riscrivere lo stesso numero —
-      // le regole accettano solo variazioni di uno, e una scrittura che non
-      // cambia niente verrebbe rifiutata.
-      if (next != current) {
-        transaction.update(entryRef, {'votes': next});
       }
     });
   }
@@ -644,9 +625,6 @@ class FirestoreChallengeRepository implements ChallengeRepository {
       _ => contentType.startsWith('video/') ? 'mp4' : 'jpg',
     };
   }
-
-  /// Le fiamme non scendono sotto zero, mai.
-  static int _clampVotes(int value) => value < 0 ? 0 : value;
 
   @override
   Stream<String?> watchDailyPick(String day) {

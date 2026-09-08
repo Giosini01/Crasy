@@ -1,7 +1,10 @@
 'use strict';
 
 const { onSchedule } = require('firebase-functions/v2/scheduler');
-const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const {
+  onDocumentCreated,
+  onDocumentWritten,
+} = require('firebase-functions/v2/firestore');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
@@ -416,7 +419,38 @@ exports.moderateEntryPhoto = onDocumentCreated(
  * Gira ogni cinque minuti e non a fine giornata: una challenge che si e' chiusa
  * un'ora fa e non ha ancora un vincitore e' una challenge che sembra rotta.
  */
-exports.closeExpiredChallenges = onSchedule('every 5 minutes', async () => {
+/**
+ * Quanto tempo si prende la chiusura prima di lasciar perdere e riprovare fra
+ * cinque minuti.
+ *
+ * **Sotto il tetto della funzione, non uguale.** La funzione muore a 540
+ * secondi, e morire a meta' di una gara vuol dire lasciarla mezza chiusa: il
+ * vincitore proclamato e le foto dei perdenti li' a occupare spazio, o peggio.
+ * Fermandosi a 480 si finisce sempre **la gara che si sta facendo** e si esce
+ * puliti; quelle rimaste le prende la corsa dopo, che arriva fra cinque minuti.
+ */
+const QUANTO_TEMPO_HO = 480 * 1000;
+
+exports.closeExpiredChallenges = onSchedule(
+  {
+    schedule: 'every 5 minutes',
+    // **Nove minuti, non uno.**
+    //
+    // Il valore di prima era quello globale: sessanta secondi. Bastavano con
+    // dieci utenti e due gare al giorno; con cinquanta gare scadute nella
+    // stessa corsa — ognuna con le sue partecipazioni da leggere, il vincitore
+    // da proclamare, il premio da accreditare e le foto dei perdenti da
+    // cancellare — la funzione veniva uccisa a meta'. Le gare dopo la prima o
+    // la seconda restavano senza vincitore, e alla corsa successiva ricominciava
+    // dalle stesse e moriva allo stesso punto.
+    //
+    // Il risultato era una cosa che non si vedeva da nessuna parte: **i
+    // vincitori smettevano di essere proclamati**, in silenzio, proprio quando
+    // l'app cominciava ad andare bene.
+    timeoutSeconds: 540,
+    memory: '512MiB',
+  },
+  async () => {
   // **Si chiude appena la gara finisce.**
   //
   // A decidere chi vince sono le fiamme, e le fiamme si fermano alla sirena:
@@ -439,12 +473,29 @@ exports.closeExpiredChallenges = onSchedule('every 5 minutes', async () => {
     return;
   }
 
+  const cominciato = Date.now();
+  let chiuse = 0;
+
   for (const challenge of expired.docs) {
+    // **Si guarda l'orologio prima di cominciarne un'altra**, non durante.
+    // Una gara si chiude tutta o non si comincia: e' l'unico modo di poter
+    // essere uccisi senza lasciare niente a meta'.
+    if (Date.now() - cominciato > QUANTO_TEMPO_HO) {
+      logger.info(
+        `Tempo finito: chiuse ${chiuse} di ${expired.size}, le altre alla ` +
+          'prossima corsa.'
+      );
+
+      return;
+    }
+
     await closeChallenge(challenge);
+    chiuse += 1;
   }
 
-  logger.info(`Chiuse ${expired.size} challenge.`);
-});
+  logger.info(`Chiuse ${chiuse} challenge.`);
+  }
+);
 
 /**
  * Svuota le gare vecchie: documenti, partecipazioni, file.
@@ -677,29 +728,46 @@ async function avvisaCheEFinita(challenge, partecipazioni) {
     return;
   }
 
-  const scrittura = db.batch();
-
-  for (const userId of chi) {
-    scrittura.set(
-      db
-        .collection('users')
-        .doc(userId)
-        .collection('notifications')
-        .doc('finita_' + challenge.id),
-      {
-        kind: 'ended',
-        // Nessun attore: non l'ha fatto una persona, e' scaduto il tempo.
-        actorId: '',
-        actorUsername: '',
-        challengeId: challenge.id,
-        challengeTitle: titolo,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      }
-    );
-  }
+  // **A blocchi di quattrocento, e non tutte in una volta.**
+  //
+  // Firestore accetta **cinquecento scritture per lotto**, e la lettura delle
+  // partecipazioni qui sopra ne prende fino a cinquecento: con una gara molto
+  // partecipata si superava il tetto e **il lotto falliva intero**. Non a
+  // meta': tutto. Zero avvisi, proprio sulla gara con piu' gente dentro — e
+  // l'errore finiva in un log che non guarda nessuno.
+  //
+  // Quattrocento invece di cinquecento e' il margine per dormirci: se un giorno
+  // qui dentro si aggiunge una seconda scrittura per persona, il conto non
+  // sfonda lo stesso.
+  const tutti = [...chi];
+  const perLotto = 400;
 
   try {
-    await scrittura.commit();
+    for (let i = 0; i < tutti.length; i += perLotto) {
+      const scrittura = db.batch();
+
+      for (const userId of tutti.slice(i, i + perLotto)) {
+        scrittura.set(
+          db
+            .collection('users')
+            .doc(userId)
+            .collection('notifications')
+            .doc('finita_' + challenge.id),
+          {
+            kind: 'ended',
+            // Nessun attore: non l'ha fatto una persona, e' scaduto il tempo.
+            actorId: '',
+            actorUsername: '',
+            challengeId: challenge.id,
+            challengeTitle: titolo,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          }
+        );
+      }
+
+      await scrittura.commit();
+    }
+
     logger.info(`Challenge ${challenge.id}: avvisate ${chi.size} persone.`);
   } catch (error) {
     // **Non si rovescia la chiusura per un avviso.** Il vincitore e' gia'
@@ -735,24 +803,51 @@ async function dropLosingMedia(challenge, losers) {
   }
 
   const bucket = admin.storage().bucket();
-  let removed = 0;
 
-  for (const entry of losers) {
+  /** Cancella la foto di una partecipazione, e le toglie l'indirizzo. */
+  async function butta(entry) {
     const path = entry.get('storagePath');
 
     if (!path) {
-      continue;
+      return false;
     }
 
     try {
       await bucket.file(path).delete({ ignoreNotFound: true });
+
       // Il documento resta, ma senza indirizzo: cosi' chi lo legge sa che la
       // foto non c'e' piu' invece di provare a scaricarla e trovare un errore.
-      await entry.ref.update({ mediaUrl: '', mediaRemovedAt: admin.firestore.FieldValue.serverTimestamp() });
-      removed++;
+      await entry.ref.update({
+        mediaUrl: '',
+        mediaRemovedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return true;
     } catch (error) {
       logger.warn(`Non ho potuto cancellare ${path}.`, error);
+
+      return false;
     }
+  }
+
+  // **Venti alla volta, non una dietro l'altra.**
+  //
+  // Cancellare un file e' quasi tutto attesa di rete. Una per volta, cinquecento
+  // foto sono un minuto e mezzo di funzione spesa a **non fare niente**, e il
+  // tempo finiva prima delle foto: la chiusura veniva uccisa a meta' e le gare
+  // successive restavano senza vincitore.
+  //
+  // Venti insieme lo riportano a qualche secondo. Non di piu': cinquecento
+  // richieste sparate tutte insieme se le prende male il servizio dall'altra
+  // parte, e comincia a rifiutarle — si guadagnerebbe in attesa quello che si
+  // perde in errori.
+  const insieme = 20;
+  let removed = 0;
+
+  for (let i = 0; i < losers.length; i += insieme) {
+    const esiti = await Promise.all(losers.slice(i, i + insieme).map(butta));
+
+    removed += esiti.filter(Boolean).length;
   }
 
   logger.info(`Challenge ${challenge.id}: liberati ${removed} file.`);
@@ -1487,5 +1582,106 @@ exports.openFriendChallengesToNewFriend = onDocumentCreated(
       padrone,
       quante: daAprire.length,
     });
+  }
+);
+
+/**
+ * Tiene il conto delle fiamme, al posto del telefono.
+ *
+ * **Prima lo faceva chi votava, e a numeri veri si rompeva.** La fiamma e il
+ * contatore stavano nella stessa transazione: duecento persone che votano la
+ * stessa foto negli ultimi trenta secondi si scontrano tutte su **quel**
+ * documento — Firestore ne regge circa una scrittura al secondo — e la
+ * transazione che perde non rallenta, **fallisce**. Una fiamma persa, in una
+ * gara con dei soldi in palio, proprio nel minuto in cui la gente vota.
+ *
+ * Adesso il telefono scrive soltanto il proprio voto: un documento per persona,
+ * dove non c'e' nessuno con cui scontrarsi. Il contatore lo muove questa
+ * funzione, e **se trova traffico riprova invece di arrendersi** — un secondo
+ * di ritardo su un numero, invece di un voto perso.
+ *
+ * **E il numero non si vede mentre si vota**, quindi il ritardo non lo nota
+ * nessuno: durante una gara le fiamme sono nascoste a tutti tranne che
+ * all'autore della foto. Vedi `visibleVotes` nell'app.
+ *
+ * `increment` e non una lettura seguita da una scrittura: e' un'operazione che
+ * il database sa fare da solo, senza bisogno che qualcuno legga prima — ed e'
+ * l'unica forma che regge due scritture arrivate nello stesso istante.
+ */
+exports.countVote = onDocumentWritten(
+  'users/{userId}/votes/{voteId}',
+  async (event) => {
+    const prima = event.data?.before;
+    const dopo = event.data?.after;
+
+    const cera = prima?.exists ?? false;
+    const ce = dopo?.exists ?? false;
+
+    // Nato o morto. Un voto che viene riscritto uguale non cambia il conto.
+    if (cera === ce) {
+      return;
+    }
+
+    const dati = (ce ? dopo.data() : prima.data()) || {};
+    const challengeId = String(dati.challengeId || '');
+    const entryId = String(dati.entryId || '');
+
+    if (!challengeId || !entryId) {
+      logger.warn('voto senza gara o senza foto', { path: event.data?.after?.ref.path });
+
+      return;
+    }
+
+    const foto = db
+      .collection('challenges')
+      .doc(challengeId)
+      .collection('entries')
+      .doc(entryId);
+
+    try {
+      await foto.update({
+        votes: admin.firestore.FieldValue.increment(ce ? 1 : -1),
+      });
+    } catch (error) {
+      // **La foto puo' non esserci piu'.** Una gara cancellata, una foto tolta
+      // dalle segnalazioni: il voto resta nella cartella di chi l'ha dato e non
+      // ha piu' niente da contare. Non e' un guasto.
+      logger.warn(`Fiamma non contata su ${challengeId}/${entryId}.`, error);
+    }
+  }
+);
+
+/**
+ * Tiene il conto di quanti sono in gara, al posto del telefono.
+ *
+ * **Stessa storia delle fiamme, e stessa cura.** Il numero stava nella stessa
+ * transazione della partecipazione: mille persone che entrano nella sfida del
+ * giorno nel minuto dopo la notifica si scontravano tutte sul documento della
+ * gara, e chi perdeva lo scontro **non vedeva rallentare l'invio: lo vedeva
+ * fallire**. Con la foto gia' scattata.
+ *
+ * Adesso la partecipazione si scrive da sola, e il conteggio arriva subito
+ * dopo. Il numero puo' restare indietro di un secondo — nessuno guarda quel
+ * numero con il cronometro — ma **la partecipazione non si perde piu'**.
+ *
+ * La sottrazione, quando una foto viene rifiutata dal controllo, sta gia' in
+ * `moderateEntryPhoto`: le due si compensano.
+ */
+exports.countParticipant = onDocumentCreated(
+  'challenges/{challengeId}/entries/{entryId}',
+  async (event) => {
+    try {
+      await db
+        .collection('challenges')
+        .doc(event.params.challengeId)
+        .update({
+          participantsCount: admin.firestore.FieldValue.increment(1),
+        });
+    } catch (error) {
+      logger.warn(
+        `Partecipante non contato su ${event.params.challengeId}.`,
+        error
+      );
+    }
   }
 );

@@ -114,7 +114,10 @@ def _coppie(quante=6):
     scelte = tutte[::passo][:quante]
 
     return [
-        (t.replace("'", '&#39;'), d.replace("'", '&#39;')) for t, d, _ in scelte
+        # Le consegne portano anche il tipo di media e da dove si pesca:
+        # qui servono solo le due righe che si leggono sulla card.
+        (t.replace("'", '&#39;'), d.replace("'", '&#39;'))
+        for t, d, _, _ in scelte
     ]
 
 

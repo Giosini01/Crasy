@@ -52,36 +52,59 @@ FOTO = "https://crasy.web.app/icons/Icon-512.png"
 # Le consegne, in ordine. Si ripetono quando finiscono: meglio una che torna fra
 # due mesi che un giorno senza sfida.
 CONSEGNE = [
-    ("La cosa piu' brutta che hai in casa", "Cercala bene. C'e'.", "photo"),
-    ("La faccia che fai appena sveglio", "Nessun filtro, nessuna scusa.", "photo"),
-    ("Il tuo pranzo, com'e' davvero", "Anche se e' triste. Soprattutto.", "photo"),
-    ("Travestiti con quello che trovi in casa", "Hai due minuti e un armadio.", "photo"),
-    ("Il posto piu' assurdo in cui riesci a farti una foto", "Dentro casa vale.", "photo"),
-    ("Imita qualcuno che conosci", "Deve capirsi chi e' senza scriverlo.", "video"),
-    ("Presenta il tuo animale, o la tua pianta", "Ha un nome? Diccelo.", "photo"),
-    ("La scarpa piu' consumata che hai", "Piu' e' distrutta piu' vale.", "photo"),
-    ("Apri il frigo e fotografalo", "Cosi' com'e', adesso.", "photo"),
-    ("Il selfie piu' brutto che riesci a farti", "Impegnati.", "photo"),
-    ("Ricrea la copertina di un disco", "Con quello che hai in casa.", "photo"),
-    ("La tua stanza, la verita'", "Senza mettere niente a posto.", "photo"),
-    ("Fai la faccia del cattivo", "Quella che fa paura ai bambini.", "photo"),
-    ("Il tuo caffe', fotografato benissimo", "Come se finisse su una rivista.", "photo"),
-    ("Balla cinque secondi dove ti trovi", "Dove ti trovi adesso, non dopo.", "video"),
-    ("L'oggetto piu' vecchio che possiedi", "Raccontacelo in una riga.", "photo"),
-    ("Il tuo posto preferito, in una foto sola", "Deve capirsi perche'.", "photo"),
-    ("Fai vedere le tue mani", "Dicono piu' di quanto pensi.", "photo"),
-    ("Il disegno peggiore che sai fare", "Trenta secondi, poi si consegna.", "photo"),
-    ("Canta due parole di una canzone", "Due. Non tre.", "video"),
-    ("La cosa piu' inutile che hai comprato", "E dicci quanto l'hai pagata.", "photo"),
-    ("Il tuo tramonto di oggi", "Se piove, il tuo cielo.", "photo"),
-    ("Fai una torre con quello che hai sul tavolo", "Piu' e' alta meglio e'.", "photo"),
-    ("La maglietta che non butti mai", "E il motivo, in tre parole.", "photo"),
-    ("Un travestimento da anziano", "Con quello che hai.", "photo"),
-    ("Il tuo angolo di casa piu' bello", "Uno solo.", "photo"),
-    ("Fai vedere cosa stai guardando adesso", "Alza il telefono e gira.", "video"),
-    ("La foto piu' vecchia che hai nel telefono", "Scorri fino in fondo.", "photo"),
-    ("Il tuo pigiama", "Indossato. Non piegato sul letto.", "photo"),
-    ("Costruisci una faccia con del cibo", "Poi mangiala.", "photo"),
+    # ---------------------------------------------------------------- adesso
+    #
+    # **Devono costare qualcosa.** Le vecchie chiedevano di fotografare una cosa
+    # che uno aveva gia' in mano — il pranzo, il caffe', il pigiama — e una
+    # consegna che si esaurisce senza alzarsi dalla sedia non fa nascere niente
+    # da guardare. Queste chiedono di uscire, o di chiedere una cosa a qualcuno,
+    # o di fare una figura: e' quello il contenuto, non l'oggetto.
+    ("Fatti fotografare da uno sconosciuto", "Devi chiederglielo tu. E' quella la sfida.", "photo", "instant"),
+    ("Torna con qualcosa che ti hanno regalato oggi", "Chiedendola. Vale anche un bicchiere d'acqua.", "photo", "instant"),
+    ("Esci vestito come non usciresti mai", "E fatti trovare in strada, non sul pianerottolo.", "photo", "instant"),
+    ("Balla dieci secondi dove ti possono vedere", "Dove ti vedono. Non in camera tua.", "video", "instant"),
+    ("Fatti scrivere un nome sulla mano da uno sconosciuto", "La sua calligrafia, la tua mano.", "photo", "instant"),
+    ("Chiama qualcuno che non senti da un anno", "Riprendi la tua faccia, non la telefonata.", "video", "instant"),
+    ("Ordina qualcosa con un accento che non e' il tuo", "Fino in fondo. Senza ridere.", "video", "instant"),
+    ("Mangia una cosa che non hai mai mangiato", "Adesso. La faccia e' il contenuto.", "video", "instant"),
+    ("Fatti prestare una giacca da chi hai vicino", "Indossala. Poi restituiscila.", "photo", "instant"),
+    ("Entra in un posto in cui non sei mai entrato", "E fotografalo da dentro.", "photo", "instant"),
+    ("Imita qualcuno che conosci", "Deve capirsi chi e' senza scriverlo.", "video", "instant"),
+    ("Travestiti con quello che trovi in casa", "Hai due minuti e un armadio.", "photo", "instant"),
+    ("Ricrea la copertina di un disco", "Con quello che hai intorno adesso.", "photo", "instant"),
+    ("Il selfie piu' brutto che riesci a farti", "Impegnati. Fa piu' male di quanto sembri.", "photo", "instant"),
+    ("Fai una cosa che non sai fare", "Male. Ma falla, e riprenditi.", "video", "instant"),
+    ("Fatti una foto con la persona piu' anziana che trovi", "Chiediglielo. Quasi sempre dicono di si'.", "photo", "instant"),
+    ("Scrivi CRASY su qualcosa che non e' un foglio", "Piu' e' assurdo il supporto, meglio e'.", "photo", "instant"),
+    ("Costruisci qualcosa di alto con quello che hai davanti", "Deve stare in piedi da solo.", "photo", "instant"),
+    ("Canta due parole a voce alta dove c'e' gente", "Due. Non tre.", "video", "instant"),
+    ("Il posto piu' assurdo in cui riesci a infilarti", "Ci devi stare dentro tu.", "photo", "instant"),
+    ("Corri per venti secondi e riprenditi subito dopo", "La faccia dopo, non la corsa.", "video", "instant"),
+    ("La tua stanza, la verita'", "Senza mettere niente a posto. Niente.", "photo", "instant"),
+    ("La cosa piu' brutta che hai in casa", "Cercala bene. C'e'.", "photo", "instant"),
+
+    # -------------------------------------------------------------- archivio
+    #
+    # **Queste prima non si potevano fare.** Fino a ieri ogni sfida apriva la
+    # fotocamera, e "la tua figura di merda piu' grande" non si scatta a
+    # comando: o ce l'hai o non ce l'hai. E' il materiale piu' divertente che
+    # la gente possiede, e non aveva nessun posto dove andare.
+    #
+    # Dove si chiede uno schermo, la consegna dice **di coprire i nomi**: quello
+    # che vale e' cosa c'e' scritto, non chi l'ha scritto — e chi l'ha scritto
+    # non ha acconsentito a finire in gara.
+    ("La tua figura di merda piu' grande", "Se ce l'hai in video, e' oggi che vale.", "video", "archive"),
+    ("La foto piu' brutta che qualcuno ti ha fatto", "Quella che hai lasciato li' per educazione.", "photo", "archive"),
+    ("Tu dieci anni fa", "Scorri fino in fondo. Fino in fondo davvero.", "photo", "archive"),
+    ("Il tuo taglio di capelli peggiore", "C'e' stato. Lo sappiamo tutti.", "photo", "archive"),
+    ("Lo screenshot piu' imbarazzante che hai", "Copri i nomi: vale cosa c'e' scritto, non chi.", "photo", "archive"),
+    ("La foto che non hai mai avuto il coraggio di postare", "Oggi si'.", "photo", "archive"),
+    ("Il video piu' stupido che hai nel telefono", "Quello che non fai vedere a nessuno.", "video", "archive"),
+    ("La prima foto che hai nel telefono", "L'ultima in fondo alla galleria.", "photo", "archive"),
+    ("Il messaggio che non hai mai mandato", "Lo schermo della bozza. Copri i nomi.", "photo", "archive"),
+    ("La foto che ti fa ancora ridere dopo anni", "E dicci in una riga perche'.", "photo", "archive"),
+    ("Una foto che non sai perche' hai fatto", "Ce l'hai. Cercala.", "photo", "archive"),
+    ("Il giorno piu' bello che hai avuto, in una foto sola", "Una. Deve capirsi perche'.", "photo", "archive"),
 ]
 
 
@@ -107,7 +130,7 @@ def quando(giorno, ora, minuto=0, secondo=0):
 
 
 def documento(giorno, consegna):
-    titolo, dettaglio, media = consegna
+    titolo, dettaglio, media, sorgente = consegna
 
     return {
         "fields": {
@@ -119,12 +142,17 @@ def documento(giorno, consegna):
             "scope": {"stringValue": "global"},
             "place": {"stringValue": ""},
             "mediaKind": {"stringValue": media},
-            # **Sempre istantanea.** La sfida del giorno chiede di fare una
-            # cosa oggi: e' tutto il suo senso. Scritto per esteso invece che
-            # lasciato mancante perche' un campo assente si fa dimenticare —
-            # e' gia' successo con `purgedAt`, e sono state sessanta sfide
-            # invisibili alla pulizia per mesi.
-            "source": {"stringValue": "instant"},
+            # **Da dove deve arrivare: lo decide la consegna.**
+            #
+            # Era fissa su `instant`, e c'era una consegna — "la foto piu'
+            # vecchia che hai nel telefono" — che da quando esistono le missioni
+            # d'archivio era diventata **impossibile**: chiedeva una foto vecchia
+            # e apriva la fotocamera. Adesso ogni consegna dice la sua.
+            #
+            # Scritto per esteso invece che lasciato mancante, perche' un campo
+            # assente si fa dimenticare: e' gia' successo con `purgedAt`, e sono
+            # state sessanta sfide invisibili alla pulizia per mesi.
+            "source": {"stringValue": sorgente},
             "createdByUsername": {"stringValue": CRASY},
             # **Un identificativo vero, non una casella vuota.** Cosi' la sfida
             # ha una faccia e un profilo come tutte le altre gare, e chi la

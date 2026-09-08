@@ -201,7 +201,42 @@ service cloud.firestore {
       // votato questa?" e' una lettura della propria sottocollezione, e nessuno
       // puo' sapere chi ha votato cosa.
       match /votes/{entryId} {
-        allow read, create, delete: if signedIn() && request.auth.uid == userId;
+        function gara(id) {
+          return get(/databases/$(database)/documents/challenges/$(id)).data;
+        }
+
+        // **Allo scadere del tempo le fiamme si fermano.**
+        //
+        // E' la riga che rende vera la regola scritta nelle challenge: vince la
+        // foto con piu' voti **allo scadere del tempo**. Senza, un voto arrivato
+        // dopo la sirena sposterebbe dei soldi da una persona a un'altra, e
+        // l'app che lo impedisce sarebbe l'unica difesa — cioe' nessuna difesa,
+        // per chi scrive sul database direttamente.
+        //
+        // **Stava sul contatore delle fiamme, e si e' spostata qui insieme a
+        // lui.** Da quando il conteggio lo fa il server, questo documento e'
+        // l'unico posto in cui un voto passa dalle mani di chi lo da': se non si
+        // ferma qui, non si ferma piu' da nessuna parte.
+        //
+        // Vale anche per il ritiro: togliere una fiamma a gara finita cambia il
+        // risultato esattamente quanto aggiungerla.
+        function siPuoAncoraVotare(id) {
+          return id is string
+                 && id != ''
+                 && gara(id).startsAt <= request.time
+                 && gara(id).endsAt > request.time;
+        }
+
+        allow read: if signedIn() && request.auth.uid == userId;
+
+        allow create: if signedIn()
+                      && request.auth.uid == userId
+                      && siPuoAncoraVotare(request.resource.data.challengeId);
+
+        allow delete: if signedIn()
+                      && request.auth.uid == userId
+                      && siPuoAncoraVotare(resource.data.challengeId);
+
         allow update: if false;
       }
 
@@ -565,17 +600,18 @@ service cloud.firestore {
                     && resource.data.get('participantsCount', 0) == 0
                     && resource.data.get('prizeStatus', 'unpaid') == 'unpaid';
 
-      // L'unica cosa che il client puo' toccare e' il contatore dei
-      // partecipanti, e solo per farlo salire di uno: e' la transazione con cui
-      // nasce una partecipazione.
+      // **Il contatore dei partecipanti non lo scrive piu' nessun telefono.**
       //
-      // In particolare **non puo' toccare `prizeStatus`**, ed e' il `changedOnly`
-      // qui sotto a impedirlo: qualunque scrittura che sfiori un secondo campo
-      // viene rifiutata, senza bisogno di elencare uno per uno i campi vietati.
-      allow update: if signedIn()
-                    && changedOnly(['participantsCount'])
-                    && request.resource.data.participantsCount
-                       == resource.data.participantsCount + 1;
+      // Lo muove il server appena nasce una partecipazione (`countParticipant`).
+      // Stava qui perche' stava nella stessa transazione dell'invio, e a numeri
+      // veri quella era la sua rovina: mille persone che entrano nella sfida
+      // del giorno nello stesso minuto si scontravano tutte su questo unico
+      // documento, e chi perdeva lo scontro non vedeva rallentare l'invio —
+      // lo vedeva **fallire**, con la foto gia' scattata.
+      //
+      // Lasciare qui il permesso adesso sarebbe peggio che inutile: un telefono
+      // modificato potrebbe incrementarlo **oltre** a quanto fa il server, e il
+      // numero conterebbe il doppio.
 
       // **Chiudere una gara scaduta. Strada temporanea, e si spegne da sola.**
       //
@@ -753,25 +789,26 @@ service cloud.firestore {
                       && challenge().get('prizeStatus', 'unpaid') == 'unpaid'
                       && challenge().endsAt <= request.time;
 
-        allow update: if signedIn()
-                      && changedOnly(['votes'])
-                      && (request.resource.data.votes
-                            == resource.data.get('votes', 0) + 1
-                          || request.resource.data.votes
-                            == resource.data.get('votes', 0) - 1)
-                      // **Allo scadere del tempo le fiamme si fermano.**
-                      //
-                      // E' la riga che rende vera la regola scritta nelle
-                      // challenge: vince la foto con piu' voti **allo scadere
-                      // del tempo**. Senza, un voto arrivato dopo la sirena
-                      // sposterebbe dei soldi da una persona a un'altra, e
-                      // l'app che lo impedisce sarebbe l'unica difesa — cioe'
-                      // nessuna difesa, per chi scrive sul database
-                      // direttamente.
-                      //
-                      // Costa una lettura in piu' per fiamma. Vale il prezzo:
-                      // qui si sta decidendo chi incassa.
-                      && challengeIsLive();
+        // **Le fiamme non le conta piu' nessun telefono.**
+        //
+        // Il numero lo muove il server guardando nascere e morire il documento
+        // del voto (`countVote`). Stava qui, dentro la stessa transazione della
+        // fiamma, e a numeri veri era il punto in cui l'app si rompeva:
+        // duecento persone che votano la stessa foto negli ultimi trenta
+        // secondi si scontrano tutte su **questo** documento — Firestore ne
+        // regge circa una scrittura al secondo — e la transazione che perde non
+        // rallenta, **fallisce**. Una fiamma persa, mentre si decide chi
+        // incassa.
+        //
+        // **Allo scadere del tempo le fiamme si fermano lo stesso**, ed e' la
+        // cosa che questa regola proteggeva: adesso la protegge quella su
+        // `users/{uid}/votes`, che e' il posto dove il voto nasce davvero. Un
+        // voto scritto dopo la sirena non viene accettato li', quindi non
+        // arriva mai a farsi contare qui.
+        //
+        // E lasciare il permesso adesso sarebbe peggio che inutile: un telefono
+        // modificato potrebbe aggiungere una fiamma **oltre** a quella che
+        // conta il server.
 
         // **Segnalare una foto: si aggiunge il proprio nome, e basta.**
         //
