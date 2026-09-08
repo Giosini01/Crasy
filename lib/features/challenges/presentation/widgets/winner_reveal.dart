@@ -164,9 +164,18 @@ class _WinnerRevealState extends State<WinnerReveal>
     if (t >= _scoppio) {
       if (!_scoppiata) {
         _scoppiata = true;
-        // Un colpo secco quando la foto entra: e' l'unico momento in cui il
-        // telefono deve farsi sentire davvero.
+        // **Un colpo secco e poi una vibrazione vera.**
+        //
+        // Non c'e' nessun suono qui, di proposito: meta' della gente tiene il
+        // telefono muto, e un'animazione che si capisce solo con l'audio
+        // acceso non si capisce. Il tamburo lo fa la mano.
+        //
+        // I due insieme e non uno solo: il colpo e' istantaneo e segna
+        // l'istante esatto in cui la foto entra, la vibrazione dura e fa da
+        // rullo finale. Con il solo colpo la rivelazione passava senza che il
+        // telefono se ne accorgesse.
         HapticFeedback.heavyImpact();
+        HapticFeedback.vibrate();
       }
 
       setState(() {});
@@ -183,7 +192,17 @@ class _WinnerRevealState extends State<WinnerReveal>
 
     if (adesso != _ultimoCambio) {
       _ultimoCambio = adesso;
-      HapticFeedback.selectionClick();
+
+      // **I colpi si fanno piu' forti mentre il rullo rallenta.** Erano tutti
+      // uguali e leggerissimi — il colpetto della rotellina — e su molti
+      // telefoni non si sentiva niente. Cosi' invece il tamburo cresce: prima
+      // un ticchettio veloce, poi colpi separati e pieni, e quando arrivano
+      // radi si sa che manca poco.
+      if (avanzamento < 0.55) {
+        HapticFeedback.lightImpact();
+      } else {
+        HapticFeedback.mediumImpact();
+      }
 
       setState(() => _quale = adesso % _facce.length);
 
@@ -269,7 +288,12 @@ class _WinnerRevealState extends State<WinnerReveal>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   _Titolo(scoppiato: scoppiato, mine: widget.mine),
-                  const SizedBox(height: 22),
+                  // **Dieci, non ventidue.** Le due scritte stavano larghe
+                  // attorno alla foto e sembravano tre cose separate su uno
+                  // schermo nero. Strette, sono una cosa sola — e siccome la
+                  // colonna sta al centro, avvicinarle porta la frase piu' in
+                  // basso e il nome piu' in alto senza spostare la foto.
+                  const SizedBox(height: 10),
                   // **Flessibile, non a misura fissa.** Il riquadro e' quadrato
                   // e largo quanto lo schermo meno i margini: su un telefono
                   // coricato — o su un tablet — quel quadrato sarebbe piu' alto
@@ -287,7 +311,7 @@ class _WinnerRevealState extends State<WinnerReveal>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 10),
                   _Nome(
                     scoppiato: scoppiato,
                     entrata: entrata,
@@ -333,7 +357,65 @@ class _WinnerRevealState extends State<WinnerReveal>
   }
 }
 
+/// Una scritta grossa, bianca con il contorno rosso CRASY.
+///
+/// **Due Text sovrapposti, e non c'e' un altro modo.** Una scritta sola sa
+/// essere piena **oppure** contornata, mai tutte e due: sotto sta il tratto,
+/// sopra il pieno. E' la ragione per cui una prova che cerca questa scritta ne
+/// trova due — e va bene cosi', e' il segno che il contorno c'e' ancora.
+///
+/// Il contorno non e' decorazione. Qui sotto passa una foto qualunque: una
+/// scritta bianca su una parete chiara sparisce, e questa e' l'unica scritta
+/// dell'app che non si puo' permettere di sparire.
+class _Grossa extends StatelessWidget {
+  const _Grossa({required this.testo, required this.corpo});
+
+  final String testo;
+  final double corpo;
+
+  /// Quanto e' spesso il tratto, in proporzione al corpo.
+  static const _spessore = 0.075;
+
+  TextStyle _stile(Paint? tratto, Color? pieno) => TextStyle(
+    color: pieno,
+    foreground: tratto,
+    fontSize: corpo,
+    height: 1.05,
+    fontWeight: FontWeight.w900,
+    letterSpacing: 1.2,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Text(
+          testo,
+          textAlign: TextAlign.center,
+          style: _stile(
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = corpo * _spessore
+              ..strokeJoin = StrokeJoin.round
+              ..color = AppColors.crasyRed,
+            null,
+          ),
+        ),
+        Text(
+          testo,
+          textAlign: TextAlign.center,
+          style: _stile(null, Colors.white),
+        ),
+      ],
+    );
+  }
+}
+
 /// La riga grossa in cima: la domanda, poi la risposta.
+///
+/// **Resta sopra la foto.** E' la frase, non il nome: si legge per prima, e
+/// dice cosa e' successo un istante prima che l'occhio scenda a vedere a chi.
 class _Titolo extends StatelessWidget {
   const _Titolo({required this.scoppiato, required this.mine});
 
@@ -342,20 +424,70 @@ class _Titolo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // **Durante il rullo la scritta e' bianca, dopo e' rossa.** Il rosso qui
-    // non decora: in CRASY vuol dire premio, ed e' il segno che la cosa e'
-    // successa davvero.
-    final testo = scoppiato ? (mine ? 'HAI VINTO' : 'HA VINTO') : 'CHI VINCE?';
+    return _Grossa(
+      testo: scoppiato ? (mine ? 'HAI VINTO' : 'HA VINTO') : 'CHI VINCE?',
+      corpo: scoppiato && mine ? 40 : 32,
+    );
+  }
+}
 
-    return Text(
-      testo,
-      textAlign: TextAlign.center,
-      style: TextStyle(
-        color: scoppiato ? AppColors.crasyRed : Colors.white,
-        fontSize: scoppiato && mine ? 40 : 30,
-        height: 1.05,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 1.2,
+/// Il nome e il premio, che compaiono solo a cose fatte.
+class _Nome extends StatelessWidget {
+  const _Nome({
+    required this.scoppiato,
+    required this.entrata,
+    required this.nome,
+    required this.premio,
+  });
+
+  final bool scoppiato;
+  final double entrata;
+  final String nome;
+  final int premio;
+
+  @override
+  Widget build(BuildContext context) {
+    // Lo spazio resta occupato anche prima: senza, la foto salterebbe verso
+    // l'alto proprio nell'istante in cui si vuole che stia ferma.
+    if (!scoppiato) {
+      return const SizedBox(height: 72);
+    }
+
+    return Opacity(
+      opacity: entrata,
+      child: SizedBox(
+        height: 72,
+        // **Rimpicciolisce invece di traboccare.** Un nome lungo, o un premio a
+        // quattro cifre, uscivano dal riquadro e lasciavano a schermo la riga a
+        // strisce gialle e nere — proprio sopra la vittoria.
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '@$nome',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (premio > 0) ...[
+                const SizedBox(height: 4),
+                Text(
+                  AppMoney.format(premio),
+                  style: const TextStyle(
+                    color: AppColors.crasyRed,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -429,67 +561,6 @@ class _Faccia extends StatelessWidget {
   }
 }
 
-/// Il nome e il premio, che compaiono solo a cose fatte.
-class _Nome extends StatelessWidget {
-  const _Nome({
-    required this.scoppiato,
-    required this.entrata,
-    required this.nome,
-    required this.premio,
-  });
-
-  final bool scoppiato;
-  final double entrata;
-  final String nome;
-  final int premio;
-
-  @override
-  Widget build(BuildContext context) {
-    // Lo spazio resta occupato anche prima: senza, la foto salterebbe verso
-    // l'alto proprio nell'istante in cui si vuole che stia ferma.
-    if (!scoppiato) {
-      return const SizedBox(height: 72);
-    }
-
-    return Opacity(
-      opacity: entrata,
-      child: SizedBox(
-        height: 72,
-        // **Rimpicciolisce invece di traboccare.** Un nome lungo, o un premio a
-        // quattro cifre, uscivano dal riquadro e lasciavano a schermo la riga a
-        // strisce gialle e nere — proprio sopra la vittoria.
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '@$nome',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              if (premio > 0) ...[
-                const SizedBox(height: 4),
-                Text(
-                  AppMoney.format(premio),
-                  style: const TextStyle(
-                    color: AppColors.crasyRed,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 /// Un coriandolo, con tutto quello che gli serve per sapere dove sta.
 class _Coriandolo {
