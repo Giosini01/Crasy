@@ -391,6 +391,16 @@ exports.moderateEntryPhoto = onDocumentCreated(
       });
 
       logger.warn(`Partecipazione ${snapshot.id} rifiutata: ${reasons.join(', ')}`);
+
+      // **Anche qui l'autore lo deve sapere.** Il silenzio e' lo stesso di
+      // quello delle segnalazioni, ed e' anzi peggiore: qui la foto non e'
+      // nemmeno mai comparsa, quindi chi l'ha mandata crede di essere in gara e
+      // aspetta un risultato che non puo' arrivare.
+      await avvisaChiLHaMandata(
+        String(snapshot.get('userId') || ''),
+        event.params.challengeId,
+        String(snapshot.get('challengeTitle') || '')
+      );
     }
   }
 );
@@ -940,6 +950,11 @@ exports.sendPushOnNotification = onDocumentCreated(
       // il rullo di tamburi. Scriverla qui vorrebbe dire raccontare il finale
       // sulla schermata bloccata e far arrivare tutti a cose fatte.
       ended: gara ? `È finita: ${gara}` : 'La missione è finita',
+      // **Non dice perche', e non dice chi.** Le segnalazioni sono anonime
+      // per costruzione, e su una schermata bloccata che leggono anche gli
+      // altri questa e' comunque una notizia spiacevole: la riga resta secca,
+      // e il resto sta in campanella.
+      removed: 'La tua foto è stata tolta dalla gara',
       comment: 'Nuovo commento sotto la tua foto',
       mention: 'Ti hanno nominato in un commento',
       friendRequest: 'Hai una richiesta di amicizia',
@@ -1221,6 +1236,51 @@ const SEGNALAZIONI_PER_TOGLIERE = 30;
  * riscritta a ogni fiamma, e una funzione attaccata li' girerebbe a ogni voto
  * di ogni gara per non fare niente novecentonovantanove volte su mille.
  */
+/**
+ * Dice a chi ha mandato una foto che gliel'hanno tolta.
+ *
+ * **Prima non lo diceva nessuno.** La foto spariva dalla griglia e basta. Chi
+ * l'aveva mandata restava dentro una gara con dei soldi in palio senza piu'
+ * esserci davvero, e se ne accorgeva solo tornando a guardare — oppure non se
+ * ne accorgeva affatto, e continuava ad aspettare un risultato che non poteva
+ * arrivare. E' il tipo di silenzio che fa disinstallare un'app: uno non capisce
+ * cos'e' successo, e la spiegazione piu' facile che si da' e' che sia rotta.
+ *
+ * **Non si dice chi ha segnalato, e non si dira' mai.** Le segnalazioni sono
+ * anonime per costruzione: dirlo trasformerebbe una moderazione in una lite fra
+ * due persone, e la segnalazione dopo non la manderebbe piu' nessuno.
+ *
+ * Il nome del documento porta dentro la gara e la foto, quindi due passaggi
+ * sulla stessa rimozione non fanno due avvisi.
+ */
+async function avvisaChiLHaMandata(autore, challengeId, titolo) {
+  if (!autore) {
+    return;
+  }
+
+  try {
+    await db
+      .collection('users')
+      .doc(autore)
+      .collection('notifications')
+      .doc('tolta_' + challengeId)
+      .set({
+        kind: 'removed',
+        // Nessun attore: non e' stata una persona, sono state trenta.
+        actorId: '',
+        actorUsername: '',
+        challengeId,
+        challengeTitle: titolo,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+  } catch (error) {
+    // **Non si rovescia la rimozione per un avviso.** La foto e' gia' fuori
+    // dalla gara, ed e' quella la cosa che doveva succedere: fallire qui e
+    // rifare tutto vorrebbe dire rimetterla dentro.
+    logger.error('avviso di rimozione non partito', { autore, challengeId, error });
+  }
+}
+
 exports.hideHeavilyReportedEntry = onDocumentCreated(
   'reports/{reportId}',
   async (event) => {
@@ -1280,6 +1340,12 @@ exports.hideHeavilyReportedEntry = onDocumentCreated(
       quanti,
       autore: String(dati.reportedUserId || ''),
     });
+
+    await avvisaChiLHaMandata(
+      String(dati.reportedUserId || adesso.get('userId') || ''),
+      challengeId,
+      String(adesso.get('challengeTitle') || '')
+    );
   }
 );
 

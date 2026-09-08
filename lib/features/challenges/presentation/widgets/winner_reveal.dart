@@ -16,42 +16,41 @@ import 'package:flutter/services.dart';
 /// in cui CRASY ha davvero qualcosa da dire: ci sono dei soldi veri, c'e' una
 /// persona che ha vinto, e fino a un istante prima non lo sapeva nessuno.
 ///
-/// Il rullo serve a **restituire l'attesa** che il prodotto si era giocato. La
-/// notifica dice che il tempo e' scaduto e di proposito non dice altro; qui il
-/// finale si prende i suoi secondi.
-///
 /// ## Come e' fatto
 ///
 /// Cinque secondi in tutto, e non uno di piu': oltre, un'animazione che non si
 /// puo' toccare smette di essere un momento e diventa un ostacolo fra una
 /// persona e la cosa che era venuta a vedere.
 ///
-///  - **il rullo** (1,8s): le foto in gara si rincorrono sempre piu' piano, con
-///    un colpetto sotto il dito a ogni cambio;
-///  - **lo scoppio** (0,45s): la foto vincitrice entra di scatto e i coriandoli
-///    partono **dai due lati**, non dall'alto — sparati, e solo dopo cadono;
-///  - **il riposo** (2,75s): il nome e il premio, il tempo di leggerli.
+///  - **il rullo** (1,8s): schermo nero e **due tamburi**, uno per lato, che
+///    battono sempre piu' veloce. Non c'e' nient'altro: nessuna foto, nessuna
+///    scritta;
+///  - **lo scoppio**: i tamburi spariscono, la foto vincitrice entra di scatto
+///    e i coriandoli partono **dai due angoli in basso**;
+///  - **il riposo**: sopra la foto la frase, sotto il nome e il premio.
+///
+/// ## Perche' il rullo non fa vedere niente
+///
+/// La prima versione faceva scorrere le foto in gara, coperte da un velo, come
+/// la ruota di una slot machine. Sembrava una buona idea e non lo era: dava da
+/// guardare qualcosa **proprio nei secondi in cui il punto e' non vedere**.
+/// Il nero non e' un vuoto da riempire — e' la cosa che rende la foto, quando
+/// arriva, una notizia.
+///
+/// I tamburi disegnati fanno il lavoro che faceva il velo, e lo fanno meglio:
+/// dicono "sta per succedere" senza mostrare niente di quello che succedera'.
 ///
 /// **Si salta con un tocco, ovunque.** Chi l'ha gia' vista, chi non ha voglia,
 /// chi ha aperto per altro: un'animazione che si deve subire e' una tassa.
-///
-/// I coriandoli sono disegnati qui invece che presi da una libreria: sono
-/// quaranta rettangoli che seguono una parabola, il codice sta in mezza
-/// schermata, e vale meno di una dipendenza da tenere aggiornata per sempre.
 class WinnerReveal extends StatefulWidget {
   const WinnerReveal({
     required this.challenge,
-    required this.entries,
     required this.winner,
     required this.mine,
     super.key,
   });
 
   final Challenge challenge;
-
-  /// Le partecipazioni che si rincorrono durante il rullo.
-  final List<ChallengeEntry> entries;
-
   final ChallengeEntry winner;
 
   /// Se il vincitore sono **io**. Cambia la parola grossa, non il resto.
@@ -59,6 +58,9 @@ class WinnerReveal extends StatefulWidget {
 
   /// Quanto dura tutto, dal primo colpo di tamburo all'uscita.
   static const durata = Duration(milliseconds: 5000);
+
+  /// Il riquadro dei tamburi, per le prove.
+  static const chiaveDeiTamburi = Key('rullo-di-tamburi');
 
   /// Apre la proclamazione sopra la schermata.
   ///
@@ -68,7 +70,6 @@ class WinnerReveal extends StatefulWidget {
   static Future<void> show(
     BuildContext context, {
     required Challenge challenge,
-    required List<ChallengeEntry> entries,
     required ChallengeEntry winner,
     required bool mine,
   }) {
@@ -77,12 +78,8 @@ class WinnerReveal extends StatefulWidget {
       barrierDismissible: false,
       barrierColor: const Color(0xFF000000),
       transitionDuration: const Duration(milliseconds: 240),
-      pageBuilder: (context, animazione, altra) => WinnerReveal(
-        challenge: challenge,
-        entries: entries,
-        winner: winner,
-        mine: mine,
-      ),
+      pageBuilder: (context, animazione, altra) =>
+          WinnerReveal(challenge: challenge, winner: winner, mine: mine),
       transitionBuilder: (context, animazione, altra, child) =>
           FadeTransition(opacity: animazione, child: child),
     );
@@ -94,21 +91,29 @@ class WinnerReveal extends StatefulWidget {
 
 class _WinnerRevealState extends State<WinnerReveal>
     with SingleTickerProviderStateMixin {
-  /// Quando finisce il rullo e comincia lo scoppio, in frazioni del totale.
+  /// Quando finiscono i tamburi e comincia lo scoppio, in frazioni del totale.
   static const _scoppio = 0.36;
 
   /// Quando la foto ha finito di entrare.
   static const _posata = 0.45;
 
+  /// Quanto passa fra un colpo e l'altro: dal primo, lento, all'ultimo.
+  ///
+  /// **Un rullo di tamburi accelera.** E' il contrario di una slot machine, che
+  /// rallenta per far sperare sull'ultima casella: qui non c'e' niente da
+  /// leggere, e la tensione si costruisce con la frequenza. Il fondo sta a
+  /// novanta millesimi e non piu' in basso — sotto, i colpi diventano piu'
+  /// fitti di quanto il telefono riesca a farne sentire, e la vibrazione
+  /// comincia a saltarne invece di infittirsi.
+  static const _primoPasso = 240.0;
+  static const _ultimoPasso = 90.0;
+
   late final AnimationController _tempo;
   late final List<_Coriandolo> _coriandoli;
-  late final List<ChallengeEntry> _facce;
 
-  /// Quale foto sta passando adesso nel rullo.
-  var _quale = 0;
-
-  /// L'ultimo cambio, per non battere due volte sulla stessa foto.
-  var _ultimoCambio = -1;
+  /// Quale colpo stiamo suonando, e quando e' cominciato.
+  var _colpo = -1;
+  var _inizioDelColpo = 0.0;
 
   var _scoppiata = false;
   var _uscita = false;
@@ -117,7 +122,6 @@ class _WinnerRevealState extends State<WinnerReveal>
   void initState() {
     super.initState();
 
-    _facce = _sceltePerIlRullo();
     _coriandoli = _semina();
     _tempo = AnimationController(vsync: this, duration: WinnerReveal.durata)
       ..addListener(_batti)
@@ -137,43 +141,26 @@ class _WinnerRevealState extends State<WinnerReveal>
     super.dispose();
   }
 
-  /// Le foto che si rincorrono: quelle in gara, la vincitrice mescolata dentro.
-  ///
-  /// **Al massimo otto, e nessun video.** Con trenta partecipazioni il rullo
-  /// diventa un elenco e nessuna faccia si vede abbastanza da fare effetto; e
-  /// un video, in un decimo di secondo, non fa in tempo nemmeno ad aprirsi —
-  /// resterebbe un buco nero in mezzo alla corsa.
-  List<ChallengeEntry> _sceltePerIlRullo() {
-    final scelte = widget.entries
-        .where((entry) => entry.mediaUrl.isNotEmpty && !entry.isVideo)
-        .take(8)
-        .toList();
+  /// I millesimi di secondo passati dall'inizio.
+  double get _passati =>
+      (_tempo.lastElapsedDuration ?? Duration.zero).inMicroseconds / 1000;
 
-    return scelte.isEmpty ? <ChallengeEntry>[widget.winner] : scelte;
-  }
-
-  /// Il rullo: le foto si rincorrono, sempre piu' piano.
+  /// Il tamburo batte, e a ogni colpo il telefono fa un colpetto.
   ///
-  /// **Il rallentamento e' la cosa che fa il rullo di tamburi.** A ritmo fisso
-  /// sarebbe un elenco che scorre; rallentando, l'ultima foto resta ferma
-  /// giusto il tempo di far pensare che sia quella — ed e' li' che uno smette
-  /// di guardare lo schermo e comincia a sperare.
+  /// **La vibrazione e' leggera apposta.** A ogni singolo colpo si sente poco;
+  /// e' l'accelerazione a farla diventare qualcosa — venti colpetti leggeri in
+  /// due secondi si trasformano in un fremito continuo sotto le dita, e quello
+  /// e' il rullo. Un colpo forte ripetuto venti volte sarebbe solo fastidioso,
+  /// e il telefono comincerebbe a saltarne.
   void _batti() {
     final t = _tempo.value;
 
     if (t >= _scoppio) {
       if (!_scoppiata) {
         _scoppiata = true;
-        // **Un colpo secco e poi una vibrazione vera.**
-        //
-        // Non c'e' nessun suono qui, di proposito: meta' della gente tiene il
-        // telefono muto, e un'animazione che si capisce solo con l'audio
-        // acceso non si capisce. Il tamburo lo fa la mano.
-        //
-        // I due insieme e non uno solo: il colpo e' istantaneo e segna
-        // l'istante esatto in cui la foto entra, la vibrazione dura e fa da
-        // rullo finale. Con il solo colpo la rivelazione passava senza che il
-        // telefono se ne accorgesse.
+        // **Adesso si', forte.** E' l'unico momento in cui il telefono deve
+        // farsi sentire davvero: il colpo secco segna l'istante in cui la foto
+        // entra, la vibrazione lunga fa da piatto finale.
         HapticFeedback.heavyImpact();
         HapticFeedback.vibrate();
       }
@@ -183,33 +170,22 @@ class _WinnerRevealState extends State<WinnerReveal>
       return;
     }
 
-    // Il passo cresce da 55 a 340 millesimi di secondo: all'inizio le foto
-    // sfarfallano, alla fine si posano una alla volta.
-    final avanzamento = t / _scoppio;
-    final passo = 55 + 285 * avanzamento * avanzamento;
-    final passati = (_tempo.lastElapsedDuration ?? Duration.zero).inMilliseconds;
-    final adesso = (passati / passo).floor();
+    final passati = _passati;
 
-    if (adesso != _ultimoCambio) {
-      _ultimoCambio = adesso;
-
-      // **I colpi si fanno piu' forti mentre il rullo rallenta.** Erano tutti
-      // uguali e leggerissimi — il colpetto della rotellina — e su molti
-      // telefoni non si sentiva niente. Cosi' invece il tamburo cresce: prima
-      // un ticchettio veloce, poi colpi separati e pieni, e quando arrivano
-      // radi si sa che manca poco.
-      if (avanzamento < 0.55) {
-        HapticFeedback.lightImpact();
-      } else {
-        HapticFeedback.mediumImpact();
-      }
-
-      setState(() => _quale = adesso % _facce.length);
-
-      return;
+    if (passati - _inizioDelColpo >= _passoAdesso(t) || _colpo < 0) {
+      _colpo += 1;
+      _inizioDelColpo = passati;
+      HapticFeedback.lightImpact();
     }
 
     setState(() {});
+  }
+
+  /// Quanto dura il colpo che stiamo suonando adesso.
+  double _passoAdesso(double t) {
+    final avanti = (t / _scoppio).clamp(0.0, 1.0);
+
+    return _primoPasso + (_ultimoPasso - _primoPasso) * avanti;
   }
 
   void _esci() {
@@ -223,9 +199,9 @@ class _WinnerRevealState extends State<WinnerReveal>
 
   /// I coriandoli, decisi una volta sola.
   ///
-  /// **Sparati dai lati, non fatti cadere dall'alto.** Cadere e' quello che fa
-  /// la neve; una vittoria fa il rumore opposto — parte da terra, si apre, e
-  /// solo dopo la gravita' se li riprende.
+  /// **Sparati dai due angoli in basso.** Cadere dall'alto e' quello che fa la
+  /// neve; una vittoria fa il rumore opposto — parte da terra, si apre verso
+  /// l'alto, e solo dopo la gravita' se li riprende.
   List<_Coriandolo> _semina() {
     // Un seme fisso: la stessa vittoria fa la stessa festa, invece di una
     // diversa a ogni ricostruzione della schermata.
@@ -238,16 +214,16 @@ class _WinnerRevealState extends State<WinnerReveal>
     ];
 
     return <_Coriandolo>[
-      for (var i = 0; i < 44; i += 1)
+      for (var i = 0; i < 48; i += 1)
         _Coriandolo(
-          // Da fuori dallo schermo: cosi' non si vede nessuno comparire dal
-          // nulla sul bordo.
+          // Appena fuori dall'angolo, cosi' non si vede nessuno comparire dal
+          // nulla in mezzo allo schermo.
           x0: i.isEven ? -0.03 : 1.03,
-          y0: 0.62 + caso.nextDouble() * 0.12,
+          y0: 1.02 + caso.nextDouble() * 0.04,
           // Verso l'alto e verso il centro, con una spinta diversa per ognuno:
           // uguale, partirebbero come un muro.
-          vx: (i.isEven ? 1 : -1) * (0.55 + caso.nextDouble() * 0.85),
-          vy: -(0.95 + caso.nextDouble() * 0.75),
+          vx: (i.isEven ? 1 : -1) * (0.45 + caso.nextDouble() * 0.75),
+          vy: -(1.15 + caso.nextDouble() * 0.45),
           giro: caso.nextDouble() * math.pi,
           velocitaDelGiro: (caso.nextDouble() - 0.5) * 9,
           larghezza: 5 + caso.nextDouble() * 5,
@@ -261,66 +237,42 @@ class _WinnerRevealState extends State<WinnerReveal>
   Widget build(BuildContext context) {
     final t = _tempo.value;
     final scoppiato = t >= _scoppio;
-    final foto = scoppiato
-        ? widget.winner
-        : _facce[_quale.clamp(0, _facce.length - 1)];
-
-    // Quanto e' entrata la foto: da 0 a 1 nel tempo dello scoppio, con un
-    // rimbalzo corto in fondo.
-    final entrata = scoppiato
-        ? ((t - _scoppio) / (_posata - _scoppio)).clamp(0.0, 1.0)
-        : 0.0;
-    final scala = scoppiato
-        ? 0.82 + 0.18 * Curves.easeOutBack.transform(entrata)
-        : 0.94;
 
     return GestureDetector(
       // Un tocco qualunque salta tutto. Vedi la nota in cima.
       onTap: _esci,
       behavior: HitTestBehavior.opaque,
       child: Material(
-        color: const Color(0xFF0A0A0B),
+        color: const Color(0xFF000000),
         child: Stack(
           fit: StackFit.expand,
           children: [
-            SafeArea(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _Titolo(scoppiato: scoppiato, mine: widget.mine),
-                  // **Dieci, non ventidue.** Le due scritte stavano larghe
-                  // attorno alla foto e sembravano tre cose separate su uno
-                  // schermo nero. Strette, sono una cosa sola — e siccome la
-                  // colonna sta al centro, avvicinarle porta la frase piu' in
-                  // basso e il nome piu' in alto senza spostare la foto.
-                  const SizedBox(height: 10),
-                  // **Flessibile, non a misura fissa.** Il riquadro e' quadrato
-                  // e largo quanto lo schermo meno i margini: su un telefono
-                  // coricato — o su un tablet — quel quadrato sarebbe piu' alto
-                  // dello schermo, e la colonna traboccherebbe portandosi via
-                  // il nome del vincitore. Cosi' prende quello che avanza fra
-                  // il titolo e il nome, e si stringe da solo.
-                  Flexible(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 44),
-                      child: Center(
-                        child: Transform.scale(
-                          scale: scala,
-                          child: _Faccia(entry: foto, accesa: scoppiato),
-                        ),
-                      ),
+            if (!scoppiato)
+              _Tamburi(
+                key: WinnerReveal.chiaveDeiTamburi,
+                // Da 0 a 1 dentro il colpo che stiamo suonando: e' quello che
+                // fa rimbalzare la pelle e scendere la bacchetta.
+                colpo:
+                    ((_passati - _inizioDelColpo) / _passoAdesso(t)).clamp(
+                      0.0,
+                      1.0,
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  _Nome(
-                    scoppiato: scoppiato,
-                    entrata: entrata,
-                    nome: widget.winner.authorName,
-                    premio: widget.challenge.prizeCents,
-                  ),
-                ],
+                // Il rullo cresce: i tamburi si avvicinano e si allargano un
+                // po' mentre accelerano.
+                crescita: (t / _scoppio).clamp(0.0, 1.0),
+              )
+            else
+              _Proclamazione(
+                challenge: widget.challenge,
+                winner: widget.winner,
+                mine: widget.mine,
+                // Quanto e' entrata la foto: da 0 a 1 nel tempo dello scoppio,
+                // con un rimbalzo corto in fondo.
+                entrata: ((t - _scoppio) / (_posata - _scoppio)).clamp(
+                  0.0,
+                  1.0,
+                ),
               ),
-            ),
             if (scoppiato)
               IgnorePointer(
                 child: CustomPaint(
@@ -343,7 +295,7 @@ class _WinnerRevealState extends State<WinnerReveal>
                 child: Text(
                   'tocca per continuare',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.34),
+                    color: Colors.white.withValues(alpha: 0.30),
                     fontSize: 12,
                     letterSpacing: 0.6,
                   ),
@@ -352,6 +304,289 @@ class _WinnerRevealState extends State<WinnerReveal>
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// I due tamburi, uno per lato, sul nero.
+///
+/// **Non c'e' nient'altro a schermo, ed e' il punto.** Vedi la nota in cima a
+/// [WinnerReveal].
+class _Tamburi extends StatelessWidget {
+  const _Tamburi({required this.colpo, required this.crescita, super.key});
+
+  /// Da 0 a 1 dentro il colpo che si sta suonando adesso.
+  final double colpo;
+
+  /// Da 0 a 1 lungo tutto il rullo.
+  final double crescita;
+
+  @override
+  Widget build(BuildContext context) {
+    final larghezza = MediaQuery.sizeOf(context).width;
+    // Un quarto di schermo per tamburo: piu' grandi si toccherebbero, piu'
+    // piccoli non si capirebbe cosa sono.
+    final lato = (larghezza * 0.26).clamp(70.0, 140.0);
+
+    return Center(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _Tamburo(colpo: colpo, crescita: crescita, lato: lato, destro: false),
+          SizedBox(width: larghezza * 0.10),
+          _Tamburo(colpo: colpo, crescita: crescita, lato: lato, destro: true),
+        ],
+      ),
+    );
+  }
+}
+
+class _Tamburo extends StatelessWidget {
+  const _Tamburo({
+    required this.colpo,
+    required this.crescita,
+    required this.lato,
+    required this.destro,
+  });
+
+  final double colpo;
+  final double crescita;
+  final double lato;
+
+  /// Quello di destra suona a specchio: le due bacchette si muovono verso il
+  /// centro invece che nella stessa direzione, come suonerebbe una persona.
+  final bool destro;
+
+  @override
+  Widget build(BuildContext context) {
+    // Il tamburo si schiaccia sul colpo e torna su: il rimbalzo dura poco piu'
+    // di un terzo del passo, poi sta fermo ad aspettare il prossimo.
+    final schiaccio = (1 - colpo * 2.6).clamp(0.0, 1.0);
+    final scala = (1 + 0.10 * schiaccio) * (0.92 + 0.08 * crescita);
+
+    return Transform.scale(
+      scale: scala,
+      child: SizedBox(
+        width: lato,
+        height: lato * 1.15,
+        child: CustomPaint(
+          painter: _DisegnoDelTamburo(colpo: colpo, destro: destro),
+        ),
+      ),
+    );
+  }
+}
+
+/// Il tamburo, disegnato invece che preso da un'immagine.
+///
+/// Un cilindro con la pelle bianca in cima, il fusto rosso, la cordatura a
+/// zigzag e una bacchetta che scende sul colpo. Sono venti righe di geometria e
+/// pesano zero: un'immagine avrebbe dovuto esistere in cinque misure, restare
+/// nitida su ogni schermo e non stonare quando cambia il rosso di CRASY.
+class _DisegnoDelTamburo extends CustomPainter {
+  const _DisegnoDelTamburo({required this.colpo, required this.destro});
+
+  final double colpo;
+  final bool destro;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final fusto = Paint()
+      ..style = PaintingStyle.fill
+      ..color = AppColors.crasyRed;
+    final pelle = Paint()
+      ..style = PaintingStyle.fill
+      ..color = Colors.white;
+    final filo = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.022
+      ..strokeCap = StrokeCap.round
+      ..color = Colors.white.withValues(alpha: 0.85);
+
+    final cima = h * 0.34;
+    final fondo = h * 0.82;
+    final raggioX = w * 0.46;
+    final raggioY = h * 0.10;
+
+    // Il fondo del cilindro, e poi il fusto sopra: disegnati in quest'ordine,
+    // la pancia in basso resta arrotondata senza nessuna maschera.
+    canvas
+      ..drawOval(
+        Rect.fromCenter(
+          center: Offset(w / 2, fondo),
+          width: raggioX * 2,
+          height: raggioY * 2,
+        ),
+        fusto,
+      )
+      ..drawRect(Rect.fromLTRB(w / 2 - raggioX, cima, w / 2 + raggioX, fondo), fusto);
+
+    // La cordatura: sei zigzag fra il bordo di sopra e quello di sotto. E' il
+    // dettaglio che fa leggere "tamburo" invece di "barattolo".
+    const quanti = 6;
+    final zigzag = Path();
+
+    for (var i = 0; i <= quanti; i += 1) {
+      final x = w / 2 - raggioX + (raggioX * 2) * i / quanti;
+      final y = i.isEven ? cima + h * 0.06 : fondo - h * 0.06;
+
+      if (i == 0) {
+        zigzag.moveTo(x, y);
+      } else {
+        zigzag.lineTo(x, y);
+      }
+    }
+
+    canvas
+      ..drawPath(zigzag, filo)
+      // La pelle, in cima. Bianca e piena: e' la parte che prende il colpo, e
+      // dev'essere la cosa piu' chiara del disegno.
+      ..drawOval(
+        Rect.fromCenter(
+          center: Offset(w / 2, cima),
+          width: raggioX * 2,
+          height: raggioY * 2,
+        ),
+        pelle,
+      );
+
+    _bacchetta(canvas, size);
+    _onda(canvas, size, cima, raggioX, raggioY);
+  }
+
+  /// La bacchetta che scende sulla pelle e risale.
+  void _bacchetta(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    // Scende in fretta e risale piano: un colpo, non un'oscillazione.
+    final giu = colpo < 0.22
+        ? colpo / 0.22
+        : (1 - (colpo - 0.22) / 0.78).clamp(0.0, 1.0);
+    final alzata = (1 - giu) * h * 0.20;
+
+    final perno = Offset(destro ? w * 0.78 : w * 0.22, h * 0.05 + alzata);
+    final punta = Offset(w * 0.5, h * 0.28 + alzata * 0.4);
+
+    canvas.drawLine(
+      perno,
+      punta,
+      Paint()
+        ..strokeWidth = w * 0.055
+        ..strokeCap = StrokeCap.round
+        ..color = const Color(0xFFE8D6B0),
+    );
+  }
+
+  /// L'onda che si apre dalla pelle appena presa la bacchetta.
+  void _onda(Canvas canvas, Size size, double cima, double rx, double ry) {
+    if (colpo > 0.55) {
+      return;
+    }
+
+    final apertura = colpo / 0.55;
+    final resta = (1 - apertura).clamp(0.0, 1.0);
+
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(size.width / 2, cima),
+        width: rx * 2 * (1 + apertura * 0.7),
+        height: ry * 2 * (1 + apertura * 0.7),
+      ),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = size.width * 0.02
+        ..color = Colors.white.withValues(alpha: 0.55 * resta),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_DisegnoDelTamburo oldDelegate) =>
+      oldDelegate.colpo != colpo;
+}
+
+/// Quello che si vede dopo il rullo: frase, foto, nome.
+class _Proclamazione extends StatelessWidget {
+  const _Proclamazione({
+    required this.challenge,
+    required this.winner,
+    required this.mine,
+    required this.entrata,
+  });
+
+  final Challenge challenge;
+  final ChallengeEntry winner;
+  final bool mine;
+  final double entrata;
+
+  @override
+  Widget build(BuildContext context) {
+    final scala = 0.82 + 0.18 * Curves.easeOutBack.transform(entrata);
+
+    return SafeArea(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _Grossa(testo: mine ? 'HAI VINTO' : 'HA VINTO', corpo: mine ? 40 : 34),
+          // **Otto, non venti.** La frase e la foto sono una cosa sola: staccate
+          // sembrano un titolo e un'immagine messi nella stessa schermata per
+          // caso.
+          const SizedBox(height: 8),
+          Flexible(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 44),
+              child: Center(
+                child: Transform.scale(
+                  scale: scala,
+                  child: _Faccia(entry: winner),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Opacity(
+            opacity: entrata,
+            child: SizedBox(
+              height: 72,
+              // **Rimpicciolisce invece di traboccare.** Un nome lungo, o un
+              // premio a quattro cifre, uscivano dal riquadro e lasciavano a
+              // schermo la riga a strisce gialle e nere — proprio sopra la
+              // vittoria.
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '@${winner.authorName}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (challenge.prizeCents > 0) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        AppMoney.format(challenge.prizeCents),
+                        style: const TextStyle(
+                          color: AppColors.crasyRed,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -412,95 +647,11 @@ class _Grossa extends StatelessWidget {
   }
 }
 
-/// La riga grossa in cima: la domanda, poi la risposta.
-///
-/// **Resta sopra la foto.** E' la frase, non il nome: si legge per prima, e
-/// dice cosa e' successo un istante prima che l'occhio scenda a vedere a chi.
-class _Titolo extends StatelessWidget {
-  const _Titolo({required this.scoppiato, required this.mine});
-
-  final bool scoppiato;
-  final bool mine;
-
-  @override
-  Widget build(BuildContext context) {
-    return _Grossa(
-      testo: scoppiato ? (mine ? 'HAI VINTO' : 'HA VINTO') : 'CHI VINCE?',
-      corpo: scoppiato && mine ? 40 : 32,
-    );
-  }
-}
-
-/// Il nome e il premio, che compaiono solo a cose fatte.
-class _Nome extends StatelessWidget {
-  const _Nome({
-    required this.scoppiato,
-    required this.entrata,
-    required this.nome,
-    required this.premio,
-  });
-
-  final bool scoppiato;
-  final double entrata;
-  final String nome;
-  final int premio;
-
-  @override
-  Widget build(BuildContext context) {
-    // Lo spazio resta occupato anche prima: senza, la foto salterebbe verso
-    // l'alto proprio nell'istante in cui si vuole che stia ferma.
-    if (!scoppiato) {
-      return const SizedBox(height: 72);
-    }
-
-    return Opacity(
-      opacity: entrata,
-      child: SizedBox(
-        height: 72,
-        // **Rimpicciolisce invece di traboccare.** Un nome lungo, o un premio a
-        // quattro cifre, uscivano dal riquadro e lasciavano a schermo la riga a
-        // strisce gialle e nere — proprio sopra la vittoria.
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '@$nome',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              if (premio > 0) ...[
-                const SizedBox(height: 4),
-                Text(
-                  AppMoney.format(premio),
-                  style: const TextStyle(
-                    color: AppColors.crasyRed,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// La foto in mezzo: durante il rullo passa, alla fine resta.
+/// La foto vincitrice, nella sua cornice rossa.
 class _Faccia extends StatelessWidget {
-  const _Faccia({required this.entry, required this.accesa});
+  const _Faccia({required this.entry});
 
   final ChallengeEntry entry;
-
-  /// Se e' la vincitrice: prende la cornice rossa e perde il velo.
-  final bool accesa;
 
   @override
   Widget build(BuildContext context) {
@@ -513,54 +664,28 @@ class _Faccia extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: accesa ? AppColors.crasyRed : Colors.white24,
-            width: accesa ? 3 : 1,
-          ),
-          boxShadow: accesa
-              ? const <BoxShadow>[
-                  BoxShadow(
-                    color: Color(0x55FA0000),
-                    blurRadius: 44,
-                    spreadRadius: 2,
-                  ),
-                ]
-              : null,
+          border: Border.all(color: AppColors.crasyRed, width: 3),
+          boxShadow: const <BoxShadow>[
+            BoxShadow(
+              color: Color(0x55FA0000),
+              blurRadius: 44,
+              spreadRadius: 2,
+            ),
+          ],
         ),
         child: Padding(
           padding: const EdgeInsets.all(3),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              MediaFrame(
-                url: entry.mediaUrl,
-                video: entry.isVideo,
-                aspectRatio: 1,
-                radius: 15,
-                // Il video vincitore parte da solo: qui e' la cosa che si e'
-                // venuti a vedere, non un francobollo in una griglia.
-                autoplay: accesa,
-              ),
-              // **Durante il rullo le foto stanno sotto un velo.** Senza, si
-              // riesce a riconoscere chi sta passando e si capisce il finale un
-              // istante prima che arrivi.
-              if (!accesa)
-                IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: const Color(0x8A0A0A0B),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                  ),
-                ),
-            ],
+          child: MediaFrame(
+            url: entry.mediaUrl,
+            video: entry.isVideo,
+            aspectRatio: 1,
+            radius: 15,
           ),
         ),
       ),
     );
   }
 }
-
 
 /// Un coriandolo, con tutto quello che gli serve per sapere dove sta.
 class _Coriandolo {

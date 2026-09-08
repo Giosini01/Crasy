@@ -53,6 +53,20 @@ enum NotificationKind {
   /// cosa che si vorra' fare il giorno in cui da' fastidio e' poterla spegnere
   /// da sola.
   comeback,
+
+  /// **La tua foto e' stata tolta dalla gara.**
+  ///
+  /// Prima non lo diceva nessuno: la foto spariva dalla griglia e basta. Chi
+  /// l'aveva mandata restava dentro una gara con dei soldi in palio senza piu'
+  /// esserci, e se ne accorgeva solo tornando a guardare — o non se ne
+  /// accorgeva affatto, e continuava ad aspettare un risultato che non poteva
+  /// arrivare.
+  ///
+  /// **Non dice chi l'ha segnalata, e non lo dira' mai.** Le segnalazioni sono
+  /// anonime per costruzione: dirlo trasformerebbe una moderazione in una lite
+  /// fra due persone, e la prossima segnalazione non la manderebbe piu'
+  /// nessuno.
+  removed,
 }
 
 /// In quale sezione della campanella finisce una notizia.
@@ -140,7 +154,9 @@ class AppNotification {
     NotificationKind.comeback => 'Ci sono missioni nuove che ti aspettano',
     NotificationKind.win => 'Hai vinto',
     NotificationKind.ended => 'La missione è finita: guarda chi ha vinto',
-    NotificationKind.comment => '@\$actorUsername ha commentato la tua foto',
+    NotificationKind.removed => 'La tua foto è stata tolta dalla gara',
+    NotificationKind.comment =>
+      '@$actorUsername ha commentato la tua foto',
   };
 
   /// La sezione in cui finisce.
@@ -167,7 +183,11 @@ class AppNotification {
     NotificationKind.ended ||
     NotificationKind.comeback => NotificationGroup.wins,
     NotificationKind.participation ||
-    NotificationKind.friendRequest => NotificationGroup.participations,
+    NotificationKind.friendRequest ||
+    // **Sta con le partecipazioni, non con le vittorie.** E' la propria
+    // partecipazione che non c'e' piu': trovarla sotto l'insegna VITTORIE
+    // sarebbe la cosa piu' stonata della campanella.
+    NotificationKind.removed => NotificationGroup.participations,
   };
 
   static NotificationKind kindFromName(String? value) {

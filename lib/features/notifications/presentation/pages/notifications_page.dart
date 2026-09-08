@@ -693,6 +693,12 @@ class _Face extends StatelessWidget {
         palette.textPrimary,
       ),
       NotificationKind.win => (Icons.emoji_events, palette.accent),
+      // L'occhio sbarrato: la foto c'e' ancora, ma non la vede piu'
+      // nessuno. E' lo stesso segno che si usa sulle foto in attesa.
+      NotificationKind.removed => (
+        Icons.visibility_off_rounded,
+        palette.textPrimary,
+      ),
       // La chiocciola: qualcuno ti ha chiamato per nome dentro un commento.
       NotificationKind.mention => (
         Icons.alternate_email_rounded,

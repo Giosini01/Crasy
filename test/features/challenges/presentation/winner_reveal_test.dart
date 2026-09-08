@@ -12,17 +12,23 @@ import 'package:flutter_test/flutter_test.dart';
 /// il finale, o non si chiude piu' — e chi la guarda pensa che l'app si sia
 /// piantata proprio nel momento in cui doveva dire che aveva vinto dei soldi.
 ///
-/// Le prove qui sotto sono le tre cose che devono succedere in ordine: prima la
-/// domanda, poi la risposta, poi il congedo. Piu' quella che conta di piu': che
-/// **si possa saltare**.
+/// Le prove qui sotto sono le cose che devono succedere in ordine: prima i
+/// tamburi **e nient'altro**, poi la proclamazione **senza tamburi**, poi il
+/// congedo. Piu' quella che conta di piu': che **si possa saltare**.
+///
+/// ## Perche' il rullo si prova per quello che NON mostra
+///
+/// Durante i tamburi non deve esserci niente del finale: non il nome, non la
+/// frase, non il premio. E' l'unica cosa che rende la rivelazione una
+/// rivelazione, ed e' anche l'errore piu' facile da introdurre senza
+/// accorgersene — basta spostare una scritta fuori da un `if`.
 ///
 /// ## Perche' le scritte grosse si cercano in coppia
 ///
-/// La frase in cima e' bianca con il contorno rosso, e in Flutter una scritta
-/// sa essere piena **oppure** contornata, mai tutte e due: sono due `Text`
-/// sovrapposti, il tratto sotto e il pieno sopra. Percio' `findsNWidgets(2)`,
-/// e non e' una stranezza da tollerare — e' la prova che il contorno c'e'
-/// ancora. Se qualcuno lo togliesse, questi numeri lo direbbero subito.
+/// La frase e' bianca con il contorno rosso, e in Flutter una scritta sa essere
+/// piena **oppure** contornata, mai tutte e due: sono due `Text` sovrapposti,
+/// il tratto sotto e il pieno sopra. Percio' `findsNWidgets(2)`, e non e' una
+/// stranezza da tollerare — e' la prova che il contorno c'e' ancora.
 void main() {
   final gara = Challenge(
     id: 'g1',
@@ -36,12 +42,12 @@ void main() {
     endsAt: DateTime(2026, 1, 1, 12),
   );
 
-  ChallengeEntry foto(String id, String chi) => ChallengeEntry(
-    id: id,
+  final vincitrice = ChallengeEntry(
+    id: 'e1',
     challengeId: 'g1',
     challengeTitle: gara.title,
-    userId: chi,
-    authorName: chi,
+    userId: 'anna',
+    authorName: 'anna',
     // Vuoto di proposito: qui si prova il tempo, non le immagini, e una foto
     // vera vorrebbe dire una richiesta di rete dentro una prova.
     mediaUrl: '',
@@ -52,39 +58,55 @@ void main() {
       MaterialApp(
         home: WinnerReveal(
           challenge: gara,
-          entries: [foto('e1', 'anna'), foto('e2', 'bea')],
-          winner: foto('e1', 'anna'),
+          winner: vincitrice,
           mine: mine,
         ),
       ),
     );
   }
 
-  testWidgets('prima chiede, e non dice chi ha vinto', (tester) async {
+  Widget conIlTasto() => MaterialApp(
+    home: Builder(
+      builder: (context) => TextButton(
+        onPressed: () => WinnerReveal.show(
+          context,
+          challenge: gara,
+          winner: vincitrice,
+          mine: true,
+        ),
+        child: const Text('apri'),
+      ),
+    ),
+  );
+
+  testWidgets('prima i tamburi, e nientaltro', (tester) async {
     await apri(tester, mine: false);
 
-    expect(find.text('CHI VINCE?'), findsNWidgets(2));
-    // Il nome del vincitore non deve stare da nessuna parte finche' il rullo
-    // gira: comparirebbe sotto la foto un istante prima della rivelazione.
+    expect(find.byKey(WinnerReveal.chiaveDeiTamburi), findsOneWidget);
+
+    // Niente del finale deve essere gia' a schermo: ne' chi ha vinto, ne' che
+    // qualcuno ha vinto, ne' quanto.
     expect(find.text('@anna'), findsNothing);
     expect(find.text('HA VINTO'), findsNothing);
+    expect(find.text('HAI VINTO'), findsNothing);
+    expect(find.text('€50'), findsNothing);
 
     // L'animazione e' ancora in corso: senza questo, la prova finisce con un
     // timer vivo e il messaggio d'errore non nomina la causa.
     await tester.pumpAndSettle(const Duration(seconds: 6));
   });
 
-  testWidgets('poi risponde, con il nome e il premio', (tester) async {
+  testWidgets('poi la foto, e i tamburi spariscono', (tester) async {
     await apri(tester, mine: false);
 
     // Oltre lo scoppio, che sta a poco piu' di un terzo dei cinque secondi.
     await tester.pump(const Duration(milliseconds: 2200));
 
+    expect(find.byKey(WinnerReveal.chiaveDeiTamburi), findsNothing);
     expect(find.text('HA VINTO'), findsNWidgets(2));
     // Il nome e il premio no: quelli sono scritte normali, una sola ciascuna.
     expect(find.text('@anna'), findsOneWidget);
     expect(find.text('€50'), findsOneWidget);
-    expect(find.text('CHI VINCE?'), findsNothing);
 
     await tester.pumpAndSettle(const Duration(seconds: 6));
   });
@@ -99,69 +121,37 @@ void main() {
   });
 
   testWidgets('si chiude da sola, e non resta li a vita', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
-          builder: (context) => TextButton(
-            onPressed: () => WinnerReveal.show(
-              context,
-              challenge: gara,
-              entries: [foto('e1', 'anna')],
-              winner: foto('e1', 'anna'),
-              mine: true,
-            ),
-            child: const Text('apri'),
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(conIlTasto());
 
     await tester.tap(find.text('apri'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('HAI VINTO'), findsNothing);
-    expect(find.text('CHI VINCE?'), findsNWidgets(2));
+    expect(find.byKey(WinnerReveal.chiaveDeiTamburi), findsOneWidget);
 
     // Passati i cinque secondi se ne va da sola.
     await tester.pumpAndSettle(const Duration(seconds: 7));
 
-    expect(find.text('CHI VINCE?'), findsNothing);
+    expect(find.byKey(WinnerReveal.chiaveDeiTamburi), findsNothing);
     expect(find.text('HAI VINTO'), findsNothing);
     expect(find.text('apri'), findsOneWidget);
   });
 
   testWidgets('un tocco la salta', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
-          builder: (context) => TextButton(
-            onPressed: () => WinnerReveal.show(
-              context,
-              challenge: gara,
-              entries: [foto('e1', 'anna')],
-              winner: foto('e1', 'anna'),
-              mine: true,
-            ),
-            child: const Text('apri'),
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(conIlTasto());
 
     await tester.tap(find.text('apri'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('CHI VINCE?'), findsNWidgets(2));
+    expect(find.byKey(WinnerReveal.chiaveDeiTamburi), findsOneWidget);
 
     // A meta' rullo, un tocco **in un punto qualunque**: e' proprio quello che
-    // deve funzionare, non un tasto da centrare. Si tocca un angolo vuoto,
-    // lontano da qualsiasi scritta.
+    // deve funzionare, non un tasto da centrare. Si tocca un angolo vuoto.
     await tester.tapAt(const Offset(20, 20));
     await tester.pumpAndSettle();
 
-    expect(find.text('CHI VINCE?'), findsNothing);
+    expect(find.byKey(WinnerReveal.chiaveDeiTamburi), findsNothing);
     expect(find.text('apri'), findsOneWidget);
   });
 }

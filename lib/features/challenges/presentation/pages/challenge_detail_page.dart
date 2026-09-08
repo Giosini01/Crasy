@@ -369,7 +369,6 @@ class _EntriesState extends ConsumerState<_Entries> {
     await WinnerReveal.show(
       context,
       challenge: challenge,
-      entries: widget.entries,
       winner: winner,
       mine: winner.userId == io,
     );
