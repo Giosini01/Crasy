@@ -26,16 +26,45 @@ abstract final class ShareEntry {
       return Uri.base.origin;
     }
 
-    return 'https://crasy.web.app';
+    return 'https://crasyapp.com';
   }
 
   /// L'indirizzo di una singola partecipazione.
-  static String linkTo({required String challengeId, required String entryId}) {
-    // Il cancelletto c'e' perche' l'app web usa gli indirizzi con il frammento.
-    // Scritto a mano una volta sola qui: e' l'unico posto in cui CRASY compone
-    // un indirizzo per il mondo esterno invece che per se stessa.
-    return '$origin/#${AppRoutes.challengeDetailOf(challengeId)}'
-        '?foto=$entryId';
+  ///
+  /// **Sul telefono lo apre l'app, non il browser** — come fa un link di TikTok
+  /// mandato su WhatsApp. Reggono su questo indirizzo due file serviti da
+  /// crasyapp.com (`apple-app-site-association` e `assetlinks.json`) che dicono
+  /// ai due sistemi operativi che `/foto` appartiene a CRASY. Il resto del
+  /// dominio no: la vetrina e l'informativa restano un sito.
+  ///
+  /// **E chi l'app non ce l'ha resta sul sito, dove la foto si vede lo stesso.**
+  /// E' il motivo per cui l'indirizzo porta con se' anche il percorso del file
+  /// e le due righe da scrivere sopra: la pagina di ripiego non parla con
+  /// nessun database — non potrebbe, ci vuole un account — e mostra quello che
+  /// il link le mette in mano.
+  ///
+  /// Prima era `crasy.web.app/#/challenge/...`, cioe' l'app dentro il browser.
+  /// Da quando il dominio serve la vetrina, quel link atterrava sulla pagina di
+  /// presentazione e **la foto non si vedeva da nessuna parte**: chi la riceveva
+  /// non sapeva nemmeno cosa gli fosse stato mandato.
+  static String linkTo({
+    required String challengeId,
+    required String entryId,
+    String storagePath = '',
+    String challengeTitle = '',
+    String authorName = '',
+  }) {
+    final coda = <String, String>{
+      'g': challengeId,
+      'f': entryId,
+      if (storagePath.isNotEmpty) 'p': storagePath,
+      if (challengeTitle.isNotEmpty) 't': challengeTitle,
+      if (authorName.isNotEmpty) 'a': authorName,
+    };
+
+    return Uri.parse(
+      '$origin${AppRoutes.sharedEntry}',
+    ).replace(queryParameters: coda).toString();
   }
 
   /// Il messaggio gia' scritto, con il link in fondo.
@@ -47,13 +76,21 @@ abstract final class ShareEntry {
     required String challengeId,
     required String entryId,
     required String challengeTitle,
+    String storagePath = '',
+    String authorName = '',
     bool ended = false,
   }) {
     final title = challengeTitle.isEmpty
         ? 'una challenge'
         : '"${challengeTitle.toUpperCase()}"';
 
-    final link = linkTo(challengeId: challengeId, entryId: entryId);
+    final link = linkTo(
+      challengeId: challengeId,
+      entryId: entryId,
+      storagePath: storagePath,
+      challengeTitle: challengeTitle,
+      authorName: authorName,
+    );
 
     // **A gara finita si chiede un'altra cosa, perche' non c'e' piu' niente
     // da chiedere.** "Dammi una fiamma" su una foto che non si puo' piu'
@@ -84,12 +121,16 @@ abstract final class ShareEntry {
     required String challengeId,
     required String entryId,
     required String challengeTitle,
+    String storagePath = '',
+    String authorName = '',
     bool ended = false,
   }) async {
     final message = messageFor(
       challengeId: challengeId,
       entryId: entryId,
       challengeTitle: challengeTitle,
+      storagePath: storagePath,
+      authorName: authorName,
       ended: ended,
     );
 

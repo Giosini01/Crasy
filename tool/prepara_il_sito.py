@@ -57,6 +57,25 @@ def main():
     shutil.copyfile(VETRINA, RADICE)
     print('vetrina -> %s' % RADICE)
 
+    # **I due file che dicono ad Apple e Google che `/foto` apre l'app.**
+    #
+    # Copiati a mano invece di lasciarli alla compilazione: stanno in una
+    # cartella che comincia col punto, e le cartelle col punto davanti sono
+    # esattamente il tipo di cosa che gli strumenti saltano senza dirlo. Se qui
+    # non arrivano, i link condivisi tornano ad aprire il browser — e nessun
+    # errore lo segnala da nessuna parte.
+    permessi = os.path.join('web', '.well-known')
+    dove = os.path.join('build', 'web', '.well-known')
+
+    if os.path.isdir(permessi):
+        os.makedirs(dove, exist_ok=True)
+
+        for nome in os.listdir(permessi):
+            shutil.copyfile(
+                os.path.join(permessi, nome), os.path.join(dove, nome)
+            )
+            print('permesso -> %s' % os.path.join(dove, nome))
+
 
 if __name__ == '__main__':
     main()

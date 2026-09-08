@@ -18,5 +18,21 @@
 	     l'ambiente di sviluppo non riceverebbe niente lo stesso. -->
 	<key>aps-environment</key>
 	<string>production</string>
+
+	<!-- **Gli indirizzi di crasyapp.com che appartengono all'app.**
+
+	     E' la meta' che sta sul telefono: l'altra e' il file
+	     `apple-app-site-association` servito dal sito, e servono tutte e due —
+	     una dichiarazione da sola non basta, ne' da una parte ne' dall'altra.
+	     iPhone scarica quel file la prima volta che installa l'app e si segna
+	     quali indirizzi aprire con lei.
+
+	     Il dominio si dichiara intero perche' qui non si puo' fare altrimenti:
+	     **quali indirizzi** lo decide il file dall'altra parte, ed e' li' che
+	     sta scritto "solo /foto". La vetrina resta un sito. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:crasyapp.com</string>
+	</array>
 </dict>
 </plist>

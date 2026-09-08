@@ -498,6 +498,11 @@ class _Actions extends ConsumerWidget {
             challengeId: entry.challengeId,
             entryId: entry.id,
             challengeTitle: entry.challengeTitle,
+            // Il percorso del file e il nome viaggiano nel link: servono alla
+            // pagina di ripiego, che senza database non saprebbe cosa mostrare
+            // a chi l'app non ce l'ha. Vedi `ShareEntry.linkTo`.
+            storagePath: entry.storagePath,
+            authorName: entry.authorName,
             ended: !live,
           ),
           icon: Icons.ios_share_rounded,

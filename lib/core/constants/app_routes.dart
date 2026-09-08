@@ -19,6 +19,18 @@ abstract final class AppRoutes {
   /// abbiamo lasciato consegnare.
   static const emailAction = '/conferma';
 
+  /// **Dove atterra un link condiviso da dentro CRASY.**
+  ///
+  /// `https://crasyapp.com/foto?g=<gara>&f=<foto>`: e' l'indirizzo che si manda
+  /// su WhatsApp, e sul telefono lo apre l'app invece del browser — come fa
+  /// TikTok. Chi l'app non ce l'ha resta sul sito, che quella foto la mostra
+  /// lo stesso e offre gli store.
+  ///
+  /// **E' l'unico indirizzo di crasyapp.com che appartiene all'app.** La
+  /// vetrina, l'informativa e il resto restano un sito: sta scritto nei due
+  /// file di associazione, non qui.
+  static const sharedEntry = '/foto';
+
   /// I consensi: cosa accetti prima di entrare.
   static const consents = '/consensi';
 

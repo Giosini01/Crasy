@@ -189,6 +189,31 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           ),
         ),
       ),
+      // **Il link condiviso: si traduce e si sparisce.**
+      //
+      // Non ha una schermata sua. Arriva da fuori — WhatsApp, un messaggio —
+      // porta con se' la gara e la foto, e l'unica cosa che deve fare e'
+      // consegnarle alla schermata che esiste gia'. Con `redirect` non resta
+      // niente nella pila: chi tocca la freccia indietro esce dall'app, invece
+      // di trovarsi una pagina di passaggio che non ha mai chiesto.
+      //
+      // Senza i due pezzi si va sulle gare e basta: un link storpiato dal
+      // programma di posta non deve portare a una schermata rotta.
+      GoRoute(
+        path: AppRoutes.sharedEntry,
+        redirect: (context, state) {
+          final gara = state.uri.queryParameters['g'] ?? '';
+          final foto = state.uri.queryParameters['f'] ?? '';
+
+          if (gara.isEmpty) {
+            return AppRoutes.challenges;
+          }
+
+          final dove = AppRoutes.challengeDetailOf(gara);
+
+          return foto.isEmpty ? dove : '$dove?foto=${Uri.encodeComponent(foto)}';
+        },
+      ),
       _tabRoute(AppRoutes.onboarding, const OnboardingPage()),
       _tabRoute(AppRoutes.verifyPhone, const VerifyPhonePage()),
       _tabRoute(AppRoutes.consents, const ConsentPage()),

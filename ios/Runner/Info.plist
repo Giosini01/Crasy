@@ -134,6 +134,12 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<!-- Senza questo un link universale entra nell'app ma non arriva al
+	     router: Flutter lo lascia cadere e si atterra sulla home, come se
+	     l'app si fosse aperta da sola. E' la meta' iPhone della stessa riga
+	     che sta nel manifesto di Android. -->
+	<key>FlutterDeepLinkingEnabled</key>
+	<true/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

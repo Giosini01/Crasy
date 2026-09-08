@@ -1,0 +1,17 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "NGH625EL4B.app.crasy.mobile",
+        "paths": [
+          "NOT /__/auth/action/*",
+          "NOT /__/auth/handler*",
+          "NOT /_/*",
+          "/foto",
+          "/foto/*"
+        ]
+      }
+    ]
+  }
+}

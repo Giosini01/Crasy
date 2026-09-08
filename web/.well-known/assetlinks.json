@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.crasy.mobile",
+      "sha256_cert_fingerprints": [
+        "9A:0F:CA:86:BE:BB:12:68:36:79:D3:FC:C6:03:A2:C3:7D:25:BF:DD:3D:30:FC:57:A8:61:16:17:8F:54:54:CC"
+      ]
+    }
+  }
+]

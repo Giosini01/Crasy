@@ -48,6 +48,44 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="crasy"/>
             </intent-filter>
+
+            <!-- **I link condivisi, che aprono l'app invece del browser.**
+                 
+                 E' il meccanismo con cui un link di TikTok mandato su WhatsApp
+                 apre TikTok: si chiamano App Links, e reggono su due
+                 dichiarazioni che devono combaciare — questa, e il file
+                 `assetlinks.json` servito da crasyapp.com, che contiene
+                 l'impronta della chiave con cui l'app e' firmata. Se una delle
+                 due manca o non corrisponde, il telefono apre il browser e non
+                 dice perche'.
+
+                 **Solo `/foto`, non tutto il dominio.** Il sito e' una vetrina
+                 e deve restare un sito: l'unico indirizzo che appartiene
+                 all'app e' quello di una foto in gara.
+
+                 `autoVerify` e' cio' che fa aprire l'app **senza chiedere
+                 niente**. Senza, Android mostrerebbe ogni volta la scelta fra
+                 browser e app — che e' peggio di non averlo fatto. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="crasyapp.com"
+                    android:pathPrefix="/foto"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.crasyapp.com"
+                    android:pathPrefix="/foto"/>
+            </intent-filter>
+
+            <!-- Senza questo, i link entrano nell'app ma non arrivano al
+                 router: Flutter li lascia cadere e si atterra sulla home come
+                 se si fosse aperta l'app da sola. -->
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="true" />
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
