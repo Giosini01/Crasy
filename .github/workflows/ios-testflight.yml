@@ -48,7 +48,7 @@ concurrency:
 jobs:
   testflight:
     name: Build firmata e caricamento
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 45          # come max_build_duration su Codemagic
 
     env:
