@@ -99,7 +99,7 @@ jobs:
           CERTIFICATE_PRIVATE_KEY_B64: ${{ secrets.CERTIFICATE_PRIVATE_KEY_B64 }}
         run: |
           set -e
-	  echo "secret p8:  ${#APP_STORE_CONNECT_PRIVATE_KEY_B64} caratteri (atteso 344)"
+          echo "secret p8:  ${#APP_STORE_CONNECT_PRIVATE_KEY_B64} caratteri (atteso 344)"
           echo "secret pem: ${#CERTIFICATE_PRIVATE_KEY_B64} caratteri (atteso 2312)"
 
           rimetti_in_riga() {
