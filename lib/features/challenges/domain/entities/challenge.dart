@@ -1,5 +1,6 @@
 import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 import 'package:crasy/features/payments/domain/prize_ledger.dart';
@@ -23,6 +24,7 @@ class Challenge {
     this.place = '',
     this.rules = const [],
     this.mediaKind = MediaKind.photo,
+    this.source = ChallengeSource.instant,
     this.createdByUsername = '',
     this.createdByUserId = '',
     this.participantsCount = 0,
@@ -180,6 +182,14 @@ class Challenge {
   /// arrivano foto e video insieme non e' confrontabile, e alla fine si
   /// pagherebbe un premio scegliendo fra mele e pere.
   final MediaKind mediaKind;
+
+  /// **Da dove deve arrivare la roba: scattata adesso, o presa dall'archivio.**
+  ///
+  /// La decide chi lancia la gara, e chi partecipa non la puo' aggirare: in una
+  /// istantanea la galleria non si apre, in una d'archivio la fotocamera non si
+  /// apre. Vedi [ChallengeSource], dove sta scritto perche' le due strade non
+  /// si mescolano mai.
+  final ChallengeSource source;
 
   /// Il nome di chi ha lanciato la challenge.
   ///
@@ -360,6 +370,7 @@ class Challenge {
     String? place,
     List<String>? rules,
     MediaKind? mediaKind,
+    ChallengeSource? source,
     String? createdByUsername,
     String? createdByUserId,
     DateTime? startsAt,
@@ -385,6 +396,7 @@ class Challenge {
       place: place ?? this.place,
       rules: rules ?? this.rules,
       mediaKind: mediaKind ?? this.mediaKind,
+      source: source ?? this.source,
       createdByUsername: createdByUsername ?? this.createdByUsername,
       createdByUserId: createdByUserId ?? this.createdByUserId,
       startsAt: startsAt ?? this.startsAt,
@@ -417,6 +429,7 @@ class Challenge {
         other.scope == scope &&
         other.place == place &&
         other.mediaKind == mediaKind &&
+        other.source == source &&
         other.createdByUsername == createdByUsername &&
         other.createdByUserId == createdByUserId &&
         other.startsAt == startsAt &&
@@ -435,6 +448,7 @@ class Challenge {
     scope,
     place,
     mediaKind,
+    source,
     createdByUsername,
     createdByUserId,
     startsAt,

@@ -9,6 +9,7 @@ import 'package:crasy/core/widgets/crasy_camera.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/presentation/controllers/participation_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
@@ -35,8 +36,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// scrivere. E resta facoltativa: la maggior parte delle foto non ha niente da
 /// aggiungere.
 ///
-/// Due regole, e sono quelle che rendono la gara una gara: **si scatta sul
-/// momento**, niente galleria, e **si manda una foto sola**, senza ripensamenti.
+/// Due regole, e sono quelle che rendono la gara una gara.
+///
+/// La prima: **si manda una cosa sola**, senza ripensamenti.
+///
+/// La seconda la detta chi ha messo i soldi, e da qui non si aggira. In una
+/// missione **istantanea** si scatta sul momento e la galleria non si apre; in
+/// una **d'archivio** si prende quello che si ha gia' e la fotocamera non si
+/// apre. Non esiste una schermata che chieda da dove prenderla, perche' quella
+/// domanda ha gia' una risposta. Vedi `ChallengeSource`.
 class ParticipatePage extends ConsumerStatefulWidget {
   const ParticipatePage({required this.challengeId, super.key});
 
@@ -122,7 +130,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
               outOfLives:
                   !challenge.isDaily && ref.watch(livesLeftProvider) <= 0,
               caption: _caption,
-              onCapture: () => _capture(challenge.mediaKind),
+              onCapture: () => _capture(challenge),
               onSubmit: () => _submit(challenge),
               // **Rifare lo scatto riapre la fotocamera, non svuota la
               // pagina.** Prima si tornava a una schermata vuota con il
@@ -133,7 +141,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
               // Adesso si riapre direttamente, e quella di prima resta finche'
               // non ne arriva una nuova: chiudere la fotocamera senza scattare
               // non fa perdere niente.
-              onRetake: () => _capture(challenge.mediaKind),
+              onRetake: () => _capture(challenge),
             );
           },
         ),
@@ -141,8 +149,10 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
     );
   }
 
-  Future<void> _capture(MediaKind kind) async {
+  Future<void> _capture(Challenge challenge) async {
     setState(() => _error = null);
+
+    final kind = challenge.mediaKind;
 
     try {
       final controller = ref.read(participationControllerProvider.notifier);
@@ -157,9 +167,15 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
       //
       // Sul web resta quella di sistema: li' l'app e' un'anteprima, e il
       // permesso alla fotocamera lo gestisce il browser a modo suo.
-      final media = CrasyCamera.availableFor(video: kind.isVideo)
-          ? await _scattaConLaNostra(controller, kind)
-          : await controller.capture(kind);
+      // **In una gara d'archivio la fotocamera non si apre affatto.** Non e'
+      // un ripiego: e' la regola della gara. Chi ha messo i soldi ha chiesto
+      // una cosa gia' successa, e riscattarla adesso vorrebbe dire mandare
+      // un'altra cosa.
+      final media = challenge.source.isArchive
+          ? await controller.capture(kind, from: ChallengeSource.archive)
+          : (CrasyCamera.availableFor(video: kind.isVideo)
+                ? await _scattaConLaNostra(controller, kind)
+                : await controller.capture(kind));
 
       // Rinunciare a scattare non e' un errore: se l'utente chiude la
       // fotocamera non deve trovarsi un messaggio rosso in pagina.
@@ -417,16 +433,26 @@ class _Form extends StatelessWidget {
         const SizedBox(height: AppSpacing.xl),
         if (picked == null)
           SecondaryButton(
-            label: challenge.mediaKind.action,
-            icon: challenge.mediaKind.isVideo
-                ? Icons.videocam_outlined
-                : Icons.photo_camera_outlined,
+            // **Il bottone dice la verita' su cosa aprira'.** Scritto "scatta"
+            // su una gara d'archivio, uno si aspetta la fotocamera e si trova
+            // il rullino: e' il tipo di sorpresa che fa chiudere l'app.
+            label: challenge.source.isArchive
+                ? (challenge.mediaKind.isVideo
+                      ? 'Scegli un video'
+                      : 'Scegli una foto')
+                : challenge.mediaKind.action,
+            icon: challenge.source.isArchive
+                ? Icons.photo_library_outlined
+                : (challenge.mediaKind.isVideo
+                      ? Icons.videocam_outlined
+                      : Icons.photo_camera_outlined),
             onPressed: onCapture,
           )
         else
           _Preview(
             media: picked,
             kind: challenge.mediaKind,
+            source: challenge.source,
             caption: caption,
             onRetake: onRetake,
           ),
@@ -452,15 +478,7 @@ class _Form extends StatelessWidget {
           ),
         ],
         const SizedBox(height: AppSpacing.sm),
-        Text(
-          challenge.mediaKind.isVideo
-              ? 'Si registra sul momento, niente galleria. Al massimo '
-                    '${MediaKind.maxVideoDuration.inSeconds} secondi, un video '
-                    'solo a testa, e una volta mandato non si cambia.'
-              : 'Si scatta sul momento, niente galleria. Una foto sola a testa, '
-                    'e una volta mandata non si cambia.',
-          style: texts.bodySmall,
-        ),
+        Text(_laRegola(challenge), style: texts.bodySmall),
         const SizedBox(height: AppSpacing.sm),
         // **Chi manda una cosa in gara ha diritto di sapere che ne sara'.**
         //
@@ -497,12 +515,14 @@ class _Preview extends StatelessWidget {
   const _Preview({
     required this.media,
     required this.kind,
+    required this.source,
     required this.caption,
     required this.onRetake,
   });
 
   final PickedMedia media;
   final MediaKind kind;
+  final ChallengeSource source;
 
   /// La didascalia che si scrive **sulla** foto.
   final TextEditingController caption;
@@ -542,11 +562,46 @@ class _Preview extends StatelessWidget {
         // cambia **dopo** l'invio, quando la gara e' gia' cominciata.
         TextButton(
           onPressed: onRetake,
-          child: Text(kind.isVideo ? 'Registra di nuovo' : 'Scatta di nuovo'),
+          // In una gara d'archivio non si rifa' niente: si va a prenderne
+          // un'altra. "Scatta di nuovo" prometterebbe una fotocamera che qui
+          // non si apre.
+          child: Text(
+            source.isArchive
+                ? (kind.isVideo
+                      ? 'Scegli un altro video'
+                      : "Scegli un'altra foto")
+                : (kind.isVideo ? 'Registra di nuovo' : 'Scatta di nuovo'),
+          ),
         ),
       ],
     );
   }
+}
+
+/// La riga che spiega cosa si puo' mandare, e cosa no.
+///
+/// **Cambia con la gara, e deve.** Erano due frasi fisse che dicevano "niente
+/// galleria" — vere fino a ieri, e da oggi false meta' delle volte. Una regola
+/// scritta male e' peggio di una regola non scritta: la prima la si crede.
+String _laRegola(Challenge challenge) {
+  final video = challenge.mediaKind.isVideo;
+
+  if (challenge.source.isArchive) {
+    return video
+        ? "Questa è una missione d'archivio: si prende un video che hai già, "
+              "niente fotocamera. Un video solo a testa, e una volta mandato "
+              "non si cambia."
+        : "Questa è una missione d'archivio: si prende una foto che hai già, "
+              "niente fotocamera. Una foto sola a testa, e una volta mandata "
+              "non si cambia.";
+  }
+
+  return video
+      ? 'Si registra sul momento, niente galleria. Al massimo '
+            '${MediaKind.maxVideoDuration.inSeconds} secondi, un video solo a '
+            'testa, e una volta mandato non si cambia.'
+      : 'Si scatta sul momento, niente galleria. Una foto sola a testa, e una '
+            'volta mandata non si cambia.';
 }
 
 /// Il video registrato, pronto per partire.

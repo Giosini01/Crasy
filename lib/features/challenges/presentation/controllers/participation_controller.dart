@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:crasy/core/services/media/photo_compressor.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
@@ -92,13 +93,16 @@ class ParticipationController extends AsyncNotifier<void> {
   /// Su web questo non si puo' imporre: il browser mostra comunque il selettore
   /// di file. E' un limite della piattaforma, non una svista — sul telefono,
   /// dove l'app vive, la fotocamera si apre e basta.
-  Future<PickedMedia?> capture(MediaKind kind) async {
+  Future<PickedMedia?> capture(
+    MediaKind kind, {
+    ChallengeSource from = ChallengeSource.instant,
+  }) async {
     if (kind.isVideo) {
-      return _captureVideo();
+      return _captureVideo(from);
     }
 
     final picked = await ImagePicker().pickImage(
-      source: ImageSource.camera,
+      source: _dove(from),
       // Ridimensionare qui evita di spedire venti megapixel per una foto che
       // verra' guardata su uno schermo da telefono. Su web `image_picker`
       // ignora questi due valori e il file sale com'e': e' un limite noto della
@@ -131,6 +135,19 @@ class ParticipationController extends AsyncNotifier<void> {
           : 'image/jpeg',
     );
   }
+
+  /// Dove si pesca, e **non c'e' una terza risposta**.
+  ///
+  /// E' una funzione di due righe e vale piu' di quanto sembri: e' il punto in
+  /// cui la regola della gara diventa una cosa che il telefono fa. In una gara
+  /// istantanea la galleria non si apre; in una d'archivio la fotocamera non si
+  /// apre. Non c'e' nessuna schermata in mezzo che chieda "da dove vuoi
+  /// prenderla", perche' quella domanda l'ha gia' fatta chi ha messo i soldi.
+  ///
+  /// Vedi [ChallengeSource], dove sta scritto perche' mescolarle ucciderebbe la
+  /// gara istantanea.
+  ImageSource _dove(ChallengeSource from) =>
+      from.isArchive ? ImageSource.gallery : ImageSource.camera;
 
   /// Prepara un file **gia' scattato** dalla fotocamera di CRASY.
   ///
@@ -179,10 +196,16 @@ class ParticipationController extends AsyncNotifier<void> {
   /// La durata massima la impone il selettore stesso, non un controllo dopo:
   /// far registrare due minuti per poi dire "troppo lungo, rifallo" e' il modo
   /// piu' sicuro di far perdere una partecipazione.
-  Future<PickedMedia?> _captureVideo() async {
+  Future<PickedMedia?> _captureVideo(ChallengeSource from) async {
+    final archivio = from.isArchive;
+
     final picked = await ImagePicker().pickVideo(
-      source: ImageSource.camera,
-      maxDuration: MediaKind.maxVideoDuration,
+      source: _dove(from),
+      // **Il tetto di durata vale solo per chi gira adesso.** Su un video che
+      // uno ha gia' non c'e' niente da limitare: il selettore non puo'
+      // accorciarlo, quindi il limite si trasformerebbe in un rifiuto secco
+      // davanti all'unico video che quella persona voleva mandare.
+      maxDuration: archivio ? null : MediaKind.maxVideoDuration,
     );
 
     if (picked == null) {

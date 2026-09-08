@@ -119,6 +119,12 @@ def documento(giorno, consegna):
             "scope": {"stringValue": "global"},
             "place": {"stringValue": ""},
             "mediaKind": {"stringValue": media},
+            # **Sempre istantanea.** La sfida del giorno chiede di fare una
+            # cosa oggi: e' tutto il suo senso. Scritto per esteso invece che
+            # lasciato mancante perche' un campo assente si fa dimenticare —
+            # e' gia' successo con `purgedAt`, e sono state sessanta sfide
+            # invisibili alla pulizia per mesi.
+            "source": {"stringValue": "instant"},
             "createdByUsername": {"stringValue": CRASY},
             # **Un identificativo vero, non una casella vuota.** Cosi' la sfida
             # ha una faccia e un profilo come tutte le altre gare, e chi la

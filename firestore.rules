@@ -468,6 +468,21 @@ service cloud.firestore {
                     // esistesse sono tutte di foto, e devono restare valide.
                     && request.resource.data.get('mediaKind', 'photo')
                        in ['photo', 'video']
+                    // **Scattata adesso, o presa dall'archivio.**
+                    //
+                    // La decide chi lancia la gara, e per chi partecipa non e'
+                    // negoziabile: in una istantanea l'app non apre la
+                    // galleria, in una d'archivio non apre la fotocamera. Qui
+                    // si controlla solo che il valore sia uno dei due — una
+                    // parola inventata darebbe una gara che nessuna schermata
+                    // sa spiegare, e a cui non si capirebbe come partecipare.
+                    //
+                    // Il ripiego e' `instant`, e non e' una comodita': tutte le
+                    // gare scritte prima che questo campo esistesse erano
+                    // istantanee. Il ripiego opposto avrebbe aperto la galleria
+                    // su migliaia di gare nate chiuse.
+                    && request.resource.data.get('source', 'instant')
+                       in ['instant', 'archive']
                     && request.resource.data.prizeCents is int
                     // Almeno un euro, come nell'app. Un centesimo non e' un
                     // premio: occuperebbe in home lo stesso spazio di una gara

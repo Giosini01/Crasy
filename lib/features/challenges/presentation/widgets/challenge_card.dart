@@ -8,6 +8,7 @@ import 'package:crasy/core/widgets/media_gestures.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/challenges/presentation/widgets/archive_badge.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:flutter/material.dart';
@@ -77,11 +78,25 @@ class ChallengeCard extends ConsumerWidget {
                   const SizedBox(width: AppSpacing.sm),
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.xs),
-                    child: Text(
-                      challenge.scopeLabel,
-                      style: texts.labelSmall?.copyWith(
-                        color: palette.textFaint,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          challenge.scopeLabel,
+                          style: texts.labelSmall?.copyWith(
+                            color: palette.textFaint,
+                          ),
+                        ),
+                        // **Sopra la scheda, non dentro la gara.** Chi scorre
+                        // la home deve sapere che tipo di gara e' prima di
+                        // entrarci: qui si decide se aprirla, e "devo uscire a
+                        // fare una cosa" oppure "devo cercare un video vecchio"
+                        // sono due impegni diversi.
+                        if (challenge.source.isArchive) ...[
+                          const SizedBox(height: AppSpacing.xxs),
+                          ArchiveBadge(challenge: challenge, compact: true),
+                        ],
+                      ],
                     ),
                   ),
                 ],

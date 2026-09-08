@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
@@ -18,6 +19,10 @@ abstract final class ChallengeMapper {
       place: data['place'] as String? ?? '',
       rules: _stringList(data['rules']),
       mediaKind: MediaKind.fromName(data['mediaKind'] as String?),
+      // Manca su tutte le gare nate prima di oggi, ed erano tutte istantanee:
+      // il ripiego non e' una comodita', e' la verita'. Vedi
+      // `ChallengeSource.fromName`.
+      source: ChallengeSource.fromName(data['source'] as String?),
       createdByUsername: data['createdByUsername'] as String? ?? '',
       createdByUserId: data['createdByUserId'] as String? ?? '',
       // Le date sono obbligatorie per il prodotto ma non per il documento: un
@@ -49,6 +54,7 @@ abstract final class ChallengeMapper {
       'brief': challenge.brief,
       'prizeCents': challenge.prizeCents,
       'scope': challenge.scope.name,
+      'source': challenge.source.name,
       // **Chi la puo' vedere viaggia con la gara.** Ogni query filtra su questo
       // campo, e una query che filtra su un campo salta i documenti che non ce
       // l'hanno: una gara scritta senza `audience` non comparirebbe da nessuna

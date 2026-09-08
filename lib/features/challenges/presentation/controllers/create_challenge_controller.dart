@@ -3,6 +3,7 @@ import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
@@ -166,6 +167,7 @@ class CreateChallengeController extends AsyncNotifier<void> {
     required ChallengeScope scope,
     required int maxParticipants,
     required MediaKind mediaKind,
+    ChallengeSource source = ChallengeSource.instant,
     required String place,
     required int minutes,
   }) async {
@@ -197,6 +199,7 @@ class CreateChallengeController extends AsyncNotifier<void> {
       scope: scope,
       maxParticipants: maxParticipants,
       mediaKind: mediaKind,
+      source: source,
       place: scope == ChallengeScope.local ? place.trim().toUpperCase() : '',
       // **Chi la puo' vedere, scritto dentro la gara.**
       //

@@ -9,6 +9,7 @@ import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/presentation/controllers/create_challenge_controller.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
@@ -106,6 +107,12 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
   /// dieci resta una scommessa vera.
   var _maxPartecipanti = 10;
   MediaKind _mediaKind = MediaKind.photo;
+
+  /// **Istantanea, salvo scelta contraria.** E' il valore predefinito e non e'
+  /// un caso: e' quello che CRASY e'. L'archivio esiste per le gare che
+  /// altrimenti non si potrebbero fare — non e' l'alternativa comoda da
+  /// prendere per distrazione.
+  ChallengeSource _source = ChallengeSource.instant;
   String? _error;
 
   @override
@@ -312,15 +319,29 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                     ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                _mediaKind.isVideo
-                    ? 'Tutti mandano un video, registrato sul momento, al '
-                          'massimo ${MediaKind.maxVideoDuration.inSeconds} '
-                          'secondi.'
-                    : 'Tutti mandano una foto, scattata sul momento.',
-                style: texts.bodySmall,
+              const SizedBox(height: AppSpacing.lg),
+              // **Da dove lo devono prendere.**
+              //
+              // E' la seconda regola della gara, dopo cosa mandare, e la decide
+              // chi mette i soldi. Non e' una comodita' lasciata al
+              // partecipante: lasciandola a lui, davanti a "scatta adesso"
+              // oppure "prendi quella che hai gia'" vincerebbe sempre la
+              // seconda, e la gara istantanea morirebbe da sola. Vedi
+              // `ChallengeSource`.
+              _SectionLabel('Da dove lo prendono'),
+              Wrap(
+                spacing: AppSpacing.xs,
+                children: [
+                  for (final source in ChallengeSource.values)
+                    _Choice(
+                      label: source.label,
+                      selected: _source == source,
+                      onTap: () => setState(() => _source = source),
+                    ),
+                ],
               ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(_comeSiPartecipa(), style: texts.bodySmall),
               const SizedBox(height: AppSpacing.lg),
               const SizedBox(height: AppSpacing.lg),
               // **Quanti possono entrare.** E' la scelta che decide se la gara
@@ -414,6 +435,31 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     );
   }
 
+  /// Cosa succedera' a chi partecipa, detto a chi sta lanciando la gara.
+  ///
+  /// **Le quattro combinazioni scritte per esteso, non due frasi incastrate.**
+  /// Chi mette dei soldi ha diritto di sapere esattamente cosa gli arrivera' —
+  /// e la differenza fra "registrato sul momento" e "un video che ha gia'" e'
+  /// tutta la differenza fra due gare diverse.
+  String _comeSiPartecipa() {
+    final video = _mediaKind.isVideo;
+
+    if (_source.isArchive) {
+      return video
+          ? "Tutti mandano un video che hanno già sul telefono. La fotocamera "
+                "non si apre, e non c'è un limite di durata."
+          : "Tutti mandano una foto che hanno già sul telefono. La fotocamera "
+                "non si apre.";
+    }
+
+    return video
+        ? 'Tutti mandano un video registrato sul momento, al massimo '
+              '${MediaKind.maxVideoDuration.inSeconds} secondi. La galleria non '
+              'si apre.'
+        : 'Tutti mandano una foto scattata sul momento. La galleria non si '
+              'apre.';
+  }
+
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
@@ -440,6 +486,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
           scope: _scope,
           maxParticipants: _maxPartecipanti,
           mediaKind: _mediaKind,
+          source: _source,
           // **Nessuna gara nasce piu' legata a un posto.** Il campo c'era e
           // non lo compilava quasi nessuno: una gara e' una consegna — *fai
           // questo* — e dov'e' chi la fa non cambia niente a chi guarda la

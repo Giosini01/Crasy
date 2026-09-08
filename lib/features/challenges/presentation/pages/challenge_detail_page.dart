@@ -15,6 +15,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/controllers/challenge_closer.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/challenges/presentation/widgets/archive_badge.dart';
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
@@ -122,6 +123,18 @@ class _Body extends ConsumerWidget {
         // challenge sarebbe la stessa immagine due volte di fila, e per giunta
         // sopra la griglia dove quella foto compare di nuovo. Chi entra qui
         // vuole scorrere e vederle tutte.
+        // **Sotto il titolo, sopra la consegna.** E' la prima cosa che
+        // cambia il senso di tutto quello che viene dopo: chi legge la consegna
+        // sapendo gia' che si pesca dall'archivio la legge in un altro modo.
+        if (challenge.source.isArchive) ...[
+          const SizedBox(height: AppSpacing.md),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ArchiveBadge(challenge: challenge),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(challenge.source.spiegazione, style: texts.bodySmall),
+        ],
         const SizedBox(height: AppSpacing.lg),
         Text(challenge.brief, style: texts.bodyLarge),
         if (challenge.hasCreator) ...[
