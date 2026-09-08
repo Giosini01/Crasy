@@ -532,10 +532,12 @@ class _Proclamazione extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           _Grossa(testo: mine ? 'HAI VINTO' : 'HA VINTO', corpo: mine ? 40 : 34),
-          // **Otto, non venti.** La frase e la foto sono una cosa sola: staccate
-          // sembrano un titolo e un'immagine messi nella stessa schermata per
-          // caso.
-          const SizedBox(height: 8),
+          // **Due, non venti.** La frase e la foto sono una cosa sola:
+          // staccate sembrano un titolo e un'immagine finite nella stessa
+          // schermata per caso. Appiccicate si leggono in un colpo d'occhio
+          // solo — e questo momento dura cinque secondi, non c'e' tempo per
+          // due colpi d'occhio.
+          const SizedBox(height: 2),
           Flexible(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 44),
@@ -547,7 +549,7 @@ class _Proclamazione extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 2),
           Opacity(
             opacity: entrata,
             child: SizedBox(
@@ -556,32 +558,42 @@ class _Proclamazione extends StatelessWidget {
               // premio a quattro cifre, uscivano dal riquadro e lasciavano a
               // schermo la riga a strisce gialle e nere — proprio sopra la
               // vittoria.
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '@${winner.authorName}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    if (challenge.prizeCents > 0) ...[
-                      const SizedBox(height: 4),
+              // **In cima al suo riquadro, non in mezzo.** Il riquadro e'
+              // alto settantadue per tenere il posto anche prima che il nome
+              // compaia — senza, la foto salterebbe verso l'alto proprio
+              // nell'istante in cui deve stare ferma. Ma con il nome centrato
+              // dentro, quel riquadro gli metteva attorno una decina di punti
+              // di aria che nessuno aveva chiesto, e il nome finiva staccato
+              // dalla foto. In cima, il posto resta occupato e il nome sta
+              // appena sotto la cornice.
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       Text(
-                        AppMoney.format(challenge.prizeCents),
+                        '@${winner.authorName}',
                         style: const TextStyle(
-                          color: AppColors.crasyRed,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
+                      if (challenge.prizeCents > 0) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          AppMoney.format(challenge.prizeCents),
+                          style: const TextStyle(
+                            color: AppColors.crasyRed,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),

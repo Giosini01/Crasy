@@ -33,6 +33,7 @@ dependencies:
   image: ^4.9.2
   camera: ^0.12.0+2
   firebase_messaging: ^16.6.0
+  audioplayers: ^6.8.1
 
 dev_dependencies:
   flutter_test:
@@ -46,6 +47,10 @@ flutter:
     # Il logotipo vero, gia' ritagliato sul segno e con il fondo trasparente.
     # Il file d'origine ha attorno un margine bianco enorme: messo cosi' com'e'
     # avrebbe occupato tre volte lo spazio che si vede.
+    # Il suono di due secondi che fa l'app quando si apre. Nasce da
+    # `tool/suono_di_apertura.py`: nessuna licenza da rinnovare, e si rifa'
+    # diverso cambiando tre note.
+    - assets/audio/apertura.wav
     - assets/brand/crasy-wordmark.png
     # Lo stesso segno per i fondi scuri: le lettere bianche, le fiamme rosse.
     # E' il file vero ricolorato, non una scritta rifatta con un carattere.
