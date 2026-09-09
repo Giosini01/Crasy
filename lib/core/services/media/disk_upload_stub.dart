@@ -12,3 +12,9 @@ Future<void> caricaDalDisco(
   String percorso,
   SettableMetadata dati,
 ) => throw UnsupportedError('Sul web non ci sono file su disco.');
+
+/// Sul web non c'e' nessun file da mettere al riparo.
+Future<String> mettiAlSicuro(String origine) async => '';
+
+/// Sul web non c'e' nessuna copia da buttare.
+Future<void> buttaLaCopia(String percorso) async {}

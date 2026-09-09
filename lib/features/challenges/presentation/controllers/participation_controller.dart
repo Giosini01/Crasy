@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:crasy/core/services/media/disk_upload_stub.dart'
+    if (dart.library.io) 'package:crasy/core/services/media/disk_upload_io.dart';
 import 'package:crasy/core/services/media/photo_compressor.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
@@ -173,7 +175,11 @@ class ParticipationController extends AsyncNotifier<void> {
       // `PickedMedia.filePath`.
       return PickedMedia(
         bytes: Uint8List(0),
-        filePath: file.path,
+        // **Subito, non al momento dell'invio.** Il file della fotocamera vive
+        // in una cartella del sistema che viene ripulita appena la schermata
+        // della fotocamera si chiude: fra qui e "manda in gara" c'e' tutta
+        // l'anteprima, e in quel tempo spariva. Vedi `mettiAlSicuro`.
+        filePath: await mettiAlSicuro(file.path),
         contentType: file.mimeType ?? 'video/mp4',
         isVideo: true,
       );
@@ -217,7 +223,7 @@ class ParticipationController extends AsyncNotifier<void> {
     // una fotocamera aperta a contendersi la memoria.
     return PickedMedia(
       bytes: kIsWeb ? await picked.readAsBytes() : Uint8List(0),
-      filePath: picked.path,
+      filePath: kIsWeb ? null : await mettiAlSicuro(picked.path),
       contentType: picked.mimeType ?? 'video/mp4',
       isVideo: true,
     );
@@ -284,6 +290,10 @@ class ParticipationController extends AsyncNotifier<void> {
         : const AsyncData<void>(null);
 
     if (!result.hasError) {
+      // La copia ha fatto il suo mestiere: se restasse, ogni video registrato
+      // occuperebbe il telefono per sempre.
+      unawaited(buttaLaCopia(media.filePath ?? ''));
+
       // Chi ha lanciato la challenge deve sapere che qualcuno l'ha raccolta.
       // E' la notizia piu' importante che l'app abbia da dare: ha messo dei
       // soldi e qualcuno e' uscito di casa per prenderli.
