@@ -388,6 +388,22 @@ class FirestoreChallengeRepository implements ChallengeRepository {
         filePath != null &&
         filePath.isNotEmpty;
 
+    // **Niente da mandare vuol dire fermarsi, non mandare niente.**
+    //
+    // Senza questa riga il ripiego era `putData(bytes)`, e per un video quei
+    // byte sono **vuoti per costruzione**: il video viaggia come percorso, non
+    // come contenuto. Se il percorso manca per qualunque motivo, si finiva a
+    // caricare zero byte — con successo. In gara compariva un riquadro grigio
+    // che nessun lettore al mondo puo' aprire, e chi l'aveva mandato credeva
+    // di essere in gara.
+    //
+    // E' successo davvero, due volte. Meglio un invio che fallisce e lo dice.
+    if (!daDisco && bytes.isEmpty) {
+      throw StateError(
+        "Il file da mandare non c'è più. Riprova a registrare.",
+      );
+    }
+
     await (daDisco
         ? caricaDalDisco(reference, filePath, dati)
         : reference.putData(bytes, dati));
