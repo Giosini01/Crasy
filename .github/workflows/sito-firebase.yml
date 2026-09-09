@@ -111,11 +111,23 @@ jobs:
             exit 1
           fi
 
+          # **Solo la prima riga, e non piu' di 255 caratteri.**
+          #
+          # Firebase rifiuta una nota piu' lunga di cosi', e lo fa **dopo** aver
+          # caricato tutti i file: la pubblicazione muore all'ultimo passo con un
+          # errore che parla di caratteri e non del sito. E' gia' successo —
+          # bastano dei messaggi di commit scritti per esteso, che in questo
+          # progetto sono la norma.
+          #
+          # La prima riga e' anche l'unica che serve: nella cronologia delle
+          # pubblicazioni si legge una riga per versione, non un paragrafo.
+          NOTA=$(printf '%s' "${MESSAGGIO:-deploy manuale}" | head -n 1 | cut -c1-255)
+
           firebase deploy \
             --only hosting \
             --project "$PROGETTO" \
             --non-interactive \
-            --message "${MESSAGGIO:-deploy manuale}"
+            --message "${NOTA:-deploy manuale}"
 
       - name: Pulizia credenziali
         if: always()
