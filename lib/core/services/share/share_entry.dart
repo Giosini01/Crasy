@@ -37,11 +37,16 @@ abstract final class ShareEntry {
   /// ai due sistemi operativi che `/foto` appartiene a CRASY. Il resto del
   /// dominio no: la vetrina e l'informativa restano un sito.
   ///
-  /// **E chi l'app non ce l'ha resta sul sito, dove la foto si vede lo stesso.**
-  /// E' il motivo per cui l'indirizzo porta con se' anche il percorso del file
-  /// e le due righe da scrivere sopra: la pagina di ripiego non parla con
-  /// nessun database — non potrebbe, ci vuole un account — e mostra quello che
-  /// il link le mette in mano.
+  /// **Chi l'app non ce l'ha atterra sul sito, che pero' la foto non la
+  /// mostra.** Il contenuto di CRASY sta dentro CRASY: una pagina web che
+  /// facesse vedere la foto sarebbe una seconda app nel browser, e chi la
+  /// riceve guarderebbe e se ne andrebbe senza scaricare niente e senza poter
+  /// votare — cioe' senza dare la fiamma, che e' la ragione per cui quel link
+  /// e' stato mandato.
+  ///
+  /// Percio' il link **non porta il file**, solo i due nomi da scrivere: la
+  /// missione e chi ci ha partecipato. Bastano a far capire cosa si sta per
+  /// aprire, e non fanno vedere niente.
   ///
   /// Prima era `crasy.web.app/#/challenge/...`, cioe' l'app dentro il browser.
   /// Da quando il dominio serve la vetrina, quel link atterrava sulla pagina di
@@ -50,14 +55,12 @@ abstract final class ShareEntry {
   static String linkTo({
     required String challengeId,
     required String entryId,
-    String storagePath = '',
     String challengeTitle = '',
     String authorName = '',
   }) {
     final coda = <String, String>{
       'g': challengeId,
       'f': entryId,
-      if (storagePath.isNotEmpty) 'p': storagePath,
       if (challengeTitle.isNotEmpty) 't': challengeTitle,
       if (authorName.isNotEmpty) 'a': authorName,
     };
@@ -76,7 +79,6 @@ abstract final class ShareEntry {
     required String challengeId,
     required String entryId,
     required String challengeTitle,
-    String storagePath = '',
     String authorName = '',
     bool ended = false,
   }) {
@@ -87,7 +89,6 @@ abstract final class ShareEntry {
     final link = linkTo(
       challengeId: challengeId,
       entryId: entryId,
-      storagePath: storagePath,
       challengeTitle: challengeTitle,
       authorName: authorName,
     );
@@ -121,7 +122,6 @@ abstract final class ShareEntry {
     required String challengeId,
     required String entryId,
     required String challengeTitle,
-    String storagePath = '',
     String authorName = '',
     bool ended = false,
   }) async {
@@ -129,7 +129,6 @@ abstract final class ShareEntry {
       challengeId: challengeId,
       entryId: entryId,
       challengeTitle: challengeTitle,
-      storagePath: storagePath,
       authorName: authorName,
       ended: ended,
     );

@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Una foto in gara su CRASY</title>
-<meta name="description" content="Qualcuno ti ha mandato la sua foto in gara. Scarica CRASY per darle una fiamma.">
+<meta name="description" content="Qualcuno ti ha mandato la sua foto in gara. Si guarda dentro CRASY.">
 <meta property="og:title" content="Guarda la mia foto in gara su CRASY">
-<meta property="og:description" content="Vince quella che prende piu' fiamme. Scarica CRASY e dammene una.">
+<meta property="og:description" content="Vince quella che prende piu' fiamme. Si guarda dentro CRASY.">
 <meta property="og:type" content="website">
 <link rel="icon" href="/favicon.png">
 <!--
@@ -14,30 +14,25 @@
 
   ## Perche' esiste
 
-  Chi e' in gara manda la sua foto a dieci persone e chiede una fiamma: e' la
-  porta d'ingresso dell'app, e per un po' e' rimasta chiusa. Da quando
-  crasyapp.com serve la vetrina, quel link atterrava sulla pagina di
-  presentazione e **la foto non si vedeva da nessuna parte**: chi la riceveva
-  non sapeva nemmeno cosa gli fosse stato mandato.
+  Chi e' in gara manda la sua foto a dieci persone e chiede una fiamma. Sul
+  telefono quel link **apre CRASY**, come fa un link di TikTok mandato su
+  WhatsApp: lo dicono i due file in `.well-known`, e la foto si guarda li'
+  dentro.
 
-  ## E perche' non apre l'app
+  ## Questa pagina la vede solo chi l'app non ce l'ha
 
-  Perche' non deve. Il sito e' una vetrina, non una seconda CRASY che gira nel
-  browser: qui si guarda la foto e si scarica l'app, e la fiamma si da' solo
-  dentro l'app. E' la ragione per cui il tasto qui sotto porta agli store e non
-  a una schermata di accesso.
+  E' il ripiego, non la destinazione. Serve a dire a chi arriva **cosa** gli
+  hanno mandato e dove si guarda — e a portarlo negli store.
 
-  ## Come fa a mostrare la foto senza account
+  ## E non mostra la foto
 
-  Le foto in gara sono gia' pubbliche via indirizzo — lo dicono le regole dello
-  spazio (`storage.rules`: `allow read: if true` sotto `entries/`), perche'
-  altrimenti non si vedrebbero nemmeno dentro l'app. Il link porta con se' il
-  **percorso** del file, non un indirizzo completo con dentro un gettone: e'
-  piu' corto, e non regala niente che non fosse gia' pubblico.
+  Il contenuto di CRASY sta dentro CRASY. Una pagina che la mostrasse sarebbe
+  una seconda app nel browser: chi la riceve guarderebbe e se ne andrebbe, senza
+  scaricare niente e senza poter votare — e la fiamma, che e' la ragione per cui
+  quel link e' stato mandato, non arriverebbe mai.
 
-  Niente database, nessuna funzione, nessun server: questa pagina e' un file
-  fermo, e quello che mostra lo prende da un indirizzo che chiunque potrebbe
-  comporre.
+  Il link non porta nemmeno il percorso del file: porta il nome della missione e
+  di chi ci ha partecipato, che bastano a far capire cosa si sta per aprire.
 -->
 <style>
   :root {
@@ -63,37 +58,6 @@
   .marchio {
     height: 26px;
     margin-bottom: 20px;
-  }
-
-  .cornice {
-    width: 100%;
-    max-width: 380px;
-    aspect-ratio: 1;
-    border: 3px solid var(--rosso);
-    border-radius: 18px;
-    overflow: hidden;
-    background: #F4F4F5;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .cornice img,
-  .cornice video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-
-  /* Quando la foto non c'e' piu': finita la gara, i file dei perdenti si
-     cancellano. Non e' un errore, ed e' meglio dirlo che lasciare un buco. */
-  .assente {
-    color: var(--grigio);
-    font-size: 14px;
-    text-align: center;
-    padding: 26px;
-    line-height: 1.5;
   }
 
   .titolo {
@@ -176,15 +140,11 @@
 
 <img class="marchio" src="/brand/crasy-wordmark.png" alt="CRASY">
 
-<div class="cornice" id="cornice">
-  <div class="assente" id="assente">Sto caricando la foto…</div>
-</div>
-
 <h1 class="titolo" id="titolo"></h1>
 <div class="autore" id="autore"></div>
 
-<p class="richiesta">La fiamma si dà <b>dentro CRASY</b>.</p>
-<p class="sotto">Scarica l'app, cerca la missione e vota.</p>
+<p class="richiesta">La foto si guarda <b>dentro CRASY</b>.</p>
+<p class="sotto">Scarica l'app per vederla e darle una fiamma.</p>
 
 <div class="negozi">
   <span class="store store--spento">
@@ -199,13 +159,20 @@
 
 <a class="torna" href="/">Cos'è CRASY</a>
 
-<script>
-  // Il secchio dello spazio. Scritto qui e non chiesto a nessuno: questa pagina
-  // non parla con Firebase, compone un indirizzo e lo mette dentro un tag.
-  var SECCHIO = 'daily-dating-app.firebasestorage.app';
 
+<script>
+  // **Qui non si vede nessuna foto, ed e' voluto.**
+  //
+  // Il contenuto di CRASY sta dentro CRASY. Una pagina web che mostra la foto
+  // in gara sarebbe una seconda app che gira nel browser: chi la riceve
+  // guarderebbe e se ne andrebbe, senza scaricare niente e senza poter votare —
+  // e la fiamma, che e' la ragione per cui quel link e' stato mandato, non
+  // arriverebbe mai.
+  //
+  // Percio' il link non porta nemmeno il file: porta solo il nome della
+  // missione e di chi ci ha partecipato, che bastano a far capire cosa si sta
+  // per aprire.
   var q = new URLSearchParams(location.search);
-  var percorso = q.get('p') || '';
   var titolo = q.get('t') || '';
   var autore = q.get('a') || '';
 
@@ -214,60 +181,7 @@
   }
 
   if (autore) {
-    document.getElementById('autore').textContent = '@' + autore;
-  }
-
-  var cornice = document.getElementById('cornice');
-  var assente = document.getElementById('assente');
-
-  function nonCePiu(messaggio) {
-    assente.textContent = messaggio;
-  }
-
-  if (!percorso) {
-    nonCePiu('Questo link non porta nessuna foto.');
-  } else {
-    var indirizzo =
-      'https://firebasestorage.googleapis.com/v0/b/' +
-      SECCHIO +
-      '/o/' +
-      encodeURIComponent(percorso) +
-      '?alt=media';
-
-    // I video si riconoscono dall'estensione del percorso, che e' l'unica cosa
-    // che il link porta con se'.
-    var eUnVideo = /\.(mp4|mov|m4v)$/i.test(percorso);
-    var elemento = document.createElement(eUnVideo ? 'video' : 'img');
-
-    elemento.src = indirizzo;
-
-    if (eUnVideo) {
-      elemento.controls = true;
-      elemento.playsInline = true;
-      elemento.muted = true;
-      elemento.loop = true;
-      elemento.autoplay = true;
-    } else {
-      elemento.alt = titolo || 'Una foto in gara su CRASY';
-    }
-
-    elemento.addEventListener('load', function () {
-      assente.remove();
-    });
-
-    elemento.addEventListener('loadeddata', function () {
-      assente.remove();
-    });
-
-    // **La foto puo' non esserci piu', ed e' normale.** Finita una gara, i file
-    // di chi non ha vinto si cancellano: un link vecchio non e' rotto, e' solo
-    // arrivato tardi.
-    elemento.addEventListener('error', function () {
-      elemento.remove();
-      nonCePiu('Questa foto non c’è più: la gara è finita e le foto di chi non ha vinto si cancellano.');
-    });
-
-    cornice.appendChild(elemento);
+    document.getElementById('autore').textContent = '@' + autore + ' e’ in gara';
   }
 </script>
 
