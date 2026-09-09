@@ -122,13 +122,20 @@ void main() {
         (tester.widget(find.byKey(const Key('conto-visibile'))) as Text).data!;
   }
 
-  Future<void> pumpEntry(WidgetTester tester, {bool ended = false}) async {
+  Future<void> pumpEntry(
+    WidgetTester tester, {
+    bool ended = false,
+    String? come,
+  }) async {
     late String challengeId;
     late String entryId;
 
     final container = ProviderContainer(
       overrides: [
         authRepositoryProvider.overrideWithValue(authRepository),
+        // Chi sta guardando. Serve a una prova sola — quella in cui la foto e'
+        // la propria — e li' e' tutto il punto.
+        if (come != null) currentUserIdProvider.overrideWithValue(come),
         // Niente attesa prima di spegnere gli ascolti: qui si verifica proprio
         // che si spengano, e un timer da un minuto resterebbe appeso.
         providerCacheProvider.overrideWithValue(Duration.zero),
@@ -288,5 +295,30 @@ void main() {
     await pumpEntry(tester, ended: true);
 
     expect(readVisible(tester)(), '0');
+  });
+
+  testWidgets('alla propria foto la fiamma non si da', (tester) async {
+    // **Si poteva, ed era una scelta scritta nel codice**: tutti potendolo
+    // fare, nessuno ci guadagnava. Aritmeticamente reggeva. Ma in una gara
+    // dove girano dei soldi, vedersi votare da soli sembra barare anche quando
+    // non lo e' — e l'apparenza fa lo stesso danno.
+    //
+    // La foto della prova e' di `altra`: qui si guarda **essendo** `altra`.
+    await pumpEntry(tester, come: 'altra');
+
+    expect(readScreen(tester)(), ('0', 'spenta'));
+
+    await tester.tap(find.byKey(const Key('doppio-tocco')));
+    await tester.pumpAndSettle();
+
+    // Niente si muove: nessuna scrittura, e nemmeno la fiamma accesa per un
+    // istante in attesa di una risposta che non arrivera'.
+    expect(readScreen(tester)(), ('0', 'spenta'));
+
+    // E si legge perche', in una riga che se ne va da sola.
+    expect(
+      find.text('Non puoi mettere like alla tua stessa foto.'),
+      findsOneWidget,
+    );
   });
 }

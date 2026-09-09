@@ -110,10 +110,11 @@ class _Body extends ConsumerWidget {
                 style: texts.displayLarge?.copyWith(color: palette.accent),
               ),
             ),
-            Text(
-              challenge.scopeLabel,
-              style: texts.labelSmall?.copyWith(color: palette.textFaint),
-            ),
+            // Come sulla scheda: al posto di GLOBAL, che c'era sempre e non
+            // diceva niente, resta solo il marchio dell'archivio — e sulle
+            // istantanee non c'e' niente.
+            if (challenge.source.isArchive)
+              ArchiveBadge(challenge: challenge, compact: true),
           ],
         ),
         const SizedBox(height: AppSpacing.md),
@@ -128,11 +129,9 @@ class _Body extends ConsumerWidget {
         // sapendo gia' che si pesca dall'archivio la legge in un altro modo.
         if (challenge.source.isArchive) ...[
           const SizedBox(height: AppSpacing.md),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: ArchiveBadge(challenge: challenge),
-          ),
-          const SizedBox(height: AppSpacing.xs),
+          // **Il marchio sta gia' in cima**, accanto al premio: qui resta
+          // solo la riga che spiega cosa vuol dire, perche' "ARCHIVIO" da solo
+          // non dice a nessuno che la fotocamera non si aprira'.
           Text(challenge.source.spiegazione, style: texts.bodySmall),
         ],
         const SizedBox(height: AppSpacing.lg),

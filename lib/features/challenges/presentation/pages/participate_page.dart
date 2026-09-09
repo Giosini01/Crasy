@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:crasy/core/errors/error_message_mapper.dart';
 import 'package:crasy/core/moderation/content_policy.dart';
 import 'package:crasy/core/theme/app_palette.dart';
@@ -8,6 +10,8 @@ import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/crasy_camera.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
+import 'package:crasy/core/widgets/video/local_video_stub.dart'
+    if (dart.library.io) 'package:crasy/core/widgets/video/local_video_io.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
@@ -15,6 +19,7 @@ import 'package:crasy/features/challenges/presentation/controllers/participation
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:video_player/video_player.dart';
 
 /// Partecipare: scatta, guarda, manda.
 ///
@@ -553,7 +558,7 @@ class _Preview extends StatelessWidget {
             // a mangiarsi i tocchi e ad aprire la tastiera per scrivere una
             // cosa che nessuno vedrebbe.
             child: media.isVideo
-                ? const _VideoReady()
+                ? _VideoReady(percorso: media.filePath ?? '')
                 : Image.memory(media.bytes, fit: BoxFit.cover),
           ),
         ),
@@ -604,34 +609,142 @@ String _laRegola(Challenge challenge) {
             'volta mandata non si cambia.';
 }
 
-/// Il video registrato, pronto per partire.
+/// Il video appena registrato, da rivedere prima di mandarlo.
 ///
-/// Non e' un'anteprima: e' una conferma. Riprodurre un file che sta ancora sul
-/// telefono richiede strade diverse su mobile e su web, e per i due secondi che
-/// passano fra la registrazione e l'invio non vale la complicazione.
-class _VideoReady extends StatelessWidget {
-  const _VideoReady();
+/// **Prima non si vedeva.** C'era un riquadro grigio con scritto "VIDEO
+/// PRONTO", e la ragione messa a verbale era che riprodurre un file locale
+/// vuole strade diverse su telefono e su web e non valeva la complicazione per
+/// i due secondi che sta li'.
+///
+/// Era sbagliata, e per un motivo che non c'entra con i due secondi: **una
+/// partecipazione si manda una volta sola e non si cambia**. Mandare senza aver
+/// guardato vuol dire scoprire dopo di aver consegnato tre secondi di soffitto,
+/// o il video interrotto un istante prima della cosa per cui l'avevi girato. La
+/// foto la si e' sempre vista; il video no, ed era l'unica cosa che si
+/// consegnava alla cieca.
+///
+/// Parte da solo e va in ciclo, con l'audio: si sta controllando il proprio
+/// video, e meta' di quello che c'e' da controllare si sente invece di vedersi.
+/// Un tocco lo ferma.
+///
+/// Sul web resta il riquadro di prima: li' il file non ha un percorso da
+/// aprire — il browser consegna dei byte — e non c'e' niente da riprodurre.
+class _VideoReady extends StatefulWidget {
+  const _VideoReady({required this.percorso});
+
+  final String percorso;
+
+  @override
+  State<_VideoReady> createState() => _VideoReadyState();
+}
+
+class _VideoReadyState extends State<_VideoReady> {
+  VideoPlayerController? _lettore;
+  var _pronto = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_apri());
+  }
+
+  @override
+  void dispose() {
+    _lettore?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _apri() async {
+    final lettore = lettoreDalDisco(widget.percorso);
+
+    if (lettore == null) {
+      return;
+    }
+
+    try {
+      await lettore.initialize();
+      await lettore.setLooping(true);
+      await lettore.play();
+    } on Object {
+      // **Un'anteprima che non parte non deve fermare l'invio.** Il file c'e'
+      // ed e' buono: se il lettore non lo apre — un formato che questo telefono
+      // non decodifica, un permesso — si torna al riquadro di prima e la foto
+      // parte lo stesso.
+      await lettore.dispose();
+
+      return;
+    }
+
+    if (!mounted) {
+      await lettore.dispose();
+
+      return;
+    }
+
+    setState(() {
+      _lettore = lettore;
+      _pronto = true;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final lettore = _lettore;
 
-    return ColoredBox(
-      color: palette.surfaceMuted,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.play_circle_outline_rounded,
-            size: 44,
-            color: palette.textFaint,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'VIDEO PRONTO',
-            style: context.texts.labelSmall?.copyWith(color: palette.textFaint),
-          ),
-        ],
+    if (!_pronto || lettore == null) {
+      return ColoredBox(
+        color: palette.surfaceMuted,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.play_circle_outline_rounded,
+              size: 44,
+              color: palette.textFaint,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'VIDEO PRONTO',
+              style: context.texts.labelSmall?.copyWith(
+                color: palette.textFaint,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => setState(() {
+        lettore.value.isPlaying ? lettore.pause() : lettore.play();
+      }),
+      child: ColoredBox(
+        color: palette.surfaceMuted,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Come nel resto dell'app: riempie il riquadro invece di lasciare
+            // due bande nere dove le proporzioni non combaciano.
+            FittedBox(
+              fit: BoxFit.cover,
+              clipBehavior: Clip.hardEdge,
+              child: SizedBox(
+                width: lettore.value.size.width,
+                height: lettore.value.size.height,
+                child: VideoPlayer(lettore),
+              ),
+            ),
+            if (!lettore.value.isPlaying)
+              const Center(
+                child: Icon(
+                  Icons.play_circle_fill_rounded,
+                  size: 52,
+                  color: Colors.white,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

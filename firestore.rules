@@ -229,8 +229,24 @@ service cloud.firestore {
 
         allow read: if signedIn() && request.auth.uid == userId;
 
+        // **E alla propria foto non si da' la fiamma.**
+        //
+        // Costa zero letture, e non e' fortuna: **una partecipazione si chiama
+        // come il suo autore** — `entries/{challengeId}/{userId}` — quindi
+        // `entryId` e' gia' l'identificativo di chi l'ha mandata, e confrontarlo
+        // con chi sta votando non richiede di andare a leggere niente.
+        //
+        // C'e' stato un periodo in cui votarsi si poteva, e il ragionamento era
+        // che tutti potendolo fare nessuno ci guadagnasse. Aritmeticamente
+        // regge; non basta. In una gara dove girano dei soldi **l'apparenza di
+        // barare fa lo stesso danno di barare**.
+        //
+        // L'app lo impedisce gia' e mostra una riga che se ne va da sola. Se la
+        // regola vivesse solo li', pero', sarebbe una regola dell'interfaccia:
+        // nessuna difesa per chi scrive sul database direttamente.
         allow create: if signedIn()
                       && request.auth.uid == userId
+                      && request.resource.data.entryId != userId
                       && siPuoAncoraVotare(request.resource.data.challengeId);
 
         allow delete: if signedIn()

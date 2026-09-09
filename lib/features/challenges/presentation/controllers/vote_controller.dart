@@ -29,6 +29,9 @@ enum VoteOutcome {
 
   /// Le tre fiamme di questa gara sono finite.
   noFiresLeft,
+
+  /// **E' la propria foto.** Non si vota da soli.
+  ownEntry,
 }
 
 /// Chi sta votando adesso.
@@ -271,6 +274,37 @@ Future<VoteOutcome> giveFire(
   final intents = ref.read(voteIntentsProvider.notifier);
   final messenger = ScaffoldMessenger.maybeOf(context);
 
+  // **Alla propria foto non si da' la fiamma.**
+  //
+  // C'e' stato un periodo in cui si poteva, e il ragionamento era che tutti
+  // potendolo fare nessuno ci guadagnava: un voto in piu' per ciascuno, non un
+  // vantaggio per qualcuno. Aritmeticamente regge, e non basta — perche' una
+  // gara non e' solo un conto. Vedersi votare da soli sembra barare anche
+  // quando non lo e', e in una gara dove girano dei soldi **l'apparenza di
+  // barare fa lo stesso danno di barare**.
+  //
+  // Si ferma qui, prima di qualunque scrittura: nessuna richiesta parte, la
+  // fiamma non si accende nemmeno per un istante, e chi tocca legge una riga
+  // che se ne va da sola. Nessun tasto da premere, niente da chiudere: e' un
+  // gesto che non si puo' fare, non un errore da gestire.
+  //
+  // **La stessa regola vive sul database.** Vedi `firestore.rules`, sotto
+  // `users/{userId}/votes`: senza quella, questa sarebbe una regola solo
+  // dell'interfaccia — cioe' nessuna regola, per chi scrive direttamente.
+  if (entry.userId == ref.read(currentUserIdProvider)) {
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Non puoi mettere like alla tua stessa foto.'),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+
+    return VoteOutcome.ownEntry;
+  }
+
   // **A gara finita non si vota**, e non si prova nemmeno a scrivere: la
   // classifica dell'ultimo secondo e' quella che ha assegnato dei soldi.
   // L'interfaccia la fiamma non la fa nemmeno toccare; questa riga vale per
@@ -426,12 +460,9 @@ class VoteController {
 
     final userId = signedIn ? authState.user.id : guestVoterId;
 
-    // **La propria foto si puo' votare.** Sembra un buco e non lo e': tutti
-    // possono farlo, quindi non sposta la classifica di un millimetro — e' un
-    // voto in piu' per ciascuno, non un vantaggio per qualcuno.
-    //
-    // A tenere onesta la gara e' un'altra regola: chi lancia la challenge non
-    // puo' parteciparvi.
+    // **Alla propria foto non si da' la fiamma**, e qui non ci si arriva
+    // nemmeno: `giveFire` se ne accorge prima, e il database rifiuta comunque.
+    // Vedi la nota in `giveFire`.
     try {
       await _ref
           .read(challengeRepositoryProvider)

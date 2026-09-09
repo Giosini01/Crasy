@@ -75,30 +75,25 @@ class ChallengeCard extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.xs),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          challenge.scopeLabel,
-                          style: texts.labelSmall?.copyWith(
-                            color: palette.textFaint,
-                          ),
-                        ),
-                        // **Sopra la scheda, non dentro la gara.** Chi scorre
-                        // la home deve sapere che tipo di gara e' prima di
-                        // entrarci: qui si decide se aprirla, e "devo uscire a
-                        // fare una cosa" oppure "devo cercare un video vecchio"
-                        // sono due impegni diversi.
-                        if (challenge.source.isArchive) ...[
-                          const SizedBox(height: AppSpacing.xxs),
-                          ArchiveBadge(challenge: challenge, compact: true),
-                        ],
-                      ],
+                  // **Qui c'era GLOBAL, in grigio, su quasi ogni gara.**
+                  //
+                  // Una parola che compariva sempre uguale su tutto, e che non
+                  // cambiava niente a chi la leggeva: le gare sono quasi tutte
+                  // globali, quindi non distingueva una scheda dall'altra —
+                  // occupava un angolo e basta. Una scritta che c'e' sempre
+                  // smette di essere un'informazione.
+                  //
+                  // Al suo posto c'e' l'unica cosa che in quell'angolo cambia
+                  // davvero cosa si deve fare: **ARCHIVIO**, quando la gara
+                  // chiede una cosa che uno ha gia'. Sulle istantanee non c'e'
+                  // niente, ed e' voluto — marcare la norma la annacqua.
+                  if (challenge.source.isArchive) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
+                      child: ArchiveBadge(challenge: challenge, compact: true),
                     ),
-                  ),
+                  ],
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
