@@ -9,6 +9,7 @@ import 'package:crasy/features/notifications/data/repositories/firestore_notific
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
 import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -336,6 +337,23 @@ Future<VoteOutcome> giveFire(
     }
   }
 
+  // **La gara si e' chiusa mentre il dito era in aria.**
+  //
+  // Il server ha rifiutato il voto perche' il tempo era scaduto — succede in
+  // quel secondo di scarto fra il suo orologio e il nostro. Senza queste due
+  // righe la fiamma **restava accesa per sempre**: la richiesta ottimistica si
+  // chiude solo quando l'elenco dei voti confermati le da' ragione, e qui non
+  // gliela dara' mai. Uno credeva di aver votato, e non aveva votato.
+  //
+  // Una riga sola e senza rosso: non e' un guasto, e' una gara finita.
+  if (outcome == VoteOutcome.closed) {
+    intents.forget(voteKey);
+
+    messenger?.showSnackBar(
+      const SnackBar(content: Text('Il tempo è scaduto: le fiamme sono chiuse.')),
+    );
+  }
+
   // A scrittura riuscita **non si tocca niente**: la richiesta si chiude da
   // sola quando l'elenco dei voti confermati arriva e dice la stessa cosa.
   // Chiuderla qui la spegnerebbe un istante prima che il server risponda, e in
@@ -414,14 +432,32 @@ class VoteController {
     //
     // A tenere onesta la gara e' un'altra regola: chi lancia la challenge non
     // puo' parteciparvi.
-    await _ref
-        .read(challengeRepositoryProvider)
-        .setVote(
-          challengeId: entry.challengeId,
-          entryId: entry.id,
-          userId: userId,
-          voted: voted,
-        );
+    try {
+      await _ref
+          .read(challengeRepositoryProvider)
+          .setVote(
+            challengeId: entry.challengeId,
+            entryId: entry.id,
+            userId: userId,
+            voted: voted,
+          );
+    } on FirebaseException catch (errore) {
+      // **Un rifiuto qui vuol dire una cosa sola: e' scaduto il tempo.**
+      //
+      // Le regole non lasciano scrivere un voto su una gara chiusa — e' cio'
+      // che rende vera la frase "vince chi ha piu' fiamme **allo scadere del
+      // tempo**". L'app lo sa gia' e nasconde la fiamma appena la gara finisce,
+      // ma fra il suo orologio e quello del server c'e' sempre un secondo di
+      // scarto: chi tocca proprio sulla sirena passa di qui.
+      //
+      // Senza questo, quel secondo diventava **un messaggio rosso** che diceva
+      // di chiudere e riaprire l'app. Per una fiamma arrivata tardi.
+      if (errore.code == 'permission-denied') {
+        return VoteOutcome.closed;
+      }
+
+      rethrow;
+    }
 
     if (signedIn) {
       // L'avviso si scrive **dopo** che la fiamma e' stata scritta, e non si

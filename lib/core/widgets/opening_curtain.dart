@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,16 +32,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// non si ripete mai identico. Una pulsazione regolare si riconosce come
 /// un'animazione; questa si riconosce come una cosa accesa.
 ///
-/// ## E fa un suono
+/// ## E non fa nessun rumore
 ///
-/// Due secondi e due decimi, esattamente quanto il sipario: un soffio che sale
-/// e un accordo che sboccia. Nasce da `tool/suono_di_apertura.py`, per non
-/// dipendere dalla licenza di qualcun altro.
+/// C'e' stata una sigla di due secondi, ed e' durata poco. Un suono che parte
+/// da solo all'apertura da' fastidio piu' spesso di quanto piaccia: si apre
+/// un'app in fila alla cassa, in ufficio, a letto accanto a qualcuno che dorme.
+/// Il gesto giusto e' toglierlo, non renderlo educato — e restava fastidioso
+/// anche fatto bene.
 ///
-/// **Rispetta l'interruttore del silenzioso e non ferma la musica di nessuno.**
-/// Sono le due cose che rendono accettabile un suono che parte da solo: chi ha
-/// il telefono muto non sente niente, e chi sta ascoltando qualcosa se lo tiene.
-/// Un'app che zittisce la musica per farsi la sigla e' un'app che si disinstalla.
+/// L'animazione resta: quella si guarda, non si subisce.
 ///
 /// ## Perche' sopra e non al posto
 ///
@@ -58,17 +56,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// diventerebbe una prova su questo. Spento li', resta acceso ovunque altro —
 /// e con lui resta spento il suono, che in una prova non deve partire mai.
 final openingCurtainProvider = Provider<bool>((ref) => true);
-
-/// Se la sigla suona.
-///
-/// **Separato dal sipario apposta.** Una prova che vuole guardare la fiamma
-/// accendersi deve poter tenere alzato il sipario **senza** far partire
-/// l'audio: in una prova non c'e' nessun apparecchio che suoni, e il tentativo
-/// finirebbe in un errore ingoiato — cioe' in un rumore di fondo nei registri
-/// che copre quelli veri.
-///
-/// Spegnendolo si spegne il suono e basta: l'animazione resta.
-final openingSoundProvider = Provider<bool>((ref) => true);
 
 class OpeningCurtain extends ConsumerStatefulWidget {
   const OpeningCurtain({required this.child, super.key});
@@ -100,7 +87,6 @@ class _OpeningCurtainState extends ConsumerState<OpeningCurtain>
   bool _visible = true;
   Timer? _timer;
   late final AnimationController _fiamma;
-  AudioPlayer? _lettore;
 
   @override
   void initState() {
@@ -115,63 +101,15 @@ class _OpeningCurtainState extends ConsumerState<OpeningCurtain>
       }
     });
 
-    // **Il suono si chiede dopo la prima frame.** Qui dentro `initState`
-    // l'albero non e' ancora costruito, e leggere un provider prima che lo sia
-    // e' il modo classico di prendersi un errore che non nomina la causa.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted &&
-          ref.read(openingCurtainProvider) &&
-          ref.read(openingSoundProvider)) {
-        unawaited(_suona());
-      }
-    });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
     _fiamma.dispose();
-    unawaited(_lettore?.dispose());
     super.dispose();
   }
 
-  /// Fa partire la sigla, e non disturba nessuno.
-  ///
-  /// **Ogni errore qui si ingoia.** Un suono che non parte non e' un guasto: e'
-  /// un telefono muto, un permesso negato, un browser che non fa partire
-  /// l'audio senza che qualcuno abbia toccato lo schermo. Nessuno di questi
-  /// casi merita di lasciare a schermo un messaggio rosso sopra la prima cosa
-  /// che si vede aprendo l'app.
-  Future<void> _suona() async {
-    try {
-      final lettore = AudioPlayer();
-      _lettore = lettore;
-
-      await lettore.setAudioContext(
-        AudioContext(
-          // **`ambient` e' la scelta, e le altre no.** Vuol dire due cose
-          // insieme: il tasto del silenzioso lo zittisce, e la musica di chi
-          // stava ascoltando qualcosa continua. Con `playback` — il valore
-          // predefinito — la sigla suonerebbe anche a telefono muto e
-          // metterebbe in pausa Spotify per due secondi.
-          iOS: AudioContextIOS(category: AVAudioSessionCategory.ambient),
-          android: AudioContextAndroid(
-            contentType: AndroidContentType.sonification,
-            usageType: AndroidUsageType.assistanceSonification,
-            // Nessuna richiesta di attenzione: non stiamo suonando musica, e
-            // chiedendola metteremmo in pausa quella degli altri.
-            audioFocus: AndroidAudioFocus.none,
-          ),
-        ),
-      );
-
-      await lettore.setReleaseMode(ReleaseMode.stop);
-      // Non a tutto volume: e' una firma, non un avviso.
-      await lettore.play(AssetSource('audio/apertura.wav'), volume: 0.65);
-    } on Object catch (_) {
-      // Silenzio voluto. Vedi la nota qui sopra.
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

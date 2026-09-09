@@ -1,6 +1,8 @@
+import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
+import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/presentation/widgets/winner_reveal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -116,6 +118,40 @@ void main() {
     await tester.pump(const Duration(milliseconds: 2200));
 
     expect(find.text('HAI VINTO'), findsNWidgets(2));
+
+    await tester.pumpAndSettle(const Duration(seconds: 6));
+  });
+
+  testWidgets('se ha vinto un video non si apre nessun lettore', (tester) async {
+    // **Era uno schermo nero.** Un lettore video dentro un'animazione da cinque
+    // secondi non fa in tempo ad aprirsi: restava un rettangolo nero per tutta
+    // la durata, e il momento piu' importante dell'app diventava un buco.
+    //
+    // Adesso il riquadro non c'e' proprio, e la notizia sta nel nome.
+    await tester.pumpWidget(
+      MaterialApp(
+        home: WinnerReveal(
+          challenge: gara,
+          winner: ChallengeEntry(
+            id: 'e9',
+            challengeId: 'g1',
+            challengeTitle: gara.title,
+            userId: 'anna',
+            authorName: 'anna',
+            mediaUrl: 'https://esempio/qualcosa.mp4',
+            mediaKind: MediaKind.video,
+          ),
+          mine: false,
+        ),
+      ),
+    );
+
+    await tester.pump(const Duration(milliseconds: 2200));
+
+    expect(find.byType(MediaFrame), findsNothing);
+    // Il nome invece c'e', ed e' l'unica cosa rimasta.
+    expect(find.text('@anna'), findsOneWidget);
+    expect(find.text('HA VINTO'), findsNWidgets(2));
 
     await tester.pumpAndSettle(const Duration(seconds: 6));
   });

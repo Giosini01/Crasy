@@ -538,22 +538,37 @@ class _Proclamazione extends StatelessWidget {
           // solo — e questo momento dura cinque secondi, non c'e' tempo per
           // due colpi d'occhio.
           const SizedBox(height: 2),
-          Flexible(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 44),
-              child: Center(
-                child: Transform.scale(
-                  scale: scala,
-                  child: _Faccia(entry: winner),
+          // **Se ha vinto un video, non si mostra niente.**
+          //
+          // Un lettore video che si apre dentro un'animazione da cinque secondi
+          // non fa in tempo: resta un rettangolo nero per tutta la durata, e il
+          // momento piu' importante dell'app diventa un buco. Il primo
+          // fotogramma non ce l'abbiamo — i video non hanno una miniatura — e
+          // tirarlo fuori qui vorrebbe dire aprire comunque quel lettore.
+          //
+          // Allora si toglie: restano la frase, il nome e il premio, che sono
+          // la notizia. Il video si guarda dopo, nella gara, dove ha il tempo
+          // di caricarsi.
+          if (!winner.isVideo)
+            Flexible(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 44),
+                child: Center(
+                  child: Transform.scale(
+                    scale: scala,
+                    child: _Faccia(entry: winner),
+                  ),
                 ),
               ),
             ),
-          ),
           const SizedBox(height: 2),
           Opacity(
             opacity: entrata,
             child: SizedBox(
-              height: 72,
+              // Senza la foto il nome e' l'unica cosa rimasta a schermo, e
+              // sta piu' comodo: quei settantadue punti servivano a non far
+              // saltare la foto, e la foto qui non c'e'.
+              height: winner.isVideo ? 140 : 72,
               // **Rimpicciolisce invece di traboccare.** Un nome lungo, o un
               // premio a quattro cifre, uscivano dal riquadro e lasciavano a
               // schermo la riga a strisce gialle e nere — proprio sopra la
@@ -575,9 +590,14 @@ class _Proclamazione extends StatelessWidget {
                     children: [
                       Text(
                         '@${winner.authorName}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
-                          fontSize: 20,
+                          // **Senza la foto, il nome cresce.** Quando ha vinto
+                          // un video non c'e' nient'altro a schermo: lasciarlo
+                          // della misura di una didascalia sotto un riquadro
+                          // che non esiste piu' lo farebbe sembrare un
+                          // dettaglio, invece della notizia.
+                          fontSize: winner.isVideo ? 30 : 20,
                           fontWeight: FontWeight.w700,
                         ),
                       ),

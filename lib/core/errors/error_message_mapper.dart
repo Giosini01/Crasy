@@ -85,13 +85,24 @@ abstract final class ErrorMessageMapper {
 
   static String _mapFirebaseError(FirebaseException error) {
     switch (error.code) {
-      // Per chi usa l'app, un rifiuto di permessi vuol dire quasi sempre una di
-      // due cose: sta tentando qualcosa che non gli spetta, oppure ha in mano
-      // una versione vecchia che scrive i dati in un modo che il server non
-      // accetta piu'. La seconda la risolve da solo, se glielo si dice.
+      // **Mai piu' "operazione non consentita, chiudi e riapri l'app".**
+      //
+      // Era la frase di prima, e diceva tre cose sbagliate insieme: dava la
+      // colpa a chi legge, gli chiedeva di fare il tecnico, e non spiegava
+      // niente. Chi la trovava dopo aver scattato una foto concludeva di aver
+      // rotto qualcosa — o che fosse rotta l'app.
+      //
+      // Un rifiuto di permessi, visto da questo lato dello schermo, vuol dire
+      // quasi sempre **una cosa sola**: si sta provando a fare una cosa che
+      // adesso non si puo' piu' fare, perche' il tempo e' scaduto mentre la
+      // schermata era aperta. Non e' un guasto, e non deve suonare come tale.
+      //
+      // I casi in cui invece la colpa e' nostra si prendono **prima di
+      // arrivare qui**, dove si sa ancora cosa si stava facendo: vedi la
+      // fiamma, che un rifiuto lo traduce in "il tempo e' finito" senza
+      // mostrare niente di rosso.
       case 'permission-denied':
-        return 'Operazione non consentita. Se hai l\'app aperta da un po, '
-            'chiudila e riaprila, poi riprova.';
+        return 'Questa cosa adesso non si può più fare: il tempo è scaduto.';
       case 'unavailable':
         return 'Servizio temporaneamente non disponibile.';
       case 'network-request-failed':

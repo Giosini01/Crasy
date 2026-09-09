@@ -6,16 +6,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// Il sipario dell'apertura: la fiamma che si accende, e il suo congedo.
 ///
-/// **Il suono qui non parte mai**, e non e' un dettaglio della prova: in una
-/// prova non c'e' nessun apparecchio che suoni, e il tentativo finirebbe in un
-/// errore ingoiato — cioe' in rumore nei registri che copre quello vero. Lo
-/// spegne `openingSoundProvider`, che esiste proprio per questo.
+/// Non fa nessun rumore: la sigla di due secondi c'e' stata ed e' stata tolta.
+/// Un suono che parte da solo quando si apre un'app da' fastidio piu' spesso di
+/// quanto piaccia — in fila alla cassa, in ufficio, accanto a chi dorme.
 void main() {
   Widget conIlSipario() => ProviderScope(
     overrides: [
       // Il sipario acceso: e' quello che si vuole guardare.
       openingCurtainProvider.overrideWithValue(true),
-      openingSoundProvider.overrideWithValue(false),
     ],
     child: MaterialApp(
       theme: AppTheme.light(),

@@ -1,4 +1,10 @@
-"""Fabbrica il suono che fa CRASY quando si apre.
+"""Fabbrica il suono che faceva CRASY quando si apriva.
+
+**NON E' PIU' IN USO.** La sigla di due secondi c'e' stata ed e' stata tolta: un
+suono che parte da solo all'apertura da' fastidio piu' spesso di quanto piaccia
+— si apre un'app in fila alla cassa, in ufficio, a letto accanto a chi dorme — e
+restava fastidioso anche fatto bene. Lo strumento resta perche' rifare quel
+suono e' un comando solo, se un giorno si cambia idea.
 
 **Non e' la suoneria delle notifiche, ed e' un mestiere diverso.** Quella deve
 farsi notare mentre uno sta facendo altro: corta, brillante, e finita. Questo si
