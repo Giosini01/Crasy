@@ -49,7 +49,13 @@ APP_STORE = ''
 PLAY_STORE = ''
 
 # Dove sta l'app dentro il sito. Non e' piu' la radice: li' c'e' la vetrina.
-APP = '/app/'
+#
+# **Vuoto vuol dire ingresso chiuso**, come per i tasti degli store qui sopra:
+# la vetrina non mostra piu' il link per chi sta provando l'app. L'app resta
+# dov'e', a `/app/`, e i link dentro le email di conferma continuano a
+# funzionare: si spegne l'invito, non la porta. Si riapre rimettendo '/app/' e
+# rilanciando questo file.
+APP = ''
 
 
 def dalDart():

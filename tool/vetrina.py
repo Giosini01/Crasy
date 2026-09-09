@@ -441,8 +441,7 @@ footer a { margin-right: 18px; text-decoration: none; }
       lancia una missione. Tu la fai, mandi la foto, e vince quella che piace di
       piu&#39; agli altri.</p>
       <div class="negozi entra r4">@NEGOZI@</div>
-      <p class="sottotasti entra r5">Stiamo finendo di prepararla.
-      <a href="@APP@">Sei tra chi la sta provando? Entra da qui.</a></p>
+      <p class="sottotasti entra r5">Stiamo finendo di prepararla.@ACCESSO@</p>
     </div>
 
     <div class="telefono entra r3">
@@ -752,7 +751,28 @@ def html(posta, app, appStore, playStore):
         .replace('@FIAMMA_PICCOLA@', FIAMMA)
         .replace('@FIAMMA@', FIAMMA)
         .replace('@POSTA@', posta)
-        .replace('@APP@', app)
+        .replace('@ACCESSO@', _accesso(app))
+    )
+
+
+def _accesso(app):
+    """La riga che manda i tester dentro l'app, quando l'ingresso e' aperto.
+
+    **Vuoto vuol dire chiuso.** Con `app` vuota la frase sotto ai tasti resta
+    ma non porta piu' da nessuna parte: chi arriva sulla vetrina legge che
+    l'app sta arrivando e basta. L'app resta comunque raggiungibile a `/app/` —
+    i link dentro le email di conferma ci passano, e devono continuare a
+    funzionare anche mentre l'ingresso e' chiuso.
+
+    Si riapre rimettendo l'indirizzo in `APP`, dentro `pagine_del_sito.py`, e
+    rilanciando quel file.
+    """
+
+    if not app:
+        return ''
+
+    return (
+        ' <a href="%s">Sei tra chi la sta provando? Entra da qui.</a>' % app
     )
 
 

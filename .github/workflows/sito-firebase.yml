@@ -1,0 +1,122 @@
+# .github/workflows/sito-firebase.yml
+#
+# crasyapp.com pubblicato a ogni push su main.
+#
+# Gira su Linux, non su Mac: il sito non ha bisogno di Xcode, e su repository
+# pubblico i runner Linux sono gratuiti e circa dieci volte piu' veloci a
+# partire. La build iOS resta dov'e', sul suo workflow.
+#
+# ---------------------------------------------------------------------------
+# Secret (Settings > Secrets and variables > Actions > Secrets):
+#
+#   FIREBASE_SERVICE_ACCOUNT   il JSON intero della chiave di servizio,
+#                              incollato cosi' com'e', graffe comprese
+#
+# Variable (stessa pagina, scheda Variables):
+#
+#   FIREBASE_PROJECT_ID        l'ID del progetto Firebase, non il nome
+# ---------------------------------------------------------------------------
+
+name: Sito su Firebase
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+# Due deploy insieme si sovrascriverebbero a vicenda: l'ultimo push vince, e
+# quello prima viene annullato mentre e' ancora in coda.
+concurrency:
+  group: hosting
+  cancel-in-progress: true
+
+jobs:
+  pubblica:
+    name: Compila il web e pubblica
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Flutter 3.44.9
+        # Stessa versione fissata della build iOS. Se una sale, sale l'altra:
+        # due versioni diverse producono due app diverse dallo stesso codice.
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.9'
+          cache: true
+
+      - name: Python
+        # Serve al gancio `predeploy` di firebase.json, che lancia
+        # `python tool/prepara_il_sito.py`: quello mette la vetrina alla radice
+        # e sposta l'app dentro /app. Senza, il comando non esiste sul runner.
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Dipendenze
+        run: flutter pub get
+
+      - name: Compila il sito
+        run: flutter build web --release
+
+      - name: Firebase CLI
+        run: npm install --global firebase-tools
+
+      - name: Credenziali di servizio
+        env:
+          CHIAVE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -e
+
+          if [ -z "$CHIAVE" ]; then
+            echo "Il secret FIREBASE_SERVICE_ACCOUNT e' vuoto."
+            exit 1
+          fi
+
+          printf '%s' "$CHIAVE" > "$RUNNER_TEMP/chiave.json"
+          chmod 600 "$RUNNER_TEMP/chiave.json"
+
+          # Il controllo vero: e' JSON leggibile e ha il campo che serve?
+          # Meglio saperlo adesso che dentro un errore di autenticazione.
+          python -c "
+          import json, sys
+          d = json.load(open('$RUNNER_TEMP/chiave.json'))
+          if d.get('type') != 'service_account':
+              sys.exit('Il JSON non e\'una chiave di servizio.')
+          print('progetto nella chiave: %s' % d.get('project_id'))
+          "
+
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/chiave.json" >> "$GITHUB_ENV"
+
+      - name: Pubblica
+        # Solo hosting: nello stesso firebase.json ci sono anche functions,
+        # firestore e storage, e un deploy completo pubblicherebbe pure quelli
+        # a ogni modifica del sito.
+        #
+        # Il messaggio del commit passa da una variabile d'ambiente, non
+        # incollato dentro il comando: un apice o un a capo nel messaggio
+        # spezzerebbe la riga, e chiunque puo' scrivere un messaggio di commit.
+        env:
+          PROGETTO: ${{ vars.FIREBASE_PROJECT_ID }}
+          MESSAGGIO: ${{ github.event.head_commit.message }}
+        run: |
+          set -e
+
+          if [ -z "$PROGETTO" ]; then
+            echo "La variabile FIREBASE_PROJECT_ID non c'e' o e' vuota."
+            echo "Va nella scheda Variables, non fra i Secrets."
+            exit 1
+          fi
+
+          firebase deploy \
+            --only hosting \
+            --project "$PROGETTO" \
+            --non-interactive \
+            --message "${MESSAGGIO:-deploy manuale}"
+
+      - name: Pulizia credenziali
+        if: always()
+        run: rm -f "$RUNNER_TEMP/chiave.json"
