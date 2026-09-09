@@ -99,8 +99,6 @@ jobs:
           CERTIFICATE_PRIVATE_KEY_B64: ${{ secrets.CERTIFICATE_PRIVATE_KEY_B64 }}
         run: |
           set -e
-          echo "secret p8:  ${#APP_STORE_CONNECT_PRIVATE_KEY_B64} caratteri (atteso 344)"
-          echo "secret pem: ${#CERTIFICATE_PRIVATE_KEY_B64} caratteri (atteso 2312)"
 
           rimetti_in_riga() {
             VALORE="$1"; DESTINAZIONE="$2"; NOME="$3"
@@ -145,6 +143,57 @@ jobs:
 
           rimetti_in_riga "$APP_STORE_CONNECT_PRIVATE_KEY_B64" "$RUNNER_TEMP/authkey.p8" "App Store Connect"
           rimetti_in_riga "$CERTIFICATE_PRIVATE_KEY_B64" "$RUNNER_TEMP/certificato.pem" "certificato di firma"
+
+          # Tutte le chiamate ad Apple vogliono le stesse tre credenziali.
+          # Scritte una volta sola, cosi' non possono divergere fra loro.
+          asc() {
+            app-store-connect "$@" \
+              --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+              --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+              --private-key @file:"$RUNNER_TEMP/authkey.p8"
+          }
+
+          # **Le capacita' non basta dichiararle nell'app: vanno accese
+          # sull'App ID.**
+          #
+          # `Runner.entitlements` promette notifiche push e associated domains.
+          # Apple mantiene la promessa solo se l'identificativo dell'app le ha
+          # abilitate nel portale e il profilo di provisioning le riporta
+          # dentro. Se ne manca una, `xcodebuild archive` esce con 65 — un
+          # codice che non nomina la causa, e il motivo vero resta in un log
+          # che non arriva a schermo.
+          #
+          # Accendere una capacita' gia' accesa non fa niente: si puo'
+          # rilanciare quante volte si vuole.
+          ID_APP=$(asc bundle-ids list \
+            --bundle-id-identifier "$BUNDLE_ID" \
+            --strict-match-identifier \
+            --platform IOS \
+            --json | python3 -c "import json,sys; v=json.load(sys.stdin); print(v[0]['id'] if v else '')")
+
+          if [ -z "$ID_APP" ]; then
+            echo "L'App ID non esiste ancora: lo creera' il passo qui sotto."
+            echo "Le capacita' si accenderanno alla build successiva."
+          else
+            echo "App ID: $ID_APP"
+
+            asc bundle-ids enable-capabilities "$ID_APP" \
+              --capability "Push Notifications" "Associated Domains" \
+              || echo "Capacita' gia' attive: nulla da fare."
+
+            # Accendere una capacita' invalida i profili gia' emessi: non
+            # portano dentro il permesso nuovo, e riusarli farebbe fallire
+            # l'archivio esattamente come prima. Si cancellano solo quelli
+            # marcati INVALID — a regime non ce ne sono e questo giro e' a
+            # vuoto — e `--create` qui sotto ne emette uno aggiornato.
+            for PROFILO in $(asc bundle-ids profiles "$ID_APP" \
+              --type IOS_APP_STORE \
+              --state INVALID \
+              --json | python3 -c "import json,sys; [print(p['id']) for p in json.load(sys.stdin)]"); do
+              echo "Profilo $PROFILO non piu' valido: lo rimuovo"
+              asc profiles delete "$PROFILO" || true
+            done
+          fi
 
           # --create registra il bundle id se manca, emette il certificato se
           # non c'e', crea il profilo se non c'e'. Dalla seconda volta trova
