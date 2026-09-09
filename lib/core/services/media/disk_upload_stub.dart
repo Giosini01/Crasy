@@ -18,3 +18,6 @@ Future<String> mettiAlSicuro(String origine) async => '';
 
 /// Sul web non c'e' nessuna copia da buttare.
 Future<void> buttaLaCopia(String percorso) async {}
+
+/// Sul web non ci sono file: si va sempre di byte.
+bool ilFileEBuono(String percorso) => false;

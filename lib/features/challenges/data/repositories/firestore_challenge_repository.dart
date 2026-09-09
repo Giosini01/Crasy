@@ -383,10 +383,26 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     // file non ha un percorso e si resta ai byte, che li' arrivano comunque
     // dal selettore gia' in memoria.
     final dati = SettableMetadata(contentType: type);
+
+    // **Il file se c'e', i byte se non c'e'.**
+    //
+    // Non e' indecisione: sono due strade con due difetti opposti. Dal file si
+    // carica **senza tenere niente in memoria** — un video di trenta secondi
+    // sono decine di megabyte, e chiederli tutti insieme mentre la fotocamera
+    // e' ancora aperta e' la richiesta che il telefono rifiuta chiudendo l'app.
+    // Dai byte si carica sempre, ma quel prezzo lo si paga.
+    //
+    // Si e' provato ad andare **solo** di file, ed e' costato due giorni: il
+    // file della fotocamera vive in una cartella del sistema che si svuota da
+    // sola, e fra la registrazione e l'invio c'e' tutta l'anteprima. Chi
+    // rimaneva senza file non caricava niente, o non caricava affatto.
+    //
+    // Adesso si guarda **prima** quale strada e' aperta, e i byte restano la
+    // rete sotto: e' il modo che ha funzionato per mesi.
     final daDisco =
         caricamentoDaDiscoDisponibile &&
         filePath != null &&
-        filePath.isNotEmpty;
+        ilFileEBuono(filePath);
 
     // **Niente da mandare vuol dire fermarsi, non mandare niente.**
     //

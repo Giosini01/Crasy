@@ -138,6 +138,21 @@ class ParticipationController extends AsyncNotifier<void> {
     );
   }
 
+  /// Mette il file al riparo, e se non ci riesce non fa storie.
+  ///
+  /// **Un fallimento qui non deve fermare niente.** La copia serve a rendere
+  /// piu' probabile la strada buona — quella che non passa per la memoria — ma
+  /// non e' l'unica: se non si puo' copiare, restano i byte, e l'invio funziona
+  /// lo stesso. Far fallire una partecipazione perche' non si e' potuto
+  /// ottimizzare sarebbe il tipo di errore peggiore.
+  Future<String> _alSicuro(String percorso) async {
+    try {
+      return await mettiAlSicuro(percorso);
+    } on Object catch (_) {
+      return '';
+    }
+  }
+
   /// Dove si pesca, e **non c'e' una terza risposta**.
   ///
   /// E' una funzione di due righe e vale piu' di quanto sembri: e' il punto in
@@ -173,13 +188,23 @@ class ParticipationController extends AsyncNotifier<void> {
       // una conferma scritta, non un fotogramma. Adesso viaggia il percorso, e
       // il file resta sul disco fino al momento di salire. Vedi
       // `PickedMedia.filePath`.
+      // **I byte si leggono, e il file si mette al sicuro. Tutti e due.**
+      //
+      // Per un giorno si e' provato a tenere solo il percorso, per non avere
+      // decine di megabyte in memoria mentre la fotocamera e' ancora aperta —
+      // ed e' la ragione giusta. Ma il file della fotocamera vive in una
+      // cartella del sistema che si svuota da sola, e fra qui e "manda in
+      // gara" c'e' tutta l'anteprima: chi ci arrivava senza file non caricava
+      // niente. E' costato due giorni e due partecipazioni vuote.
+      //
+      // Adesso il file resta la strada preferita — si carica da li' senza
+      // passare per la memoria — e i byte sono la rete sotto. Costano quello
+      // che costavano prima, cioe' quello che l'app ha retto per mesi.
+      final copia = await _alSicuro(file.path);
+
       return PickedMedia(
-        bytes: Uint8List(0),
-        // **Subito, non al momento dell'invio.** Il file della fotocamera vive
-        // in una cartella del sistema che viene ripulita appena la schermata
-        // della fotocamera si chiude: fra qui e "manda in gara" c'e' tutta
-        // l'anteprima, e in quel tempo spariva. Vedi `mettiAlSicuro`.
-        filePath: await mettiAlSicuro(file.path),
+        bytes: await file.readAsBytes(),
+        filePath: copia,
         contentType: file.mimeType ?? 'video/mp4',
         isVideo: true,
       );
@@ -222,8 +247,8 @@ class ParticipationController extends AsyncNotifier<void> {
     // byte sono l'unica strada — ma li' arrivano gia' dal browser, e non c'e'
     // una fotocamera aperta a contendersi la memoria.
     return PickedMedia(
-      bytes: kIsWeb ? await picked.readAsBytes() : Uint8List(0),
-      filePath: kIsWeb ? null : await mettiAlSicuro(picked.path),
+      bytes: await picked.readAsBytes(),
+      filePath: kIsWeb ? null : await _alSicuro(picked.path),
       contentType: picked.mimeType ?? 'video/mp4',
       isVideo: true,
     );

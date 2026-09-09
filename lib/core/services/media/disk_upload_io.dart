@@ -101,3 +101,24 @@ Future<void> buttaLaCopia(String percorso) async {
     // Un file rimasto e' molto meno grave di un invio fallito per la pulizia.
   }
 }
+
+/// Se quel percorso porta a un file vero e non vuoto.
+///
+/// Serve a **scegliere la strada prima di imboccarla**: se il file c'e' si
+/// carica da li', senza tenerlo in memoria; se non c'e' si ripiega sui byte,
+/// che restano il modo che ha funzionato per mesi. Chiederlo prima invece di
+/// scoprirlo con un errore e' cio' che trasforma un invio fallito in un invio
+/// che riesce lo stesso.
+bool ilFileEBuono(String percorso) {
+  if (percorso.isEmpty) {
+    return false;
+  }
+
+  try {
+    final file = File(percorso);
+
+    return file.existsSync() && file.lengthSync() > 0;
+  } on Object catch (_) {
+    return false;
+  }
+}
