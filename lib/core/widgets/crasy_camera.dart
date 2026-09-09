@@ -138,7 +138,46 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
     }
   }
 
+  /// Accende la fotocamera, e se non ci riesce **riprova una volta**.
+  ///
+  /// **Il primo tentativo puo' fallire per ragioni che passano da sole**, e
+  /// sono due, tutte e due invisibili da qui.
+  ///
+  /// La fotocamera di prima puo' essere ancora in fase di smontaggio: chi tocca
+  /// "registra di nuovo" la riapre un istante dopo averla chiusa, e per quel
+  /// istante l'apparecchio risulta occupato.
+  ///
+  /// E l'audio: registrare un video vuole il microfono, e se un lettore video
+  /// sta ancora suonando — l'anteprima di quello appena girato — il microfono
+  /// non si ottiene. Quel lettore adesso si spegne prima, ma spegnersi richiede
+  /// il suo tempo.
+  ///
+  /// Mezzo secondo e un secondo tentativo coprono tutti e due i casi. Prima
+  /// bastava il primo fallimento per dire a chi guarda **"controlla il
+  /// permesso"** — una frase che manda a cercare nelle impostazioni una cosa
+  /// che era gia' a posto.
   Future<void> _accendi() async {
+    if (await _provaAdAccendere()) {
+      return;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+
+    if (!mounted || await _provaAdAccendere()) {
+      return;
+    }
+
+    if (mounted) {
+      setState(
+        () => _errore =
+            'Non riusciamo ad aprire la fotocamera. '
+            'Chiudi e riprova, o controlla di averci dato il permesso.',
+      );
+    }
+  }
+
+  /// Un tentativo solo. Vero se e' andata.
+  Future<bool> _provaAdAccendere() async {
     try {
       if (_cameras.isEmpty) {
         _cameras = await availableCameras();
@@ -147,7 +186,7 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
       if (_cameras.isEmpty) {
         setState(() => _errore = 'Non troviamo nessuna fotocamera.');
 
-        return;
+        return true;
       }
 
       final scelta = _cameras.firstWhere(
@@ -172,7 +211,7 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
       if (!mounted) {
         await controller.dispose();
 
-        return;
+        return true;
       }
 
       setState(() {
@@ -180,14 +219,10 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
         _pronta = true;
         _errore = null;
       });
-    } catch (_) {
-      if (mounted) {
-        setState(
-          () => _errore =
-              'Non riusciamo ad aprire la fotocamera. '
-              'Controlla di averci dato il permesso.',
-        );
-      }
+
+      return true;
+    } on Object catch (_) {
+      return false;
     }
   }
 

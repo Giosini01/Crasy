@@ -64,6 +64,15 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
   final _caption = TextEditingController();
   String? _error;
 
+  /// Se la fotocamera e' aperta in questo momento.
+  ///
+  /// **Serve a spegnere l'anteprima del video, e non e' un dettaglio.** Un
+  /// lettore video acceso tiene occupato l'audio del telefono; la fotocamera,
+  /// per registrare, ha bisogno del microfono e lo trova gia' preso — e non
+  /// parte. E' il motivo per cui "registra di nuovo" non funzionava: la prima
+  /// volta l'anteprima non c'era ancora, la seconda si'.
+  bool _fotocameraAperta = false;
+
   @override
   void dispose() {
     _caption.dispose();
@@ -128,6 +137,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
             return _Form(
               challenge: challenge,
               media: _media,
+              fotocameraAperta: _fotocameraAperta,
               error: _error,
               submitting: submitting,
               // Sulla sfida del giorno il bottone non si spegne mai: non
@@ -155,7 +165,12 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
   }
 
   Future<void> _capture(Challenge challenge) async {
-    setState(() => _error = null);
+    // L'anteprima si spegne **prima** che la fotocamera parta, non dopo: il
+    // microfono lo si contende all'apertura.
+    setState(() {
+      _error = null;
+      _fotocameraAperta = true;
+    });
 
     final kind = challenge.mediaKind;
 
@@ -192,6 +207,10 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
     } on Object catch (error) {
       if (mounted) {
         setState(() => _error = ErrorMessageMapper.map(error));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _fotocameraAperta = false);
       }
     }
   }
@@ -390,6 +409,7 @@ class _Form extends StatelessWidget {
   const _Form({
     required this.challenge,
     required this.media,
+    required this.fotocameraAperta,
     required this.error,
     required this.submitting,
     required this.outOfLives,
@@ -401,6 +421,9 @@ class _Form extends StatelessWidget {
 
   final Challenge challenge;
   final PickedMedia? media;
+
+  /// Vedi `_ParticipatePageState._fotocameraAperta`.
+  final bool fotocameraAperta;
   final String? error;
   final bool submitting;
 
@@ -458,6 +481,7 @@ class _Form extends StatelessWidget {
             media: picked,
             kind: challenge.mediaKind,
             source: challenge.source,
+            fotocameraAperta: fotocameraAperta,
             caption: caption,
             onRetake: onRetake,
           ),
@@ -521,6 +545,7 @@ class _Preview extends StatelessWidget {
     required this.media,
     required this.kind,
     required this.source,
+    required this.fotocameraAperta,
     required this.caption,
     required this.onRetake,
   });
@@ -528,6 +553,9 @@ class _Preview extends StatelessWidget {
   final PickedMedia media;
   final MediaKind kind;
   final ChallengeSource source;
+
+  /// Vedi `_ParticipatePageState._fotocameraAperta`.
+  final bool fotocameraAperta;
 
   /// La didascalia che si scrive **sulla** foto.
   final TextEditingController caption;
@@ -558,7 +586,10 @@ class _Preview extends StatelessWidget {
             // a mangiarsi i tocchi e ad aprire la tastiera per scrivere una
             // cosa che nessuno vedrebbe.
             child: media.isVideo
-                ? _VideoReady(percorso: media.filePath ?? '')
+                ? _VideoReady(
+                    percorso: media.filePath ?? '',
+                    acceso: !fotocameraAperta,
+                  )
                 : Image.memory(media.bytes, fit: BoxFit.cover),
           ),
         ),
@@ -630,9 +661,17 @@ String _laRegola(Challenge challenge) {
 /// Sul web resta il riquadro di prima: li' il file non ha un percorso da
 /// aprire — il browser consegna dei byte — e non c'e' niente da riprodurre.
 class _VideoReady extends StatefulWidget {
-  const _VideoReady({required this.percorso});
+  const _VideoReady({required this.percorso, required this.acceso});
 
   final String percorso;
+
+  /// **Falso mentre la fotocamera e' aperta, e conta.**
+  ///
+  /// Un lettore video acceso tiene occupato l'audio del telefono. La
+  /// fotocamera, per registrare, ha bisogno del microfono: lo trova gia' preso
+  /// e non parte — e' il motivo per cui "registra di nuovo" non funzionava.
+  /// Spento, il lettore lascia andare tutto e la fotocamera riparte.
+  final bool acceso;
 
   @override
   State<_VideoReady> createState() => _VideoReadyState();
@@ -645,7 +684,24 @@ class _VideoReadyState extends State<_VideoReady> {
   @override
   void initState() {
     super.initState();
-    unawaited(_apri());
+
+    if (widget.acceso) {
+      unawaited(_apri());
+    }
+  }
+
+  @override
+  void didUpdateWidget(_VideoReady vecchio) {
+    super.didUpdateWidget(vecchio);
+
+    if (!widget.acceso && _lettore != null) {
+      // Si molla tutto: il lettore, e con lui l'audio del telefono.
+      _lettore?.dispose();
+      _lettore = null;
+      _pronto = false;
+    } else if (widget.acceso && _lettore == null) {
+      unawaited(_apri());
+    }
   }
 
   @override
