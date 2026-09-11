@@ -603,17 +603,13 @@ class _Proclamazione extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        if (challenge.prizeCents > 0) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            AppMoney.format(challenge.prizeCents),
-                            style: const TextStyle(
-                              color: AppColors.crasyRed,
-                              fontSize: 26,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ],
+                      if (challenge.prizeCents > 0) ...[
+                        const SizedBox(height: 4),
+                        _Grossa(
+                          testo: AppMoney.format(challenge.prizeCents),
+                          corpo: 26,
+                        ),
+                      ],
                       ],
                     ),
                   ),

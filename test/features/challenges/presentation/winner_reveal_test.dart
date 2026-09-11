@@ -102,9 +102,10 @@ void main() {
 
     expect(find.byKey(WinnerReveal.chiaveDeiTamburi), findsNothing);
     expect(find.text('HA VINTO'), findsNWidgets(2));
-    // Il nome e il premio no: quelli sono scritte normali, una sola ciascuna.
+    // Il nome resta una scritta normale; il premio ha come il titolo il
+    // contorno oro, quindi e' costruito da due testi sovrapposti.
     expect(find.text('@anna'), findsOneWidget);
-    expect(find.text('€50'), findsOneWidget);
+    expect(find.text('€50'), findsNWidgets(2));
 
     await tester.pumpAndSettle(const Duration(seconds: 6));
   });
