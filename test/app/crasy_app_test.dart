@@ -125,6 +125,7 @@ void main() {
             scheda: AppRoutes.challenges,
             apri: AppRoutes.notifications,
             evidenzia: null,
+            notificationId: null,
             daFermo: true,
             quando: 1,
           )),
