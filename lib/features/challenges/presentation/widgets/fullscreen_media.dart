@@ -161,6 +161,16 @@ class _FullscreenMediaState extends ConsumerState<FullscreenMedia> {
               ],
             ),
           ),
+          // I video si guardano come un flusso: i gesti principali stanno
+          // sotto il pollice, in colonna sul lato destro, senza rubare spazio
+          // alla didascalia in basso. Le foto mantengono invece la barra
+          // orizzontale, che lascia il bordo dell'immagine completamente libero.
+          if (current.isVideo)
+            Positioned(
+              right: AppSpacing.sm,
+              bottom: 164,
+              child: SafeArea(child: _Actions(entry: current, vertical: true)),
+            ),
         ],
       ),
     );
@@ -393,7 +403,7 @@ class _BottomBar extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          // **I comandi su una riga sola, in fondo.**
+          // **I comandi su una riga sola, in fondo — per le foto.**
           //
           // Sono passati per due posti sbagliati prima di arrivare qui. Erano
           // righe impilate — titolo, didascalia, nome, e sotto tutto il resto i
@@ -406,7 +416,7 @@ class _BottomBar extends ConsumerWidget {
           // guardando un'immagine a tutto schermo non deve esserci niente
           // appoggiato sopra. Condividi sta staccato, all'altro capo: gli altri
           // due parlano alla gara, quello parla a chi sta fuori.
-          _Actions(entry: entry),
+          if (!entry.isVideo) _Actions(entry: entry),
         ],
       ),
     );
@@ -415,9 +425,10 @@ class _BottomBar extends ConsumerWidget {
 
 /// La riga dei comandi: fiamma, commenti, e in fondo condividi.
 class _Actions extends ConsumerWidget {
-  const _Actions({required this.entry});
+  const _Actions({required this.entry, this.vertical = false});
 
   final ChallengeEntry entry;
+  final bool vertical;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -433,82 +444,98 @@ class _Actions extends ConsumerWidget {
         )
         .valueOrNull;
 
-    return Row(
-      children: [
+    final actions = <Widget>[
+      _Action(
+        // A gara finita il numero resta, ma non e' piu' un comando: quelle
+        // fiamme hanno gia' deciso chi si prende i soldi.
+        onTap: live ? () => giveFire(context, ref, entry, voted: !voted) : null,
+        icon: voted
+            ? Icons.local_fire_department
+            : Icons.local_fire_department_outlined,
+        color: voted ? AppColors.crasyRed : AppColors.paper,
+        label: votesLabel(votes),
+        tooltip: voted ? 'Togli la fiamma' : 'Dai la fiamma',
+        vertical: vertical,
+      ),
+      // **I commenti spariscono alla sirena.** Non e' un permesso tolto: un
+      // commento e' tifo, e il tifo si fa durante.
+      if (live) ...[
+        if (!vertical) const SizedBox(width: AppSpacing.lg),
         _Action(
-          // A gara finita il numero resta, ma non e' piu' un comando: quelle
-          // fiamme hanno gia' deciso chi si prende i soldi.
-          onTap: live
-              ? () => giveFire(context, ref, entry, voted: !voted)
-              : null,
-          icon: voted
-              ? Icons.local_fire_department
-              : Icons.local_fire_department_outlined,
-          color: voted ? AppColors.crasyRed : AppColors.paper,
-          label: votesLabel(votes),
-          tooltip: voted ? 'Togli la fiamma' : 'Dai la fiamma',
+          onTap: () => showEntryComments(context, entry: entry),
+          icon: Icons.mode_comment_outlined,
+          color: AppColors.paper,
+          label: comments == null || comments.isEmpty
+              ? ''
+              : '${comments.length}',
+          tooltip: 'Commenti',
+          vertical: vertical,
         ),
-        // **I commenti spariscono alla sirena.** Non e' un permesso tolto: un
-        // commento e' tifo, e il tifo si fa durante.
-        if (live) ...[
-          const SizedBox(width: AppSpacing.lg),
-          _Action(
-            onTap: () => showEntryComments(context, entry: entry),
-            icon: Icons.mode_comment_outlined,
-            color: AppColors.paper,
-            label: comments == null || comments.isEmpty
-                ? ''
-                : '${comments.length}',
-            tooltip: 'Commenti',
-          ),
-        ],
-        const Spacer(),
-        // **Segnalare sta qui, non dentro un menu di secondo livello.**
-        //
-        // Chi ha davanti una cosa che non dovrebbe esserci la sta guardando a
-        // tutto schermo, in questo momento: e' l'unico istante in cui
-        // segnalera'. Nascosto dietro due tocchi, il comando esiste per le
-        // linee guida e non per le persone.
-        //
-        // Non compare sulle proprie foto: segnalare se stessi non vuol dire
-        // niente.
-        if (entry.userId != ref.watch(currentUserIdProvider))
-          _Action(
-            onTap: () => showReportSheet(
-              context,
-              ref,
-              kind: ReportTargetKind.entry,
-              reportedUserId: entry.userId,
-              reportedUsername: entry.authorName,
-              challengeId: entry.challengeId,
-              entryId: entry.id,
-            ),
-            icon: Icons.flag_outlined,
-            color: AppColors.paper,
-            label: '',
-            tooltip: 'Segnala o blocca',
-          ),
-        const SizedBox(width: AppSpacing.lg),
-        // Condividere non sta nascosto in un menu: e' il gesto con cui chi e'
-        // in gara si porta dentro i voti, ed e' anche il modo in cui CRASY
-        // incontra gente che non la conosce.
+      ],
+      if (!vertical) const Spacer(),
+      // **Segnalare sta qui, non dentro un menu di secondo livello.**
+      //
+      // Chi ha davanti una cosa che non dovrebbe esserci la sta guardando a
+      // tutto schermo, in questo momento: e' l'unico istante in cui
+      // segnalera'. Nascosto dietro due tocchi, il comando esiste per le
+      // linee guida e non per le persone.
+      //
+      // Non compare sulle proprie foto: segnalare se stessi non vuol dire
+      // niente.
+      if (entry.userId != ref.watch(currentUserIdProvider))
         _Action(
-          onTap: () => ShareEntry.send(
+          onTap: () => showReportSheet(
             context,
+            ref,
+            kind: ReportTargetKind.entry,
+            reportedUserId: entry.userId,
+            reportedUsername: entry.authorName,
             challengeId: entry.challengeId,
             entryId: entry.id,
-            challengeTitle: entry.challengeTitle,
-            // Solo il nome: il link non porta il file, perche' la foto si
-            // guarda dentro l'app e da nessun'altra parte. Vedi
-            // `ShareEntry.linkTo`.
-            authorName: entry.authorName,
-            ended: !live,
           ),
-          icon: Icons.ios_share_rounded,
+          icon: Icons.flag_outlined,
           color: AppColors.paper,
           label: '',
-          tooltip: 'Condividi',
+          tooltip: 'Segnala o blocca',
+          vertical: vertical,
         ),
+      if (!vertical) const SizedBox(width: AppSpacing.lg),
+      // Condividere non sta nascosto in un menu: e' il gesto con cui chi e'
+      // in gara si porta dentro i voti, ed e' anche il modo in cui CRASY
+      // incontra gente che non la conosce.
+      _Action(
+        onTap: () => ShareEntry.send(
+          context,
+          challengeId: entry.challengeId,
+          entryId: entry.id,
+          challengeTitle: entry.challengeTitle,
+          // Solo il nome: il link non porta il file, perche' la foto si
+          // guarda dentro l'app e da nessun'altra parte. Vedi
+          // `ShareEntry.linkTo`.
+          authorName: entry.authorName,
+          ended: !live,
+        ),
+        icon: Icons.ios_share_rounded,
+        color: AppColors.paper,
+        label: '',
+        tooltip: 'Condividi',
+        vertical: vertical,
+      ),
+    ];
+
+    if (!vertical) {
+      return Row(children: actions);
+    }
+
+    // Nel flusso video il numero va sotto la sua icona, non di lato: la
+    // colonna resta stretta e ogni gesto ha una zona di tocco separata.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var index = 0; index < actions.length; index++) ...[
+          actions[index],
+          if (index < actions.length - 1) const SizedBox(height: AppSpacing.md),
+        ],
       ],
     );
   }
@@ -522,6 +549,7 @@ class _Action extends StatelessWidget {
     required this.color,
     required this.label,
     required this.tooltip,
+    this.vertical = false,
   });
 
   final VoidCallback? onTap;
@@ -529,6 +557,7 @@ class _Action extends StatelessWidget {
   final Color color;
   final String label;
   final String tooltip;
+  final bool vertical;
 
   @override
   Widget build(BuildContext context) {
@@ -543,12 +572,13 @@ class _Action extends StatelessWidget {
           // punti un comando si manca, e mancarlo qui vuol dire togliere una
           // fiamma per sbaglio.
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-          child: Row(
+          child: Flex(
+            direction: vertical ? Axis.vertical : Axis.horizontal,
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 26, color: color),
               if (label.isNotEmpty) ...[
-                const SizedBox(width: 6),
+                SizedBox(width: vertical ? 0 : 6, height: vertical ? 3 : 0),
                 Text(
                   label,
                   style: Theme.of(
