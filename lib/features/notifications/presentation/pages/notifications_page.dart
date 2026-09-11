@@ -121,7 +121,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       final userId = ref.read(currentUserIdProvider);
 
       if (repository != null && userId != null) {
-        repository.markSeen(userId);
+        unawaited(repository.markSeen(userId));
       }
     });
   }

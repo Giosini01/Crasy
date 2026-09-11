@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/services/refresh/auto_refresh.dart';
 import 'package:crasy/core/theme/app_theme.dart';
@@ -73,6 +75,13 @@ class _CrasyAppState extends ConsumerState<CrasyApp> {
 
   /// Prende il tocco, e decide se e' il momento di usarlo.
   void _prendi(PushTap dove) {
+    // Il tap e' gia' una lettura, anche se porta direttamente a una challenge
+    // terminata invece che alla campanella. Aspettare solo `NotificationsPage`
+    // lasciava il badge acceso per quel flusso.
+    if (dove.notificationId case final id? when id.isNotEmpty) {
+      unawaited(markNotificationsSeen(ref));
+    }
+
     final adesso = ref.read(sessionLandingRouteProvider);
 
     if (!AppRoutes.tabs.contains(adesso)) {

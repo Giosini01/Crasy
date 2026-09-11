@@ -39,7 +39,12 @@ class FirestoreNotificationsRepository {
   /// istante prima che il server le assegnasse l'ora sparirebbe dall'elenco
   /// invece di comparire in cima.
   Stream<List<AppNotification>> watch(String userId) {
-    return _inbox(userId).limit(60).snapshots().map((snapshot) {
+    // Non limitare una query senza un ordinamento: Firestore non promette che
+    // i primi documenti siano i piu' recenti. Con molte notifiche una riga
+    // nuova poteva quindi restare fuori dalla campanella e dal suo badge.
+    // L'ordinamento resta in memoria anche per includere senza ritardi i
+    // timestamp locali appena scritti.
+    return _inbox(userId).snapshots().map((snapshot) {
       final items = [
         for (final document in snapshot.docs)
           _from(document.id, document.data()),

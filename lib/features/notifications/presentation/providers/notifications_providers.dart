@@ -140,6 +140,18 @@ final unreadNotificationsProvider = Provider<int>((ref) {
       .length;
 });
 
+/// Segna la casella come letta attraverso l'unica verita' gia' usata dalla
+/// campanella. Il tap push lo chiama anche quando la destinazione non e' la
+/// pagina delle notifiche (per esempio una challenge terminata).
+Future<void> markNotificationsSeen(WidgetRef ref) async {
+  final repository = ref.read(notificationsRepositoryProvider);
+  final userId = ref.read(currentUserIdProvider);
+
+  if (repository != null && userId != null) {
+    await repository.markSeen(userId);
+  }
+}
+
 /// Il registro dei dispositivi per le notifiche.
 final pushRegistryProvider = Provider<PushRegistry?>((ref) {
   if (!ref.watch(firebaseBootstrapResultProvider).isConfigured) {
@@ -218,6 +230,7 @@ typedef PushTap = ({
   String scheda,
   String? apri,
   String? evidenzia,
+  String? notificationId,
 
   /// Se l'app era **chiusa** e l'ha aperta questa notifica.
   ///
@@ -265,6 +278,7 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
         scheda: AppRoutes.challenges,
         apri: null,
         evidenzia: null,
+        notificationId: null,
         daFermo: daFermo,
         quando: DateTime.now().microsecondsSinceEpoch,
       );
@@ -285,6 +299,7 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
           scheda: AppRoutes.challenges,
           apri: AppRoutes.challengeDetailOf(gara),
           evidenzia: null,
+          notificationId: messaggio.data['notificationId'],
           daFermo: daFermo,
           quando: DateTime.now().microsecondsSinceEpoch,
         );
@@ -300,6 +315,7 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
         scheda: AppRoutes.profile,
         apri: AppRoutes.friends,
         evidenzia: null,
+        notificationId: null,
         daFermo: daFermo,
         quando: DateTime.now().microsecondsSinceEpoch,
       );
@@ -311,6 +327,7 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
       scheda: AppRoutes.challenges,
       apri: AppRoutes.notifications,
       evidenzia: messaggio.data['notificationId'],
+      notificationId: messaggio.data['notificationId'],
       daFermo: daFermo,
       quando: DateTime.now().microsecondsSinceEpoch,
     );

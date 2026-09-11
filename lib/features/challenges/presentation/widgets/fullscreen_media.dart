@@ -161,16 +161,12 @@ class _FullscreenMediaState extends ConsumerState<FullscreenMedia> {
               ],
             ),
           ),
-          // I video si guardano come un flusso: i gesti principali stanno
-          // sotto il pollice, in colonna sul lato destro, senza rubare spazio
-          // alla didascalia in basso. Le foto mantengono invece la barra
-          // orizzontale, che lascia il bordo dell'immagine completamente libero.
-          if (current.isVideo)
-            Positioned(
-              right: AppSpacing.sm,
-              bottom: 164,
-              child: SafeArea(child: _Actions(entry: current, vertical: true)),
-            ),
+          // Foto e video espongono gli stessi comandi sotto il pollice.
+          Positioned(
+            right: AppSpacing.sm,
+            bottom: current.isVideo ? 164 : 132,
+            child: SafeArea(child: _Actions(entry: current, vertical: true)),
+          ),
         ],
       ),
     );
@@ -416,7 +412,6 @@ class _BottomBar extends ConsumerWidget {
           // guardando un'immagine a tutto schermo non deve esserci niente
           // appoggiato sopra. Condividi sta staccato, all'altro capo: gli altri
           // due parlano alla gara, quello parla a chi sta fuori.
-          if (!entry.isVideo) _Actions(entry: entry),
         ],
       ),
     );
@@ -542,7 +537,7 @@ class _Actions extends ConsumerWidget {
 }
 
 /// Un comando della riga: l'icona e, accanto, il suo numero.
-class _Action extends StatelessWidget {
+class _Action extends StatefulWidget {
   const _Action({
     required this.onTap,
     required this.icon,
@@ -560,33 +555,91 @@ class _Action extends StatelessWidget {
   final bool vertical;
 
   @override
+  State<_Action> createState() => _ActionState();
+}
+
+class _ActionState extends State<_Action> {
+  var _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: tooltip,
+      label: widget.tooltip,
       child: GestureDetector(
-        onTap: onTap,
+        onTapDown: widget.onTap == null
+            ? null
+            : (_) => setState(() => _pressed = true),
+        onTapCancel: () => setState(() => _pressed = false),
+        onTapUp: widget.onTap == null
+            ? null
+            : (_) {
+                setState(() => _pressed = false);
+                widget.onTap?.call();
+              },
         behavior: HitTestBehavior.opaque,
-        child: Padding(
-          // Il bersaglio e' piu' grande dell'icona: sotto i quarantaquattro
-          // punti un comando si manca, e mancarlo qui vuol dire togliere una
-          // fiamma per sbaglio.
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-          child: Flex(
-            direction: vertical ? Axis.vertical : Axis.horizontal,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 26, color: color),
-              if (label.isNotEmpty) ...[
-                SizedBox(width: vertical ? 0 : 6, height: vertical ? 3 : 0),
-                Text(
-                  label,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleMedium?.copyWith(color: color),
+        child: AnimatedScale(
+          scale: _pressed ? .9 : 1,
+          duration: const Duration(milliseconds: 110),
+          curve: Curves.easeOut,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: _pressed ? .25 : .18),
+                  Colors.black.withValues(alpha: .30),
+                ],
+              ),
+              border: Border.all(color: Colors.white.withValues(alpha: .24)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x55000000),
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
                 ),
               ],
-            ],
+            ),
+            child: Flex(
+              direction: widget.vertical ? Axis.vertical : Axis.horizontal,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  transitionBuilder: (child, animation) =>
+                      ScaleTransition(scale: animation, child: child),
+                  child: Icon(
+                    widget.icon,
+                    key: ValueKey(widget.icon),
+                    size: 27,
+                    color: widget.color,
+                  ),
+                ),
+                if (widget.label.isNotEmpty) ...[
+                  SizedBox(
+                    width: widget.vertical ? 0 : 6,
+                    height: widget.vertical ? 3 : 0,
+                  ),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    transitionBuilder: (child, animation) =>
+                        ScaleTransition(scale: animation, child: child),
+                    child: Text(
+                      widget.label,
+                      key: ValueKey(widget.label),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: widget.color,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ),

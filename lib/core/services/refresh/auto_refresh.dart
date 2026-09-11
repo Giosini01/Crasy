@@ -90,7 +90,12 @@ class _AutoRefreshState extends ConsumerState<AutoRefresh>
       ..invalidate(endedChallengesProvider)
       ..invalidate(myEntriesProvider)
       ..invalidate(myFriendsProvider)
-      ..invalidate(incomingRequestsProvider);
+      ..invalidate(incomingRequestsProvider)
+      // Riaggancia sia elenco sia watermark al ritorno in primo piano: il
+      // badge della Home non deve restare su una copia sospesa mentre l'app
+      // era in background.
+      ..invalidate(storedNotificationsProvider)
+      ..invalidate(notificationsSeenAtProvider);
   }
 
   @override

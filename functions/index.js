@@ -9,6 +9,7 @@ const { setGlobalOptions } = require('firebase-functions/v2');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
 const vision = require('@google-cloud/vision');
+const videoIntelligence = require('@google-cloud/video-intelligence');
 
 admin.initializeApp();
 
@@ -325,7 +326,30 @@ async function mandaAUnaPersona(userId, corpo, dati) {
  * a poterla rivedere se qualcuno contesta, e a capire se il controllo sta
  * sbagliando troppo spesso.
  */
-const BLOCKED_LIKELIHOODS = new Set(['LIKELY', 'VERY_LIKELY']);
+// SafeSearch distingue il nudo dal contenuto semplicemente allusivo: un
+// costume, lo sport o la spiaggia possono essere `racy`, ma non sono vietati.
+const BLOCKED_ADULT_LIKELIHOODS = new Set(['LIKELY', 'VERY_LIKELY']);
+const BLOCKED_RACY_LIKELIHOODS = new Set(['VERY_LIKELY']);
+const BLOCKED_VIOLENCE_LIKELIHOODS = new Set(['LIKELY', 'VERY_LIKELY']);
+
+function reasonsFromSafeSearch(safeSearch) {
+  const reasons = [];
+  if (BLOCKED_ADULT_LIKELIHOODS.has(safeSearch?.adult)) reasons.push('nudita/sesso');
+  if (BLOCKED_RACY_LIKELIHOODS.has(safeSearch?.racy)) reasons.push('contenuto sessuale esplicito');
+  if (BLOCKED_VIOLENCE_LIKELIHOODS.has(safeSearch?.violence)) reasons.push('violenza');
+  return reasons;
+}
+
+async function moderateVideo(uri) {
+  const client = new videoIntelligence.v1.VideoIntelligenceServiceClient();
+  const [operation] = await client.annotateVideo({
+    inputUri: uri,
+    features: ['EXPLICIT_CONTENT_DETECTION'],
+  });
+  const [result] = await operation.promise();
+  const frames = result.annotationResults?.[0]?.explicitAnnotation?.frames || [];
+  return frames.some((frame) => BLOCKED_ADULT_LIKELIHOODS.has(frame.pornographyLikelihood));
+}
 
 exports.moderateEntryPhoto = onDocumentCreated(
   'challenges/{challengeId}/entries/{entryId}',
@@ -346,15 +370,18 @@ exports.moderateEntryPhoto = onDocumentCreated(
     }
 
     const bucket = admin.storage().bucket().name;
-    const client = new vision.ImageAnnotatorClient();
-
-    let safeSearch;
+    const mediaKind = snapshot.get('mediaKind') || 'photo';
+    let reasons;
 
     try {
-      const [result] = await client.safeSearchDetection(
-        `gs://${bucket}/${storagePath}`
-      );
-      safeSearch = result.safeSearchAnnotation;
+      const uri = `gs://${bucket}/${storagePath}`;
+      if (mediaKind === 'video') {
+        reasons = await moderateVideo(uri) ? ['nudita/sesso esplicito'] : [];
+      } else {
+        const client = new vision.ImageAnnotatorClient();
+        const [result] = await client.safeSearchDetection(uri);
+        reasons = reasonsFromSafeSearch(result.safeSearchAnnotation);
+      }
     } catch (error) {
       // Se il controllo non riesce, la foto **resta in attesa**. Non si
       // approva per comodita': un guasto nostro non puo' diventare il motivo
@@ -362,20 +389,6 @@ exports.moderateEntryPhoto = onDocumentCreated(
       logger.error(`Controllo fallito su ${snapshot.id}`, error);
 
       return;
-    }
-
-    const reasons = [];
-
-    if (BLOCKED_LIKELIHOODS.has(safeSearch?.adult)) {
-      reasons.push('nudita/sesso');
-    }
-
-    if (BLOCKED_LIKELIHOODS.has(safeSearch?.racy)) {
-      reasons.push('contenuto allusivo');
-    }
-
-    if (BLOCKED_LIKELIHOODS.has(safeSearch?.violence)) {
-      reasons.push('violenza');
     }
 
     const rejected = reasons.length > 0;

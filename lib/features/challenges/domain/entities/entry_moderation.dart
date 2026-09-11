@@ -45,6 +45,7 @@ enum EntryModeration {
 /// vedere, e nel codice non cambia nient'altro.
 ///
 ///     flutter run --dart-define=CRASY_PHOTO_MODERATION=true
-const bool photoModerationEnabled = bool.fromEnvironment(
-  'CRASY_PHOTO_MODERATION',
-);
+// La funzione server e' parte del deploy di produzione: una partecipazione non
+// deve diventare pubblica prima del controllo, indipendentemente dalla build
+// con cui e' stata caricata.
+const bool photoModerationEnabled = true;
