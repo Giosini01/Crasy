@@ -18,6 +18,9 @@ import 'package:go_router/go_router.dart';
 
 /// Cosa scelgo di guardare qui dentro.
 enum FriendActivityView {
+  /// Le missioni private che vivono nel gruppo di amici.
+  party('PARTY'),
+
   /// Le gare riservate che ho lanciato io.
   mine('LE TUE'),
 
@@ -73,6 +76,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
     final missions = ref.watch(friendChallengesProvider);
     final entries = ref.watch(friendEntriesProvider);
     final mine = ref.watch(myFriendChallengesProvider);
+    final party = ref.watch(partyChallengesProvider);
     final problema = ref.watch(friendActivityProblemProvider);
 
     // **Si apre sempre su LE TUE, anche quando e' vuota.**
@@ -118,6 +122,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                     const SizedBox(height: AppSpacing.lg),
                     _Switch(
                       mine: mine.length,
+                      party: party.length,
                       missions: missions.length,
                       entries: entries.length,
                     ),
@@ -131,7 +136,22 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                       ),
                       const SizedBox(height: AppSpacing.lg),
                     ],
-                    if (view == FriendActivityView.mine) ...[
+                    if (view == FriendActivityView.party) ...[
+                      const _PartyIntro(),
+                      const SizedBox(height: AppSpacing.md),
+                      _LaunchForFriends(quante: mine.length),
+                      const SizedBox(height: AppSpacing.lg),
+                      if (party.isEmpty)
+                        const EmptyState(
+                          title: 'Il party e pronto',
+                          message:
+                              'Lancia la prima missione per gli amici: la vedete '
+                              'solo voi, e puo anche essere gratis.',
+                        )
+                      else
+                        for (final challenge in party)
+                          _MissionRow(challenge: challenge),
+                    ] else if (view == FriendActivityView.mine) ...[
                       // **Da qui si lancia una missione per i soli amici.**
                       //
                       // Sta in cima e non in fondo perche' quando questa sezione e'
@@ -192,11 +212,13 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
 class _Switch extends ConsumerWidget {
   const _Switch({
     required this.mine,
+    required this.party,
     required this.missions,
     required this.entries,
   });
 
   final int mine;
+  final int party;
   final int missions;
   final int entries;
 
@@ -207,6 +229,7 @@ class _Switch extends ConsumerWidget {
     final selected = ref.watch(friendActivityViewProvider);
 
     int quante(FriendActivityView view) => switch (view) {
+      FriendActivityView.party => party,
       FriendActivityView.mine => mine,
       FriendActivityView.missions => missions,
       FriendActivityView.entries => entries,
@@ -253,6 +276,22 @@ class _Switch extends ConsumerWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Una sola frase: chiarisce che il party e' privato, non un altro feed.
+class _PartyIntro extends StatelessWidget {
+  const _PartyIntro();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+
+    return Text(
+      'Le vostre missioni private. Qui entrano solo i tuoi amici.',
+      style: texts.bodyMedium?.copyWith(color: palette.textSecondary),
     );
   }
 }

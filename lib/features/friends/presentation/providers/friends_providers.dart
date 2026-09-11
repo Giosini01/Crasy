@@ -212,7 +212,7 @@ class FriendActions {
   }
 }
 
-/// Le gare aperte **lanciate dai miei amici**.
+/// Le gare pubbliche aperte **lanciate dai miei amici**.
 ///
 /// Non costa una lettura in piu': le gare aperte l'app ce le ha gia' tutte in
 /// mano per la home, e qui si tengono solo quelle scritte da qualcuno che
@@ -228,16 +228,11 @@ final friendChallengesProvider = Provider<List<Challenge>>((ref) {
   final loro = {for (final amico in friends) amico.userId};
   final live = ref.watch(liveChallengesProvider).valueOrNull ?? const [];
 
-  // Le pubbliche piu' quelle che hanno riservato a noi. Le riservate non
+  // Le private vivono nel PARTY: qui restano solo quelle pubbliche.
   // passano dalla home — la home chiede solo le gare aperte a tutti — quindi se
   // non le raccogliessimo qui non si vedrebbero da nessuna parte.
-  final riservate =
-      ref.watch(reservedChallengesProvider).valueOrNull ?? const <Challenge>[];
-
   return [
     for (final challenge in live)
-      if (loro.contains(challenge.createdByUserId)) challenge,
-    for (final challenge in riservate)
       if (loro.contains(challenge.createdByUserId)) challenge,
   ];
 });
@@ -368,4 +363,22 @@ final myFriendChallengesProvider = Provider<List<Challenge>>((ref) {
     for (final challenge in riservate)
       if (challenge.createdByUserId == userId) challenge,
   ];
+});
+
+/// Il party: tutte le missioni aperte riservate al mio gruppo di amici.
+///
+/// Non e' una nuova privacy da mantenere: sono esattamente le gare che il
+/// database ha gia' deciso che posso vedere. Qui si cambia solo il modo di
+/// presentarle, riunendo le mie e quelle degli amici in un posto esplicito.
+final partyChallengesProvider = Provider<List<Challenge>>((ref) {
+  final now = DateTime.now();
+  final riservate =
+      ref.watch(reservedChallengesProvider).valueOrNull ?? const <Challenge>[];
+
+  final party = [
+    for (final challenge in riservate)
+      if (challenge.isForFriends && challenge.isLiveAt(now)) challenge,
+  ]..sort((a, b) => a.endsAt.compareTo(b.endsAt));
+
+  return party;
 });

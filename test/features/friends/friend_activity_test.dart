@@ -147,6 +147,7 @@ void main() {
     expect(container.read(friendChallengesProvider).map((c) => c.id), [
       'party',
     ]);
+    expect(container.read(partyChallengesProvider).map((c) => c.id), ['party']);
     expect(container.read(friendEntriesProvider).map((e) => e.id), [
       'nel-party',
     ]);
