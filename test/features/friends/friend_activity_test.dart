@@ -144,9 +144,7 @@ void main() {
 
     await attendi(container, ['amico']);
 
-    expect(container.read(friendChallengesProvider).map((c) => c.id), [
-      'party',
-    ]);
+    expect(container.read(friendChallengesProvider), isEmpty);
     expect(container.read(partyChallengesProvider).map((c) => c.id), ['party']);
     expect(container.read(friendEntriesProvider).map((e) => e.id), [
       'nel-party',

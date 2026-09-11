@@ -22,10 +22,8 @@ enum FriendActivityView {
   party('PARTY'),
 
   /// Le gare riservate che ho lanciato io.
-  mine('LE TUE'),
-
   /// Le gare che hanno lanciato loro.
-  missions('LE LORO'),
+  missions('LANCIATE'),
 
   /// Le foto con cui sono in gara adesso.
   ///
@@ -46,7 +44,7 @@ enum FriendActivityView {
 /// entrare in una gara con un amico e' il motivo per cui questa schermata
 /// esiste. Le foto vengono dopo, che si guardano e basta.
 final friendActivityViewProvider = StateProvider<FriendActivityView>(
-  (ref) => FriendActivityView.mine,
+  (ref) => FriendActivityView.party,
 );
 
 /// **Attivita' amici**: le gare che hanno lanciato, le foto con cui sono in
@@ -75,7 +73,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
     final view = ref.watch(friendActivityViewProvider);
     final missions = ref.watch(friendChallengesProvider);
     final entries = ref.watch(friendEntriesProvider);
-    final mine = ref.watch(myFriendChallengesProvider);
+    final mine = const <Challenge>[];
     final party = ref.watch(partyChallengesProvider);
     final problema = ref.watch(friendActivityProblemProvider);
 
@@ -139,7 +137,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                     if (view == FriendActivityView.party) ...[
                       const _PartyIntro(),
                       const SizedBox(height: AppSpacing.md),
-                      _LaunchForFriends(quante: mine.length),
+                      const _LaunchForFriends(quante: 0),
                       const SizedBox(height: AppSpacing.lg),
                       if (party.isEmpty)
                         const EmptyState(
@@ -151,7 +149,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                       else
                         for (final challenge in party)
                           _MissionRow(challenge: challenge),
-                    ] else if (view == FriendActivityView.mine) ...[
+                    ] else if (view == FriendActivityView.party && mine.isNotEmpty) ...[
                       // **Da qui si lancia una missione per i soli amici.**
                       //
                       // Sta in cima e non in fondo perche' quando questa sezione e'
@@ -230,7 +228,6 @@ class _Switch extends ConsumerWidget {
 
     int quante(FriendActivityView view) => switch (view) {
       FriendActivityView.party => party,
-      FriendActivityView.mine => mine,
       FriendActivityView.missions => missions,
       FriendActivityView.entries => entries,
     };
