@@ -324,7 +324,8 @@ class Challenge {
   /// Sta al posto della cifra e non accanto: quel numero rosso e' la prima cosa
   /// che si legge di una gara, e su questa la risposta alla domanda "quanto si
   /// vince" e' che non si vince niente — si gioca.
-  String get prizeLabel => isDaily ? 'GRATIS' : AppMoney.format(prizeCents);
+  String get prizeLabel =>
+      prizeCents == 0 ? 'GRATIS' : AppMoney.format(prizeCents);
 
   /// L'etichetta dell'ambito: il luogo se c'e', altrimenti la parola di
   /// ripiego dell'ambito.

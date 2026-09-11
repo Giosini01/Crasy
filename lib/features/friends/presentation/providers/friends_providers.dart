@@ -272,6 +272,13 @@ final friendEntriesProvider = Provider<List<ChallengeEntry>>((ref) {
     for (final challenge
         in ref.watch(liveChallengesProvider).valueOrNull ?? const <Challenge>[])
       challenge.id,
+    // Le gare del party non passano dalla query pubblica della home. Sono
+    // pero' gare aperte esattamente come le altre: se un amico ci manda una
+    // foto, deve comparire anche in "IN GARA", non solo dentro "LE LORO".
+    for (final challenge
+        in ref.watch(reservedChallengesProvider).valueOrNull ??
+            const <Challenge>[])
+      if (challenge.isLiveAt(DateTime.now())) challenge.id,
   };
 
   final loro = {for (final amico in friends) amico.userId};

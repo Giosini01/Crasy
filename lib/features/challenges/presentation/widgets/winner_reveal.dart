@@ -528,97 +528,100 @@ class _Proclamazione extends StatelessWidget {
     final scala = 0.82 + 0.18 * Curves.easeOutBack.transform(entrata);
 
     return SafeArea(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _Grossa(testo: mine ? 'HAI VINTO' : 'HA VINTO', corpo: mine ? 40 : 34),
-          // **Due, non venti.** La frase e la foto sono una cosa sola:
-          // staccate sembrano un titolo e un'immagine finite nella stessa
-          // schermata per caso. Appiccicate si leggono in un colpo d'occhio
-          // solo — e questo momento dura cinque secondi, non c'e' tempo per
-          // due colpi d'occhio.
-          const SizedBox(height: 2),
-          // **Se ha vinto un video, non si mostra niente.**
-          //
-          // Un lettore video che si apre dentro un'animazione da cinque secondi
-          // non fa in tempo: resta un rettangolo nero per tutta la durata, e il
-          // momento piu' importante dell'app diventa un buco. Il primo
-          // fotogramma non ce l'abbiamo — i video non hanno una miniatura — e
-          // tirarlo fuori qui vorrebbe dire aprire comunque quel lettore.
-          //
-          // Allora si toglie: restano la frase, il nome e il premio, che sono
-          // la notizia. Il video si guarda dopo, nella gara, dove ha il tempo
-          // di caricarsi.
-          if (!winner.isVideo)
-            Flexible(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 44),
-                child: Center(
-                  child: Transform.scale(
-                    scale: scala,
-                    child: _Faccia(entry: winner),
+      child: Transform.translate(
+        offset: const Offset(0, 16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const _Grossa(testo: 'HA VINTO', corpo: 34),
+            // **Due, non venti.** La frase e la foto sono una cosa sola:
+            // staccate sembrano un titolo e un'immagine finite nella stessa
+            // schermata per caso. Appiccicate si leggono in un colpo d'occhio
+            // solo — e questo momento dura cinque secondi, non c'e' tempo per
+            // due colpi d'occhio.
+            const SizedBox(height: 2),
+            // **Se ha vinto un video, non si mostra niente.**
+            //
+            // Un lettore video che si apre dentro un'animazione da cinque secondi
+            // non fa in tempo: resta un rettangolo nero per tutta la durata, e il
+            // momento piu' importante dell'app diventa un buco. Il primo
+            // fotogramma non ce l'abbiamo — i video non hanno una miniatura — e
+            // tirarlo fuori qui vorrebbe dire aprire comunque quel lettore.
+            //
+            // Allora si toglie: restano la frase, il nome e il premio, che sono
+            // la notizia. Il video si guarda dopo, nella gara, dove ha il tempo
+            // di caricarsi.
+            if (!winner.isVideo)
+              Flexible(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 44),
+                  child: Center(
+                    child: Transform.scale(
+                      scale: scala,
+                      child: _Faccia(entry: winner),
+                    ),
                   ),
                 ),
               ),
-            ),
-          const SizedBox(height: 2),
-          Opacity(
-            opacity: entrata,
-            child: SizedBox(
-              // Senza la foto il nome e' l'unica cosa rimasta a schermo, e
-              // sta piu' comodo: quei settantadue punti servivano a non far
-              // saltare la foto, e la foto qui non c'e'.
-              height: winner.isVideo ? 140 : 72,
-              // **Rimpicciolisce invece di traboccare.** Un nome lungo, o un
-              // premio a quattro cifre, uscivano dal riquadro e lasciavano a
-              // schermo la riga a strisce gialle e nere — proprio sopra la
-              // vittoria.
-              // **In cima al suo riquadro, non in mezzo.** Il riquadro e'
-              // alto settantadue per tenere il posto anche prima che il nome
-              // compaia — senza, la foto salterebbe verso l'alto proprio
-              // nell'istante in cui deve stare ferma. Ma con il nome centrato
-              // dentro, quel riquadro gli metteva attorno una decina di punti
-              // di aria che nessuno aveva chiesto, e il nome finiva staccato
-              // dalla foto. In cima, il posto resta occupato e il nome sta
-              // appena sotto la cornice.
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '@${winner.authorName}',
-                        style: TextStyle(
-                          color: Colors.white,
-                          // **Senza la foto, il nome cresce.** Quando ha vinto
-                          // un video non c'e' nient'altro a schermo: lasciarlo
-                          // della misura di una didascalia sotto un riquadro
-                          // che non esiste piu' lo farebbe sembrare un
-                          // dettaglio, invece della notizia.
-                          fontSize: winner.isVideo ? 30 : 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      if (challenge.prizeCents > 0) ...[
-                        const SizedBox(height: 4),
+            const SizedBox(height: 2),
+            Opacity(
+              opacity: entrata,
+              child: SizedBox(
+                // Senza la foto il nome e' l'unica cosa rimasta a schermo, e
+                // sta piu' comodo: quei settantadue punti servivano a non far
+                // saltare la foto, e la foto qui non c'e'.
+                height: winner.isVideo ? 140 : 72,
+                // **Rimpicciolisce invece di traboccare.** Un nome lungo, o un
+                // premio a quattro cifre, uscivano dal riquadro e lasciavano a
+                // schermo la riga a strisce gialle e nere — proprio sopra la
+                // vittoria.
+                // **In cima al suo riquadro, non in mezzo.** Il riquadro e'
+                // alto settantadue per tenere il posto anche prima che il nome
+                // compaia — senza, la foto salterebbe verso l'alto proprio
+                // nell'istante in cui deve stare ferma. Ma con il nome centrato
+                // dentro, quel riquadro gli metteva attorno una decina di punti
+                // di aria che nessuno aveva chiesto, e il nome finiva staccato
+                // dalla foto. In cima, il posto resta occupato e il nome sta
+                // appena sotto la cornice.
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                         Text(
-                          AppMoney.format(challenge.prizeCents),
-                          style: const TextStyle(
-                            color: AppColors.crasyRed,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
+                          '@${winner.authorName}',
+                          style: TextStyle(
+                            color: Colors.white,
+                            // **Senza la foto, il nome cresce.** Quando ha vinto
+                            // un video non c'e' nient'altro a schermo: lasciarlo
+                            // della misura di una didascalia sotto un riquadro
+                            // che non esiste piu' lo farebbe sembrare un
+                            // dettaglio, invece della notizia.
+                            fontSize: winner.isVideo ? 30 : 20,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
+                        if (challenge.prizeCents > 0) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            AppMoney.format(challenge.prizeCents),
+                            style: const TextStyle(
+                              color: AppColors.crasyRed,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -665,7 +668,7 @@ class _Grossa extends StatelessWidget {
               ..style = PaintingStyle.stroke
               ..strokeWidth = corpo * _spessore
               ..strokeJoin = StrokeJoin.round
-              ..color = AppColors.crasyRed,
+              ..color = const Color(0xFFFFD34D),
             null,
           ),
         ),
@@ -696,10 +699,10 @@ class _Faccia extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.crasyRed, width: 3),
+          border: Border.all(color: const Color(0xFFFFD34D), width: 3),
           boxShadow: const <BoxShadow>[
             BoxShadow(
-              color: Color(0x55FA0000),
+              color: Color(0x66FFD34D),
               blurRadius: 44,
               spreadRadius: 2,
             ),

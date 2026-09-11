@@ -48,6 +48,7 @@ void main() {
   ProviderContainer containerWith({
     required List<String> friends,
     List<Challenge> live = const [],
+    List<Challenge> reserved = const [],
     List<ChallengeEntry> entries = const [],
   }) {
     final ids = [for (final amico in friends) amico];
@@ -60,6 +61,9 @@ void main() {
           ]),
         ),
         liveChallengesProvider.overrideWith((ref) => Stream.value(live)),
+        reservedChallengesProvider.overrideWith(
+          (ref) => Stream.value(reserved),
+        ),
         entriesOfManyProvider(
           usersKey(ids),
         ).overrideWith((ref) => Stream.value(entries)),
@@ -76,6 +80,7 @@ void main() {
     // vuote, e il test passerebbe per il motivo sbagliato.
     await container.read(myFriendsProvider.future);
     await container.read(liveChallengesProvider.future);
+    await container.read(reservedChallengesProvider.future);
 
     if (ids.isNotEmpty) {
       await container.read(entriesOfManyProvider(usersKey(ids)).future);
@@ -118,6 +123,34 @@ void main() {
       expect(container.read(friendEntriesProvider).map((e) => e.id), ['a']);
     },
   );
+
+  test('le foto degli amici nel party compaiono in IN GARA', () async {
+    final party = Challenge(
+      id: 'party',
+      title: 'Gara fra amici',
+      brief: 'Fai qualcosa insieme.',
+      createdByUserId: 'amico',
+      prizeCents: 0,
+      scope: ChallengeScope.friends,
+      startsAt: now,
+      endsAt: now.add(const Duration(hours: 4)),
+      audience: const ['io', 'amico'],
+    );
+    final container = containerWith(
+      friends: ['amico'],
+      reserved: [party],
+      entries: [entry(id: 'nel-party', challengeId: 'party', userId: 'amico')],
+    );
+
+    await attendi(container, ['amico']);
+
+    expect(container.read(friendChallengesProvider).map((c) => c.id), [
+      'party',
+    ]);
+    expect(container.read(friendEntriesProvider).map((e) => e.id), [
+      'nel-party',
+    ]);
+  });
 
   test('le foto piu\' recenti stanno in cima', () async {
     final container = containerWith(

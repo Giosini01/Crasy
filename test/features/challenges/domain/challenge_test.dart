@@ -62,6 +62,7 @@ void main() {
       expect(challenge().prizeLabel, '€500');
       expect(challenge(prizeCents: 125000).prizeLabel, '€1.250');
       expect(challenge(prizeCents: 9950).prizeLabel, '€99,50');
+      expect(challenge(prizeCents: 0).prizeLabel, 'GRATIS');
     });
 
     test('il luogo vince sull\'etichetta di ripiego dell\'ambito', () {

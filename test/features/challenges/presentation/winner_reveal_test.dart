@@ -58,11 +58,7 @@ void main() {
   Future<void> apri(WidgetTester tester, {required bool mine}) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: WinnerReveal(
-          challenge: gara,
-          winner: vincitrice,
-          mine: mine,
-        ),
+        home: WinnerReveal(challenge: gara, winner: vincitrice, mine: mine),
       ),
     );
   }
@@ -113,16 +109,21 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 6));
   });
 
-  testWidgets('al vincitore lo dice in faccia', (tester) async {
+  testWidgets('anche al vincitore mostra soltanto chi ha vinto', (
+    tester,
+  ) async {
     await apri(tester, mine: true);
     await tester.pump(const Duration(milliseconds: 2200));
 
-    expect(find.text('HAI VINTO'), findsNWidgets(2));
+    expect(find.text('HA VINTO'), findsNWidgets(2));
+    expect(find.text('HAI VINTO'), findsNothing);
 
     await tester.pumpAndSettle(const Duration(seconds: 6));
   });
 
-  testWidgets('se ha vinto un video non si apre nessun lettore', (tester) async {
+  testWidgets('se ha vinto un video non si apre nessun lettore', (
+    tester,
+  ) async {
     // **Era uno schermo nero.** Un lettore video dentro un'animazione da cinque
     // secondi non fa in tempo ad aprirsi: restava un rettangolo nero per tutta
     // la durata, e il momento piu' importante dell'app diventava un buco.
@@ -169,7 +170,7 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 7));
 
     expect(find.byKey(WinnerReveal.chiaveDeiTamburi), findsNothing);
-    expect(find.text('HAI VINTO'), findsNothing);
+    expect(find.text('HA VINTO'), findsNothing);
     expect(find.text('apri'), findsOneWidget);
   });
 
