@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/services/share/share_challenge.dart';
@@ -79,7 +78,25 @@ class ChallengeDetailPage extends ConsumerWidget {
               );
             }
 
-            return _Body(challenge: challenge);
+            // **La sassaiola sta qui, sopra tutta la pagina.**
+            //
+            // Stava attaccata alla foto profilo, in fondo alla lista, ed e' il
+            // motivo per cui non la vedeva nessuno: la pagina costruisce tutti
+            // i suoi pezzi subito, quindi l'animazione partiva e finiva mentre
+            // quel pezzo era ancora sotto il bordo dello schermo. Chi scorreva
+            // fin laggiu' arrivava sempre a cose fatte.
+            //
+            // La chiave porta dentro l'identificativo della missione: cosi'
+            // passando da una sfida rifiutata a un'altra la sassaiola
+            // ricomincia, invece di restare quella di prima gia' finita.
+            final rifiutata = challenge.isDuel && _fischiata(challenge);
+
+            return Stack(
+              children: [
+                _Body(challenge: challenge),
+                if (rifiutata) _PoopStorm(key: ValueKey(challenge.id)),
+              ],
+            );
           },
         ),
       ),
@@ -87,6 +104,18 @@ class ChallengeDetailPage extends ConsumerWidget {
           ? null
           : _BottomAction(challenge: challengeState.value!),
     );
+  }
+
+  /// Se questa sfida merita la sassaiola: ha detto di no, o ha lasciato finire
+  /// il tempo senza fare niente.
+  ///
+  /// Le sfide bocciate non entrano qui dentro, e non e' una dimenticanza: li' la
+  /// sfida l'ha fatta, e il no e' arrivato da chi l'aveva chiesta. Tirargli la
+  /// cacca sarebbe fischiare la persona sbagliata.
+  static bool _fischiata(Challenge challenge) {
+    final state = challenge.duelStateAt(DateTime.now());
+
+    return state == DuelState.declined || state == DuelState.expired;
   }
 
   /// Chi arriva qui da una notifica o da un link non ha una pagina precedente:
@@ -1156,15 +1185,17 @@ class _DuelOutcome extends ConsumerWidget {
         children: [
           // **Dove c'e' una figuraccia, la figuraccia ha una faccia.**
           //
-          // Su un rifiuto e su un tempo scaduto l'emoji da sola diceva la cosa
-          // giusta senza farla sentire: e' il fischio del pubblico, e un
-          // fischio senza nessuno a cui e' rivolto e' solo un disegno. Altrove
-          // — in attesa, accettata — resta l'emoji, perche' li' non c'e'
-          // niente da fischiare a nessuno.
+          // L'emoji da sola diceva la cosa giusta senza farla sentire: e' il
+          // fischio del pubblico, e un fischio senza nessuno a cui e' rivolto
+          // e' solo un disegno. La faccia resta pulita — a sporcare ci pensa
+          // la sassaiola sopra tutta la pagina, che poi se ne va: una cacca
+          // incollata qui sopra per sempre sarebbe una condanna, non uno
+          // sfottio.
           if (state == DuelState.declined || state == DuelState.expired)
-            _PoopSplat(
+            FriendAvatar(
               userId: challenge.targetUserId,
               username: challenge.targetUsername,
+              size: 64,
             )
           else
             Text(emoji, style: const TextStyle(fontSize: 34)),
@@ -1400,18 +1431,18 @@ class _DuelRules extends StatelessWidget {
   }
 }
 
-/// Una cacca sola, con la sua traiettoria.
+/// Una cacca sola della sassaiola, con la sua traiettoria.
 ///
-/// Sono scritte a mano e non tirate a caso: **a caso viene male.** Otto
-/// traiettorie casuali si accavallano, ne arrivano tre dallo stesso punto e due
-/// finiscono fuori dalla faccia — e la volta dopo e' un'altra cosa, quindi non
-/// si puo' nemmeno sistemare guardandola. Scritte, la sassaiola arriva da tutti
-/// i lati, si distribuisce sulla faccia e fa la stessa figura ogni volta.
-class _Splat {
-  const _Splat({
+/// Sono scritte a mano e non tirate a caso: **a caso viene male.** Venti
+/// traiettorie casuali si accavallano, ne arrivano tre dallo stesso punto e
+/// mezzo schermo resta pulito — e la volta dopo e' un'altra cosa, quindi non si
+/// puo' nemmeno sistemare guardandola. Scritte, la sassaiola arriva da tutti i
+/// lati e copre lo schermo in modo uguale ogni volta.
+class _Tiro {
+  const _Tiro({
     required this.parte,
-    required this.da,
     required this.dove,
+    required this.da,
     required this.grande,
     required this.storta,
   });
@@ -1420,11 +1451,13 @@ class _Splat {
   /// un blocco solo che si sposta, non una sassaiola.
   final double parte;
 
-  /// Da dove arriva, in multipli della faccia. Fuori dal riquadro da ogni lato.
-  final Offset da;
-
-  /// Dove atterra, in multipli del raggio della faccia.
+  /// Dove si spiaccica, in frazione di schermo: `(0,0)` in alto a sinistra,
+  /// `(1,1)` in basso a destra.
   final Offset dove;
+
+  /// Da che parte arriva. E' una direzione, non un punto: si moltiplica per la
+  /// misura dello schermo, cosi' parte sempre da fuori su qualunque telefono.
+  final Offset da;
 
   final double grande;
 
@@ -1432,106 +1465,71 @@ class _Splat {
   final double storta;
 }
 
-/// **La sassaiola di cacca su chi ha detto di no.**
+/// **La sassaiola di cacca, su tutto lo schermo.**
 ///
-/// E' la stessa cosa che dice la riga di testo sotto, detta nel modo in cui la
-/// direbbe un amico: non un'etichetta grigia con scritto "rifiutata", ma il
+/// E' la stessa cosa che dice la riga di testo sotto — *ha rifiutato la sfida*
+/// — detta nel modo in cui la direbbe un amico: non un'etichetta grigia, ma il
 /// lancio dagli spalti. Rifiutare una sfida d'onore e' l'unica mossa che non
 /// costa niente a chi la fa, e questo e' esattamente quanto deve costare —
 /// niente di piu' di una figuraccia fra amici, ma non zero.
 ///
-/// **Poi se ne vanno, e la faccia resta pulita.** Una cacca che resta incollata
-/// per sempre trasforma una battuta in una condanna: ogni volta che uno riapre
-/// quella missione se la ritrova addosso, e a quel punto non e' piu' uno
-/// sfottio fra amici. Volano, colpiscono, e spariscono — quello che resta
-/// scritto e' la riga di testo, che dice la stessa cosa senza infierire.
-class _PoopSplat extends StatefulWidget {
-  const _PoopSplat({required this.userId, required this.username});
-
-  final String userId;
-  final String username;
+/// **Sta sopra tutta la pagina, e non dentro l'elenco.** Era attaccata alla
+/// foto profilo, in fondo alla pagina, ed e' il motivo per cui non la vedeva
+/// nessuno: la pagina e' una lista che costruisce tutti i suoi pezzi subito,
+/// quindi l'animazione partiva e finiva mentre quel pezzo era ancora sotto il
+/// bordo dello schermo. Chi scorreva fin laggiu' arrivava sempre a cose fatte e
+/// trovava una cacca ferma incollata su una faccia — che e' il contrario di
+/// quello che doveva succedere.
+///
+/// **Sporca e poi si pulisce.** Le cacche restano appiccicate un secondo, poi
+/// colano via e spariscono: quello che resta e' la riga di testo. Una cacca
+/// incollata per sempre trasforma una battuta in una condanna — ogni volta che
+/// uno riapre quella missione se la ritrova addosso, e li' non e' piu' uno
+/// sfottio fra amici.
+class _PoopStorm extends StatefulWidget {
+  const _PoopStorm({super.key});
 
   @override
-  State<_PoopSplat> createState() => _PoopSplatState();
+  State<_PoopStorm> createState() => _PoopStormState();
 }
 
-class _PoopSplatState extends State<_PoopSplat>
+class _PoopStormState extends State<_PoopStorm>
     with SingleTickerProviderStateMixin {
-  /// Quanto e' grande la faccia sotto. Tutto il resto si misura su questa.
-  static const double _faccia = 96;
-
   /// Quanto dura il volo di una cacca, sulla durata intera.
-  static const double _volo = 0.20;
+  static const double _volo = 0.16;
 
   /// E quanto dura lo spiaccichio, subito dopo.
-  static const double _impatto = 0.07;
+  static const double _spiaccico = 0.05;
 
-  /// Quando comincia a sparire tutto.
-  static const double _svanisce = 0.74;
+  /// Quando lo schermo comincia a ripulirsi.
+  static const double _pulizia = 0.62;
 
-  /// La sassaiola. Otto, che e' il numero in cui si legge ancora ogni singolo
-  /// colpo: sopra diventa una macchia marrone e sotto sembra un errore.
-  static const List<_Splat> _tiri = [
-    _Splat(
-      parte: 0,
-      da: Offset(-1.6, -0.9),
-      dove: Offset(-0.30, -0.22),
-      grande: 30,
-      storta: -1.4,
-    ),
-    _Splat(
-      parte: 0.055,
-      da: Offset(1.7, -0.5),
-      dove: Offset(0.34, -0.05),
-      grande: 26,
-      storta: 1.6,
-    ),
-    _Splat(
-      parte: 0.105,
-      da: Offset(-1.4, 0.8),
-      dove: Offset(-0.16, 0.30),
-      grande: 34,
-      storta: -1.1,
-    ),
-    _Splat(
-      parte: 0.15,
-      da: Offset(0.3, -1.8),
-      dove: Offset(0.05, -0.34),
-      grande: 28,
-      storta: 0.9,
-    ),
-    _Splat(
-      parte: 0.2,
-      da: Offset(1.6, 0.9),
-      dove: Offset(0.26, 0.26),
-      grande: 32,
-      storta: 1.3,
-    ),
-    _Splat(
-      parte: 0.25,
-      da: Offset(-1.8, 0.1),
-      dove: Offset(-0.34, 0.06),
-      grande: 24,
-      storta: -1.7,
-    ),
-    _Splat(
-      parte: 0.3,
-      da: Offset(0.9, 1.7),
-      dove: Offset(0.12, 0.36),
-      grande: 30,
-      storta: 1.1,
-    ),
-    _Splat(
-      parte: 0.35,
-      da: Offset(-0.6, -1.7),
-      dove: Offset(-0.04, 0.02),
-      grande: 36,
-      storta: -0.8,
-    ),
+  /// La sassaiola. Diciotto, sparse su tutto lo schermo: sotto sembra un
+  /// errore di caricamento, sopra diventa una macchia marrone in cui non si
+  /// legge piu' nessun singolo colpo.
+  static const List<_Tiro> _tiri = [
+    _Tiro(parte: 0.00, dove: Offset(0.22, 0.18), da: Offset(-1.2, -0.4), grande: 44, storta: -2.2),
+    _Tiro(parte: 0.03, dove: Offset(0.74, 0.12), da: Offset(1.2, -0.5), grande: 36, storta: 2.6),
+    _Tiro(parte: 0.06, dove: Offset(0.48, 0.30), da: Offset(0.2, -1.2), grande: 52, storta: -1.6),
+    _Tiro(parte: 0.09, dove: Offset(0.12, 0.44), da: Offset(-1.3, 0.2), grande: 32, storta: 2.0),
+    _Tiro(parte: 0.12, dove: Offset(0.88, 0.38), da: Offset(1.3, 0.1), grande: 40, storta: -2.4),
+    _Tiro(parte: 0.15, dove: Offset(0.34, 0.52), da: Offset(-1.1, 0.6), grande: 48, storta: 1.8),
+    _Tiro(parte: 0.18, dove: Offset(0.64, 0.48), da: Offset(1.1, -0.6), grande: 34, storta: -2.8),
+    _Tiro(parte: 0.21, dove: Offset(0.20, 0.68), da: Offset(-1.2, 0.8), grande: 38, storta: 2.2),
+    _Tiro(parte: 0.24, dove: Offset(0.80, 0.64), da: Offset(1.2, 0.7), grande: 46, storta: -1.9),
+    _Tiro(parte: 0.27, dove: Offset(0.50, 0.74), da: Offset(0.1, 1.3), grande: 30, storta: 2.7),
+    _Tiro(parte: 0.30, dove: Offset(0.30, 0.86), da: Offset(-1.0, 1.1), grande: 42, storta: -2.1),
+    _Tiro(parte: 0.33, dove: Offset(0.70, 0.88), da: Offset(1.0, 1.2), grande: 36, storta: 1.7),
+    _Tiro(parte: 0.36, dove: Offset(0.08, 0.24), da: Offset(-1.4, -0.7), grande: 28, storta: -2.5),
+    _Tiro(parte: 0.39, dove: Offset(0.92, 0.78), da: Offset(1.4, 0.9), grande: 30, storta: 2.3),
+    _Tiro(parte: 0.42, dove: Offset(0.44, 0.08), da: Offset(-0.3, -1.4), grande: 34, storta: -1.5),
+    _Tiro(parte: 0.45, dove: Offset(0.58, 0.94), da: Offset(0.4, 1.4), grande: 32, storta: 2.9),
+    _Tiro(parte: 0.48, dove: Offset(0.16, 0.58), da: Offset(-1.3, -0.2), grande: 26, storta: -2.0),
+    _Tiro(parte: 0.51, dove: Offset(0.84, 0.22), da: Offset(1.3, -0.8), grande: 28, storta: 1.4),
   ];
 
   late final AnimationController _controller = AnimationController(
-    duration: const Duration(milliseconds: 2200),
+    duration: const Duration(milliseconds: 2600),
     vsync: this,
   );
 
@@ -1549,70 +1547,41 @@ class _PoopSplatState extends State<_PoopSplat>
 
   @override
   Widget build(BuildContext context) {
-    final raggio = _faccia / 2;
+    // **Non ruba nessun tocco.** Sta sopra tutta la pagina, e senza questo per
+    // due secondi e mezzo nessun tasto sotto risponderebbe — compreso "CI HO
+    // RIPENSATO", che e' proprio quello che uno cerca subito dopo.
+    return IgnorePointer(
+      child: LayoutBuilder(
+        builder: (context, vincoli) {
+          final schermo = Size(vincoli.maxWidth, vincoli.maxHeight);
 
-    return SizedBox(
-      height: _faccia + 16,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          final tempo = _controller.value;
+          return AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) {
+              final tempo = _controller.value;
 
-          // **La faccia trema a ogni colpo che arriva.** Senza, le cacche
-          // sembrano appiccicate su una fotografia invece che tirate addosso a
-          // qualcuno: e' il contraccolpo a far sembrare che pesino.
-          var scossa = 0.0;
-
-          for (final tiro in _tiri) {
-            final da = tiro.parte + _volo;
-            final avanti = (tempo - da) / _impatto;
-
-            if (avanti > 0 && avanti < 4) {
-              // Un rimbalzo che si spegne: forte all'istante dell'impatto,
-              // finito poco dopo.
-              scossa += math.sin(avanti * 6) * 3 / (1 + avanti * 2.2);
-            }
-          }
-
-          // Alla fine si cancella tutto. La faccia no: quella resta, ed e' il
-          // punto — la presa in giro passa, la persona no.
-          final sparizione = tempo <= _svanisce
-              ? 0.0
-              : ((tempo - _svanisce) / (1 - _svanisce)).clamp(0.0, 1.0);
-
-          return Stack(
-            alignment: Alignment.center,
-            clipBehavior: Clip.none,
-            children: [
-              Transform.translate(
-                offset: Offset(scossa, scossa * 0.6),
-                child: FriendAvatar(
-                  userId: widget.userId,
-                  username: widget.username,
-                  size: _faccia,
-                ),
-              ),
-              for (final tiro in _tiri)
-                _volante(tiro, tempo: tempo, raggio: raggio, via: sparizione),
-            ],
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  for (final tiro in _tiri)
+                    _volante(tiro, tempo: tempo, schermo: schermo),
+                ],
+              );
+            },
           );
         },
       ),
     );
   }
 
-  /// Una cacca a mezz'aria, o gia' spiaccicata: dipende da che ora e'.
-  Widget _volante(
-    _Splat tiro, {
-    required double tempo,
-    required double raggio,
-    required double via,
-  }) {
+  /// Una cacca a mezz'aria, o gia' spiaccicata, o che sta colando via: dipende
+  /// da che ora e'.
+  Widget _volante(_Tiro tiro, {required double tempo, required Size schermo}) {
     final volo = ((tempo - tiro.parte) / _volo).clamp(0.0, 1.0);
 
     // Non ancora partita: non c'e' niente da disegnare. Disegnarla ferma al
-    // punto di partenza vorrebbe dire otto cacche appese attorno alla faccia
-    // prima che cominci qualcosa.
+    // punto di partenza vorrebbe dire diciotto cacche appese ai bordi dello
+    // schermo prima che cominci qualcosa.
     if (volo <= 0) {
       return const SizedBox.shrink();
     }
@@ -1620,15 +1589,31 @@ class _PoopSplatState extends State<_PoopSplat>
     // Accelera mentre arriva: una cosa tirata addosso a qualcuno non viaggia a
     // velocita' costante, e l'occhio se ne accorge subito quando lo fa.
     final avvicinarsi = Curves.easeIn.transform(volo);
-    final partenza = tiro.da * _faccia;
-    final arrivo = tiro.dove * raggio;
+
+    final arrivo = Offset(
+      tiro.dove.dx * schermo.width,
+      tiro.dove.dy * schermo.height,
+    );
+    final partenza =
+        arrivo +
+        Offset(tiro.da.dx * schermo.width, tiro.da.dy * schermo.height);
     final dove = Offset.lerp(partenza, arrivo, avvicinarsi)!;
 
-    final spiaccica = ((tempo - tiro.parte - _volo) / _impatto).clamp(0.0, 1.0);
-    final schiacciata = Curves.easeOut.transform(spiaccica);
+    final colpo = ((tempo - tiro.parte - _volo) / _spiaccico).clamp(0.0, 1.0);
+    final schiacciata = Curves.easeOut.transform(colpo);
 
-    return Transform.translate(
-      offset: dove,
+    // **La pulizia.** Sciolgono verso il basso e svaniscono, ognuna con il suo
+    // ritardo: sparissero tutte nello stesso fotogramma sembrerebbe che
+    // qualcuno abbia spento l'interruttore.
+    final quandoVia = _pulizia + (tiro.parte * 0.35);
+    final via = tempo <= quandoVia
+        ? 0.0
+        : ((tempo - quandoVia) / (1 - quandoVia)).clamp(0.0, 1.0);
+    final scivola = Curves.easeIn.transform(via);
+
+    return Positioned(
+      left: dove.dx - tiro.grande / 2,
+      top: dove.dy - tiro.grande / 2 + scivola * 44,
       child: Opacity(
         opacity: (1 - via).clamp(0.0, 1.0),
         child: Transform.rotate(
@@ -1637,8 +1622,9 @@ class _PoopSplatState extends State<_PoopSplat>
           angle: tiro.storta * (1 - avvicinarsi),
           child: Transform.scale(
             // Si allarga e si abbassa nell'istante dell'impatto, e li' resta.
-            scaleX: 1 + schiacciata * 0.5,
-            scaleY: 1 - schiacciata * 0.45,
+            // Colando si stringe di nuovo, come una cosa che scivola via.
+            scaleX: (1 + schiacciata * 0.55) * (1 - scivola * 0.35),
+            scaleY: (1 - schiacciata * 0.45) * (1 + scivola * 0.30),
             child: Text('💩', style: TextStyle(fontSize: tiro.grande)),
           ),
         ),
