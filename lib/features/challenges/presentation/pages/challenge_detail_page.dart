@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/services/share/share_challenge.dart';
@@ -1399,7 +1400,39 @@ class _DuelRules extends StatelessWidget {
   }
 }
 
-/// **La cacca che arriva addosso a chi ha detto di no.**
+/// Una cacca sola, con la sua traiettoria.
+///
+/// Sono scritte a mano e non tirate a caso: **a caso viene male.** Otto
+/// traiettorie casuali si accavallano, ne arrivano tre dallo stesso punto e due
+/// finiscono fuori dalla faccia — e la volta dopo e' un'altra cosa, quindi non
+/// si puo' nemmeno sistemare guardandola. Scritte, la sassaiola arriva da tutti
+/// i lati, si distribuisce sulla faccia e fa la stessa figura ogni volta.
+class _Splat {
+  const _Splat({
+    required this.parte,
+    required this.da,
+    required this.dove,
+    required this.grande,
+    required this.storta,
+  });
+
+  /// Quando parte, sulla durata intera. Sfalsate: partissero insieme sarebbe
+  /// un blocco solo che si sposta, non una sassaiola.
+  final double parte;
+
+  /// Da dove arriva, in multipli della faccia. Fuori dal riquadro da ogni lato.
+  final Offset da;
+
+  /// Dove atterra, in multipli del raggio della faccia.
+  final Offset dove;
+
+  final double grande;
+
+  /// Di quanto gira mentre vola.
+  final double storta;
+}
+
+/// **La sassaiola di cacca su chi ha detto di no.**
 ///
 /// E' la stessa cosa che dice la riga di testo sotto, detta nel modo in cui la
 /// direbbe un amico: non un'etichetta grigia con scritto "rifiutata", ma il
@@ -1407,11 +1440,11 @@ class _DuelRules extends StatelessWidget {
 /// costa niente a chi la fa, e questo e' esattamente quanto deve costare —
 /// niente di piu' di una figuraccia fra amici, ma non zero.
 ///
-/// **Parte una volta sola e poi resta li' spiaccicata.** Una cacca che
-/// ricomincia a cadere ogni volta che la schermata si ridisegna diventerebbe
-/// una decorazione lampeggiante, e una presa in giro che si ripete in loop
-/// smette di essere una battuta e diventa accanimento. Chi riapre la missione
-/// la trova gia' addosso, com'e' giusto.
+/// **Poi se ne vanno, e la faccia resta pulita.** Una cacca che resta incollata
+/// per sempre trasforma una battuta in una condanna: ogni volta che uno riapre
+/// quella missione se la ritrova addosso, e a quel punto non e' piu' uno
+/// sfottio fra amici. Volano, colpiscono, e spariscono — quello che resta
+/// scritto e' la riga di testo, che dice la stessa cosa senza infierire.
 class _PoopSplat extends StatefulWidget {
   const _PoopSplat({required this.userId, required this.username});
 
@@ -1424,34 +1457,82 @@ class _PoopSplat extends StatefulWidget {
 
 class _PoopSplatState extends State<_PoopSplat>
     with SingleTickerProviderStateMixin {
-  /// Quanto e' grande la faccia sotto. La cacca si misura su questa.
-  static const double _faccia = 92;
+  /// Quanto e' grande la faccia sotto. Tutto il resto si misura su questa.
+  static const double _faccia = 96;
+
+  /// Quanto dura il volo di una cacca, sulla durata intera.
+  static const double _volo = 0.20;
+
+  /// E quanto dura lo spiaccichio, subito dopo.
+  static const double _impatto = 0.07;
+
+  /// Quando comincia a sparire tutto.
+  static const double _svanisce = 0.74;
+
+  /// La sassaiola. Otto, che e' il numero in cui si legge ancora ogni singolo
+  /// colpo: sopra diventa una macchia marrone e sotto sembra un errore.
+  static const List<_Splat> _tiri = [
+    _Splat(
+      parte: 0,
+      da: Offset(-1.6, -0.9),
+      dove: Offset(-0.30, -0.22),
+      grande: 30,
+      storta: -1.4,
+    ),
+    _Splat(
+      parte: 0.055,
+      da: Offset(1.7, -0.5),
+      dove: Offset(0.34, -0.05),
+      grande: 26,
+      storta: 1.6,
+    ),
+    _Splat(
+      parte: 0.105,
+      da: Offset(-1.4, 0.8),
+      dove: Offset(-0.16, 0.30),
+      grande: 34,
+      storta: -1.1,
+    ),
+    _Splat(
+      parte: 0.15,
+      da: Offset(0.3, -1.8),
+      dove: Offset(0.05, -0.34),
+      grande: 28,
+      storta: 0.9,
+    ),
+    _Splat(
+      parte: 0.2,
+      da: Offset(1.6, 0.9),
+      dove: Offset(0.26, 0.26),
+      grande: 32,
+      storta: 1.3,
+    ),
+    _Splat(
+      parte: 0.25,
+      da: Offset(-1.8, 0.1),
+      dove: Offset(-0.34, 0.06),
+      grande: 24,
+      storta: -1.7,
+    ),
+    _Splat(
+      parte: 0.3,
+      da: Offset(0.9, 1.7),
+      dove: Offset(0.12, 0.36),
+      grande: 30,
+      storta: 1.1,
+    ),
+    _Splat(
+      parte: 0.35,
+      da: Offset(-0.6, -1.7),
+      dove: Offset(-0.04, 0.02),
+      grande: 36,
+      storta: -0.8,
+    ),
+  ];
 
   late final AnimationController _controller = AnimationController(
-    duration: const Duration(milliseconds: 900),
+    duration: const Duration(milliseconds: 2200),
     vsync: this,
-  );
-
-  /// La caduta: da sopra lo schermo fino alla faccia, sempre piu' veloce.
-  ///
-  /// `easeIn` e non lineare: una cosa che cade accelera, e l'occhio se ne
-  /// accorge subito quando non lo fa.
-  late final Animation<double> _caduta = CurvedAnimation(
-    parent: _controller,
-    curve: const Interval(0, 0.45, curve: Curves.easeIn),
-  );
-
-  /// Lo spiaccicamento: si allarga e si schiaccia nell'istante dell'impatto,
-  /// poi si assesta senza tornare tonda.
-  late final Animation<double> _impatto = CurvedAnimation(
-    parent: _controller,
-    curve: const Interval(0.45, 0.72, curve: Curves.easeOut),
-  );
-
-  /// Il contraccolpo della faccia: mezzo dito in giu' e ritorno.
-  late final Animation<double> _colpo = CurvedAnimation(
-    parent: _controller,
-    curve: const Interval(0.45, 1, curve: Curves.elasticOut),
   );
 
   @override
@@ -1468,52 +1549,99 @@ class _PoopSplatState extends State<_PoopSplat>
 
   @override
   Widget build(BuildContext context) {
+    final raggio = _faccia / 2;
+
     return SizedBox(
-      height: _faccia + 24,
+      height: _faccia + 16,
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) {
-          // Prima dell'impatto la faccia sta ferma; dopo, rimbalza e si ferma.
-          final scossa = _colpo.value == 0
+          final tempo = _controller.value;
+
+          // **La faccia trema a ogni colpo che arriva.** Senza, le cacche
+          // sembrano appiccicate su una fotografia invece che tirate addosso a
+          // qualcuno: e' il contraccolpo a far sembrare che pesino.
+          var scossa = 0.0;
+
+          for (final tiro in _tiri) {
+            final da = tiro.parte + _volo;
+            final avanti = (tempo - da) / _impatto;
+
+            if (avanti > 0 && avanti < 4) {
+              // Un rimbalzo che si spegne: forte all'istante dell'impatto,
+              // finito poco dopo.
+              scossa += math.sin(avanti * 6) * 3 / (1 + avanti * 2.2);
+            }
+          }
+
+          // Alla fine si cancella tutto. La faccia no: quella resta, ed e' il
+          // punto — la presa in giro passa, la persona no.
+          final sparizione = tempo <= _svanisce
               ? 0.0
-              : (1 - _colpo.value) * 10;
-
-          // La cacca scende da sopra il riquadro fino al centro della faccia.
-          final alto = (1 - _caduta.value) * -(_faccia + 60);
-
-          // Nell'impatto si allarga e si abbassa, e li' resta: una cacca che
-          // torna tonda non si e' spiaccicata su niente.
-          final larga = 1 + _impatto.value * 0.45;
-          final bassa = 1 - _impatto.value * 0.42;
+              : ((tempo - _svanisce) / (1 - _svanisce)).clamp(0.0, 1.0);
 
           return Stack(
-            alignment: Alignment.topCenter,
+            alignment: Alignment.center,
             clipBehavior: Clip.none,
             children: [
-              Padding(
-                padding: EdgeInsets.only(top: 12 + scossa),
+              Transform.translate(
+                offset: Offset(scossa, scossa * 0.6),
                 child: FriendAvatar(
                   userId: widget.userId,
                   username: widget.username,
                   size: _faccia,
                 ),
               ),
-              Positioned(
-                top: 12 + _faccia * 0.28 + alto + scossa,
-                child: Transform.scale(
-                  scaleX: larga,
-                  scaleY: bassa,
-                  child: Transform.rotate(
-                    // Un filo storta mentre cade: dritta sembrerebbe
-                    // appoggiata, non lanciata.
-                    angle: (1 - _caduta.value) * 0.6,
-                    child: const Text('💩', style: TextStyle(fontSize: 48)),
-                  ),
-                ),
-              ),
+              for (final tiro in _tiri)
+                _volante(tiro, tempo: tempo, raggio: raggio, via: sparizione),
             ],
           );
         },
+      ),
+    );
+  }
+
+  /// Una cacca a mezz'aria, o gia' spiaccicata: dipende da che ora e'.
+  Widget _volante(
+    _Splat tiro, {
+    required double tempo,
+    required double raggio,
+    required double via,
+  }) {
+    final volo = ((tempo - tiro.parte) / _volo).clamp(0.0, 1.0);
+
+    // Non ancora partita: non c'e' niente da disegnare. Disegnarla ferma al
+    // punto di partenza vorrebbe dire otto cacche appese attorno alla faccia
+    // prima che cominci qualcosa.
+    if (volo <= 0) {
+      return const SizedBox.shrink();
+    }
+
+    // Accelera mentre arriva: una cosa tirata addosso a qualcuno non viaggia a
+    // velocita' costante, e l'occhio se ne accorge subito quando lo fa.
+    final avvicinarsi = Curves.easeIn.transform(volo);
+    final partenza = tiro.da * _faccia;
+    final arrivo = tiro.dove * raggio;
+    final dove = Offset.lerp(partenza, arrivo, avvicinarsi)!;
+
+    final spiaccica = ((tempo - tiro.parte - _volo) / _impatto).clamp(0.0, 1.0);
+    final schiacciata = Curves.easeOut.transform(spiaccica);
+
+    return Transform.translate(
+      offset: dove,
+      child: Opacity(
+        opacity: (1 - via).clamp(0.0, 1.0),
+        child: Transform.rotate(
+          // Gira mentre vola e si ferma quando arriva: una cacca che continua a
+          // roteare da spiaccicata non sta piu' su niente.
+          angle: tiro.storta * (1 - avvicinarsi),
+          child: Transform.scale(
+            // Si allarga e si abbassa nell'istante dell'impatto, e li' resta.
+            scaleX: 1 + schiacciata * 0.5,
+            scaleY: 1 - schiacciata * 0.45,
+            child: Text('💩', style: TextStyle(fontSize: tiro.grande)),
+          ),
+        ),
       ),
     );
   }

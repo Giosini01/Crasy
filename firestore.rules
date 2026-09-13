@@ -485,6 +485,44 @@ service cloud.firestore {
                && challenge().endsAt > request.time;
       }
 
+      // **Una sfida mirata vinta la puo' leggere chiunque. Le altre no.**
+      //
+      // Questa riga divide in due la vita di una sfida uno contro uno, e la
+      // divisione e' il punto: **la figuraccia resta fra voi due, la vittoria
+      // diventa di tutti.**
+      //
+      // Finche' e' in corso — lanciata, accettata, rifiutata, scaduta — la
+      // vedono solo i due dell'`audience`, ed e' giusto: nessun altro puo'
+      // parteciparci comunque, accettare davanti a tutti e' pressione e non
+      // gioco, e un rifiuto messo in piazza non e' piu' uno sfottio fra amici —
+      // e' un'esecuzione pubblica, dopo la quale la gente smette di rifiutare
+      // **e** smette di accettare.
+      //
+      // Portata a termine e giudicata valida, invece, diventa la cosa migliore
+      // che ci sia qui dentro — "Giovanni ha sfidato Mario a ballare a Baiano,
+      // e Mario l'ha fatto" — e fino a oggi la vedevano due persone.
+      //
+      // **E c'e' una ragione tecnica che da sola basterebbe.** Il trofeo di una
+      // sfida vinta finisce sul profilo, e la bacheca dei trofei si cerca per
+      // `winnerUserId` senza nessun vincolo di `audience` — non si puo'
+      // aggiungere, o la stessa query dovrebbe sapere in anticipo di chi e'
+      // il profilo che sta guardando. Con questa regola mancante, fra i trofei
+      // di Mario c'era un documento che un terzo non aveva il permesso di
+      // leggere: e Firestore, in quel caso, non nasconde la riga — **rifiuta
+      // tutta la query**. La sezione TROFEI del profilo di chiunque avesse
+      // vinto una sfida si svuotava per tutti gli altri.
+      //
+      // Le condizioni sono strette apposta: dev'essere una sfida mirata (ha un
+      // destinatario), dev'essere stata **fatta** e **giudicata valida**, e
+      // dev'esserci una foto vincente. Una rifiutata non ha verdetto, una
+      // bocciata ce l'ha ma vale `rejected`, una lasciata scadere vale
+      // `expired`: nessuna delle tre passa di qui.
+      function duelloVinto() {
+        return resource.data.get('targetUserId', '') != ''
+               && resource.data.get('duelVerdict', '') == 'approved'
+               && resource.data.get('winnerEntryId', '') != '';
+      }
+
       // **Niente si legge senza aver fatto l'accesso, e le gare riservate solo
       // se sei fra i destinatari.**
       //
@@ -526,6 +564,7 @@ service cloud.firestore {
                        resource == null
                        || '*' in resource.data.get('audience', ['*'])
                        || request.auth.uid in resource.data.get('audience', ['*'])
+                       || duelloVinto()
                      );
 
       // Una challenge la lancia chiunque abbia un account.
