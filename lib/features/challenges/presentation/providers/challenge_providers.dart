@@ -374,6 +374,24 @@ final myTrophiesProvider = StreamProvider<List<Challenge>>((ref) {
       .watchTrophiesOf(authState.user.id);
 });
 
+/// **Quante sfide d'onore ho portato a termine.**
+///
+/// Una sfida mirata non paga niente — in palio c'e' la parola data — e senza un
+/// numero da qualche parte quella parola non lascia traccia: la sfida scade,
+/// il party si svuota, e chi le ha fatte tutte e chi non ne ha fatta nessuna
+/// hanno lo stesso profilo.
+///
+/// Si conta dai **trofei**, non dalle sfide aperte, e la differenza e' tutta
+/// qui: una sfida mirata ha un partecipante solo, quindi portarla a termine e
+/// vincerla sono la stessa cosa — e il trofeo e' l'unico pezzo che resta scritto
+/// per sempre, quando la partecipazione e' gia' stata cancellata da un pezzo.
+final myDuelWinsProvider = Provider<int>((ref) {
+  final trophies =
+      ref.watch(myTrophiesProvider).valueOrNull ?? const <Challenge>[];
+
+  return trophies.where((challenge) => challenge.isDuel).length;
+});
+
 /// Le gare che ho commissionato e che hanno prodotto qualcosa.
 ///
 /// Chi mette i soldi non gareggia, quindi non vincera' mai niente: senza

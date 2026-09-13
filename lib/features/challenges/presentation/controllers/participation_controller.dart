@@ -77,6 +77,22 @@ class OutOfLivesException implements Exception {
       'A mezzanotte ricominci.';
 }
 
+/// Hai detto di no a questa sfida, e il no vale.
+///
+/// **Rifiutare deve costare qualcosa.** Se dopo aver detto di no si potesse
+/// partecipare lo stesso, il rifiuto sarebbe una parola senza conseguenze: si
+/// direbbe di no per togliersi il fischio di dosso e si manderebbe la foto
+/// dopo, come se niente fosse. Per tornare in gioco si torna indietro
+/// davvero — c'e' un tasto apposta, `CI HO RIPENSATO`, e rimette la sfida
+/// fra le accettate prima che si possa scattare.
+class DuelDeclinedException implements Exception {
+  const DuelDeclinedException();
+
+  @override
+  String toString() =>
+      'Hai rifiutato questa sfida. Se ci hai ripensato, riaprila dal party.';
+}
+
 class ParticipationController extends AsyncNotifier<void> {
   late final ChallengeRepository _challenges;
 
@@ -286,8 +302,22 @@ class ParticipationController extends AsyncNotifier<void> {
     // giorno: e' roba in piu'. Chi ha finito le cinque deve poter rispondere
     // lo stesso a un amico che lo ha chiamato in causa — altrimenti accettare
     // una sfida diventa una cosa che si paga, e non la accetta piu' nessuno.
-    final sfidaMirata =
-        ref.read(challengeProvider(challengeId)).valueOrNull?.isDuel ?? false;
+    final sfida = ref.read(challengeProvider(challengeId)).valueOrNull;
+    final sfidaMirata = sfida?.isDuel ?? false;
+
+    // **Chi ha detto di no non manda la foto.** Il controllo sta qui e non solo
+    // sul bottone, come quello delle cinque: la schermata dello scatto puo'
+    // essere stata aperta prima del rifiuto, o restare aperta dopo.
+    if (sfidaMirata &&
+        sfida!.targetUserId == authState.user.id &&
+        sfida.duelStatus.isDeclined) {
+      state = AsyncError<void>(
+        const DuelDeclinedException(),
+        StackTrace.current,
+      );
+
+      return false;
+    }
 
     if (!daily && !sfidaMirata && ref.read(livesLeftProvider) <= 0) {
       state = AsyncError<void>(const OutOfLivesException(), StackTrace.current);

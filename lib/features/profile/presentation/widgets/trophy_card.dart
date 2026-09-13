@@ -147,11 +147,17 @@ class TrophyFront extends StatelessWidget {
                         // numero della vetrina: il premio meno la percentuale
                         // di CRASY. Chi ha commissionato legge quanto ha messo,
                         // perche' e' quello che ha speso.
-                        AppMoney.format(
-                          kind.isWon
-                              ? challenge.payoutCents
-                              : challenge.prizeCents,
-                        ),
+                        // Una sfida d'onore non ha mai pagato niente: scritta
+                        // come le altre diventerebbe un trofeo da `€0,00`, che
+                        // e' il modo piu' rapido di far sembrare una vittoria
+                        // una perdita. Al posto della cifra si scrive cos'era.
+                        challenge.isDuel
+                            ? 'ONORE'
+                            : AppMoney.format(
+                                kind.isWon
+                                    ? challenge.payoutCents
+                                    : challenge.prizeCents,
+                              ),
                         style: context.texts.headlineSmall?.copyWith(
                           color: palette.accent,
                           height: 1,
@@ -630,9 +636,13 @@ class _TrophyDetails extends StatelessWidget {
             const SizedBox(height: AppSpacing.lg),
             _Line(
               label: kind.isWon ? 'Hai incassato' : 'Hai messo in palio',
-              value: AppMoney.format(
-                kind.isWon ? challenge.payoutCents : challenge.prizeCents,
-              ),
+              value: challenge.isDuel
+                  ? 'ONORE'
+                  : AppMoney.format(
+                      kind.isWon
+                          ? challenge.payoutCents
+                          : challenge.prizeCents,
+                    ),
               accent: true,
             ),
             // Chi ha vinto sa gia' chi e'. Chi ha commissionato spesso no: e' la

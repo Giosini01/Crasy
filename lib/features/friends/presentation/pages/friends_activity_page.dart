@@ -612,11 +612,31 @@ class _DuelRow extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.sm),
-              Text(
-                challenge.title.toUpperCase(),
-                style: texts.titleSmall,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              // **Il premio, anche quando non c'e'.**
+              //
+              // Su ogni altra scheda dell'app la prima cosa che si legge e'
+              // quanto c'e' in palio; qui mancava, e una sfida mirata restava
+              // l'unica cosa dell'app di cui non si capiva se ci fossero dei
+              // soldi in mezzo prima di accettarla. `GRATIS` e' una risposta
+              // quanto una cifra: si accetta sapendo cosa si accetta.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    challenge.prizeLabel,
+                    style: texts.titleSmall?.copyWith(color: palette.accent),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      challenge.title.toUpperCase(),
+                      style: texts.titleSmall,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
               if (challenge.brief.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.xxs),
@@ -631,6 +651,32 @@ class _DuelRow extends ConsumerWidget {
               ],
               const SizedBox(height: AppSpacing.sm),
               ChallengeMetaRow(challenge: challenge),
+              // **Il fischio.** Su una sfida rifiutata — o lasciata scadere —
+              // il distintivo dice cos'e' successo, questa riga dice che non e'
+              // stata una bella figura. E' tutto quello che costa dire di no, e
+              // deve costare qualcosa o la parola data non vale niente.
+              if (state.fischio(mine: received, username: chiNome) case final
+                  fischio?) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.thumb_down_rounded,
+                      size: 13,
+                      color: palette.accent,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: Text(
+                        fischio,
+                        style: texts.labelSmall?.copyWith(
+                          color: palette.accent,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               // I due tasti compaiono solo dove servono: sulla sfida che ho
               // ricevuto e a cui non ho ancora risposto. Altrove sarebbero due
               // comandi che non fanno niente.
@@ -659,6 +705,21 @@ class _DuelRow extends ConsumerWidget {
                       ),
                     ),
                   ],
+                ),
+              ],
+              // **La via di ritorno.** Un no non e' una porta murata: finche'
+              // le ventiquattro ore non sono finite si puo' tornare indietro,
+              // ma passando da qui — si riapre la sfida, l'altro lo viene a
+              // sapere, e solo dopo si puo' scattare. Senza questo passaggio
+              // dire di no e mandare la foto lo stesso sarebbe la stessa cosa,
+              // e il rifiuto non varrebbe niente.
+              if (received &&
+                  state == DuelState.declined &&
+                  !challenge.hasEndedAt(DateTime.now())) ...[
+                const SizedBox(height: AppSpacing.sm),
+                OutlinedButton(
+                  onPressed: busy ? null : () => controller.accept(challenge),
+                  child: const Text('CI HO RIPENSATO'),
                 ),
               ],
               // Accettata e non ancora fatta: il passo successivo e' scattare,

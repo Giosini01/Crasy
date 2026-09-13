@@ -461,7 +461,14 @@ class ChallengeMetaRow extends StatelessWidget {
     final style = context.texts.labelMedium;
     final ended = challenge.hasEndedAt(DateTime.now());
 
-    return Row(
+    // **Va a capo invece di uscire dallo schermo.**
+    //
+    // Erano tre voci in fila su una riga sola: con un conto a due cifre
+    // ("10 liberi") e un nome lungo, l'ultima finiva oltre il bordo e non si
+    // leggeva piu'. Un [Wrap] tiene lo stesso aspetto quando c'e' spazio e
+    // manda l'ultima voce sotto quando non ce n'e'.
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         if (ended)
           Text('chiusa', style: style)

@@ -140,6 +140,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         _Stats(
                           entries: entries.length,
                           wins: wins.length,
+                          duels: ref.watch(myDuelWinsProvider),
                           friends:
                               ref
                                   .watch(myFriendsProvider)
@@ -383,12 +384,18 @@ class _Stats extends StatelessWidget {
   const _Stats({
     required this.entries,
     required this.wins,
+    required this.duels,
     required this.friends,
     this.pending = 0,
   });
 
   final int entries;
   final int wins;
+
+  /// Le sfide d'onore portate a termine: l'unico riconoscimento che lasciano,
+  /// visto che non pagano niente.
+  final int duels;
+
   final int friends;
 
   /// Le richieste di amicizia che aspettano una risposta.
@@ -412,6 +419,8 @@ class _Stats extends StatelessWidget {
               _Stat(label: 'SCATTI', value: '$entries'),
               _Divider(color: palette.line),
               _Stat(label: 'VINTE', value: '$wins'),
+              _Divider(color: palette.line),
+              _Stat(label: 'SFIDE', value: '$duels'),
               _Divider(color: palette.line),
               // **Da qui si entra.** Il conto degli amici era gia' li' e
               // adesso e' anche la porta: si tocca il numero e si apre

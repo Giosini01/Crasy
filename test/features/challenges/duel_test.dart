@@ -16,6 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// terza e' la peggiore delle tre: farebbe costare l'accettare, e accettare
 /// non deve costare niente.
 void main() {
+  _fischio();
   final now = DateTime.now();
 
   Challenge duel({
@@ -246,6 +247,50 @@ void main() {
       await container.read(myEntriesProvider.future);
 
       expect(container.read(livesLeftProvider), Challenge.livesPerDay - 1);
+    });
+  });
+}
+
+/// **Il fischio.** Rifiutare una sfida d'onore e' l'unica mossa che non costa
+/// niente a chi la fa: e' il momento in cui la parola data smette di valere
+/// qualcosa, se nessuno se ne accorge. Queste righe difendono il fatto che un
+/// no si veda — e che su una sfida ancora in corso non ci sia niente da
+/// fischiare, o il fischio diventerebbe rumore di fondo.
+void _fischio() {
+  group('il no si sente', () {
+    test('il distintivo del rifiuto dice BUUU', () {
+      expect(DuelState.declined.chipLabel, 'BUUU');
+    });
+
+    test('gli altri stati restano scritti per quello che sono', () {
+      expect(DuelState.pending.chipLabel, 'IN ATTESA');
+      expect(DuelState.accepted.chipLabel, 'ACCETTATA');
+      expect(DuelState.completed.chipLabel, 'COMPLETATA');
+      expect(DuelState.expired.chipLabel, 'SCADUTA');
+    });
+
+    test('rifiutata e scaduta hanno una riga di commento', () {
+      expect(
+        DuelState.declined.fischio(mine: true, username: 'mario'),
+        'Hai detto di no. Buuu.',
+      );
+      expect(
+        DuelState.declined.fischio(mine: false, username: 'mario'),
+        '@mario ha detto di no. Buuu.',
+      );
+      expect(
+        DuelState.expired.fischio(mine: false, username: 'mario'),
+        contains('Buuu'),
+      );
+    });
+
+    test('su una sfida ancora viva non si fischia niente', () {
+      expect(DuelState.pending.fischio(mine: true, username: 'mario'), isNull);
+      expect(DuelState.accepted.fischio(mine: true, username: 'mario'), isNull);
+      expect(
+        DuelState.completed.fischio(mine: true, username: 'mario'),
+        isNull,
+      );
     });
   });
 }

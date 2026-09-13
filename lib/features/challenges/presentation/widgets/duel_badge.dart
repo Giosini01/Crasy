@@ -80,10 +80,14 @@ class DuelStateChip extends StatelessWidget {
         palette.accentTint,
         Icons.military_tech_rounded,
       ),
+      // **Il rifiuto si vede.** Era grigio come le scadute, con la stessa
+      // logica: non c'e' piu' niente da decidere. Ma un no non e' un silenzio —
+      // e' una scelta di qualcuno, e sbiadirla vuol dire che rifiutare non
+      // costa niente.
       DuelState.declined => (
-        palette.textFaint,
-        palette.surfaceMuted,
-        Icons.do_not_disturb_alt_rounded,
+        palette.accent,
+        palette.accentTint,
+        Icons.thumb_down_rounded,
       ),
       DuelState.expired => (
         palette.textFaint,
@@ -104,7 +108,7 @@ class DuelStateChip extends StatelessWidget {
           Icon(icona, size: 12, color: colore),
           const SizedBox(width: 4),
           Text(
-            state.label,
+            state.chipLabel,
             style: context.texts.labelSmall?.copyWith(
               color: colore,
               fontSize: 9,

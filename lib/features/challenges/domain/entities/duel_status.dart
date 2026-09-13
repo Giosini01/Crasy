@@ -78,4 +78,29 @@ enum DuelState {
   const DuelState(this.label);
 
   final String label;
+
+  /// Come si legge sul distintivo.
+  ///
+  /// **Il no si sente.** Rifiutare una sfida d'onore e' l'unica mossa che non
+  /// costa niente a chi la fa: senza un segno che si vede, dire di no e non
+  /// aver mai ricevuto niente hanno lo stesso aspetto, e la parola data smette
+  /// di valere qualcosa. `BUUU` e' quel segno — il fischio del pubblico, che e'
+  /// esattamente quanto deve costare: niente di piu' di una figuraccia fra
+  /// amici, ma non zero.
+  String get chipLabel => this == DuelState.declined ? 'BUUU' : label;
+
+  /// La riga di commento sotto la sfida, quando c'e' qualcosa da fischiare.
+  ///
+  /// Nulla dove non serve: su una sfida in corso non si commenta niente.
+  String? fischio({required bool mine, required String username}) {
+    return switch (this) {
+      DuelState.declined =>
+        mine ? 'Hai detto di no. Buuu.' : '@$username ha detto di no. Buuu.',
+      DuelState.expired =>
+        mine
+            ? 'Tempo scaduto, non l\'hai fatta. Buuu.'
+            : '@$username non l\'ha fatta in tempo. Buuu.',
+      _ => null,
+    };
+  }
 }
