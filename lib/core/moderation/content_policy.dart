@@ -259,6 +259,75 @@ abstract final class ContentPolicy {
       'nsfw',
       'strip tease',
       'striptease',
+      // **Il corpo chiesto per nome.** Mancava tutto questo, ed era il buco
+      // piu' largo del filtro: "foto al tuo pisello" passava liscio. Le parti
+      // del corpo si nominano nell'elenco delle parole intere qui sotto —
+      // sono corte e finirebbero dentro parole innocue — mentre qui stanno le
+      // **richieste**, che attaccate non capitano per caso.
+      // **"In mutande" e "sexy" le rifiutava gia' il database, non l'app.**
+      //
+      // Erano scritte nelle regole di Firestore e non qui, e le due meta' si
+      // contraddicevano: il modulo diceva di si', la scrittura veniva
+      // respinta, e chi l'aveva scritta leggeva "operazione non consentita"
+      // senza capire cosa avesse sbagliato. E' esattamente il difetto contro
+      // cui questo file mette in guardia in cima — quello che il modulo
+      // accetta dev'essere quello che il database accetta.
+      //
+      // Allineate qui, e non tolte di la': su un'app che **paga** per una
+      // foto, "mandami una foto in mutande" e' una richiesta di materiale
+      // sessuale con dei soldi in mezzo, non un modo di dire.
+      'in mutande',
+      'foto sexy',
+      'video sexy',
+      'in modo sexy',
+      'in slip',
+      'in perizoma',
+      'in tanga',
+      'in reggiseno',
+      'in intimo',
+      'mostra il seno',
+      'mostra le tette',
+      'fai vedere le tette',
+      'fai vedere il seno',
+      'mani nelle mutande',
+      'mano nelle mutande',
+      'capezzol',
+      'testicol',
+      'clitorid',
+      'scroto',
+      'vulva',
+      // **Le tre parole che hanno anche un significato del tutto innocuo.**
+      //
+      // Un uccello e' un uccello, una patata e' una patata, e un pacco e' un
+      // pacco: cercarle da sole boccerebbe "foto a un uccello sul balcone",
+      // che e' esattamente il tipo di rifiuto che fa perdere fiducia in tutto
+      // il filtro. Si nominano solo attaccate al possessivo, dove
+      // quell'ambiguita' non c'e' piu'.
+      'tuo uccello',
+      'tuo pacco',
+      'tua patata',
+      'tua passera',
+      'tua topa',
+      'tua fessa',
+      'tua figa',
+      'tua fica',
+      'tua cosa li',
+      // **`cazzo` da solo resta permesso, ed e' una scelta gia' presa.** E' la
+      // parolaccia piu' comune della lingua e quasi sempre non indica niente:
+      // "che cazzo hai fatto" e' stupore, non una richiesta. Un filtro che la
+      // ferma boccia meta' delle frasi che la gente scrive davvero, e dopo tre
+      // volte lo spegne chi lo gestisce.
+      //
+      // Quando invece **e' una richiesta**, il possessivo lo dice senza
+      // ambiguita' — ed e' li' che si ferma.
+      'tuo cazzo',
+      'suo cazzo',
+      'il cazzo di',
+      'vedere il cazzo',
+      'foto al cazzo',
+      'parti intime',
+      'parti basse',
+      'zone intime',
     ],
     danger: [
       'guida ubriac',
@@ -353,6 +422,37 @@ abstract final class ContentPolicy {
       'nude',
       'sex',
       'porn',
+      // **Il gergo, che e' il modo in cui la gente lo scrive davvero.**
+      //
+      // Nessuno scrive "foto ai tuoi genitali": scrive "foto al tuo pisello".
+      // L'elenco di prima nominava le parole del referto medico e lasciava
+      // passare quelle vere, che e' come chiudere a chiave la porta e lasciare
+      // la finestra aperta.
+      //
+      // **Cercate intere, e conta.** `figa` sta dentro "sfigata", `fessa`
+      // dentro "confessa" e "professa", `topa` dentro "topaia": come frammenti
+      // boccerebbero frasi che non c'entrano niente. Isolate prendono
+      // esattamente cio' che devono.
+      'pisello',
+      'pisellino',
+      'pistolino',
+      'minchia',
+      'fessa',
+      'figa',
+      'fica',
+      'topa',
+      'passera',
+      'belino',
+      'minne',
+      'zizze',
+      'chiappe',
+      'pube',
+      'inguine',
+      'dick',
+      'pussy',
+      'boobs',
+      'tits',
+      'nudes',
     ],
     violence: ['stab', 'uccidi', 'ammazza', 'spara', 'sgozza'],
     // **Parole intere, mai frammenti.** Sono le piu' corte dell'elenco e le
@@ -415,6 +515,19 @@ abstract final class ContentPolicy {
       'pornografia',
       'nudointegrale',
       'attosessuale',
+      // Qui **solo le lunghe e senza ambiguita'**. Questa lettura toglie tutti
+      // gli spazi, quindi una parola corta ne pesca dentro un'altra: `figa`
+      // dentro "che sfiga", `topa` dentro "una topaia". Bloccare "che sfiga"
+      // per prendere "f i g a" e' un pessimo affare.
+      'pisello',
+      'pisellino',
+      'minchia',
+      'tuopisello',
+      'tuauccello',
+      'tuafessa',
+      'tuafiga',
+      'tuatopa',
+      'tuapatata',
     ],
     crime: ['pedofilia', 'spacciare'],
     hate: ['negrodimerda', 'frociodimerda', 'pezzodimerda'],
@@ -428,6 +541,22 @@ abstract final class ContentPolicy {
   static final Map<ContentViolation, List<String>> _collapsedFragments = {
     for (final entry in _fragments.entries)
       entry.key: [for (final fragment in entry.value) _collapse(fragment)],
+  };
+
+  /// Le parole intere, schiacciate allo stesso modo dei frammenti.
+  ///
+  /// **Mancavano, e lasciavano passare il trucco piu' facile di tutti.** Le
+  /// lettere ripetute venivano schiacciate solo per i frammenti: `pisellooooo`
+  /// diventava `pisello` in quella lettura, ma le parole intere si cercavano
+  /// solo nel testo normalizzato — dove le doppie restano doppie — e quindi
+  /// `pisellooooo` non lo prendeva nessuno.
+  ///
+  /// Anche le parole vanno schiacciate, non solo il testo: `tette` diventa
+  /// `tete`, e cercare `tette` dentro un testo gia' schiacciato non troverebbe
+  /// mai niente.
+  static final Map<ContentViolation, List<String>> _collapsedWords = {
+    for (final entry in _words.entries)
+      entry.key: [for (final word in entry.value) _collapse(word)],
   };
 
   /// La prima violazione trovata in [text], oppure `null` se e' pulito.
@@ -474,6 +603,19 @@ abstract final class ContentPolicy {
     for (final entry in _collapsedFragments.entries) {
       for (final fragment in entry.value) {
         if (collapsed.contains(fragment)) {
+          return entry.key;
+        }
+      }
+    }
+
+    // Le parole intere anche qui, e sempre con gli spazi attorno: schiacciare
+    // deforma — `professa` diventa `profesa` — quindi cercarle come frammenti
+    // in questa lettura boccerebbe parole innocue. Isolate no.
+    final collapsedPadded = ' ${collapsed.trim()} ';
+
+    for (final entry in _collapsedWords.entries) {
+      for (final word in entry.value) {
+        if (collapsedPadded.contains(' $word ')) {
           return entry.key;
         }
       }

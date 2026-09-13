@@ -162,8 +162,16 @@ void main() {
     });
 
     test('il sesso detto in altri modi', () {
-      expect(ContentPolicy.check('Foto in mutande'), isNull);
-      expect(ContentPolicy.check('Una foto sexy'), isNull);
+      // **Queste due passavano qui e venivano rifiutate dal database.** Le
+      // regole di Firestore contengono `in mutande` e `sexy` da sempre: il
+      // modulo diceva di si' e la scrittura falliva, che e' il peggiore dei
+      // due comportamenti possibili — si compila tutto per poi leggere
+      // "operazione non consentita".
+      //
+      // Allineate al database, non il contrario: su un'app che paga per una
+      // foto, chiederla in mutande e' una richiesta di materiale sessuale.
+      expect(ContentPolicy.check('Foto in mutande'), ContentPolicy.sexual);
+      expect(ContentPolicy.check('Una foto sexy'), ContentPolicy.sexual);
       expect(ContentPolicy.check('Mandaci un topless'), ContentPolicy.sexual);
     });
 

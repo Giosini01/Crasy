@@ -37,6 +37,21 @@ service cloud.firestore {
         '.*(nud|spogliat|spogliar|senza vestiti|senza mutande|in mutande|reggiseno|perizoma|topless|genital|porno|masturb|sessual|erotic|luci rosse|onlyfans|escort|prostitu|orgasm|sexy|naked|nsfw|striptease).*'
       ) || text.lower().matches(
         '.*(guida ubriac|guidare ubriac|contromano|attraversa i binari|sui binari|cornicion|tetto del treno|benzina addosso|soffocamento|pedofil|spaccia|cocain|eroina|taccheggio).*'
+      ) || text.lower().matches(
+        // **Il corpo chiesto per nome, e le parolacce.**
+        //
+        // La riga sul sesso qui sopra nomina le parole del referto medico —
+        // genitali, sessuale, masturbazione — e lasciava passare quelle che la
+        // gente scrive davvero: "foto al tuo pisello" arrivava sul database
+        // senza che niente la fermasse.
+        //
+        // Qui si cerca dentro il testo, senza confini di parola, quindi ci
+        // stanno **solo** i pezzi che dentro una parola innocua non capitano:
+        // `fessa` no, perche' sta dentro "confessa" e "professa"; `figa` no,
+        // perche' sta dentro "sfigata". Quelli li prende l'app, che sa cercare
+        // parole intere — vedi `lib/core/moderation/content_policy.dart`.
+        // Questo resta l'ultimo sbarramento, non il controllo vero.
+        '.*(pisello|pisellin|pistolino|minchia|capezzol|testicol|clitorid|scroto|vulva|tua patata|tuo uccello|tuo pacco|tua fessa|tua figa|tua topa|tua passera|parti intime|cazzo|cazzat|stronz|vaffancul|affancul|coglion|puttan|mignotta|zoccola|porcodio|dioporco|diocane|bitch|asshole).*'
       );
     }
 
