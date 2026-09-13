@@ -301,6 +301,9 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
         kind == 'duelAccepted' ||
         kind == 'duelDeclined' ||
         kind == 'duelCompleted' ||
+        kind == 'duelApproved' ||
+        kind == 'duelRejected' ||
+        kind == 'duelNoVerdict' ||
         kind == 'ended') {
       final gara = messaggio.data['challengeId'] ?? '';
 

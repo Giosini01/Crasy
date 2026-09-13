@@ -659,11 +659,59 @@ class FirestoreChallengeRepository implements ChallengeRepository {
   Future<void> answerDuel({
     required String challengeId,
     required DuelStatus status,
+    DateTime? restartAt,
   }) {
     return _challenges.doc(challengeId).update({
       'duelStatus': status.name,
       'respondedAt': FieldValue.serverTimestamp(),
+      // **Il tempo riparte solo tornando indietro da un no.**
+      //
+      // Una sfida rifiutata ha smesso di essere guardata: quando chi l'aveva
+      // rifiutata ci ripensa, la scadenza originale e' quasi sempre gia'
+      // passata, e riaprirla senza toccarla vorrebbe dire riaprirla morta. Si
+      // riparte da adesso, con le stesse ventiquattro ore di prima.
+      if (restartAt != null) 'endsAt': Timestamp.fromDate(restartAt),
     });
+  }
+
+  /// Il verdetto di chi ha lanciato la sfida, **e la chiusura nello stesso
+  /// istante**.
+  ///
+  /// Una scrittura sola, e conta che sia una sola: il verdetto senza la
+  /// chiusura lascerebbe una gara che il server continua a guardare, e la
+  /// chiusura senza il verdetto un trofeo che nessuno ha approvato. Sono la
+  /// stessa decisione e viaggiano insieme.
+  @override
+  Future<void> judgeDuel({
+    required String challengeId,
+    required bool approved,
+    ChallengeEntry? entry,
+  }) async {
+    final vince = approved && entry != null;
+    final batch = _firestore.batch()
+      ..update(_challenges.doc(challengeId), {
+        'duelVerdict': approved
+            ? DuelVerdict.approved.wire
+            : DuelVerdict.rejected.wire,
+        // `winnerEntryId` e' il segno che una gara e' chiusa. Vuoto vuol dire
+        // chiusa senza vincitore, ed e' esattamente cosa succede a una foto
+        // bocciata: non vince nessuno, e nessuno la guarda piu'.
+        'winnerEntryId': vince ? entry.id : '',
+        'winnerUserId': vince ? entry.userId : '',
+        'winnerUsername': vince ? entry.authorName : '',
+        // La foto si ricopia dentro la gara come per ogni altro trofeo:
+        // quarantotto ore dopo le partecipazioni spariscono, e senza questa
+        // copia la figurina resterebbe una cornice vuota.
+        'winnerMediaUrl': vince ? entry.mediaUrl : '',
+        'winnerMediaKind': (entry?.mediaKind ?? MediaKind.photo).name,
+        'winnerVotes': vince ? entry.votes : 0,
+      });
+
+    if (vince) {
+      batch.update(_entries(challengeId).doc(entry.id), {'isWinner': true});
+    }
+
+    await batch.commit();
   }
 
   /// L'estensione che corrisponde a un tipo di file.

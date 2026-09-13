@@ -59,6 +59,67 @@ enum DuelStatus {
   }
 }
 
+/// Cosa ha detto chi ha lanciato la sfida, guardando la foto.
+///
+/// **Serve perche' una sfida mirata ha un partecipante solo.** Con una persona
+/// in gara, il conteggio delle fiamme che decide tutte le altre gare qui non
+/// decide niente: chiunque mandi qualcosa vince, e "qualcosa" puo' essere un
+/// video nero. La sfida era "balla in mezzo a Napoli", il video e' buio, e il
+/// sistema proclamerebbe un vincitore che non ha ballato.
+///
+/// Allora a guardarla e' chi l'ha lanciata. **E' un giudizio in buona fede, non
+/// un arbitro**: non c'e' niente qui dentro che possa costringere una persona a
+/// essere onesta, ed e' la stessa scommessa su cui sta in piedi tutto il resto
+/// della sfida — chi accetta si impegna sulla parola, chi giudica risponde
+/// della sua. Con la differenza che tutti e due sanno chi e' l'altro, e la
+/// figuraccia la si fa davanti a un amico e non davanti a uno sconosciuto.
+///
+/// Il verdetto **chiude la sfida nel momento in cui arriva**: se Ciccio la fa e
+/// va bene, non c'e' niente da aspettare fino a domani.
+enum DuelVerdict {
+  /// Nessuno ha ancora guardato. E' anche il ripiego di tutto quello che non
+  /// si sa leggere: un verdetto che non si capisce non e' un verdetto.
+  none(''),
+
+  /// L'ha fatta, e vale. La sfida si chiude con lei che vince.
+  approved('approved'),
+
+  /// L'ha mandata, ma non e' quello che era stato chiesto.
+  rejected('rejected'),
+
+  /// Nessuno l'ha guardata in tempo, e ha deciso l'orologio: la sfida si
+  /// chiude senza vincitore.
+  ///
+  /// **Non e' una bocciatura.** E' il silenzio di chi ha lanciato la sfida, e
+  /// va scritto in un modo che si distingua da un "non vale" — perche' la
+  /// colpa non e' di chi ha fatto la foto.
+  expired('expired');
+
+  const DuelVerdict(this.wire);
+
+  /// Come si scrive sul database. Vuoto vuol dire "non c'e'", e infatti il
+  /// campo sulle sfide non giudicate non esiste proprio.
+  final String wire;
+
+  bool get isGiven => this != DuelVerdict.none;
+
+  bool get isApproved => this == DuelVerdict.approved;
+
+  static DuelVerdict fromName(String? value) {
+    if (value == null || value.isEmpty) {
+      return DuelVerdict.none;
+    }
+
+    for (final verdict in DuelVerdict.values) {
+      if (verdict.wire == value) {
+        return verdict;
+      }
+    }
+
+    return DuelVerdict.none;
+  }
+}
+
 /// Lo stato **mostrato**, che include anche quello che l'orologio decide da
 /// solo.
 ///
@@ -70,7 +131,22 @@ enum DuelState {
   pending('IN ATTESA'),
   accepted('ACCETTATA'),
   declined('RIFIUTATA'),
-  completed('COMPLETATA'),
+
+  /// L'ha fatta, e adesso tocca a chi l'ha lanciata dire se va bene.
+  ///
+  /// **E' lo stato che prima non esisteva**, e la sua mancanza era il buco: la
+  /// foto arrivava e la sfida era vinta, chiunque fosse quello che c'era dentro
+  /// la foto.
+  judging('DA GIUDICARE'),
+
+  /// Fatta, guardata, e va bene.
+  completed('VINTA'),
+
+  /// Fatta, guardata, e non era quello che era stato chiesto.
+  notValid('NON VALIDA'),
+
+  /// Fatta, e nessuno l'ha guardata in tempo.
+  noVerdict('SENZA GIUDIZIO'),
 
   /// Il tempo e' finito e non l'ha fatta.
   expired('SCADUTA');
@@ -89,9 +165,22 @@ enum DuelState {
   /// amici, ma non zero.
   String get chipLabel => this == DuelState.declined ? 'BUUU' : label;
 
+  /// Se qui la sfida e' finita e non c'e' piu' niente da fare.
+  bool get isOver =>
+      this == DuelState.completed ||
+      this == DuelState.notValid ||
+      this == DuelState.noVerdict ||
+      this == DuelState.declined ||
+      this == DuelState.expired;
+
   /// La riga di commento sotto la sfida, quando c'e' qualcosa da fischiare.
   ///
   /// Nulla dove non serve: su una sfida in corso non si commenta niente.
+  ///
+  /// [mine] vuol dire "la sfida l'ho ricevuta io", e [username] e' sempre
+  /// **l'altra persona**: la stessa riga si legge dalle due parti, e dire
+  /// "hai detto di no" a chi ha detto di no e "@mario ha detto di no" a chi se
+  /// l'e' sentito dire e' la stessa frase vista dai due lati.
   String? fischio({required bool mine, required String username}) {
     return switch (this) {
       DuelState.declined =>
@@ -100,6 +189,31 @@ enum DuelState {
         mine
             ? 'Tempo scaduto, non l\'hai fatta. Buuu.'
             : '@$username non l\'ha fatta in tempo. Buuu.',
+      // **Non e' lo stesso fischio del rifiuto.** Qui la sfida l'ha fatta: il
+      // no e' arrivato dopo, da chi l'ha lanciata, e va scritto come tale — o
+      // sembra che sia stata lei a tirarsi indietro.
+      DuelState.notValid =>
+        mine
+            ? 'Non e\' stata giudicata valida. Buuu.'
+            : 'L\'hai giudicata non valida.',
+      _ => null,
+    };
+  }
+
+  /// La riga di servizio: cosa sta succedendo, e di chi e' il turno.
+  ///
+  /// Separata dal fischio perche' non e' una presa in giro di nessuno: dice
+  /// solo chi sta aspettando cosa.
+  String? nota({required bool mine, required String username}) {
+    return switch (this) {
+      DuelState.judging =>
+        mine
+            ? 'L\'hai fatta. Aspetta il giudizio di @$username.'
+            : '@$username l\'ha fatta: tocca a te dire se va bene.',
+      DuelState.noVerdict =>
+        mine
+            ? 'Nessuno l\'ha giudicata in tempo. Non e\' colpa tua.'
+            : 'Non l\'hai giudicata in tempo: si e\' chiusa senza vincitore.',
       _ => null,
     };
   }

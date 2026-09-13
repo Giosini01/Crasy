@@ -361,7 +361,8 @@ service cloud.firestore {
                       && request.resource.data.kind
                          in ['participation', 'fire', 'mention', 'comment',
                              'duel', 'duelAccepted', 'duelDeclined',
-                             'duelCompleted']
+                             'duelCompleted', 'duelApproved',
+                             'duelRejected']
                       && request.resource.data.actorUsername is string;
 
         allow update: if false;
@@ -788,6 +789,65 @@ service cloud.firestore {
                        in ['accepted', 'declined', 'completed']
                     && resource.data.endsAt > request.time;
 
+      // **Chi aveva detto di no e ci ripensa, e il tempo che riparte.**
+      //
+      // E' la regola di sopra con una riga in piu', e quella riga e' la
+      // scadenza. Un rifiuto ferma la sfida ma non l'orologio: quando uno torna
+      // indietro — un'ora dopo, il giorno dopo — le ventiquattro ore sono quasi
+      // sempre finite, e riaprirla senza toccare `endsAt` vorrebbe dire
+      // riaprirla gia' morta. Il tasto sembrerebbe rotto, e la sfida sarebbe
+      // scaduta prima di ricominciare.
+      //
+      // Si esce **solo da un rifiuto** e si entra **solo in accettata**: da
+      // nessun altro stato si arriva qui, quindi questa non e' una strada per
+      // allungarsi la scadenza a piacere. E il tempo nuovo puo' andare al
+      // massimo venticinque ore avanti — le ventiquattro della sfida piu' il
+      // margine di orologi che non sono mai perfettamente d'accordo.
+      allow update: if signedIn()
+                    && resource.data.get('targetUserId', '') == request.auth.uid
+                    && resource.data.get('duelStatus', '') == 'declined'
+                    && changedOnly(['duelStatus', 'respondedAt', 'endsAt'])
+                    && request.resource.data.duelStatus == 'accepted'
+                    && request.resource.data.endsAt > request.time
+                    && request.resource.data.endsAt
+                       < request.time + duration.value(25, 'h');
+
+      // **Il giudizio di chi ha lanciato la sfida.**
+      //
+      // E' il contrappeso esatto della regola di sopra: uno dei due dice se la
+      // fa, l'altro dice se e' fatta. E serve perche' una sfida mirata ha **un
+      // partecipante solo** — il conteggio delle fiamme che decide ogni altra
+      // gara qui non decide niente, e senza questo passaggio bastava mandare un
+      // video nero per vincere una sfida che diceva "balla in mezzo alla
+      // piazza".
+      //
+      // **Non e' un arbitro, ed e' bene dirlo.** Niente qui dentro puo'
+      // obbligare una persona a essere onesta con un amico: quello che le
+      // regole possono garantire e' che il giudizio venga da chi ha chiesto la
+      // cosa e da nessun altro, che arrivi una volta sola, e che la foto che
+      // finisce nella bacheca sia davvero quella mandata. Il resto e' la stessa
+      // scommessa su cui sta in piedi tutta la sfida.
+      //
+      // Si scrive `winnerEntryId` in tutti e due i casi — con la foto se vale,
+      // vuoto se non vale — perche' quello e' il segno che una gara e' chiusa:
+      // senza, il server tornerebbe a guardarla ogni cinque minuti per sempre.
+      // Ed e' anche il motivo per cui il giudizio **chiude la sfida
+      // nell'istante in cui arriva**, senza aspettare nessuna scadenza.
+      allow update: if signedIn()
+                    && resource.data.get('createdByUserId', '')
+                       == request.auth.uid
+                    && resource.data.get('targetUserId', '') != ''
+                    && resource.data.get('duelStatus', '') == 'completed'
+                    && resource.data.get('duelVerdict', '') == ''
+                    && changedOnly([
+                         'duelVerdict', 'winnerEntryId', 'winnerUserId',
+                         'winnerUsername', 'winnerMediaUrl',
+                         'winnerMediaKind', 'winnerVotes'
+                       ])
+                    && request.resource.data.duelVerdict
+                       in ['approved', 'rejected']
+                    && winnerPhotoIsReal();
+
       match /entries/{entryId} {
 
         // L'identificativo della partecipazione **e'** l'identificativo di chi
@@ -907,6 +967,27 @@ service cloud.firestore {
                       && request.resource.data.isWinner == true
                       && challenge().get('prizeStatus', 'unpaid') == 'unpaid'
                       && challenge().endsAt <= request.time;
+
+        // **La vittoria di una sfida mirata, che arriva prima della scadenza.**
+        //
+        // La regola qui sopra pretende una gara gia' finita, e su ogni altra
+        // gara e' giusto: prima della sirena le fiamme si muovono ancora. Una
+        // sfida uno contro uno invece **non la chiude l'orologio** — la chiude
+        // il giudizio di chi l'ha lanciata, e quello arriva quando la foto
+        // arriva. Con la condizione di sopra, dare la vittoria a un amico il
+        // pomeriggio stesso sarebbe impossibile.
+        //
+        // Al posto dell'ora c'e' il nome: la scrive **solo chi ha lanciato
+        // quella sfida**, e solo su una missione che ha un destinatario. Che la
+        // foto sia davvero quella mandata lo controlla gia' la regola del
+        // verdetto sulla missione, con `winnerPhotoIsReal()`.
+        allow update: if signedIn()
+                      && changedOnly(['isWinner'])
+                      && request.resource.data.isWinner == true
+                      && challenge().get('targetUserId', '') != ''
+                      && challenge().get('createdByUserId', '')
+                         == request.auth.uid
+                      && challenge().get('prizeStatus', 'unpaid') == 'unpaid';
 
         // **Le fiamme non le conta piu' nessun telefono.**
         //

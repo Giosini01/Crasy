@@ -42,6 +42,7 @@ class Challenge {
     this.targetUserId = '',
     this.targetUsername = '',
     this.duelStatus = DuelStatus.pending,
+    this.duelVerdict = DuelVerdict.none,
     this.respondedAt,
   });
 
@@ -293,6 +294,14 @@ class Challenge {
   /// come accettata non e' una parola data, e' un contatore.
   final DuelStatus duelStatus;
 
+  /// Cosa ha detto chi l'ha lanciata, dopo aver guardato la foto.
+  ///
+  /// Lo scrive **solo chi ha lanciato la sfida**, ed e' il contrappeso esatto
+  /// di [duelStatus]: uno dei due dice se la fa, l'altro dice se e' fatta. Con
+  /// un partecipante solo non c'e' nessun conteggio di fiamme che possa
+  /// decidere, e senza questo campo bastava mandare un video nero per vincere.
+  final DuelVerdict duelVerdict;
+
   /// Quando ha risposto. Nullo finche' non risponde.
   final DateTime? respondedAt;
 
@@ -304,8 +313,17 @@ class Challenge {
   /// **finali**, e il tempo che passa non le cambia.
   DuelState duelStateAt(DateTime moment) {
     switch (duelStatus) {
+      // **Fatta non vuol dire vinta.** Fra la foto e la vittoria adesso c'e' il
+      // giudizio di chi ha lanciato la sfida: finche' non arriva, la sfida sta
+      // in mezzo — e il tempo che passa non la sposta, perche' a chiuderla e'
+      // una persona, non l'orologio.
       case DuelStatus.completed:
-        return DuelState.completed;
+        return switch (duelVerdict) {
+          DuelVerdict.none => DuelState.judging,
+          DuelVerdict.approved => DuelState.completed,
+          DuelVerdict.rejected => DuelState.notValid,
+          DuelVerdict.expired => DuelState.noVerdict,
+        };
       case DuelStatus.declined:
         return DuelState.declined;
       case DuelStatus.pending:
@@ -319,7 +337,13 @@ class Challenge {
   bool isDuelOpenAt(DateTime moment) {
     final state = duelStateAt(moment);
 
-    return state == DuelState.pending || state == DuelState.accepted;
+    // `judging` sta qui dentro, e non e' una svista: la sfida e' ancora viva,
+    // solo che adesso la palla e' dall'altra parte — tocca a chi l'ha lanciata.
+    // Tenerla fuori vorrebbe dire un elenco in cui le sfide da giudicare
+    // scendono in fondo insieme a quelle finite.
+    return state == DuelState.pending ||
+        state == DuelState.accepted ||
+        state == DuelState.judging;
   }
 
   final DateTime startsAt;
@@ -450,6 +474,7 @@ class Challenge {
     String? targetUserId,
     String? targetUsername,
     DuelStatus? duelStatus,
+    DuelVerdict? duelVerdict,
     DateTime? respondedAt,
   }) {
     return Challenge(
@@ -480,6 +505,7 @@ class Challenge {
       targetUserId: targetUserId ?? this.targetUserId,
       targetUsername: targetUsername ?? this.targetUsername,
       duelStatus: duelStatus ?? this.duelStatus,
+      duelVerdict: duelVerdict ?? this.duelVerdict,
       respondedAt: respondedAt ?? this.respondedAt,
     );
   }
@@ -507,7 +533,8 @@ class Challenge {
         other.winnerEntryId == winnerEntryId &&
         other.prizeStatus == prizeStatus &&
         other.targetUserId == targetUserId &&
-        other.duelStatus == duelStatus;
+        other.duelStatus == duelStatus &&
+        other.duelVerdict == duelVerdict;
   }
 
   @override
@@ -529,5 +556,6 @@ class Challenge {
     prizeStatus,
     targetUserId,
     duelStatus,
+    duelVerdict,
   );
 }

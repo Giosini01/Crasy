@@ -1,5 +1,6 @@
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
 import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
@@ -138,8 +139,83 @@ class DuelController extends AsyncNotifier<void> {
   }
 
   /// Accetta una sfida: da qui in poi e' una parola data.
-  Future<void> accept(Challenge challenge) =>
-      _answer(challenge, DuelStatus.accepted);
+  ///
+  /// **La stessa porta serve a chi ci ripensa.** Chi aveva detto di no e torna
+  /// indietro passa di qui, e trova la sfida com'era: se nel frattempo il tempo
+  /// era finito — e su un rifiuto e' quasi sempre cosi', perche' un no ferma la
+  /// sfida ma non l'orologio — riparte da adesso con le ventiquattro ore
+  /// intere. Riaprirla lasciandola scaduta vorrebbe dire riaprirla morta.
+  Future<void> accept(Challenge challenge) {
+    final now = DateTime.now();
+    final riparte =
+        challenge.duelStatus.isDeclined && !challenge.endsAt.isAfter(now);
+
+    return _answer(
+      challenge,
+      DuelStatus.accepted,
+      restartAt: riparte ? now.add(defaultDuration) : null,
+    );
+  }
+
+  /// **Il giudizio di chi ha lanciato la sfida.**
+  ///
+  /// Chiude la sfida nel momento in cui arriva: non si aspetta nessuna
+  /// scadenza, perche' su una sfida uno contro uno non c'e' niente che debba
+  /// ancora succedere — la foto c'e' gia', e l'unica cosa che mancava era
+  /// qualcuno che la guardasse.
+  ///
+  /// **E' un giudizio in buona fede, e non c'e' modo di renderlo altro.**
+  /// Nessuna regola puo' obbligare una persona a essere onesta con un amico:
+  /// quello che si puo' fare e' che il giudizio abbia un nome sopra, e ce
+  /// l'ha. E' la stessa scommessa della sfida — chi accetta si impegna sulla
+  /// parola, chi giudica risponde della sua.
+  Future<void> judge(
+    Challenge challenge, {
+    required bool approved,
+    ChallengeEntry? entry,
+  }) async {
+    final meId = ref.read(currentUserIdProvider);
+
+    // **Giudica solo chi ha lanciato la sfida.** Lo stesso controllo sta nelle
+    // regole di Firestore: qui evita un viaggio di rete per sentirsi dire di
+    // no, li' e' quello che conta davvero.
+    if (meId == null || meId != challenge.createdByUserId) {
+      return;
+    }
+
+    if (!challenge.isDuel || challenge.duelVerdict.isGiven) {
+      return;
+    }
+
+    state = const AsyncLoading<void>();
+
+    final result = await AsyncValue.guard(
+      () => ref
+          .read(challengeRepositoryProvider)
+          .judgeDuel(
+            challengeId: challenge.id,
+            approved: approved,
+            entry: entry,
+          ),
+    );
+
+    state = result.hasError
+        ? AsyncError<void>(result.error!, result.stackTrace!)
+        : const AsyncData<void>(null);
+
+    if (result.hasError) {
+      return;
+    }
+
+    await _notify(
+      toUserId: challenge.targetUserId,
+      kind: approved
+          ? NotificationKind.duelApproved
+          : NotificationKind.duelRejected,
+      challengeId: challenge.id,
+      challengeTitle: challenge.title,
+    );
+  }
 
   /// Rifiuta una sfida.
   Future<void> decline(Challenge challenge) =>
@@ -153,7 +229,11 @@ class DuelController extends AsyncNotifier<void> {
   Future<void> markCompleted(Challenge challenge) =>
       _answer(challenge, DuelStatus.completed);
 
-  Future<void> _answer(Challenge challenge, DuelStatus status) async {
+  Future<void> _answer(
+    Challenge challenge,
+    DuelStatus status, {
+    DateTime? restartAt,
+  }) async {
     final meId = ref.read(currentUserIdProvider);
 
     // **Risponde solo chi e' stato sfidato.** La stessa condizione sta nelle
@@ -172,7 +252,11 @@ class DuelController extends AsyncNotifier<void> {
     final result = await AsyncValue.guard(
       () => ref
           .read(challengeRepositoryProvider)
-          .answerDuel(challengeId: challenge.id, status: status),
+          .answerDuel(
+            challengeId: challenge.id,
+            status: status,
+            restartAt: restartAt,
+          ),
     );
 
     state = result.hasError

@@ -655,13 +655,18 @@ class _DuelRow extends ConsumerWidget {
               // il distintivo dice cos'e' successo, questa riga dice che non e'
               // stata una bella figura. E' tutto quello che costa dire di no, e
               // deve costare qualcosa o la parola data non vale niente.
-              if (state.fischio(mine: received, username: chiNome) case final
-                  fischio?) ...[
+              if ((state.fischio(mine: received, username: chiNome) ??
+                      state.nota(mine: received, username: chiNome))
+                  case final fischio?) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Row(
                   children: [
                     Icon(
-                      Icons.thumb_down_rounded,
+                      switch (state) {
+                        DuelState.judging => Icons.gavel_rounded,
+                        DuelState.noVerdict => Icons.help_outline_rounded,
+                        _ => Icons.thumb_down_rounded,
+                      },
                       size: 13,
                       color: palette.accent,
                     ),
@@ -707,19 +712,36 @@ class _DuelRow extends ConsumerWidget {
                   ],
                 ),
               ],
-              // **La via di ritorno.** Un no non e' una porta murata: finche'
-              // le ventiquattro ore non sono finite si puo' tornare indietro,
-              // ma passando da qui — si riapre la sfida, l'altro lo viene a
-              // sapere, e solo dopo si puo' scattare. Senza questo passaggio
-              // dire di no e mandare la foto lo stesso sarebbe la stessa cosa,
-              // e il rifiuto non varrebbe niente.
-              if (received &&
-                  state == DuelState.declined &&
-                  !challenge.hasEndedAt(DateTime.now())) ...[
+              // **La via di ritorno.** Un no non e' una porta murata: si puo'
+              // tornare indietro, ma passando da qui — si riapre la sfida,
+              // l'altro lo viene a sapere, e solo dopo si puo' scattare. Senza
+              // questo passaggio dire di no e mandare la foto lo stesso
+              // sarebbe la stessa cosa, e il rifiuto non varrebbe niente.
+              //
+              // Il tempo riparte insieme alla sfida: un rifiuto ferma la sfida
+              // ma non l'orologio, e quasi sempre quando uno ci ripensa la
+              // scadenza e' gia' passata. Riaprirla scaduta vorrebbe dire un
+              // tasto che sembra rotto.
+              if (received && state == DuelState.declined) ...[
                 const SizedBox(height: AppSpacing.sm),
                 OutlinedButton(
                   onPressed: busy ? null : () => controller.accept(challenge),
                   child: const Text('CI HO RIPENSATO'),
+                ),
+              ],
+              // **Il giudizio non si da' da qui.**
+              //
+              // Il tasto porta alla missione, dove la foto si vede grande: due
+              // comandi "vale / non vale" su una riga di elenco, senza la foto
+              // sotto gli occhi, sarebbero un giudizio dato a scatola chiusa —
+              // ed e' esattamente la cosa che questo passaggio esiste per
+              // impedire.
+              if (!received && state == DuelState.judging) ...[
+                const SizedBox(height: AppSpacing.sm),
+                FilledButton(
+                  onPressed: () =>
+                      context.push(AppRoutes.challengeDetailOf(challenge.id)),
+                  child: const Text('GUARDA E GIUDICA'),
                 ),
               ],
               // Accettata e non ancora fatta: il passo successivo e' scattare,

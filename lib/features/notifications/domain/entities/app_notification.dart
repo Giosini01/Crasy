@@ -28,6 +28,25 @@ enum NotificationKind {
   /// L'ha portata a termine: la foto e' in gara.
   duelCompleted,
 
+  /// **Ha guardato la tua foto e ha detto che vale.** La sfida e' vinta.
+  ///
+  /// Su una sfida mirata non c'e' nessun conteggio di fiamme che chiuda la
+  /// partita: a chiuderla e' una persona, e questa e' la notizia che lo dice a
+  /// chi ha fatto il lavoro.
+  duelApproved,
+
+  /// Ha guardato la foto e ha detto che non e' quello che aveva chiesto.
+  duelRejected,
+
+  /// **Nessuno ha guardato la foto in tempo, e la sfida si e' chiusa cosi'.**
+  ///
+  /// La scrive il server, non un telefono, ed e' l'unica delle sfide che non
+  /// ha un attore: non e' successo niente, e' proprio questo il punto. Senza,
+  /// chi ha fatto la sfida vedrebbe la propria foto sparire dentro una gara
+  /// chiusa senza vincitore e l'unica spiegazione possibile sarebbe che l'app
+  /// se la sia mangiata.
+  duelNoVerdict,
+
   /// **Un amico ha lanciato una missione per il gruppo.**
   ///
   /// E' l'unica notizia "c'e' una missione nuova" che resta, e la differenza
@@ -199,6 +218,12 @@ class AppNotification {
       '@$actorUsername ha rifiutato la tua sfida',
     NotificationKind.duelCompleted =>
       '@$actorUsername ha portato a termine la tua sfida',
+    NotificationKind.duelApproved =>
+      '@$actorUsername dice che ce l\'hai fatta: sfida vinta',
+    NotificationKind.duelRejected =>
+      '@$actorUsername non ha giudicato valida la tua sfida',
+    NotificationKind.duelNoVerdict =>
+      'Nessuno ha giudicato la tua sfida in tempo',
     NotificationKind.partyMission =>
       '@$actorUsername ha lanciato una missione per il party',
     NotificationKind.win => 'Hai vinto',
@@ -230,6 +255,9 @@ class AppNotification {
     NotificationKind.duelAccepted ||
     NotificationKind.duelDeclined ||
     NotificationKind.duelCompleted ||
+    NotificationKind.duelApproved ||
+    NotificationKind.duelRejected ||
+    NotificationKind.duelNoVerdict ||
     NotificationKind.partyMission => NotificationGroup.duels,
     NotificationKind.comment ||
     NotificationKind.mention => NotificationGroup.comments,

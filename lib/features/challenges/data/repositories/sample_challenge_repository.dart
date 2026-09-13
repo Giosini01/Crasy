@@ -327,6 +327,7 @@ class SampleChallengeRepository implements ChallengeRepository {
   Future<void> answerDuel({
     required String challengeId,
     required DuelStatus status,
+    DateTime? restartAt,
   }) async {
     final challenge = _challenges[challengeId];
 
@@ -337,6 +338,34 @@ class SampleChallengeRepository implements ChallengeRepository {
     _challenges[challengeId] = challenge.copyWith(
       duelStatus: status,
       respondedAt: DateTime.now(),
+      endsAt: restartAt,
+    );
+
+    _emit();
+  }
+
+  @override
+  Future<void> judgeDuel({
+    required String challengeId,
+    required bool approved,
+    ChallengeEntry? entry,
+  }) async {
+    final challenge = _challenges[challengeId];
+
+    if (challenge == null) {
+      return;
+    }
+
+    final vince = approved && entry != null;
+
+    _challenges[challengeId] = challenge.copyWith(
+      duelVerdict: approved ? DuelVerdict.approved : DuelVerdict.rejected,
+      winnerEntryId: vince ? entry.id : '',
+      winnerUserId: vince ? entry.userId : '',
+      winnerUsername: vince ? entry.authorName : '',
+      winnerMediaUrl: vince ? entry.mediaUrl : '',
+      winnerMediaKind: entry?.mediaKind ?? MediaKind.photo,
+      winnerVotes: vince ? entry.votes : 0,
     );
 
     _emit();

@@ -105,6 +105,23 @@ class ChallengeCloser {
       return false;
     }
 
+    // **Una sfida mirata non la chiude nessun conteggio.**
+    //
+    // E' l'eccezione che tiene in piedi tutta la faccenda, e senza di lei il
+    // resto non serve a niente: con un partecipante solo, "vince chi ha piu'
+    // fiamme" vuol dire che vince chiunque abbia mandato qualcosa — anche un
+    // video nero su una sfida che diceva "balla in mezzo alla piazza". A
+    // guardarla dev'essere chi l'ha lanciata, e finche' non l'ha guardata
+    // questa gara non si tocca.
+    //
+    // Quando le ore finiscono senza giudizio a chiuderla e' il server, che
+    // scrive `duelVerdict: expired` e **non proclama nessuno**: il silenzio di
+    // chi ha lanciato la sfida non puo' diventare una vittoria, ma non e'
+    // nemmeno una bocciatura di chi il lavoro l'ha fatto.
+    if (challenge.isDuel) {
+      return false;
+    }
+
     // La gara e' finita: si chiude. **Nessuna attesa**, perche' non c'e' piu'
     // niente da aspettare — a decidere sono le fiamme, e quelle si sono fermate
     // alla sirena.

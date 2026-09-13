@@ -52,6 +52,7 @@ abstract final class ChallengeMapper {
       targetUserId: data['targetUserId'] as String? ?? '',
       targetUsername: data['targetUsername'] as String? ?? '',
       duelStatus: DuelStatus.fromName(data['duelStatus'] as String?),
+      duelVerdict: DuelVerdict.fromName(data['duelVerdict'] as String?),
       respondedAt: (data['respondedAt'] as Timestamp?)?.toDate(),
     );
   }
@@ -90,6 +91,10 @@ abstract final class ChallengeMapper {
       'targetUserId': challenge.targetUserId,
       'targetUsername': challenge.targetUsername,
       'duelStatus': DuelStatus.pending.name,
+      // Il verdetto non si scrive alla nascita: non c'e' niente da
+      // giudicare finche' non c'e' una foto, e un campo vuoto e' piu'
+      // onesto di un `none` scritto a mano.
+
       'respondedAt': null,
       // **Nasce sempre non pagata, qualunque cosa dica chi la crea.**
       //

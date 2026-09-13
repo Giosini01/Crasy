@@ -732,6 +732,24 @@ class _Face extends StatelessWidget {
         Icons.military_tech_rounded,
         palette.accent,
       ),
+      // Il martelletto: e' arrivato un giudizio, ed e' il giudizio che chiude
+      // la sfida. Approvata tiene il colore della vittoria; bocciata prende il
+      // pollice giu' del rifiuto, perche' e' la stessa cosa detta dall'altra
+      // parte del campo.
+      NotificationKind.duelApproved => (
+        Icons.emoji_events_rounded,
+        palette.accent,
+      ),
+      NotificationKind.duelRejected => (
+        Icons.thumb_down_rounded,
+        palette.textPrimary,
+      ),
+      // Nessun giudizio: non e' un no di nessuno, e non prende il segno di un
+      // no. Grigio, come tutto quello che non e' successo.
+      NotificationKind.duelNoVerdict => (
+        Icons.hourglass_disabled_rounded,
+        palette.textPrimary,
+      ),
       // La bandierina: una missione nuova aperta dentro il gruppo.
       NotificationKind.partyMission => (
         Icons.celebration_rounded,

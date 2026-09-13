@@ -649,9 +649,132 @@ exports.purgeOldChallenges = onSchedule('every 60 minutes', async () => {
 });
 
 /**
+ * Quanto tempo ha chi ha lanciato una sfida mirata per dire se vale.
+ *
+ * **Si conta dalla foto, non dalla scadenza della sfida.** Chi la fa all'ultimo
+ * minuto non deve poter mettere l'altro davanti a un giudizio da dare in dieci
+ * secondi: le ventiquattro ore della sfida sono di chi la deve fare, queste
+ * sono di chi la deve guardare.
+ */
+const ORE_PER_GIUDICARE = 24 * 60 * 60 * 1000;
+
+/**
+ * Chiude una sfida mirata, che **non si chiude come le altre gare**.
+ *
+ * Su ogni altra gara vince chi ha piu' fiamme. Qui c'e' un partecipante solo, e
+ * quella regola vorrebbe dire che vince chiunque abbia mandato qualcosa: un
+ * video nero su una sfida che diceva "balla in mezzo alla piazza" verrebbe
+ * proclamato vincitore dal sistema, in silenzio, senza che nessuno l'abbia
+ * guardato. E' esattamente la cosa che questo pezzo esiste per impedire.
+ *
+ * A dire se vale e' chi l'ha lanciata, dall'app, e quando lo fa la sfida si
+ * chiude **nello stesso istante** — qui non ci arriva nemmeno. Qui ci arrivano
+ * solo le sfide finite in un altro modo:
+ *
+ * - non l'ha fatta (rifiutata, o tempo finito): si chiude senza vincitore;
+ * - l'ha fatta e nessuno l'ha giudicata entro un giorno: si chiude senza
+ *   vincitore, ma **scritto in un altro modo** — `expired` invece di
+ *   `rejected`, perche' il silenzio di chi doveva guardare non e' una
+ *   bocciatura di chi ha fatto il lavoro, e chi legge deve poter distinguere
+ *   le due cose.
+ *
+ * Torna `false` quando non c'e' ancora niente da fare: la sfida resta aperta e
+ * la prossima corsa ripassera' di qui.
+ */
+async function chiudiLaSfidaMirata(challenge) {
+  const stato = challenge.get('duelStatus') || 'pending';
+  const verdetto = challenge.get('duelVerdict') || '';
+
+  // Gia' giudicata: l'app ha scritto tutto, vincitore compreso. Se siamo qui
+  // vuol dire che il verdetto c'e' ma la chiusura non e' arrivata — si chiude,
+  // senza toccare il verdetto di nessuno.
+  if (verdetto) {
+    await challenge.ref.update({ winnerEntryId: '' });
+
+    return true;
+  }
+
+  if (stato === 'completed') {
+    const risposta = challenge.get('respondedAt');
+    const quando = risposta ? risposta.toMillis() : 0;
+
+    if (quando && Date.now() - quando < ORE_PER_GIUDICARE) {
+      // La foto e' arrivata da poco: chi ha lanciato la sfida ha ancora tempo
+      // per guardarla. Non si tocca niente.
+      return false;
+    }
+
+    await challenge.ref.update({
+      duelVerdict: 'expired',
+      winnerEntryId: '',
+    });
+
+    await avvisaSfidaSenzaGiudizio(challenge);
+    logger.info(`Sfida ${challenge.id} chiusa senza giudizio.`);
+
+    return true;
+  }
+
+  // Rifiutata, o mai fatta: non c'e' nessuna foto e non c'e' niente da
+  // giudicare. Si segna chiusa per non ricontrollarla ogni cinque minuti.
+  await challenge.ref.update({ winnerEntryId: '' });
+  logger.info(`Sfida ${challenge.id} chiusa senza partecipazione (${stato}).`);
+
+  return true;
+}
+
+/**
+ * Dice a chi ha fatto la sfida che nessuno l'ha guardata.
+ *
+ * **Il silenzio va spiegato, o sembra un torto.** Uno ha fatto quello che gli
+ * era stato chiesto, la sfida si chiude senza vincitore, e senza questa riga
+ * l'unica spiegazione che si puo' dare e' che l'app se lo sia mangiato.
+ */
+async function avvisaSfidaSenzaGiudizio(challenge) {
+  const destinatario = challenge.get('targetUserId');
+
+  if (!destinatario) {
+    return;
+  }
+
+  try {
+    await db
+      .collection('users')
+      .doc(destinatario)
+      .collection('notifications')
+      .doc('nogiudizio_' + challenge.id)
+      .set({
+        kind: 'duelNoVerdict',
+        actorId: challenge.get('createdByUserId') || '',
+        actorUsername: challenge.get('createdByUsername') || '',
+        challengeId: challenge.id,
+        challengeTitle: challenge.get('title') || '',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+  } catch (error) {
+    logger.error('avviso di sfida senza giudizio non partito', {
+      challenge: challenge.id,
+      error,
+    });
+  }
+}
+
+/**
  * Chiude una singola challenge e proclama chi ha vinto.
  */
 async function closeChallenge(challenge) {
+  // **Una sfida mirata prende un'altra strada, e non torna qui.**
+  //
+  // Tutto quello che viene dopo — la classifica delle fiamme, il vincitore, il
+  // premio — su una gara con un partecipante solo non decide niente e fa un
+  // danno: proclamerebbe vincitore chiunque abbia mandato qualcosa, video nero
+  // compreso. Chi decide e' chi ha lanciato la sfida, dall'app.
+  if (challenge.get('targetUserId')) {
+    await chiudiLaSfidaMirata(challenge);
+
+    return;
+  }
+
   // Le partecipazioni si leggono tutte e si ordinano qui, invece di farsele
   // ordinare da Firestore. Una query con `orderBy('votes')` **salta i documenti
   // senza quel campo**, e una foto scritta da una versione vecchia dell'app non
@@ -1144,6 +1267,12 @@ exports.sendPushOnNotification = onDocumentCreated(
       duelAccepted: `@${chi} ha accettato la tua sfida`,
       duelDeclined: `@${chi} ha rifiutato la tua sfida`,
       duelCompleted: `@${chi} ha portato a termine la tua sfida`,
+      // **Il verdetto, che su una sfida mirata e' il finale.** Non c'e' nessun
+      // conteggio di fiamme che chiuda una gara a due: la chiude una persona
+      // che dice se vale, e questa e' la notizia che lo dice all'altra.
+      duelApproved: `@${chi} dice che ce l'hai fatta: sfida vinta`,
+      duelRejected: `@${chi} non ha giudicato valida la tua sfida`,
+      duelNoVerdict: 'Nessuno ha giudicato la tua sfida in tempo',
       partyMission: gara
         ? `@${chi} ha lanciato una missione: ${gara}`
         : `@${chi} ha lanciato una missione per il party`,

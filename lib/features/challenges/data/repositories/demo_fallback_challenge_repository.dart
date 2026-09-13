@@ -217,10 +217,25 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
   Future<void> answerDuel({
     required String challengeId,
     required DuelStatus status,
+    DateTime? restartAt,
   }) {
     return _forChallenge(challengeId).answerDuel(
       challengeId: challengeId,
       status: status,
+      restartAt: restartAt,
+    );
+  }
+
+  @override
+  Future<void> judgeDuel({
+    required String challengeId,
+    required bool approved,
+    ChallengeEntry? entry,
+  }) {
+    return _forChallenge(challengeId).judgeDuel(
+      challengeId: challengeId,
+      approved: approved,
+      entry: entry,
     );
   }
 

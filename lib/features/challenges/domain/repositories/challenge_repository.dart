@@ -164,9 +164,37 @@ abstract class ChallengeRepository {
   /// La scrive solo chi l'ha ricevuta. Non e' un dettaglio d'interfaccia: una
   /// sfida che chi l'ha lanciata puo' segnare come accettata non e' una parola
   /// data. Le regole di Firestore impongono la stessa cosa dall'altra parte.
+  ///
+  /// [restartAt] rimette in moto l'orologio, e serve a un caso solo: chi aveva
+  /// detto di no e ci ha ripensato. Una sfida rifiutata ha smesso di contare i
+  /// minuti da un pezzo — spesso e' gia' oltre la scadenza — e riaprirla senza
+  /// toccare il tempo vorrebbe dire riaprirla gia' scaduta. Le regole lasciano
+  /// spostarla solo in avanti e solo di poco, e solo tornando da un rifiuto.
   Future<void> answerDuel({
     required String challengeId,
     required DuelStatus status,
+    DateTime? restartAt,
+  });
+
+  /// **Il giudizio di chi ha lanciato la sfida**: la foto vale, o non vale.
+  ///
+  /// E' l'altra meta' di [answerDuel], e sta dalla parte opposta: la scrive
+  /// solo chi ha lanciato la sfida, e solo dopo che la foto e' arrivata.
+  ///
+  /// Serve perche' una sfida mirata ha **un partecipante solo**: il conteggio
+  /// delle fiamme, che decide ogni altra gara, qui non decide niente — chiunque
+  /// mandi qualcosa vince, e quel qualcosa puo' essere un video nero su una
+  /// sfida che diceva "balla in mezzo alla piazza".
+  ///
+  /// Il giudizio **chiude la sfida nel momento in cui arriva**, e non c'e'
+  /// niente da aspettare: approvata, la foto diventa il trofeo di chi l'ha
+  /// fatta; bocciata, la sfida si chiude senza vincitore. In tutti e due i casi
+  /// si scrive `winnerEntryId`, che e' il segno che una gara e' stata chiusa —
+  /// senza, il server tornerebbe a guardarla ogni cinque minuti in eterno.
+  Future<void> judgeDuel({
+    required String challengeId,
+    required bool approved,
+    ChallengeEntry? entry,
   });
 
   /// Le gare che [userId] ha **vinto**. La sua bacheca dei trofei.

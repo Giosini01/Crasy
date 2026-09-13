@@ -75,10 +75,30 @@ class DuelStateChip extends StatelessWidget {
         palette.accentTint,
         Icons.handshake_rounded,
       ),
+      // Tocca a chi ha lanciato la sfida: rosso, perche' c'e' qualcosa da
+      // fare, e la clessidra rovesciata perche' e' l'attesa dell'altro lato.
+      DuelState.judging => (
+        palette.accent,
+        palette.accentTint,
+        Icons.gavel_rounded,
+      ),
       DuelState.completed => (
         palette.accent,
         palette.accentTint,
         Icons.military_tech_rounded,
+      ),
+      // Bocciata: e' un no, come il rifiuto, e si vede come il rifiuto.
+      DuelState.notValid => (
+        palette.accent,
+        palette.accentTint,
+        Icons.thumb_down_rounded,
+      ),
+      // Nessuno l'ha guardata: non e' un no di nessuno, e non ha il colore di
+      // un no. Grigia come le scadute, perche' e' esattamente questo.
+      DuelState.noVerdict => (
+        palette.textFaint,
+        palette.surfaceMuted,
+        Icons.help_outline_rounded,
       ),
       // **Il rifiuto si vede.** Era grigio come le scadute, con la stessa
       // logica: non c'e' piu' niente da decidere. Ma un no non e' un silenzio —

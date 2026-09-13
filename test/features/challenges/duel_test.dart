@@ -24,6 +24,7 @@ void main() {
     required String from,
     required String to,
     DuelStatus status = DuelStatus.pending,
+    DuelVerdict verdict = DuelVerdict.none,
     Duration durata = const Duration(hours: 24),
   }) {
     return Challenge(
@@ -37,12 +38,15 @@ void main() {
       targetUserId: to,
       targetUsername: to,
       duelStatus: status,
+      duelVerdict: verdict,
       audience: [from, to],
       maxParticipants: 1,
       startsAt: now.subtract(const Duration(hours: 1)),
       endsAt: now.subtract(const Duration(hours: 1)).add(durata),
     );
   }
+
+  _verdetto(duel, now);
 
   ProviderContainer containerWith(List<Challenge> reserved) {
     final container = ProviderContainer(
@@ -170,7 +174,7 @@ void main() {
       );
     });
 
-    test('completata e rifiutata sono finali: il tempo non le tocca', () {
+    test('fatta e rifiutata sono finali: il tempo non le tocca', () {
       for (final stato in [DuelStatus.completed, DuelStatus.declined]) {
         final sfida = duel(id: 'x', from: 'mario', to: 'io', status: stato);
         final dopo = sfida.duelStateAt(now.add(const Duration(days: 30)));
@@ -178,7 +182,11 @@ void main() {
         expect(
           dopo,
           stato == DuelStatus.completed
-              ? DuelState.completed
+              // Fatta e non ancora guardata: resta li' ad aspettare un
+              // giudizio anche un mese dopo. **Non scade**, ed e' voluto — a
+              // chiuderla e' una persona, non l'orologio, e il server la chiude
+              // scrivendo `expired` invece di proclamare qualcuno.
+              ? DuelState.judging
               : DuelState.declined,
         );
       }
@@ -265,7 +273,7 @@ void _fischio() {
     test('gli altri stati restano scritti per quello che sono', () {
       expect(DuelState.pending.chipLabel, 'IN ATTESA');
       expect(DuelState.accepted.chipLabel, 'ACCETTATA');
-      expect(DuelState.completed.chipLabel, 'COMPLETATA');
+      expect(DuelState.completed.chipLabel, 'VINTA');
       expect(DuelState.expired.chipLabel, 'SCADUTA');
     });
 
@@ -291,6 +299,154 @@ void _fischio() {
         DuelState.completed.fischio(mine: true, username: 'mario'),
         isNull,
       );
+    });
+  });
+}
+
+/// **Il buco piu' grosso che una sfida uno contro uno potesse avere.**
+///
+/// Con un partecipante solo, la regola che decide ogni altra gara — vince chi
+/// ha piu' fiamme — qui vuol dire che vince chiunque abbia mandato qualcosa. La
+/// sfida diceva "balla in mezzo alla piazza", il video e' nero, e il sistema
+/// proclamava un vincitore che non aveva ballato. Queste righe difendono il
+/// passaggio che mancava: **la foto la guarda chi ha chiesto la cosa**.
+///
+/// E difendono anche l'altra meta', che conta uguale: il silenzio di chi doveva
+/// guardare non e' una bocciatura di chi ha fatto il lavoro, e le due cose non
+/// si possono scrivere nello stesso modo.
+void _verdetto(
+  Challenge Function({
+    required String id,
+    required String from,
+    required String to,
+    DuelStatus status,
+    DuelVerdict verdict,
+    Duration durata,
+  })
+  duel,
+  DateTime now,
+) {
+  group('la foto non vince da sola', () {
+    test('fatta e non ancora guardata: sta in mezzo, non ha vinto', () {
+      final sfida = duel(
+        id: 'x',
+        from: 'io',
+        to: 'ciccio',
+        status: DuelStatus.completed,
+      );
+
+      expect(sfida.duelStateAt(now), DuelState.judging);
+    });
+
+    test('giudicata valida: e\' vinta', () {
+      final sfida = duel(
+        id: 'x',
+        from: 'io',
+        to: 'ciccio',
+        status: DuelStatus.completed,
+        verdict: DuelVerdict.approved,
+      );
+
+      expect(sfida.duelStateAt(now), DuelState.completed);
+    });
+
+    test('bocciata: non e\' valida, e non e\' un rifiuto', () {
+      final sfida = duel(
+        id: 'x',
+        from: 'io',
+        to: 'ciccio',
+        status: DuelStatus.completed,
+        verdict: DuelVerdict.rejected,
+      );
+
+      // **Non e' `declined`**, ed e' la distinzione che conta: rifiutata vuol
+      // dire che si e' tirata indietro, non valida vuol dire che l'ha fatta e
+      // non andava bene. Confonderle e' dare a qualcuno la colpa di una cosa
+      // che non ha fatto.
+      expect(sfida.duelStateAt(now), DuelState.notValid);
+      expect(sfida.duelStateAt(now), isNot(DuelState.declined));
+    });
+
+    test('nessuno l\'ha guardata in tempo: si chiude senza vincitore', () {
+      final sfida = duel(
+        id: 'x',
+        from: 'io',
+        to: 'ciccio',
+        status: DuelStatus.completed,
+        verdict: DuelVerdict.expired,
+      );
+
+      expect(sfida.duelStateAt(now), DuelState.noVerdict);
+    });
+
+    test('il silenzio non si scrive come una bocciatura', () {
+      // Le due righe che leggera' chi ha fatto la sfida. Se fossero la stessa
+      // frase, un amico distratto e un amico severo avrebbero lo stesso
+      // aspetto — e uno dei due sta dando la colpa a chi non ce l'ha.
+      final bocciata = DuelState.notValid.fischio(mine: true, username: 'io');
+      final silenzio = DuelState.noVerdict.nota(mine: true, username: 'io');
+
+      expect(bocciata, isNotNull);
+      expect(silenzio, isNotNull);
+      expect(bocciata, isNot(silenzio));
+      expect(silenzio, contains('Non e\' colpa tua'));
+    });
+
+    test('da giudicare vuol dire che la sfida e\' ancora viva', () {
+      final sfida = duel(
+        id: 'x',
+        from: 'io',
+        to: 'ciccio',
+        status: DuelStatus.completed,
+      );
+
+      // Anche un mese dopo: a chiuderla e' una persona, non l'orologio. Se
+      // scadesse da sola, il lavoro gia' fatto sparirebbe per il ritardo di
+      // chi doveva guardarlo.
+      expect(sfida.isDuelOpenAt(now.add(const Duration(days: 30))), isTrue);
+    });
+
+    test('finite vuol dire finite', () {
+      expect(DuelState.completed.isOver, isTrue);
+      expect(DuelState.notValid.isOver, isTrue);
+      expect(DuelState.noVerdict.isOver, isTrue);
+      expect(DuelState.declined.isOver, isTrue);
+      expect(DuelState.expired.isOver, isTrue);
+      expect(DuelState.judging.isOver, isFalse);
+      expect(DuelState.pending.isOver, isFalse);
+      expect(DuelState.accepted.isOver, isFalse);
+    });
+  });
+
+  group('come si legge dal database', () {
+    test('i verdetti si leggono per come sono scritti', () {
+      expect(DuelVerdict.fromName('approved'), DuelVerdict.approved);
+      expect(DuelVerdict.fromName('rejected'), DuelVerdict.rejected);
+      expect(DuelVerdict.fromName('expired'), DuelVerdict.expired);
+    });
+
+    test('senza verdetto, o con uno inventato, non c\'e\' verdetto', () {
+      // **Il ripiego conta piu' del resto.** Tutte le sfide gia' sul database
+      // non hanno questo campo: se un valore mancante si leggesse come
+      // "approvata", il giorno dell'aggiornamento ogni sfida mai fatta
+      // diventerebbe una vittoria.
+      expect(DuelVerdict.fromName(null), DuelVerdict.none);
+      expect(DuelVerdict.fromName(''), DuelVerdict.none);
+      expect(DuelVerdict.fromName('qualcosa'), DuelVerdict.none);
+      expect(DuelVerdict.none.isGiven, isFalse);
+      expect(DuelVerdict.none.isApproved, isFalse);
+    });
+
+    test('una sfida vecchia, senza il campo, resta da giudicare', () {
+      final vecchia = duel(
+        id: 'x',
+        from: 'io',
+        to: 'ciccio',
+        status: DuelStatus.completed,
+      );
+
+      expect(vecchia.duelVerdict, DuelVerdict.none);
+      expect(vecchia.duelStateAt(now), DuelState.judging);
     });
   });
 }

@@ -13,6 +13,7 @@ import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/features/challenges/data/reveal_seen_store.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:crasy/features/challenges/presentation/controllers/challenge_closer.dart';
 import 'package:crasy/features/challenges/presentation/controllers/duel_controller.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
@@ -197,7 +198,15 @@ class _Body extends ConsumerWidget {
         // coperti sembrano un difetto, l'ordine mescolato sembra un capriccio,
         // il tetto sembra una porta chiusa in faccia — e non dette diventano
         // esattamente questo: tre difetti. Dette, sono il gioco.
-        if (!challenge.hasEndedAt(DateTime.now())) ...[
+        //
+        // **Su una sfida mirata sono regole diverse**, e quelle normali sono
+        // perfino false: "restano 1 posti su 1" su una sfida a una persona
+        // sola non dice niente a nessuno, e "vince chi ha piu' fiamme" e'
+        // proprio il contrario di come funziona qui.
+        if (challenge.isDuel) ...[
+          const SizedBox(height: AppSpacing.lg),
+          const _DuelRules(),
+        ] else if (!challenge.hasEndedAt(DateTime.now())) ...[
           const SizedBox(height: AppSpacing.lg),
           _GameRules(challenge: challenge),
         ],
@@ -222,7 +231,11 @@ class _Body extends ConsumerWidget {
         ],
         const SizedBox(height: AppSpacing.xl),
         Text(
-          challenge.hasEndedAt(DateTime.now())
+          // Su una sfida mirata non ci sono "partecipazioni": c'e' una persona
+          // sola, e quello che si viene a vedere qui e' com'e' andata fra due.
+          challenge.isDuel
+              ? 'LA SFIDA'
+              : challenge.hasEndedAt(DateTime.now())
               ? 'IL VINCITORE'
               : 'PARTECIPAZIONI',
           style: texts.labelSmall?.copyWith(color: palette.textFaint),
@@ -481,10 +494,28 @@ class _EntriesState extends ConsumerState<_Entries> {
     final entries = widget.entries;
 
     if (entries.isEmpty) {
+      // **Su una sfida mirata "ancora nessuno" e' una bugia.**
+      //
+      // Quella riga vuol dire "puoi essere il primo", e su una sfida lanciata a
+      // una persona sola non e' vero per nessuno: chi guarda o e' quello che ha
+      // sfidato — e non puo' partecipare — o e' quello sfidato, che ha gia'
+      // detto di no. Il risultato era una schermata vuota che non diceva la
+      // sola cosa che c'era da dire, cioe' com'e' finita.
+      if (challenge.isDuel) {
+        return _DuelOutcome(challenge: challenge);
+      }
+
       return Text(
         'Ancora nessuno. Puoi essere il primo.',
         style: context.texts.bodyMedium,
       );
+    }
+
+    // **La foto c'e', e aspetta un giudizio.** Su una sfida uno contro uno la
+    // foto da sola non chiude niente: la mostra grande, e sotto ci mette i due
+    // comandi — ma solo a chi la sfida l'ha lanciata.
+    if (challenge.isDuel && !challenge.duelVerdict.isApproved) {
+      return _DuelJudgement(challenge: challenge, entry: entries.first);
     }
 
     // A challenge chiusa vince una foto sola, e va vista grande: mostrarla
@@ -811,14 +842,21 @@ class _Verdict extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            Icons.local_fire_department_rounded,
+            challenge.isDuel
+                ? Icons.emoji_events_rounded
+                : Icons.local_fire_department_rounded,
             size: 16,
             color: palette.textFaint,
           ),
           const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: Text(
-              'Ha vinto la foto con più fiamme alla chiusura.',
+              // Su una sfida mirata non ha vinto nessun conteggio: ha vinto
+              // perche' chi l'ha lanciata ha detto che ce l'aveva fatta.
+              challenge.isDuel
+                  ? '@${challenge.createdByUsername} ha detto che ce l\'ha '
+                        'fatta: sfida vinta.'
+                  : 'Ha vinto la foto con più fiamme alla chiusura.',
               style: context.texts.bodySmall?.copyWith(
                 color: palette.textSecondary,
               ),
@@ -1034,6 +1072,299 @@ class _Rule extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// **Com'e' finita una sfida mirata a cui non ha partecipato nessuno.**
+///
+/// Prende il posto di "Ancora nessuno. Puoi essere il primo.", che su una sfida
+/// uno contro uno non e' vera per nessuno dei due: chi l'ha lanciata non puo'
+/// partecipare, e chi l'ha ricevuta o deve ancora rispondere o ha gia' detto di
+/// no. Quella riga lasciava una schermata vuota proprio dove c'era l'unica cosa
+/// da sapere.
+///
+/// **La cacca e' voluta.** Un rifiuto scritto in grigio istituzionale non e' il
+/// tono di una sfida fra amici, e soprattutto non costa niente: qui costa una
+/// figuraccia, che e' esattamente il prezzo giusto — niente di piu', ma non
+/// zero.
+class _DuelOutcome extends ConsumerWidget {
+  const _DuelOutcome({required this.challenge});
+
+  final Challenge challenge;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+    final texts = context.texts;
+    final meId = ref.watch(currentUserIdProvider);
+    final sfidato = meId != null && meId == challenge.targetUserId;
+    final state = challenge.duelStateAt(DateTime.now());
+
+    final (emoji, titolo, dettaglio) = switch (state) {
+      DuelState.declined => (
+        '💩',
+        sfidato
+            ? 'Hai rifiutato la sfida.'
+            : '@${challenge.targetUsername} ha rifiutato la sfida.',
+        sfidato
+            ? 'Se ci hai ripensato puoi ancora rimetterti in gioco: il tempo '
+                  'riparte da adesso.'
+            : 'Non se l\'è sentita. Capita.',
+      ),
+      DuelState.expired => (
+        '💩',
+        sfidato
+            ? 'Non ce l\'hai fatta in tempo.'
+            : '@${challenge.targetUsername} non l\'ha fatta in tempo.',
+        'Le ventiquattro ore sono finite e non è arrivata nessuna foto.',
+      ),
+      DuelState.accepted => (
+        '🤝',
+        sfidato
+            ? 'Hai accettato: adesso tocca a te.'
+            : '@${challenge.targetUsername} ha accettato.',
+        sfidato
+            ? 'Hai dato la tua parola. Manda la foto prima che scada.'
+            : 'Ha dato la sua parola: aspetta la foto.',
+      ),
+      _ => (
+        '⏳',
+        sfidato
+            ? '@${challenge.createdByUsername} ti ha sfidato.'
+            : 'Aspetti una risposta da @${challenge.targetUsername}.',
+        sfidato
+            ? 'Rispondi dal party: accetti o rifiuti.'
+            : 'Non ha ancora detto né sì né no.',
+      ),
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: palette.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 34)),
+          const SizedBox(height: AppSpacing.sm),
+          Text(titolo, style: texts.titleSmall),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            dettaglio,
+            style: texts.bodySmall?.copyWith(color: palette.textSecondary),
+          ),
+          // **La via di ritorno sta qui dentro, non solo nel party.**
+          //
+          // Questa e' la schermata che si apre toccando la notifica, ed e'
+          // dove uno arriva quando ci ripensa: mandarlo a cercare il tasto in
+          // un'altra scheda vuol dire perderlo per strada.
+          if (sfidato && state == DuelState.declined) ...[
+            const SizedBox(height: AppSpacing.md),
+            _Reconsider(challenge: challenge),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Il tasto di chi aveva detto di no e ci ha ripensato.
+///
+/// Rimette la sfida fra le accettate **e fa ripartire l'orologio**: un rifiuto
+/// ferma la sfida ma non il tempo, quindi quando uno torna indietro la scadenza
+/// originale e' quasi sempre gia' passata. Riaprirla senza toccarla vorrebbe
+/// dire riaprirla morta, e il tasto sembrerebbe rotto.
+class _Reconsider extends ConsumerWidget {
+  const _Reconsider({required this.challenge});
+
+  final Challenge challenge;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final busy = ref.watch(duelControllerProvider).isLoading;
+
+    return OutlinedButton(
+      onPressed: busy
+          ? null
+          : () => ref.read(duelControllerProvider.notifier).accept(challenge),
+      child: const Text('CI HO RIPENSATO'),
+    );
+  }
+}
+
+/// **La foto di una sfida mirata, e il giudizio di chi l'ha lanciata.**
+///
+/// Su ogni altra gara a decidere sono le fiamme. Qui non possono: c'e' un
+/// partecipante solo, e "vince chi ne ha di piu'" vuol dire che vince chiunque
+/// abbia mandato qualcosa — anche un video nero su una sfida che diceva "balla
+/// in mezzo alla piazza". Allora la guarda chi l'ha chiesta.
+///
+/// **E' un giudizio in buona fede, e non puo' essere altro.** Niente qui dentro
+/// puo' obbligare una persona a essere onesta: quello che si puo' fare e' che
+/// il giudizio abbia un nome sopra, e ce l'ha. E' la stessa scommessa su cui
+/// sta in piedi il resto — chi accetta si impegna sulla parola, chi giudica
+/// risponde della sua, e tutti e due sanno chi e' l'altro.
+class _DuelJudgement extends ConsumerWidget {
+  const _DuelJudgement({required this.challenge, required this.entry});
+
+  final Challenge challenge;
+  final ChallengeEntry entry;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+    final texts = context.texts;
+    final meId = ref.watch(currentUserIdProvider);
+    final mio = meId != null && meId == challenge.createdByUserId;
+    final state = challenge.duelStateAt(DateTime.now());
+    final busy = ref.watch(duelControllerProvider).isLoading;
+    final controller = ref.read(duelControllerProvider.notifier);
+    final altro = mio ? challenge.targetUsername : challenge.createdByUsername;
+
+    final riga =
+        state.nota(mine: !mio, username: altro) ??
+        state.fischio(mine: !mio, username: altro);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (riga != null) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                state == DuelState.judging
+                    ? Icons.gavel_rounded
+                    : Icons.info_outline_rounded,
+                size: 16,
+                color: palette.accent,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  riga,
+                  style: texts.bodySmall?.copyWith(color: palette.accent),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        EntryTile(entry: entry, showChallenge: false),
+        // I due comandi compaiono **solo a chi ha lanciato la sfida, e solo
+        // finche' non ha deciso**. A chi l'ha fatta non servono: guarderebbe
+        // due tasti che non puo' toccare.
+        if (mio && state == DuelState.judging) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            'TOCCA A TE',
+            style: texts.labelSmall?.copyWith(color: palette.textFaint),
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            'Guarda la foto e dì com\'è andata. Conta sulla tua onestà: sei tu '
+            'che hai chiesto questa cosa, e lo sa anche lei.',
+            style: texts.bodySmall?.copyWith(color: palette.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: busy
+                      ? null
+                      : () => controller.judge(
+                          challenge,
+                          approved: true,
+                          entry: entry,
+                        ),
+                  child: const Text('CE L\'HA FATTA'),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              TextButton(
+                onPressed: busy
+                    ? null
+                    : () => controller.judge(
+                        challenge,
+                        approved: false,
+                        entry: entry,
+                      ),
+                child: Text(
+                  'NON VALE',
+                  style: texts.labelSmall?.copyWith(color: palette.textFaint),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// **Come funziona una sfida mirata**, scritto dove si guarda.
+///
+/// Prende il posto di "COME SI VINCE", che qui diceva tre cose e due erano
+/// false: "vince chi ha piu' fiamme" — con un partecipante solo non vince
+/// niente nessuno — e "restano 1 posti su 1", che su una sfida lanciata a una
+/// persona per nome e' un modo complicato di non dire niente.
+///
+/// La terza riga e' quella che conta, ed e' la ragione per cui questo blocco
+/// esiste: **chi ha lanciato la sfida decide se vale**. Va detto prima, a tutti
+/// e due, o il giorno in cui arriva un "non vale" sembra un sopruso inventato
+/// sul momento.
+class _DuelRules extends StatelessWidget {
+  const _DuelRules();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        border: Border.all(color: palette.line),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'COME FUNZIONA',
+            style: texts.labelSmall?.copyWith(color: palette.accent),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _Rule(
+            icon: Icons.sports_kabaddi_rounded,
+            text: 'Siete in due, e basta.',
+            detail:
+                'Nessun altro la vede e nessun altro può parteciparci. Non '
+                'toglie niente alle vostre partecipazioni del giorno.',
+          ),
+          _Rule(
+            icon: Icons.handshake_rounded,
+            text: 'In palio c\'è la parola data.',
+            detail:
+                'Non ci sono soldi: chi accetta si impegna a farla, e chi '
+                'rifiuta si becca il buuu.',
+          ),
+          _Rule(
+            icon: Icons.gavel_rounded,
+            text: 'Decide chi ha lanciato la sfida.',
+            detail:
+                'Quando la foto arriva, è lui a dire se vale — in buona fede, '
+                'perché è lui che l\'ha chiesta. Poi la sfida si chiude '
+                'subito, senza aspettare la scadenza.',
+            accent: true,
           ),
         ],
       ),
