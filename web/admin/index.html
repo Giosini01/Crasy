@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- **Fuori dai motori di ricerca.** Non e' una protezione — quella sta sul
+     server, in `functions/admin.js` — ma una pagina amministrativa indicizzata
+     e' un invito a provarci scritto in prima pagina. -->
+<meta name="robots" content="noindex, nofollow">
+<title>CRASY — Segnalazioni</title>
+<style>
+  /*
+   * **La dashboard non e' l'app, e non finge di esserlo.**
+   *
+   * Nessuna delle regole di CRASY vale qui: qui non si convince nessuno a fare
+   * niente, si guarda una foto e si decide. Una tabella fitta, i due comandi
+   * grandi, e nient'altro. L'unica cosa che resta dell'app e' il rosso, perche'
+   * chi la apre deve vedere in un colpo d'occhio di che casa e'.
+   */
+  :root {
+    --rosso: #FA0000;
+    --nero: #101010;
+    --carta: #FFFFFF;
+    --grigio: #F4F4F4;
+    --linea: #E3E3E3;
+    --tenue: #767676;
+    --verde: #1B7F3B;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--nero);
+    background: var(--grigio);
+  }
+
+  header {
+    background: var(--nero);
+    color: #fff;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  header .marchio { font-weight: 800; letter-spacing: 1px; }
+  header .marchio span { color: var(--rosso); }
+  header .chi { margin-left: auto; font-size: 13px; color: #bbb; }
+
+  main { max-width: 1040px; margin: 0 auto; padding: 20px; }
+
+  .scatola {
+    background: var(--carta);
+    border: 1px solid var(--linea);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  h1 { font-size: 20px; margin: 0 0 14px; }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+
+  label { display: block; font-size: 12px; color: var(--tenue); margin-bottom: 4px; }
+
+  input[type=email], input[type=password] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--linea);
+    border-radius: 8px;
+    font-size: 15px;
+    margin-bottom: 12px;
+  }
+
+  button {
+    font: inherit;
+    font-weight: 600;
+    border: 1px solid var(--linea);
+    background: var(--carta);
+    border-radius: 8px;
+    padding: 9px 14px;
+    cursor: pointer;
+  }
+
+  button:disabled { opacity: .5; cursor: default; }
+  button.primario { background: var(--nero); color: #fff; border-color: var(--nero); }
+  button.togli { background: var(--rosso); color: #fff; border-color: var(--rosso); }
+  button.tieni { background: var(--verde); color: #fff; border-color: var(--verde); }
+
+  .filtri { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .filtri button.scelto { background: var(--rosso); color: #fff; border-color: var(--rosso); }
+
+  .riga {
+    display: flex;
+    gap: 16px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--linea);
+    flex-wrap: wrap;
+  }
+
+  .riga:last-child { border-bottom: none; }
+
+  .foto {
+    width: 132px;
+    height: 132px;
+    border-radius: 8px;
+    background: var(--grigio);
+    object-fit: cover;
+    flex: 0 0 auto;
+  }
+
+  .foto.vuota {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--tenue);
+    font-size: 12px;
+    text-align: center;
+    padding: 8px;
+  }
+
+  .dati { flex: 1 1 320px; min-width: 260px; }
+  .dati dl { display: grid; grid-template-columns: 150px 1fr; gap: 2px 10px; margin: 8px 0 0; font-size: 13px; }
+  .dati dt { color: var(--tenue); }
+  .dati dd { margin: 0; }
+
+  .comandi { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
+
+  .stato {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .4px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--grigio);
+    color: var(--tenue);
+  }
+
+  .stato.nuova { background: #FFE5E5; color: var(--rosso); }
+  .stato.revisione { background: #FFF3D6; color: #8A6100; }
+  .stato.fake { background: #E4F4E9; color: var(--verde); }
+  .stato.rimossa { background: #EDEDED; color: #444; }
+
+  .avviso {
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: #FFE5E5;
+    color: #8B0000;
+    margin-bottom: 14px;
+    font-size: 14px;
+  }
+
+  .nota { color: var(--tenue); font-size: 13px; }
+  .nascosto { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <div class="marchio">CRA<span>SY</span> · SEGNALAZIONI</div>
+  <div class="chi" id="chi"></div>
+  <button id="esci" class="nascosto">Esci</button>
+</header>
+
+<main>
+  <div id="avviso" class="avviso nascosto"></div>
+
+  <!-- L'accesso: le stesse credenziali dell'app. Non c'e' nessuna password di
+       amministratore da nessuna parte, e non ce ne sara' mai una: il permesso
+       e' un attributo dell'account, non un segreto in piu' da custodire. -->
+  <section id="accesso" class="scatola nascosto">
+    <h1>Accesso</h1>
+    <p class="nota">
+      Entra con l'account CRASY che ha il permesso di amministratore.
+    </p>
+    <form id="modulo">
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username" required>
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <button class="primario" type="submit">Entra</button>
+    </form>
+  </section>
+
+  <section id="tavolo" class="nascosto">
+    <div class="filtri">
+      <button data-stato="new" class="scelto">Nuove</button>
+      <button data-stato="reviewing">In revisione</button>
+      <button data-stato="fake">Fake</button>
+      <button data-stato="removed">Rimosse</button>
+      <button data-stato="all">Tutte</button>
+      <button id="ricarica">Ricarica</button>
+    </div>
+    <div class="scatola">
+      <h2 id="titolo">Segnalazioni</h2>
+      <div id="elenco"></div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+/*
+ * **Questa pagina non legge il database.**
+ *
+ * Non tocca Firestore, non tocca Storage, non conosce nessun percorso. Sa fare
+ * due cose: far entrare qualcuno, e chiamare tre funzioni sul server. Tutto
+ * quello che decide chi puo' vedere e chi puo' agire sta dall'altra parte, in
+ * `functions/admin.js`, dove si guarda il custom claim `admin` dentro il
+ * gettone firmato da Firebase.
+ *
+ * E' il motivo per cui il sorgente di questa pagina si puo' leggere senza che
+ * succeda niente: qui dentro non c'e' nessun segreto. La configurazione qui
+ * sotto e' la stessa che sta dentro l'app ed e' pubblica per costruzione —
+ * identifica il progetto, non autorizza nessuno.
+ */
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import {
+  getFunctions,
+  httpsCallable,
+} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js';
+
+const app = initializeApp({
+  apiKey: 'AIzaSyBU4t2vSi7fv9T3J3iUB2cylopQ5GONwrA',
+  authDomain: 'crasyapp.com',
+  projectId: 'daily-dating-app',
+  storageBucket: 'daily-dating-app.firebasestorage.app',
+  messagingSenderId: '781052311292',
+  appId: '1:781052311292:web:4e9ed36cc12836f6264979',
+});
+
+const auth = getAuth(app);
+// La stessa regione delle funzioni. Sbagliarla non da' un errore chiaro: da'
+// un rifiuto di rete, che somiglia a tutto tranne che alla sua causa.
+const functions = getFunctions(app, 'europe-west8');
+
+const chiediChiSono = httpsCallable(functions, 'adminWhoAmI');
+const chiediElenco = httpsCallable(functions, 'adminListReports');
+const decidi = httpsCallable(functions, 'adminResolveReport');
+
+const $ = (id) => document.getElementById(id);
+const accesso = $('accesso');
+const tavolo = $('tavolo');
+const elenco = $('elenco');
+const avviso = $('avviso');
+
+let filtro = 'new';
+
+function mostra(elemento, visibile) {
+  elemento.classList.toggle('nascosto', !visibile);
+}
+
+function dillo(testo) {
+  avviso.textContent = testo || '';
+  mostra(avviso, Boolean(testo));
+}
+
+const MOTIVI = {
+  danger: 'Mette in pericolo qualcuno',
+  sexual: 'Contenuto sessuale',
+  violence: 'Violenza',
+  hate: 'Odio o insulti',
+  minor: 'C’è un minore',
+  other: 'Altro',
+};
+
+const STATI = {
+  new: ['Nuova', 'nuova'],
+  reviewing: ['In revisione', 'revisione'],
+  fake: ['Fake segnalazione', 'fake'],
+  removed: ['Foto rimossa', 'rimossa'],
+};
+
+const COSA = {
+  entry: 'Foto in gara',
+  comment: 'Commento',
+  user: 'Persona',
+  challenge: 'Missione',
+};
+
+function quando(millis) {
+  if (!millis) {
+    return '—';
+  }
+
+  return new Date(millis).toLocaleString('it-IT');
+}
+
+function testo(valore) {
+  const nodo = document.createElement('span');
+  nodo.textContent = valore;
+
+  return nodo.innerHTML;
+}
+
+function riga(report) {
+  const [nome, classe] = STATI[report.status] || STATI.new;
+  const nodo = document.createElement('div');
+  nodo.className = 'riga';
+
+  const media = report.mediaUrl
+    ? report.mediaKind === 'video'
+      ? '<video class="foto" src="' + testo(report.mediaUrl) + '" controls muted></video>'
+      : '<img class="foto" src="' + testo(report.mediaUrl) + '" alt="foto segnalata">'
+    : '<div class="foto vuota">Foto non più disponibile</div>';
+
+  nodo.innerHTML =
+    media +
+    '<div class="dati">' +
+    '<span class="stato ' + classe + '">' + nome + '</span> ' +
+    '<strong>' + testo(MOTIVI[report.reason] || report.reason || 'Senza motivo') + '</strong>' +
+    '<dl>' +
+    '<dt>Cosa</dt><dd>' + testo(COSA[report.kind] || report.kind) + '</dd>' +
+    '<dt>Pubblicata da</dt><dd>' +
+      (report.reportedUsername ? '@' + testo(report.reportedUsername) : '—') +
+      ' <span class="nota">' + testo(report.reportedUserId) + '</span></dd>' +
+    '<dt>Missione</dt><dd>' + testo(report.challengeTitle || report.challengeId || '—') + '</dd>' +
+    '<dt>Segnalata il</dt><dd>' + quando(report.createdAt) + '</dd>' +
+    '<dt>Segnalazioni sulla foto</dt><dd>' + report.reportsOnTarget + '</dd>' +
+    '<dt>Stato della foto</dt><dd>' +
+      (report.entryExists
+        ? testo(report.entryModeration === 'rejected' ? 'fuori dalla gara' : report.entryModeration)
+        : 'partecipazione non più presente') +
+      '</dd>' +
+    (report.note ? '<dt>Nota</dt><dd>' + testo(report.note) + '</dd>' : '') +
+    (report.resolvedAt ? '<dt>Decisa il</dt><dd>' + quando(report.resolvedAt) + '</dd>' : '') +
+    '</dl></div>' +
+    '<div class="comandi">' +
+    '<button class="tieni" data-fai="fake">✓ Fake segnalazione</button>' +
+    '<button class="togli" data-fai="remove">✕ Rimuovi foto</button>' +
+    '<button data-fai="reviewing">In revisione</button>' +
+    '</div>';
+
+  for (const tasto of nodo.querySelectorAll('[data-fai]')) {
+    tasto.addEventListener('click', async () => {
+      const decisione = tasto.dataset.fai;
+
+      if (decisione === 'remove' && !confirm('Togliere la foto dalla gara?')) {
+        return;
+      }
+
+      for (const altro of nodo.querySelectorAll('button')) {
+        altro.disabled = true;
+      }
+
+      try {
+        await decidi({ reportId: report.id, decision: decisione });
+        await carica();
+      } catch (errore) {
+        dillo(errore.message || 'Non è riuscito.');
+
+        for (const altro of nodo.querySelectorAll('button')) {
+          altro.disabled = false;
+        }
+      }
+    });
+  }
+
+  return nodo;
+}
+
+async function carica() {
+  dillo('');
+  elenco.innerHTML = '<p class="nota">Carico…</p>';
+
+  try {
+    const esito = await chiediElenco({ status: filtro });
+    const reports = esito.data.reports || [];
+
+    elenco.innerHTML = '';
+
+    if (reports.length === 0) {
+      elenco.innerHTML = '<p class="nota">Niente da guardare qui.</p>';
+
+      return;
+    }
+
+    for (const report of reports) {
+      elenco.appendChild(riga(report));
+    }
+  } catch (errore) {
+    elenco.innerHTML = '';
+    dillo(errore.message || 'Non riusciamo a leggere le segnalazioni.');
+  }
+}
+
+for (const tasto of document.querySelectorAll('.filtri [data-stato]')) {
+  tasto.addEventListener('click', () => {
+    filtro = tasto.dataset.stato;
+
+    for (const altro of document.querySelectorAll('.filtri [data-stato]')) {
+      altro.classList.toggle('scelto', altro === tasto);
+    }
+
+    carica();
+  });
+}
+
+$('ricarica').addEventListener('click', carica);
+
+$('modulo').addEventListener('submit', async (evento) => {
+  evento.preventDefault();
+  dillo('');
+
+  try {
+    await signInWithEmailAndPassword(auth, $('email').value, $('password').value);
+  } catch (errore) {
+    dillo('Accesso non riuscito. Controlla email e password.');
+  }
+});
+
+$('esci').addEventListener('click', () => signOut(auth));
+
+onAuthStateChanged(auth, async (utente) => {
+  if (!utente) {
+    $('chi').textContent = '';
+    mostra($('esci'), false);
+    mostra(accesso, true);
+    mostra(tavolo, false);
+
+    return;
+  }
+
+  $('chi').textContent = utente.email || utente.uid;
+  mostra($('esci'), true);
+
+  try {
+    // **Si rinnova il gettone prima di chiedere, e non e' una precauzione.**
+    //
+    // Il permesso di amministratore e' un claim dentro il gettone, e il
+    // gettone il browser se lo tiene per un'ora. Quando qualcuno viene
+    // nominato amministratore, quella nomina avviene **fuori dal browser** —
+    // su un computer, con le credenziali del progetto — quindi il gettone in
+    // memoria non ne sa niente e continuera' a non saperne per un'ora.
+    //
+    // Il risultato era la cosa peggiore che potesse fare questa pagina: dire
+    // "non sei un amministratore" a un amministratore, e suggerire di uscire e
+    // rientrare, che a volte bastava e a volte no — perche' rientrare subito
+    // puo' riprendere lo stesso gettone dalla cache. Con `true` si chiede a
+    // Firebase di ricoiniarlo, e il claim arriva al primo tentativo.
+    await utente.getIdToken(true);
+
+    // **Poi si chiede al server chi siamo, non al gettone appena rinnovato.**
+    // Leggerlo da qui direbbe la stessa cosa e non proverebbe niente: e' il
+    // server a doverlo controllare, e questa chiamata e' anche la prova che il
+    // permesso c'e' davvero — se manca, le altre due fallirebbero comunque.
+    const esito = await chiediChiSono();
+
+    if (!esito.data.admin) {
+      mostra(accesso, false);
+      mostra(tavolo, false);
+      dillo(
+        'Questo account non ha il permesso di amministratore. ' +
+          'Se te l’hanno appena dato, esci e rientra.',
+      );
+
+      return;
+    }
+  } catch (errore) {
+    dillo(errore.message || 'Non riusciamo a verificare il permesso.');
+
+    return;
+  }
+
+  mostra(accesso, false);
+  mostra(tavolo, true);
+  carica();
+});
+</script>
+</body>
+</html>

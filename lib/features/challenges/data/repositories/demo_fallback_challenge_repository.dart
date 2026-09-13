@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:crasy/features/challenges/data/repositories/sample_challenge_repository.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
@@ -209,6 +210,17 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
       winnerEntryId: winnerEntryId,
       winnerUserId: winnerUserId,
       winner: winner,
+    );
+  }
+
+  @override
+  Future<void> answerDuel({
+    required String challengeId,
+    required DuelStatus status,
+  }) {
+    return _forChallenge(challengeId).answerDuel(
+      challengeId: challengeId,
+      status: status,
     );
   }
 

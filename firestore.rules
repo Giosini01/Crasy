@@ -71,6 +71,24 @@ service cloud.firestore {
       allow read: if false;
       allow create: if signedIn()
                     && request.resource.data.reporterId == request.auth.uid
+                    // **Nasce nuova, e da qui non si muove piu'.**
+                    //
+                    // Lo stato lo cambia solo `adminResolveReport`, che scrive
+                    // con l'SDK di amministrazione e queste regole non le
+                    // attraversa nemmeno. Senza questa riga, chi manda una
+                    // segnalazione potrebbe scriverla gia' come "foto rimossa"
+                    // e farla sparire dal tavolo di chi deve guardarla.
+                    //
+                    // **`open` sta qui accanto perche' le app gia' installate
+                    // scrivono quello.** Le regole si aggiornano in un
+                    // istante, i telefoni no: pretendendo solo `new`, per
+                    // settimane il tasto "segnala" avrebbe risposto "non hai
+                    // accesso" a chiunque non avesse aggiornato — e le
+                    // segnalazioni sono l'ultima cosa che ci si puo'
+                    // permettere di far fallire in silenzio. I due valori
+                    // vogliono dire la stessa cosa: arrivata, e nessuno l'ha
+                    // ancora guardata (vedi `ReportStatus.fromWire`).
+                    && request.resource.data.status in ['new', 'open']
                     && reportId == request.auth.uid + '__'
                        + request.resource.data.kind
                        + (request.resource.data.challengeId == '' ? ''
@@ -87,6 +105,13 @@ service cloud.firestore {
       // **Una segnalazione non si ritira e non si cambia.** Se si potesse,
       // basterebbe una minaccia — "ritira quella segnalazione" — perche' venga
       // ritirata.
+      //
+      // Vale **anche per l'amministratore**, che da qui non passa: le sue
+      // decisioni le scrive `adminResolveReport` con l'SDK di
+      // amministrazione. Se il permesso fosse aperto a un "ruolo admin"
+      // scritto qui, chiunque si prendesse quel ruolo potrebbe archiviare le
+      // segnalazioni scrivendo direttamente sul database, senza passare da
+      // nessun controllo e senza lasciare traccia di chi e' stato.
       allow update, delete: if false;
     }
 
@@ -311,8 +336,17 @@ service cloud.firestore {
                       // qualcuno gli scrive la notizia nella campanella. Le
                       // altre — vittorie, amicizie, gare finite — non le scrive
                       // nessuno: si ricavano dai dati che esistono gia'.
+                      // Le quattro delle sfide mirate stanno qui insieme alle
+                      // altre perche' le scrive lo stesso posto: chi lancia la
+                      // sfida avvisa chi la riceve, chi risponde avvisa chi
+                      // l'aveva lanciata. Il nome del documento porta dentro
+                      // tipo e missione, quindi la stessa notizia non puo'
+                      // essere scritta due volte — e' quello a impedire i
+                      // doppioni, non un controllo qui.
                       && request.resource.data.kind
-                         in ['participation', 'fire', 'mention', 'comment']
+                         in ['participation', 'fire', 'mention', 'comment',
+                             'duel', 'duelAccepted', 'duelDeclined',
+                             'duelCompleted']
                       && request.resource.data.actorUsername is string;
 
         allow update: if false;
@@ -595,7 +629,38 @@ service cloud.firestore {
                     && request.resource.data.startsAt is timestamp
                     && request.resource.data.endsAt is timestamp
                     && request.resource.data.endsAt > request.resource.data.startsAt
-                    && request.resource.data.endsAt > request.time;
+                    && request.resource.data.endsAt > request.time
+                    // **La sfida mirata: un destinatario solo, e nasce in
+                    // attesa.**
+                    //
+                    // Il campo puo' mancare — ce l'hanno solo le sfide — e
+                    // dove c'e' porta con se' tre vincoli, ognuno dei quali
+                    // chiude un modo di barare:
+                    //
+                    // - **lo sfidato dev'essere fra i destinatari**, o si
+                    //   scriverebbe una sfida che il destinatario non puo'
+                    //   nemmeno leggere: la vedrebbe solo chi l'ha lanciata,
+                    //   che e' il modo piu' facile di riempire il proprio
+                    //   elenco di sfide mai recapitate;
+                    // - **non ci si sfida da soli**, o la stessa riga
+                    //   comparirebbe fra le lanciate e fra le ricevute;
+                    // - **nasce `pending`**. Questa e' la riga che rende la
+                    //   sfida una parola data: se lo stato arrivasse da chi
+                    //   crea, lanciare una sfida gia' "accettata" sarebbe
+                    //   questione di un campo, e quello che la scheda del
+                    //   party mostrerebbe non sarebbe piu' cosa ha detto
+                    //   l'altra persona.
+                    && (
+                         request.resource.data.get('targetUserId', '') == ''
+                         || (
+                              request.resource.data.targetUserId
+                                in request.resource.data.audience
+                              && request.resource.data.targetUserId
+                                 != request.auth.uid
+                              && request.resource.data.get('duelStatus', '')
+                                 == 'pending'
+                            )
+                       );
 
       // **Si cancella finche' e' vuota, e solo da chi l'ha lanciata.**
       //
@@ -684,6 +749,29 @@ service cloud.firestore {
                     && resource.data.get('prizeStatus', 'unpaid') == 'unpaid'
                     && resource.data.get('winnerEntryId', null) == null
                     && resource.data.endsAt <= request.time;
+
+      // **Alla sfida risponde solo chi e' stato sfidato.**
+      //
+      // E' la regola che tiene in piedi tutta la faccenda dell'onore. Senza,
+      // chi lancia la sfida potrebbe segnarla come accettata o portata a
+      // termine da solo: la scheda del party mostrerebbe una parola che
+      // nessuno ha dato, e non varrebbe piu' niente.
+      //
+      // Due campi soli — lo stato e il momento della risposta — e nient'altro:
+      // il premio, la consegna e la scadenza restano di chi l'ha lanciata, e
+      // da qui non si sfiorano. E si risponde **finche' la sfida e' aperta**:
+      // scaduta, non c'e' piu' niente da promettere.
+      //
+      // `completed` sta insieme alle altre due, e la scrive lo stesso telefono
+      // che manda la foto. Non e' una promessa sulla parola: le regole delle
+      // partecipazioni lasciano scrivere una foto solo a nome proprio, quindi
+      // per arrivare qui una foto dev'esserci davvero.
+      allow update: if signedIn()
+                    && resource.data.get('targetUserId', '') == request.auth.uid
+                    && changedOnly(['duelStatus', 'respondedAt'])
+                    && request.resource.data.duelStatus
+                       in ['accepted', 'declined', 'completed']
+                    && resource.data.endsAt > request.time;
 
       match /entries/{entryId} {
 

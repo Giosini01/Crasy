@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:crasy/core/constants/app_routes.dart';
+import 'package:crasy/core/services/share/share_challenge.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
@@ -13,10 +14,12 @@ import 'package:crasy/features/challenges/data/reveal_seen_store.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/controllers/challenge_closer.dart';
+import 'package:crasy/features/challenges/presentation/controllers/duel_controller.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/archive_badge.dart';
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
+import 'package:crasy/features/challenges/presentation/widgets/duel_badge.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
@@ -45,6 +48,18 @@ class ChallengeDetailPage extends ConsumerWidget {
       appBar: AppBar(
         leading: BackButton(onPressed: () => _leave(context)),
         title: const Text('Challenge'),
+        actions: [
+          // **Condividere una missione non e' partecipare.**
+          //
+          // Sta in cima accanto al titolo e non fra i comandi in fondo, dove
+          // c'e' "Partecipa": quello e' il posto delle cose che cambiano lo
+          // stato della gara, e questa non ne cambia nessuno — non la
+          // completa, non consuma la foto del giorno, non muove contatori.
+          // Vedi `ShareChallenge`, che di proposito non ha in mano nessun
+          // repository.
+          if (challengeState.valueOrNull != null)
+            _ShareButton(challenge: challengeState.value!),
+        ],
       ),
       body: AppBackground(
         child: challengeState.when(
@@ -80,6 +95,33 @@ class ChallengeDetailPage extends ConsumerWidget {
     } else {
       context.go(AppRoutes.challenges);
     }
+  }
+}
+
+/// Il tasto che manda la missione fuori da CRASY.
+///
+/// Un `Builder` attorno: il pannello di condivisione di iPad ha bisogno della
+/// posizione sullo schermo dell'oggetto che lo apre, e quella si legge solo dal
+/// contesto del tasto — non da quello della pagina.
+class _ShareButton extends StatelessWidget {
+  const _ShareButton({required this.challenge});
+
+  final Challenge challenge;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: 'Condividi la missione',
+      icon: const Icon(Icons.ios_share_rounded),
+      onPressed: () => ShareChallenge.send(
+        context,
+        challengeId: challenge.id,
+        challengeTitle: challenge.title,
+        prizeCents: challenge.prizeCents,
+        brief: challenge.brief,
+        ended: challenge.hasEndedAt(DateTime.now()),
+      ),
+    );
   }
 }
 
@@ -119,6 +161,13 @@ class _Body extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         Text(challenge.title.toUpperCase(), style: texts.displaySmall),
+        // **Chi ha sfidato chi, e a che punto siamo.** Su una sfida mirata e'
+        // la prima cosa da sapere: senza, questa e' una missione con un premio
+        // a zero e un partecipante solo, cioe' una gara che non si capisce.
+        if (challenge.isDuel) ...[
+          const SizedBox(height: AppSpacing.md),
+          DuelBadge(challenge: challenge),
+        ],
         // Qui dentro **non** c'e' la foto in testa, e fuori si': nella home
         // serve a far capire di che gara si tratta, ma dopo aver aperto la
         // challenge sarebbe la stessa immagine due volte di fila, e per giunta
@@ -571,6 +620,30 @@ class _BottomAction extends ConsumerWidget {
     final ended = challenge.hasEndedAt(DateTime.now());
     final myEntry = ref.watch(myEntryForChallengeProvider(challenge.id));
     final isMine = ref.watch(isMyChallengeProvider(challenge.id));
+    final meId = ref.watch(currentUserIdProvider);
+
+    // **Chi e' stato sfidato ha un comando diverso da tutti gli altri.**
+    //
+    // Prima di rispondere non c'e' niente da fotografare: davanti a una sfida
+    // si dice si' o no, e "Partecipa" al posto di quei due tasti farebbe
+    // saltare esattamente il passaggio che rende la sfida una parola data.
+    if (challenge.isDuel &&
+        meId != null &&
+        meId == challenge.targetUserId &&
+        !ended &&
+        myEntry == null &&
+        challenge.duelStatus.isPending) {
+      return Container(
+        color: palette.background,
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.page,
+          AppSpacing.sm,
+          AppSpacing.page,
+          AppSpacing.sm + MediaQuery.paddingOf(context).bottom,
+        ),
+        child: _DuelAnswer(challenge: challenge),
+      );
+    }
 
     return Container(
       color: palette.background,
@@ -615,6 +688,58 @@ class _BottomAction extends ConsumerWidget {
           onPressed: () => context.push(AppRoutes.participateOf(challenge.id)),
         ),
       },
+    );
+  }
+}
+
+/// I due tasti con cui si risponde a una sfida: **accetta** o **rifiuta**.
+///
+/// L'accetta e' pieno e rosso, il rifiuta e' una parola grigia accanto. Non e'
+/// una gerarchia grafica a caso: qui si sta chiedendo a qualcuno di prendere
+/// un impegno, e il tasto grosso deve essere quello che lo fa prendere. Dire
+/// di no resta a un tocco di distanza — nasconderlo o renderlo scomodo
+/// significherebbe raccogliere dei si' che non valgono niente.
+class _DuelAnswer extends ConsumerWidget {
+  const _DuelAnswer({required this.challenge});
+
+  final Challenge challenge;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+    final texts = context.texts;
+    final controller = ref.watch(duelControllerProvider.notifier);
+    final busy = ref.watch(duelControllerProvider).isLoading;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '@${challenge.createdByUsername} ti ha sfidato. '
+          'Se accetti, la porti a termine.',
+          style: texts.bodySmall?.copyWith(color: palette.textSecondary),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          children: [
+            Expanded(
+              child: CrasyButton(
+                label: 'Accetto',
+                onPressed: busy ? null : () => controller.accept(challenge),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            TextButton(
+              onPressed: busy ? null : () => controller.decline(challenge),
+              child: Text(
+                'RIFIUTA',
+                style: texts.labelSmall?.copyWith(color: palette.textFaint),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

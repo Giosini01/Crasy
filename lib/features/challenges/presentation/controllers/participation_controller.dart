@@ -7,6 +7,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
+import 'package:crasy/features/challenges/presentation/controllers/duel_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/notifications/data/repositories/firestore_notifications_repository.dart';
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
@@ -281,7 +282,14 @@ class ParticipationController extends AsyncNotifier<void> {
     // La sfida del giorno passa sempre: e' gratis, non consuma niente, e deve
     // restare aperta anche a chi ha finito le cinque — anzi, soprattutto a lui,
     // perche' e' l'unica cosa che gli resta da fare fino a domani.
-    if (!daily && ref.read(livesLeftProvider) <= 0) {
+    // **Una sfida mirata passa sempre**, per la stessa ragione della sfida del
+    // giorno: e' roba in piu'. Chi ha finito le cinque deve poter rispondere
+    // lo stesso a un amico che lo ha chiamato in causa — altrimenti accettare
+    // una sfida diventa una cosa che si paga, e non la accetta piu' nessuno.
+    final sfidaMirata =
+        ref.read(challengeProvider(challengeId)).valueOrNull?.isDuel ?? false;
+
+    if (!daily && !sfidaMirata && ref.read(livesLeftProvider) <= 0) {
       state = AsyncError<void>(const OutOfLivesException(), StackTrace.current);
 
       return false;
@@ -329,9 +337,33 @@ class ParticipationController extends AsyncNotifier<void> {
           actorUsername: profile?.username ?? '',
         ),
       );
+
+      // **Una sfida si chiude mandando la foto, non premendo un tasto.**
+      //
+      // Un comando "l'ho fatta" separato dallo scatto sarebbe una promessa che
+      // chiunque puo' scrivere senza fare niente, e su una cosa che sta in
+      // piedi sull'onore quella e' l'unica cosa che non deve poter succedere.
+      unawaited(_chiudiLaSfida(challengeId, authState.user.id));
     }
 
     return !result.hasError;
+  }
+
+  /// Segna come portata a termine la sfida a cui questa foto risponde.
+  ///
+  /// Non fa niente su tutte le altre gare, e non fa niente se a mandare la
+  /// foto non e' stato chi era stato sfidato: la partita di ritorno di una
+  /// sfida non la chiude un passante.
+  Future<void> _chiudiLaSfida(String challengeId, String meId) async {
+    final challenge = ref.read(challengeProvider(challengeId)).valueOrNull;
+
+    if (challenge == null ||
+        !challenge.isDuel ||
+        challenge.targetUserId != meId) {
+      return;
+    }
+
+    await ref.read(duelControllerProvider.notifier).markCompleted(challenge);
   }
 
   Future<void> _notifyOwner({

@@ -1,6 +1,7 @@
 import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
+import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 import 'package:crasy/features/payments/domain/prize_ledger.dart';
@@ -38,6 +39,10 @@ class Challenge {
     this.isDaily = false,
     this.audience = const [everyone],
     this.maxParticipants = 0,
+    this.targetUserId = '',
+    this.targetUsername = '',
+    this.duelStatus = DuelStatus.pending,
+    this.respondedAt,
   });
 
   /// L'identificativo dell'account di CRASY.
@@ -262,6 +267,61 @@ class Challenge {
   /// E' riservata agli amici di chi l'ha lanciata.
   bool get isForFriends => scope == ChallengeScope.friends;
 
+  /// **Chi e' stato sfidato**, quando questa missione e' una sfida mirata.
+  ///
+  /// Vuoto su tutte le altre, ed e' l'unico campo che distingue le due cose:
+  /// una sfida mirata e' una missione riservata con **un destinatario solo**.
+  /// Non e' una collezione a parte perche' non e' un oggetto diverso — ha un
+  /// premio, una consegna, una scadenza e delle partecipazioni come tutte —
+  /// e duplicarla avrebbe voluto dire due schede, due regole e due pulizie
+  /// per la stessa cosa.
+  final String targetUserId;
+
+  /// Come si chiama chi e' stato sfidato.
+  ///
+  /// Copiato dentro la missione come `createdByUsername`: serve a scrivere
+  /// "hai sfidato @mario" senza leggere un profilo per ogni riga di un elenco.
+  final String targetUsername;
+
+  /// Vero se questa missione e' una sfida lanciata a una persona sola.
+  bool get isDuel => targetUserId.isNotEmpty;
+
+  /// Cosa ha risposto chi l'ha ricevuta.
+  ///
+  /// Lo scrive **solo il destinatario**, e le regole di Firestore non lasciano
+  /// che lo tocchi nessun altro: una sfida che chi l'ha lanciata puo' segnare
+  /// come accettata non e' una parola data, e' un contatore.
+  final DuelStatus duelStatus;
+
+  /// Quando ha risposto. Nullo finche' non risponde.
+  final DateTime? respondedAt;
+
+  /// Lo stato da mostrare, orologio compreso.
+  ///
+  /// Scaduta non sta sul database: dipende da che ora e', e nessuno andrebbe a
+  /// riscriverla su ogni sfida del mondo allo scoccare del minuto. Una sfida
+  /// gia' completata o gia' rifiutata non scade piu' — quelle due sono
+  /// **finali**, e il tempo che passa non le cambia.
+  DuelState duelStateAt(DateTime moment) {
+    switch (duelStatus) {
+      case DuelStatus.completed:
+        return DuelState.completed;
+      case DuelStatus.declined:
+        return DuelState.declined;
+      case DuelStatus.pending:
+        return hasEndedAt(moment) ? DuelState.expired : DuelState.pending;
+      case DuelStatus.accepted:
+        return hasEndedAt(moment) ? DuelState.expired : DuelState.accepted;
+    }
+  }
+
+  /// Se la sfida aspetta ancora qualcosa da chi l'ha ricevuta.
+  bool isDuelOpenAt(DateTime moment) {
+    final state = duelStateAt(moment);
+
+    return state == DuelState.pending || state == DuelState.accepted;
+  }
+
   final DateTime startsAt;
   final DateTime endsAt;
 
@@ -387,6 +447,10 @@ class Challenge {
     bool? isDaily,
     List<String>? audience,
     int? maxParticipants,
+    String? targetUserId,
+    String? targetUsername,
+    DuelStatus? duelStatus,
+    DateTime? respondedAt,
   }) {
     return Challenge(
       id: id ?? this.id,
@@ -413,6 +477,10 @@ class Challenge {
       isDaily: isDaily ?? this.isDaily,
       audience: audience ?? this.audience,
       maxParticipants: maxParticipants ?? this.maxParticipants,
+      targetUserId: targetUserId ?? this.targetUserId,
+      targetUsername: targetUsername ?? this.targetUsername,
+      duelStatus: duelStatus ?? this.duelStatus,
+      respondedAt: respondedAt ?? this.respondedAt,
     );
   }
 
@@ -437,7 +505,9 @@ class Challenge {
         other.endsAt == endsAt &&
         other.participantsCount == participantsCount &&
         other.winnerEntryId == winnerEntryId &&
-        other.prizeStatus == prizeStatus;
+        other.prizeStatus == prizeStatus &&
+        other.targetUserId == targetUserId &&
+        other.duelStatus == duelStatus;
   }
 
   @override
@@ -457,5 +527,7 @@ class Challenge {
     participantsCount,
     winnerEntryId,
     prizeStatus,
+    targetUserId,
+    duelStatus,
   );
 }

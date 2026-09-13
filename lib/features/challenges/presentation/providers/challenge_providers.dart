@@ -474,6 +474,22 @@ final entriesOfManyProvider = StreamProvider.autoDispose
           .watchEntriesByUsers(userIds.split(','));
     });
 
+/// Le gare **riservate** che posso vedere: le mie e quelle dei miei amici.
+///
+/// Una lettura sola per tutte e due: il filtro e' "il mio identificativo sta fra
+/// i destinatari", e chi le ha lanciate si guarda dopo, in memoria. Due query
+/// separate — le mie, le loro — sarebbero due ascolti su Firestore per una cosa
+/// che il database sa gia' dire in uno.
+final reservedChallengesProvider = StreamProvider<List<Challenge>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+
+  if (userId == null) {
+    return Stream.value(const <Challenge>[]);
+  }
+
+  return ref.watch(challengeRepositoryProvider).watchChallengesFor(userId);
+});
+
 /// A quante gare posso ancora partecipare oggi.
 ///
 /// Si conta su quello che l'app ha gia' in mano — le mie partecipazioni — senza
@@ -502,8 +518,14 @@ final livesLeftProvider = Provider<int>((ref) {
   for (final entry in entries) {
     final when = entry.createdAt;
 
+    // **Una sfida mirata non conta.** E' roba **in piu'**: togliere una delle
+    // cinque a chi accetta vorrebbe dire che accettare costa, e la prima cosa
+    // che si impara e' a non accettare. Il segno sta sulla partecipazione e
+    // non sulla gara — una sfida dura ventiquattro ore, quindi la gara di
+    // stamattina stasera non c'e' piu' in nessun elenco da cui chiederlo.
     if (when != null &&
         !when.isBefore(today) &&
+        !entry.isDuel &&
         !gratis.contains(entry.challengeId)) {
       used++;
     }

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 
@@ -155,6 +156,17 @@ abstract class ChallengeRepository {
     required String winnerEntryId,
     required String winnerUserId,
     ChallengeEntry? winner,
+  });
+
+  /// **La risposta a una sfida mirata**: l'ha accettata, l'ha rifiutata,
+  /// oppure l'ha portata a termine.
+  ///
+  /// La scrive solo chi l'ha ricevuta. Non e' un dettaglio d'interfaccia: una
+  /// sfida che chi l'ha lanciata puo' segnare come accettata non e' una parola
+  /// data. Le regole di Firestore impongono la stessa cosa dall'altra parte.
+  Future<void> answerDuel({
+    required String challengeId,
+    required DuelStatus status,
   });
 
   /// Le gare che [userId] ha **vinto**. La sua bacheca dei trofei.

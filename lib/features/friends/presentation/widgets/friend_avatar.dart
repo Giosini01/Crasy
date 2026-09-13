@@ -64,22 +64,36 @@ class _Initials extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final initials = username.isEmpty
-        ? '?'
-        : (username.length <= 2 ? username : username.substring(0, 2))
-              .toUpperCase();
+    final nome = username.trim();
 
     return ColoredBox(
       color: palette.surfaceMuted,
-      child: Center(
-        child: Text(
-          initials,
-          style: context.texts.labelMedium?.copyWith(
-            color: palette.textSecondary,
-            fontSize: size / 3,
-          ),
-        ),
-      ),
+      // **Senza nome, una sagoma. Prima c'era un punto interrogativo.**
+      //
+      // Un `?` dentro un cerchio grigio non dice "non sappiamo chi e'": dice
+      // *questa immagine non si e' caricata*, che e' la cosa peggiore da far
+      // credere su una schermata dove si guarda chi ha vinto. Capitava per
+      // davvero — una gara chiusa dal server non si portava dietro il nome del
+      // vincitore, e qui arrivava una stringa vuota. Il nome adesso si scrive
+      // (vedi `closeChallenge`), e questa e' la rete sotto: una sagoma e' un
+      // disegno voluto, non un errore.
+      child: nome.isEmpty
+          ? Center(
+              child: Icon(
+                Icons.person_rounded,
+                size: size * 0.56,
+                color: palette.textFaint,
+              ),
+            )
+          : Center(
+              child: Text(
+                (nome.length <= 2 ? nome : nome.substring(0, 2)).toUpperCase(),
+                style: context.texts.labelMedium?.copyWith(
+                  color: palette.textSecondary,
+                  fontSize: size / 3,
+                ),
+              ),
+            ),
     );
   }
 }

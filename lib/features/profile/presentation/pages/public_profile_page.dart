@@ -1,3 +1,4 @@
+import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
@@ -21,6 +22,7 @@ import 'package:crasy/features/profile/presentation/widgets/profile_shelf.dart';
 import 'package:crasy/features/profile/presentation/widgets/trophy_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 /// Il profilo di qualcun altro.
 ///
@@ -255,23 +257,42 @@ class _FriendshipAction extends ConsumerWidget {
         );
 
       case FriendshipStatus.friends:
-        return Row(
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Icon(Icons.check_rounded, size: 16, color: palette.accent),
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-              'Siete amici',
-              style: context.texts.labelLarge?.copyWith(color: palette.accent),
-            ),
-            const Spacer(),
-            TextButton(
-              onPressed: () => actions.remove(profile.id),
-              child: Text(
-                'Togli',
-                style: context.texts.titleMedium?.copyWith(
-                  color: palette.textFaint,
+            Row(
+              children: [
+                Icon(Icons.check_rounded, size: 16, color: palette.accent),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  'Siete amici',
+                  style: context.texts.labelLarge?.copyWith(
+                    color: palette.accent,
+                  ),
                 ),
-              ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => actions.remove(profile.id),
+                  child: Text(
+                    'Togli',
+                    style: context.texts.titleMedium?.copyWith(
+                      color: palette.textFaint,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            // **Si sfida da qui, non solo dal party.** Sul profilo di qualcuno
+            // uno ha gia' in testa quella persona: mandarlo nel party a
+            // ritrovarla in una fila di facce vorrebbe dire fargli scegliere
+            // due volte la stessa cosa. Il modulo si apre con l'amico gia'
+            // scelto — vedi `AppRoutes.launchDuelWith`.
+            SecondaryButton(
+              label: 'Sfidalo',
+              icon: Icons.sports_kabaddi_rounded,
+              onPressed: () =>
+                  context.push(AppRoutes.launchDuelWith(profile.id)),
             ),
           ],
         );
@@ -336,13 +357,18 @@ class _Initials extends StatelessWidget {
 
     return ColoredBox(
       color: palette.surfaceMuted,
+      // Senza nome la sagoma di una persona, non un `?`: un punto
+      // interrogativo grande dentro un cerchio grigio si legge come una foto
+      // che non si e' caricata. Vedi `UserProfile.initials`.
       child: Center(
-        child: Text(
-          profile.initials,
-          style: context.texts.headlineSmall?.copyWith(
-            color: palette.textFaint,
-          ),
-        ),
+        child: profile.initials.isEmpty
+            ? Icon(Icons.person_rounded, size: 36, color: palette.textFaint)
+            : Text(
+                profile.initials,
+                style: context.texts.headlineSmall?.copyWith(
+                  color: palette.textFaint,
+                ),
+              ),
       ),
     );
   }

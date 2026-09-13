@@ -362,14 +362,16 @@ class ChallengeAuthor extends StatelessWidget {
                     size: 12,
                     color: palette.accent,
                   )
+                // Il nome puo' arrivare vuoto da una challenge scritta male:
+                // `substring` su una stringa vuota fa saltare l'intera lista.
+                // Al suo posto **la sagoma di una persona, non un `?`**: un
+                // punto interrogativo in un cerchio grigio si legge come
+                // un'immagine che non si e' caricata, e non e' quello che sta
+                // succedendo.
+                : challenge.createdByUsername.isEmpty
+                ? Icon(Icons.person_rounded, size: 12, color: palette.textFaint)
                 : Text(
-                    // Il nome puo' arrivare vuoto da una challenge scritta male:
-                    // `substring` su una stringa vuota fa saltare l'intera lista.
-                    challenge.createdByUsername.isEmpty
-                        ? '?'
-                        : challenge.createdByUsername
-                              .substring(0, 1)
-                              .toUpperCase(),
+                    challenge.createdByUsername.substring(0, 1).toUpperCase(),
                     style: texts.labelSmall?.copyWith(
                       color: palette.textSecondary,
                       letterSpacing: 0,

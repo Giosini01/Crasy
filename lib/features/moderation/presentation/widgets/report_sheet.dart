@@ -24,6 +24,13 @@ Future<void> showReportSheet(
   String challengeId = '',
   String entryId = '',
   String commentId = '',
+  /// La foto segnalata e il titolo della gara, quando ci sono.
+  ///
+  /// Viaggiano dentro la segnalazione perche' la dashboard deve poter mostrare
+  /// **cosa** e' stato segnalato anche dopo che la partecipazione e' stata
+  /// cancellata dalla pulizia delle quarantotto ore.
+  String mediaUrl = '',
+  String challengeTitle = '',
 }) async {
   final scelta = await ModalSheet.show<_Choice>(
     context: context,
@@ -75,6 +82,9 @@ Future<void> showReportSheet(
     challengeId: challengeId,
     entryId: entryId,
     commentId: commentId,
+    reportedUsername: reportedUsername,
+    mediaUrl: mediaUrl,
+    challengeTitle: challengeTitle,
   );
 
   messenger.showSnackBar(

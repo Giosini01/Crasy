@@ -9,6 +9,7 @@ const { setGlobalOptions } = require('firebase-functions/v2');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
 const vision = require('@google-cloud/vision');
+const { avvisaChiLHaMandata } = require('./avvisi');
 const videoIntelligence = require('@google-cloud/video-intelligence');
 
 admin.initializeApp();
@@ -218,6 +219,24 @@ setGlobalOptions({
   timeoutSeconds: 60,
   memory: '256MiB',
 });
+
+// **Le funzioni dell'amministratore, e si esportano qui sotto per un motivo.**
+//
+// `setGlobalOptions` vale per le funzioni **definite dopo** di lei: una
+// chiamata a `require` messa in cima al file definirebbe quelle funzioni prima
+// che la regione sia stata scelta, e finirebbero in `us-central1` — lontane dal
+// database, e soprattutto **a un indirizzo diverso da quello che la dashboard
+// chiama**. Un errore che si vede solo in produzione, come un rifiuto di rete
+// senza spiegazione.
+//
+// Cosa proteggono e come sta scritto in `functions/admin.js`. In breve: il
+// custom claim `admin` dentro il gettone firmato da Firebase, controllato
+// **qui sul server** e non nella pagina, che di suo non legge niente.
+const amministrazione = require('./admin');
+
+exports.adminWhoAmI = amministrazione.adminWhoAmI;
+exports.adminListReports = amministrazione.adminListReports;
+exports.adminResolveReport = amministrazione.adminResolveReport;
 
 /**
  * Manda una notifica ai telefoni di una persona sola.
@@ -572,6 +591,31 @@ exports.purgeOldChallenges = onSchedule('every 60 minutes', async () => {
     // risparmiato lo stesso.
     const winnerEntryId = challenge.get('winnerEntryId') || '';
 
+    // **L'ultima occasione per salvare il trofeo.**
+    //
+    // Da qui in poi le partecipazioni non esistono piu', e con loro l'unico
+    // posto da cui si possa ancora leggere **quale** foto ha vinto. Le gare
+    // chiuse da una versione precedente di `closeChallenge` non se la sono
+    // portata dietro — scriveva solo chi aveva vinto, non con cosa — e
+    // finivano nella bacheca come cornici dorate vuote.
+    //
+    // Si ricopia adesso, se manca. Non e' un ripiego da togliere: e' la rete
+    // sotto, e costa una scrittura sulle sole gare a cui quel campo manca.
+    if (winnerEntryId && !challenge.get('winnerMediaUrl')) {
+      const vincitrice = entries.docs.find((doc) => doc.id === winnerEntryId);
+
+      if (vincitrice && vincitrice.get('mediaUrl')) {
+        await challenge.ref.update({
+          winnerUsername: vincitrice.get('authorName') || '',
+          winnerMediaUrl: vincitrice.get('mediaUrl') || '',
+          winnerMediaKind: vincitrice.get('mediaKind') || 'photo',
+          winnerVotes: vincitrice.get('votes') || 0,
+        });
+
+        logger.info(`Challenge ${challenge.id}: trofeo recuperato prima della pulizia.`);
+      }
+    }
+
     for (const entry of entries.docs) {
       const path = entry.get('storagePath');
 
@@ -669,10 +713,32 @@ async function closeChallenge(challenge) {
   // e' il campo su cui il pagamento cerca chi deve incassare. Ricavarlo ogni
   // volta dalla partecipazione vorrebbe dire, per pagare qualcuno, leggere un
   // documento dentro una sottocollezione partendo dal nulla.
+  //
+  // **E insieme si ricopia qui dentro la foto che ha vinto.**
+  //
+  // Questa parte mancava, ed e' il motivo per cui le figurine erano vuote.
+  // Quarantotto ore dopo la fine, `purgeOldChallenges` cancella tutte le
+  // partecipazioni: il trofeo vive nel documento della gara, e se
+  // `winnerMediaUrl` non ci arriva mai, quel documento resta un premio senza
+  // immagine — nella bacheca compare una cornice dorata con dentro il vuoto, e
+  // `hasTrophy` nell'app resta falso per sempre.
+  //
+  // Lo faceva gia' il telefono, in `proclaimWinner`, e per questo il difetto
+  // si vedeva **solo** sulle gare chiuse dal server: dove interveniva l'app le
+  // figurine erano intere, dove interveniva questa funzione no. Le due strade
+  // adesso scrivono le stesse sei righe.
+  //
+  // Il file della foto del vincitore lo spazzino non lo tocca — vedi
+  // `purgeOldChallenges` — quindi questo indirizzo continua a funzionare
+  // quando la partecipazione non c'e' piu'.
   const batch = db.batch();
   batch.update(challenge.ref, {
     winnerEntryId: winner.id,
     winnerUserId: winner.get('userId') || null,
+    winnerUsername: winner.get('authorName') || '',
+    winnerMediaUrl: winner.get('mediaUrl') || '',
+    winnerMediaKind: winner.get('mediaKind') || 'photo',
+    winnerVotes: winner.get('votes') || 0,
   });
   batch.update(winner.ref, { isWinner: true });
   await batch.commit();
@@ -1067,6 +1133,20 @@ exports.sendPushOnNotification = onDocumentCreated(
       mention: 'Ti hanno nominato in un commento',
       friendRequest: 'Hai una richiesta di amicizia',
       comeback: 'Ci sono missioni aperte. Entra e prova a vincere',
+      // **Le sfide mirate dicono il nome, le altre no.**
+      //
+      // E' l'eccezione alla regola di sopra, e ha una ragione: una sfida
+      // chiede una risposta a **te**, e "qualcuno ti ha sfidato" lascia chi
+      // legge senza la sola cosa che gli serve per decidere se aprire l'app
+      // adesso o stasera. Le altre notizie raccontano un fatto gia' successo,
+      // dove il nome puo' aspettare la campanella.
+      duel: `@${chi} ti ha sfidato`,
+      duelAccepted: `@${chi} ha accettato la tua sfida`,
+      duelDeclined: `@${chi} ha rifiutato la tua sfida`,
+      duelCompleted: `@${chi} ha portato a termine la tua sfida`,
+      partyMission: gara
+        ? `@${chi} ha lanciato una missione: ${gara}`
+        : `@${chi} ha lanciato una missione per il party`,
     };
 
     const corpo = testi[dati.kind] || 'Qualcosa di nuovo ti aspetta';
@@ -1308,156 +1388,6 @@ exports.announceDailyChallenge = onSchedule(
 );
 
 /**
- * Quante persone diverse devono segnalare una foto perche' esca dalla gara.
- *
- * **Trenta persone, non trenta segnalazioni.** La differenza e' tutta qui, e
- * non e' un controllo aggiunto apposta: il nome del documento di una
- * segnalazione mette insieme chi segnala e cosa, quindi la stessa persona che
- * tocca il tasto trenta volte riscrive trenta volte la stessa riga. A contare
- * e' l'elenco `reporters` scritto sulla foto, che e' un insieme.
- *
- * **Perche' un numero alto.** Una foto tolta e' un premio perso da qualcuno che
- * non ha fatto niente di male, se il numero e' sbagliato. Con una soglia bassa
- * bastano tre amici d'accordo per togliere di mezzo chi sta vincendo — e in una
- * gara con dei soldi in palio quel movente c'e' eccome. Trenta persone che si
- * mettono d'accordo sono un'organizzazione, non un dispetto.
- *
- * **Il rovescio, detto adesso.** Con pochi utenti trenta non si raggiunge mai:
- * di fatto questo controllo e' spento finche' CRASY non e' grande. E' voluto —
- * finche' le segnalazioni sono due al giorno si guardano a mano, ed e' meglio —
- * ma va ricordato, perche' un impianto che non e' mai scattato sembra rotto
- * quando serve. Il numero sta scritto qui e si cambia in una riga.
- */
-const SEGNALAZIONI_PER_TOGLIERE = 30;
-
-/**
- * Toglie dalla gara una foto che troppe persone hanno segnalato.
- *
- * **Non la cancella: la mette da parte.** `rejected` e' lo stesso stato che usa
- * il controllo automatico delle immagini — la foto sparisce dalla gara, non
- * prende piu' fiamme e non puo' vincere (`closeChallenge` salta le rifiutate),
- * ma il documento resta. Cancellare vorrebbe dire non poter piu' tornare
- * indietro su una decisione presa da un contatore, e un contatore non ha mai
- * guardato la foto.
- *
- * Si attacca alle segnalazioni e non alle foto di proposito: una foto viene
- * riscritta a ogni fiamma, e una funzione attaccata li' girerebbe a ogni voto
- * di ogni gara per non fare niente novecentonovantanove volte su mille.
- */
-/**
- * Dice a chi ha mandato una foto che gliel'hanno tolta.
- *
- * **Prima non lo diceva nessuno.** La foto spariva dalla griglia e basta. Chi
- * l'aveva mandata restava dentro una gara con dei soldi in palio senza piu'
- * esserci davvero, e se ne accorgeva solo tornando a guardare — oppure non se
- * ne accorgeva affatto, e continuava ad aspettare un risultato che non poteva
- * arrivare. E' il tipo di silenzio che fa disinstallare un'app: uno non capisce
- * cos'e' successo, e la spiegazione piu' facile che si da' e' che sia rotta.
- *
- * **Non si dice chi ha segnalato, e non si dira' mai.** Le segnalazioni sono
- * anonime per costruzione: dirlo trasformerebbe una moderazione in una lite fra
- * due persone, e la segnalazione dopo non la manderebbe piu' nessuno.
- *
- * Il nome del documento porta dentro la gara e la foto, quindi due passaggi
- * sulla stessa rimozione non fanno due avvisi.
- */
-async function avvisaChiLHaMandata(autore, challengeId, titolo) {
-  if (!autore) {
-    return;
-  }
-
-  try {
-    await db
-      .collection('users')
-      .doc(autore)
-      .collection('notifications')
-      .doc('tolta_' + challengeId)
-      .set({
-        kind: 'removed',
-        // Nessun attore: non e' stata una persona, sono state trenta.
-        actorId: '',
-        actorUsername: '',
-        challengeId,
-        challengeTitle: titolo,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-  } catch (error) {
-    // **Non si rovescia la rimozione per un avviso.** La foto e' gia' fuori
-    // dalla gara, ed e' quella la cosa che doveva succedere: fallire qui e
-    // rifare tutto vorrebbe dire rimetterla dentro.
-    logger.error('avviso di rimozione non partito', { autore, challengeId, error });
-  }
-}
-
-exports.hideHeavilyReportedEntry = onDocumentCreated(
-  'reports/{reportId}',
-  async (event) => {
-    const dati = event.data?.data();
-
-    if (!dati || dati.kind !== 'entry') {
-      return;
-    }
-
-    const challengeId = String(dati.challengeId || '');
-    const entryId = String(dati.entryId || '');
-
-    if (!challengeId || !entryId) {
-      return;
-    }
-
-    const foto = db
-      .collection('challenges')
-      .doc(challengeId)
-      .collection('entries')
-      .doc(entryId);
-
-    const adesso = await foto.get();
-
-    if (!adesso.exists) {
-      return;
-    }
-
-    // L'elenco lo scrive l'app dentro la stessa scrittura della segnalazione:
-    // quando questa funzione parte, chi ha appena segnalato e' gia' dentro.
-    const chiHaSegnalato = adesso.get('reporters');
-    const quanti = Array.isArray(chiHaSegnalato) ? chiHaSegnalato.length : 0;
-
-    if (quanti < SEGNALAZIONI_PER_TOGLIERE) {
-      return;
-    }
-
-    // Gia' fuori: non si riscrive. Serve a non rifare la stessa scrittura a
-    // ogni segnalazione che arriva dopo la trentesima.
-    if (adesso.get('moderation') === 'rejected') {
-      return;
-    }
-
-    await foto.update({
-      moderation: 'rejected',
-      // **Perche' e' uscita, scritto sulla foto stessa.** Fra una tolta dal
-      // riconoscimento immagini e una tolta dalle persone c'e' una differenza
-      // enorme il giorno in cui qualcuno chiede spiegazioni, e senza questo
-      // campo le due sono identiche.
-      moderationReason: 'reports',
-      moderatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    logger.warn('foto tolta dalla gara per segnalazioni', {
-      challengeId,
-      entryId,
-      quanti,
-      autore: String(dati.reportedUserId || ''),
-    });
-
-    await avvisaChiLHaMandata(
-      String(dati.reportedUserId || adesso.get('userId') || ''),
-      challengeId,
-      String(adesso.get('challengeTitle') || '')
-    );
-  }
-);
-
-/**
  * Un telefono appartiene a un account alla volta.
  *
  * **E' il difetto che faceva arrivare a uno le notifiche di un altro.** Chi
@@ -1533,6 +1463,96 @@ exports.oneDevicePerAccount = onDocumentCreated(
  * si e' persa per definizione. `arrayUnion` non aggiunge due volte, quindi
  * un'amicizia disfatta e rifatta non gonfia niente.
  */
+/**
+ * Quante persone al massimo si avvisano quando nasce una missione di party.
+ *
+ * **Cento, e l'elenco dei destinatari puo' arrivare a trecento.** Non e' un
+ * limite di spesa: e' un limite di senso. Una missione riservata "agli amici"
+ * con trecento destinatari non e' piu' una cosa fra amici, e trecento telefoni
+ * che squillano insieme sono esattamente l'annuncio di massa che questa app ha
+ * smesso di mandare. Chi ha piu' di cento amici la vede lo stesso, aprendo il
+ * party.
+ */
+const AMICI_DA_AVVISARE = 100;
+
+/**
+ * Avvisa gli amici quando nasce una **missione del party**.
+ *
+ * **E' l'unica notizia "c'e' una missione nuova" rimasta**, ed e' diversa dagli
+ * annunci che sono stati tolti per una ragione sola: chi la riceve. Quegli
+ * annunci andavano a tutti, per ogni gara pubblica che qualcuno lanciasse —
+ * decine di telefoni che squillano per gare che non riguardano nessuno, finche'
+ * qualcuno si stufa e spegne le notifiche, comprese quelle che gli servivano.
+ *
+ * Questa va **solo a chi sta dentro `audience`**, cioe' agli amici di chi l'ha
+ * lanciata al momento del lancio. Li riguarda per definizione, ed e' l'unico
+ * modo in cui possono sapere che c'e' qualcosa: una missione di party vive solo
+ * dentro la scheda Party, che nessuno ha motivo di aprire se non sa che c'e'
+ * qualcosa dentro.
+ *
+ * **Le sfide mirate non passano di qui.** Quelle le annuncia il telefono che le
+ * lancia, nel momento in cui le lancia, con il nome di chi e' stato sfidato
+ * dentro — vedi `DuelController`. Avvisarle anche da qui vorrebbe dire due
+ * notifiche per la stessa sfida.
+ *
+ * Il nome del documento porta dentro la missione: se questa funzione venisse
+ * rieseguita, riscriverebbe le stesse righe invece di crearne di nuove, e il
+ * push parte solo sulla **nascita** di un documento.
+ */
+exports.notifyFriendsOnPartyChallenge = onDocumentCreated(
+  'challenges/{challengeId}',
+  async (event) => {
+    const dati = event.data?.data();
+
+    if (!dati) {
+      return;
+    }
+
+    // Solo le riservate al gruppo, e solo quelle senza un destinatario unico.
+    if (dati.scope !== 'friends' || dati.targetUserId) {
+      return;
+    }
+
+    const autore = String(dati.createdByUserId || '');
+    const nome = String(dati.createdByUsername || '');
+    const titolo = String(dati.title || '');
+    const destinatari = (dati.audience || [])
+      .filter((id) => typeof id === 'string' && id && id !== '*' && id !== autore)
+      .slice(0, AMICI_DA_AVVISARE);
+
+    if (destinatari.length === 0) {
+      return;
+    }
+
+    const scrittura = db.batch();
+
+    for (const id of destinatari) {
+      scrittura.set(
+        db
+          .collection('users')
+          .doc(id)
+          .collection('notifications')
+          .doc(`party_${event.params.challengeId}`),
+        {
+          kind: 'partyMission',
+          actorId: autore,
+          actorUsername: nome,
+          challengeId: event.params.challengeId,
+          challengeTitle: titolo,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        }
+      );
+    }
+
+    await scrittura.commit();
+
+    logger.info('missione di party annunciata agli amici', {
+      challengeId: event.params.challengeId,
+      quanti: destinatari.length,
+    });
+  }
+);
+
 exports.openFriendChallengesToNewFriend = onDocumentCreated(
   'users/{userId}/friends/{friendId}',
   async (event) => {
@@ -1565,6 +1585,14 @@ exports.openFriendChallengesToNewFriend = onDocumentCreated(
       // un identificativo non cambierebbe chi le vede, e allungherebbe una
       // lista che ha un tetto di trecento nelle regole.
       if (pubblica || dati.scope !== 'friends') {
+        return false;
+      }
+
+      // **Una sfida mirata non si apre a nessun altro.** E' una cosa fra due
+      // persone: allargarla a un amico arrivato dopo vorrebbe dire far leggere
+      // a un terzo una sfida che non lo riguarda, e far comparire quella riga
+      // nel suo party come se fosse sua.
+      if (dati.targetUserId) {
         return false;
       }
 

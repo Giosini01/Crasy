@@ -187,6 +187,18 @@ class FirestoreNotificationsRepository {
     required String actorId,
   }) => 'commento_${challengeId}_${entryId}_$actorId';
 
+  /// Il nome del documento di una notizia su una sfida mirata.
+  ///
+  /// Ci sono **il tipo e la missione**, e nient'altro. Ogni sfida e' fra due
+  /// persone sole e ogni tipo capita una volta per sfida: chi accetta, ci
+  /// ripensa e riaccetta riscrive lo stesso documento, e le regole rifiutano
+  /// la seconda scrittura senza far squillare niente. E' la stessa difesa che
+  /// tiene a bada le fiamme tolte e rimesse venti volte.
+  static String duelId({
+    required NotificationKind kind,
+    required String challengeId,
+  }) => 'sfida_${kind.name}_$challengeId';
+
   /// Il nome del documento di una partecipazione.
   static String participationId({
     required String challengeId,

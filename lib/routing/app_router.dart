@@ -10,6 +10,7 @@ import 'package:crasy/features/challenges/presentation/pages/challenge_detail_pa
 import 'package:crasy/features/challenges/presentation/pages/create_challenge_page.dart';
 import 'package:crasy/features/challenges/presentation/pages/participate_page.dart';
 import 'package:crasy/features/friends/presentation/pages/friends_page.dart';
+import 'package:crasy/features/friends/presentation/pages/launch_duel_page.dart';
 import 'package:crasy/features/home/presentation/pages/home_page.dart';
 import 'package:crasy/features/home/presentation/pages/splash_page.dart';
 import 'package:crasy/features/legal/presentation/pages/consent_page.dart';
@@ -232,6 +233,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             swipeAnywhere: false,
           ),
         ],
+      ),
+      _pushedRoute(
+        AppRoutes.launchDuel,
+        (state) => LaunchDuelPage(friendId: state.uri.queryParameters['amico']),
       ),
       _pushedRoute(
         AppRoutes.notifications,

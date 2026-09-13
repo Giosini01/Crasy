@@ -3,6 +3,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
+import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
@@ -45,6 +46,13 @@ abstract final class ChallengeMapper {
       isDaily: (data['kind'] as String?) == 'daily',
       audience: _stringList(data['audience']),
       maxParticipants: (data['maxParticipants'] as num?)?.toInt() ?? 0,
+      // La sfida mirata: chi e' stato chiamato in causa, e cosa ha risposto.
+      // Assenti su tutte le missioni normali, ed e' giusto che si leggano come
+      // "nessun destinatario" invece che come dati rotti.
+      targetUserId: data['targetUserId'] as String? ?? '',
+      targetUsername: data['targetUsername'] as String? ?? '',
+      duelStatus: DuelStatus.fromName(data['duelStatus'] as String?),
+      respondedAt: (data['respondedAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -72,6 +80,17 @@ abstract final class ChallengeMapper {
       'endsAt': Timestamp.fromDate(challenge.endsAt),
       'participantsCount': challenge.participantsCount,
       'winnerEntryId': challenge.winnerEntryId,
+      // **Il destinatario viaggia con la missione, e nasce sempre in attesa.**
+      //
+      // Lo stato non si prende da chi crea: se arrivasse da li', lanciare una
+      // sfida gia' "accettata" sarebbe questione di una riga, e la parola data
+      // da qualcun altro e' esattamente la cosa che questa funzione non deve
+      // poter scrivere. A muoverlo e' solo il destinatario — lo impongono
+      // anche le regole di Firestore.
+      'targetUserId': challenge.targetUserId,
+      'targetUsername': challenge.targetUsername,
+      'duelStatus': DuelStatus.pending.name,
+      'respondedAt': null,
       // **Nasce sempre non pagata, qualunque cosa dica chi la crea.**
       //
       // Non si scrive `challenge.prizeStatus` di proposito: se il valore
@@ -147,6 +166,9 @@ abstract final class ChallengeEntryMapper {
       // l'hanno, ed e' giusto che si leggano come foto senza didascalia invece
       // che come dati rotti.
       caption: data['caption'] as String? ?? '',
+      // Falso su tutte le partecipazioni nate prima delle sfide mirate, ed e'
+      // la verita': non erano risposte a nessuna sfida.
+      isDuel: data['isDuel'] as bool? ?? false,
     );
   }
 
@@ -172,6 +194,12 @@ abstract final class ChallengeEntryMapper {
       // danno all'autore nessun permesso di aggiornamento sulla propria
       // partecipazione, e questa riga ci va sotto come la foto.
       'caption': entry.caption,
+      // **Il segno che questa foto risponde a una sfida.** Serve al conto
+      // delle cinque partecipazioni del giorno, che salta queste: una sfida
+      // e' roba in piu', non al posto di. Si scrive alla nascita perche' la
+      // gara da cui viene, ventiquattro ore dopo, non c'e' piu' in nessun
+      // elenco da cui ricavarlo.
+      'isDuel': entry.isDuel,
       'votes': 0,
       // Con il controllo acceso la foto nasce in attesa e la vede solo chi
       // l'ha mandata, finche' il server non l'ha guardata. Spento, nasce

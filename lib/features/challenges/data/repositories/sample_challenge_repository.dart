@@ -7,6 +7,7 @@ import 'package:crasy/features/challenges/data/repositories/firestore_challenge_
 import 'package:crasy/features/challenges/domain/commissioned_order.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
@@ -226,6 +227,7 @@ class SampleChallengeRepository implements ChallengeRepository {
       mediaUrl: _dataUri(bytes, contentType),
       mediaKind: mediaKind,
       caption: caption.trim(),
+      isDuel: challenge.isDuel,
       createdAt: DateTime.now(),
     );
 
@@ -317,6 +319,25 @@ class SampleChallengeRepository implements ChallengeRepository {
       // sul database sbaglia.
       entries[index] = entry.copyWith(votes: next < 0 ? 0 : next);
     }
+
+    _emit();
+  }
+
+  @override
+  Future<void> answerDuel({
+    required String challengeId,
+    required DuelStatus status,
+  }) async {
+    final challenge = _challenges[challengeId];
+
+    if (challenge == null) {
+      return;
+    }
+
+    _challenges[challengeId] = challenge.copyWith(
+      duelStatus: status,
+      respondedAt: DateTime.now(),
+    );
 
     _emit();
   }

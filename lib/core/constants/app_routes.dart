@@ -76,6 +76,19 @@ abstract final class AppRoutes {
   /// si sceglie affatto.
   static const createForFriends = '/crea/amici';
 
+  /// Il modulo per **sfidare una persona sola**.
+  ///
+  /// Rotta sua, come quella del party e per la stessa ragione: e' un modulo
+  /// diverso. Qui non si sceglie il premio — e' zero — ne' l'ambito, ne' la
+  /// durata: si sceglie **chi**, e quello e' un campo che le altre due
+  /// schermate non hanno.
+  ///
+  /// Con `?amico=<id>` in coda l'amico e' gia' scelto: ci si arriva cosi' dal
+  /// profilo di qualcuno, dove la persona l'ha gia' indicata il dito.
+  static const launchDuel = '/sfida';
+
+  static String launchDuelWith(String friendId) => '/sfida?amico=$friendId';
+
   static String challengeDetailOf(String id) => '/challenge/$id';
 
   static String userProfileOf(String id) => '/utente/$id';

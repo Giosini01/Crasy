@@ -291,12 +291,26 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
     // missione, dove si apre con il rullo di tamburi — portare chi tocca in
     // campanella vorrebbe dire fargli leggere "la missione e' finita" e poi
     // cercarsi da solo dove si guarda com'e' andata.
-    if (kind == 'ended') {
+    // **Una sfida porta alla sfida.** Le quattro notizie delle sfide mirate
+    // riguardano una missione precisa, e quella missione e' il posto dove si
+    // accetta, si rifiuta o si va a vedere com'e' andata. Mandare in campanella
+    // chi ha toccato "@mario ti ha sfidato" vorrebbe dire fargli cercare da
+    // solo dove si risponde.
+    if (kind == 'partyMission' ||
+        kind == 'duel' ||
+        kind == 'duelAccepted' ||
+        kind == 'duelDeclined' ||
+        kind == 'duelCompleted' ||
+        kind == 'ended') {
       final gara = messaggio.data['challengeId'] ?? '';
 
       if (gara.isNotEmpty) {
         return (
-          scheda: AppRoutes.challenges,
+          // Sotto la sfida si posa il party e non la home: e' la scheda da cui
+          // quella missione viene, ed e' dove si torna chiudendola.
+          scheda: kind == 'ended'
+              ? AppRoutes.challenges
+              : AppRoutes.friendsActivity,
           apri: AppRoutes.challengeDetailOf(gara),
           evidenzia: null,
           notificationId: messaggio.data['notificationId'],

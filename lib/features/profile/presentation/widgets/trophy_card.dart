@@ -80,12 +80,30 @@ class TrophyFront extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          MediaFrame(
-            url: challenge.winnerMediaUrl,
-            video: challenge.winnerMediaKind.isVideo,
-            aspectRatio: ratio,
-            radius: AppRadius.sm,
-          ),
+          // **Senza foto la figurina ha comunque una faccia.**
+          //
+          // `MediaFrame` davanti a un indirizzo vuoto sparisce del tutto — ed
+          // e' giusto ovunque tranne che qui: dentro una cornice dorata
+          // lasciava un buco, cioe' esattamente l'aria di un'immagine che non
+          // si e' caricata, proprio dove si sta guardando se qualcuno ha
+          // davvero vinto dei soldi.
+          //
+          // Succedeva per una ragione precisa e adesso riparata: le gare
+          // chiuse dal server non si ricopiavano dentro la foto del vincitore
+          // (vedi `closeChallenge` in `functions/index.js`), e quarantotto ore
+          // dopo la partecipazione da cui prenderla non c'era piu'. Quelle
+          // vecchie restano senza, e per loro qui c'e' il fondo scuro con il
+          // marchio — una figurina **senza fotografia**, che e' una cosa
+          // diversa da una figurina rotta.
+          if (MediaFrame.hasMedia(challenge.winnerMediaUrl))
+            MediaFrame(
+              url: challenge.winnerMediaUrl,
+              video: challenge.winnerMediaKind.isVideo,
+              aspectRatio: ratio,
+              radius: AppRadius.sm,
+            )
+          else
+            const _NoPhoto(),
           // La fascia scura sotto **non e' decorazione**: senza, il valore
           // finisce sopra una foto qualunque, e su una foto chiara sparisce. Il
           // numero di un trofeo e' l'unica cosa che deve leggersi sempre.
@@ -146,6 +164,43 @@ class TrophyFront extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Il vetro della figurina quando la fotografia non c'e'.
+///
+/// Fondo scuro e marchio in mezzo, come il dietro della carta. Non e' un
+/// segnaposto: e' la faccia che ha una figurina di una gara vinta prima che
+/// esistesse l'abitudine di conservarne lo scatto. Il valore e la scritta
+/// VINTA restano dov'erano, sulla fascia in basso, e sono quelli che contano.
+class _NoPhoto extends StatelessWidget {
+  const _NoPhoto();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.all(Radius.circular(AppRadius.sm)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF2A2A2A), Color(0xFF141414)],
+        ),
+      ),
+      child: Center(
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.md),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: CrasyWordmark(
+              size: 30,
+              alignment: Alignment.center,
+              onDark: true,
+            ),
+          ),
+        ),
       ),
     );
   }

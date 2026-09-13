@@ -143,7 +143,12 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
               // Sulla sfida del giorno il bottone non si spegne mai: non
               // costa una delle cinque, quindi non c'e' niente da finire.
               outOfLives:
-                  !challenge.isDaily && ref.watch(livesLeftProvider) <= 0,
+                  !challenge.isDaily &&
+                      // Una sfida mirata non pesa sulla giornata: vedi
+                      // `livesLeftProvider`. Il bottone deve dire la stessa
+                      // cosa, o si arriva a scattare per sentirsi dire di no.
+                      !challenge.isDuel &&
+                      ref.watch(livesLeftProvider) <= 0,
               caption: _caption,
               onCapture: () => _capture(challenge),
               onSubmit: () => _submit(challenge),
@@ -283,7 +288,20 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
               // in un avviso che serve a far pensare due volte una frase falsa
               // e' peggio di nessun avviso: quella non toglie niente, e chi la
               // legge deve saperlo prima di rinunciare.
-              if (challenge.isDaily) ...[
+              // Come la sfida del giorno, una sfida mirata e' roba in piu': e
+              // chi la riceve deve saperlo **prima** di rinunciarci per non
+              // bruciare una delle cinque.
+              if (challenge.isDuel) ...[
+                const TextSpan(text: ' Ma è una sfida di un amico: '),
+                TextSpan(
+                  text: 'non ti costa nessuna partecipazione',
+                  style: TextStyle(
+                    color: palette.accent,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const TextSpan(text: '.'),
+              ] else if (challenge.isDaily) ...[
                 const TextSpan(text: ' Ma è la sfida del giorno: '),
                 TextSpan(
                   text: 'non ti costa nessuna partecipazione',
@@ -361,7 +379,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
           challengeId: challenge.id,
           media: media,
           caption: didascalia,
-          daily: challenge.isDaily,
+          daily: challenge.isDaily || challenge.isDuel,
         );
 
     if (!mounted) {

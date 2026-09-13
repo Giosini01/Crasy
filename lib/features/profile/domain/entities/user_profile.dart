@@ -116,11 +116,18 @@ class UserProfile {
   /// Il taglio a due caratteri e' sicuro perche' il nome utente e' validato:
   /// solo lettere, cifre, punto e trattino basso. Su un campo libero questo
   /// `substring` spezzerebbe a meta' un'emoji.
+  ///
+  /// **Senza nome torna vuoto, e prima tornava `?`.** Un punto interrogativo
+  /// dentro un cerchio grigio non si legge come "questa persona non ha un
+  /// nome": si legge come **un'immagine che non si e' caricata**, ed e' il
+  /// difetto piu' facile da scambiare per un guasto dell'app. Chi lo mostra
+  /// mette al suo posto la sagoma di una persona, che quella cosa la dice
+  /// davvero — vedi `FriendAvatar`.
   String get initials {
     final trimmed = username.trim();
 
     if (trimmed.isEmpty) {
-      return '?';
+      return '';
     }
 
     return (trimmed.length <= 2 ? trimmed : trimmed.substring(0, 2))

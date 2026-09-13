@@ -715,6 +715,28 @@ class _Face extends StatelessWidget {
         Icons.local_fire_department_outlined,
         palette.textPrimary,
       ),
+      // **Il guanto di sfida: due spade incrociate.** Una sfida mirata non e'
+      // una partecipazione e non e' un commento — e' qualcuno che ti ha
+      // chiamato in causa per nome, e in campanella deve distinguersi al primo
+      // sguardo da tutto il resto.
+      NotificationKind.duel => (Icons.sports_kabaddi_rounded, palette.accent),
+      NotificationKind.duelAccepted => (
+        Icons.handshake_rounded,
+        palette.accent,
+      ),
+      NotificationKind.duelDeclined => (
+        Icons.do_not_disturb_alt_rounded,
+        palette.textPrimary,
+      ),
+      NotificationKind.duelCompleted => (
+        Icons.military_tech_rounded,
+        palette.accent,
+      ),
+      // La bandierina: una missione nuova aperta dentro il gruppo.
+      NotificationKind.partyMission => (
+        Icons.celebration_rounded,
+        palette.accent,
+      ),
     };
 
     return SizedBox(

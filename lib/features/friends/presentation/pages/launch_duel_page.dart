@@ -1,0 +1,398 @@
+import 'package:crasy/core/constants/app_routes.dart';
+import 'package:crasy/core/errors/error_message_mapper.dart';
+import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/app_radius.dart';
+import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/widgets/app_background.dart';
+import 'package:crasy/core/widgets/crasy_button.dart';
+import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/core/widgets/inline_banner.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
+import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
+import 'package:crasy/features/challenges/presentation/controllers/create_challenge_controller.dart';
+import 'package:crasy/features/challenges/presentation/controllers/duel_controller.dart';
+import 'package:crasy/features/friends/domain/entities/friendship.dart';
+import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
+import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+/// **Sfidare un amico: scegli chi, scrivi cosa.**
+///
+/// Due passaggi soli, in una schermata sola. Il modulo delle missioni normali
+/// ne ha sette — premio, ambito, durata, tetto, foto o video, adesso o
+/// archivio, citta' — e qui non ce n'e' nessuno da chiedere: il premio e' zero
+/// per costruzione, l'ambito e' una persona, la durata e' un giorno. Chiedere
+/// quelle cose vorrebbe dire trasformare un gesto di due secondi — *ti sfido a
+/// fare questa roba* — in un modulo, e nessuno sfida nessuno compilando un
+/// modulo.
+///
+/// L'unica scelta che resta e' **foto o video**, perche' cambia davvero cosa
+/// si sta chiedendo di fare.
+class LaunchDuelPage extends ConsumerStatefulWidget {
+  const LaunchDuelPage({this.friendId, super.key});
+
+  /// Chi sfidare, quando si arriva qui da un profilo.
+  ///
+  /// Con questo l'elenco degli amici non si mostra affatto: chi ha toccato
+  /// "sfidalo" sul profilo di Mario ha gia' scelto, e rifargli scegliere
+  /// sarebbe chiedergli due volte la stessa cosa.
+  final String? friendId;
+
+  @override
+  ConsumerState<LaunchDuelPage> createState() => _LaunchDuelPageState();
+}
+
+class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _title = TextEditingController();
+  final _brief = TextEditingController();
+
+  String? _targetId;
+  String _targetName = '';
+  MediaKind _mediaKind = MediaKind.photo;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _targetId = widget.friendId;
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _brief.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+    final friends = ref.watch(myFriendsProvider).valueOrNull ?? const <Friend>[];
+    final busy = ref.watch(duelControllerProvider).isLoading;
+
+    // Il nome tiene il passo con la scelta: serve a scriverlo dentro la sfida
+    // senza leggere un profilo al momento dell'invio.
+    final scelto = friends.where((amico) => amico.userId == _targetId).firstOrNull;
+    _targetName = scelto?.username ?? _targetName;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Sfida un amico')),
+      body: AppBackground(
+        child: friends.isEmpty
+            ? const Padding(
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.page),
+                child: EmptyState(
+                  title: 'Non hai ancora amici',
+                  message:
+                      'Le sfide si lanciano a una persona che conosci. Cerca '
+                      'qualcuno e mandagli una richiesta: appena accetta, '
+                      'potrai sfidarlo.',
+                ),
+              )
+            : Form(
+                key: _formKey,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.page,
+                    AppSpacing.md,
+                    AppSpacing.page,
+                    AppSpacing.xxl,
+                  ),
+                  children: [
+                    if (_error != null) ...[
+                      InlineBanner(message: _error!),
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
+                    Text(
+                      'CHI SFIDI',
+                      style: texts.labelSmall?.copyWith(
+                        color: palette.textFaint,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _FriendPicker(
+                      friends: friends,
+                      selected: _targetId,
+                      onPick: (amico) => setState(() {
+                        _targetId = amico.userId;
+                        _targetName = amico.username;
+                      }),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    Text(
+                      'LA SFIDA',
+                      style: texts.labelSmall?.copyWith(
+                        color: palette.textFaint,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    TextFormField(
+                      controller: _title,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: const InputDecoration(
+                        labelText: 'Titolo',
+                        hintText: 'BALLA IN MEZZO ALLA STRADA',
+                      ),
+                      maxLength: ChallengeDraftValidators.titleMaxLength,
+                      validator: ChallengeDraftValidators.validateTitle,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    TextFormField(
+                      controller: _brief,
+                      decoration: const InputDecoration(
+                        labelText: 'Cosa deve fare',
+                        hintText: 'Scrivi la consegna in una frase.',
+                      ),
+                      maxLines: 3,
+                      maxLength: ChallengeDraftValidators.briefMaxLength,
+                      validator: ChallengeDraftValidators.validateBrief,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    _MediaKindPicker(
+                      selected: _mediaKind,
+                      onPick: (kind) => setState(() => _mediaKind = kind),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    // **Le tre cose che non si scelgono, dette prima.** Sono
+                    // le stesse tre che il modulo non chiede: chi non le legge
+                    // qui se le chiede dopo aver mandato, ed e' tardi.
+                    _Rules(palette: palette, texts: texts),
+                    const SizedBox(height: AppSpacing.xl),
+                    CrasyButton(
+                      label: 'Lancia la sfida',
+                      loading: busy,
+                      onPressed: busy ? null : _launch,
+                    ),
+                  ],
+                ),
+              ),
+      ),
+    );
+  }
+
+  Future<void> _launch() async {
+    setState(() => _error = null);
+
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    final targetId = _targetId;
+
+    if (targetId == null || targetId.isEmpty) {
+      setState(() => _error = 'Scegli chi vuoi sfidare.');
+
+      return;
+    }
+
+    final id = await ref
+        .read(duelControllerProvider.notifier)
+        .challenge(
+          targetUserId: targetId,
+          targetUsername: _targetName,
+          title: _title.text,
+          brief: _brief.text,
+          mediaKind: _mediaKind,
+          // Una sfida fra amici si fa sul momento: e' il senso di sfidare
+          // qualcuno. Pescare dall'archivio sarebbe rispondere con una cosa
+          // che si aveva gia' in tasca.
+          source: ChallengeSource.instant,
+        );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (id == null) {
+      final errore = ref.read(duelControllerProvider).error;
+
+      setState(
+        () => _error = errore == null
+            ? 'Non siamo riusciti a lanciare la sfida. Riprova.'
+            : ErrorMessageMapper.map(errore),
+      );
+
+      return;
+    }
+
+    // Si torna indietro e si apre la sfida appena nata: chi l'ha lanciata
+    // vuole vederla dov'e' finita, non ritrovarsi sul modulo vuoto.
+    context.pop();
+    context.push(AppRoutes.challengeDetailOf(id));
+  }
+}
+
+/// L'elenco degli amici, in orizzontale, con la faccia grande.
+///
+/// **Facce e non nomi.** Si sceglie chi sfidare guardando, non leggendo: una
+/// colonna di venti nomi e' una rubrica, una fila di facce e' un gruppo di
+/// amici — ed e' la seconda cosa che questa schermata deve sembrare.
+class _FriendPicker extends StatelessWidget {
+  const _FriendPicker({
+    required this.friends,
+    required this.selected,
+    required this.onPick,
+  });
+
+  final List<Friend> friends;
+  final String? selected;
+  final void Function(Friend friend) onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+
+    return SizedBox(
+      height: 96,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: friends.length,
+        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
+        itemBuilder: (context, index) {
+          final amico = friends[index];
+          final scelto = amico.userId == selected;
+
+          return GestureDetector(
+            onTap: () => onPick(amico),
+            behavior: HitTestBehavior.opaque,
+            child: SizedBox(
+              width: 64,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: scelto ? palette.accent : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                    child: FriendAvatar(
+                      userId: amico.userId,
+                      username: amico.username,
+                      size: 52,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    amico.username,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: texts.labelSmall?.copyWith(
+                      color: scelto ? palette.accent : palette.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Foto o video: l'unica cosa che cambia davvero cosa si sta chiedendo.
+class _MediaKindPicker extends StatelessWidget {
+  const _MediaKindPicker({required this.selected, required this.onPick});
+
+  final MediaKind selected;
+  final void Function(MediaKind kind) onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+
+    return Row(
+      children: [
+        for (final kind in MediaKind.values)
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.sm),
+            child: GestureDetector(
+              onTap: () => onPick(kind),
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  color: kind == selected
+                      ? palette.accentTint
+                      : Colors.transparent,
+                  border: Border.all(
+                    color: kind == selected ? palette.accent : palette.line,
+                  ),
+                ),
+                child: Text(
+                  kind.isVideo ? 'VIDEO' : 'FOTO',
+                  style: texts.labelSmall?.copyWith(
+                    color: kind == selected
+                        ? palette.accent
+                        : palette.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Le regole di una sfida, scritte.
+class _Rules extends StatelessWidget {
+  const _Rules({required this.palette, required this.texts});
+
+  final AppPalette palette;
+  final TextTheme texts;
+
+  static const List<String> _righe = [
+    'La vedete solo voi due.',
+    'Non c’è premio in denaro: in palio c’è la parola data.',
+    'Dura 24 ore, poi scade.',
+    'Non toglie nessuna delle vostre partecipazioni del giorno.',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'COME FUNZIONA',
+          style: texts.labelSmall?.copyWith(color: palette.textFaint),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        for (final riga in _righe)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('—  ', style: texts.bodySmall),
+                Expanded(
+                  child: Text(
+                    riga,
+                    style: texts.bodySmall?.copyWith(
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}

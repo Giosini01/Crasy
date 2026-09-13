@@ -16,7 +16,10 @@ void main() {
   test('le iniziali sono le prime due lettere, in maiuscolo', () {
     expect(profile.initials, 'MA');
     expect(profile.copyWith(username: 'a').initials, 'A');
-    expect(profile.copyWith(username: '').initials, '?');
+    // Senza nome non ci sono iniziali da scrivere: chi le mostra mette una
+    // sagoma al loro posto. Prima tornava '?', che a schermo si leggeva come
+    // un'immagine non caricata.
+    expect(profile.copyWith(username: '').initials, '');
   });
 
   test('la foto conta solo se c\'e\' davvero un indirizzo', () {

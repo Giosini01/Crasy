@@ -352,13 +352,18 @@ class _Initials extends StatelessWidget {
 
     return ColoredBox(
       color: palette.surfaceMuted,
+      // Senza nome la sagoma di una persona, non un `?`: un punto
+      // interrogativo grande dentro un cerchio grigio si legge come una foto
+      // che non si e' caricata. Vedi `UserProfile.initials`.
       child: Center(
-        child: Text(
-          profile.initials,
-          style: context.texts.headlineSmall?.copyWith(
-            color: palette.textFaint,
-          ),
-        ),
+        child: profile.initials.isEmpty
+            ? Icon(Icons.person_rounded, size: 36, color: palette.textFaint)
+            : Text(
+                profile.initials,
+                style: context.texts.headlineSmall?.copyWith(
+                  color: palette.textFaint,
+                ),
+              ),
       ),
     );
   }

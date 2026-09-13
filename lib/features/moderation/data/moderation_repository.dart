@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crasy/features/moderation/domain/report_reason.dart';
+import 'package:crasy/features/moderation/domain/report_status.dart';
 
 /// Segnalazioni e blocchi.
 ///
@@ -13,16 +14,6 @@ class ModerationRepository {
 
   final FirebaseFirestore _firestore;
 
-  /// Quante segnalazioni diverse servono per far sparire una cosa a tutti.
-  ///
-  /// **Tre, e non una.** Con una sola, due account falsi bastano a far sparire
-  /// la foto di un rivale il giorno prima che vinca un premio — e con dei soldi
-  /// in palio quello smette di essere un caso di scuola. Con tre, chi vuole
-  /// censurare qualcuno deve costruire tre identita' diverse, e nel frattempo
-  /// chi segnala per davvero non vede piu' niente lo stesso, subito, perche' la
-  /// propria segnalazione nasconde il contenuto **a chi l'ha fatta** a
-  /// prescindere dagli altri.
-  static const int reportsToHide = 3;
 
   CollectionReference<Map<String, dynamic>> get _reports =>
       _firestore.collection('reports');
@@ -45,6 +36,9 @@ class ModerationRepository {
     String entryId = '',
     String commentId = '',
     String note = '',
+    String reportedUsername = '',
+    String mediaUrl = '',
+    String challengeTitle = '',
   }) async {
     final batch = _firestore.batch();
 
@@ -70,8 +64,30 @@ class ModerationRepository {
       'entryId': entryId,
       'commentId': commentId,
       'note': note,
+      // **Quello che serve a chi la guardera', copiato dentro.**
+      //
+      // La dashboard deve poter mostrare la foto, il nome di chi l'ha
+      // pubblicata e in che gara stava, e le tre cose non sono sempre ancora
+      // li' quando qualcuno la apre: le partecipazioni vengono cancellate
+      // quarantotto ore dopo la fine della gara, insieme alle foto. Una
+      // segnalazione che rimanda a un documento che non c'e' piu' e' una
+      // segnalazione che non si puo' piu' giudicare.
+      //
+      // Sono **dati di comodo**, scritti da un telefono e percio' non fidati:
+      // la funzione dell'amministratore, quando la partecipazione esiste
+      // ancora, legge quella e ignora questi. Servono a non restare ciechi
+      // dopo, non a decidere.
+      'reportedUsername': reportedUsername,
+      'mediaUrl': mediaUrl,
+      'challengeTitle': challengeTitle,
       'createdAt': FieldValue.serverTimestamp(),
-      'status': 'open',
+      // **Nasce nuova, e non la muove nessun telefono.** A cambiare questo
+      // campo e' solo `adminResolveReport`, che scrive con l'SDK di
+      // amministrazione e non passa dalle regole. Le regole, dalla loro parte,
+      // non danno a nessuno il permesso di aggiornare una segnalazione: una
+      // segnalazione che si puo' ritirare e' una segnalazione che basta una
+      // minaccia a far ritirare.
+      'status': ReportStatus.fresh.wire,
     });
 
     // Il segno sul contenuto. Sta dentro la partecipazione e non fuori perche'

@@ -37,24 +37,22 @@ void main() {
     expect(foto.isVisibleTo('un-altro'), isTrue);
   });
 
-  test('sotto la soglia la foto resta in gara', () {
-    expect(
-      entry(reporters: const ['uno', 'due']).isVisibleTo('un-altro'),
-      isTrue,
-    );
+  test('nessuna soglia fa sparire una foto agli altri', () {
+    // **Il contatore non decide piu' niente.** Prima a tre segnalazioni la
+    // foto spariva a tutti, e bastavano tre account per togliere di mezzo un
+    // rivale il giorno prima che vincesse. Adesso la porta sul tavolo
+    // dell'amministratore, che guarda e decide — anche su una sola.
+    final foto = entry(reporters: const ['uno', 'due', 'tre', 'quattro']);
+
+    expect(foto.isVisibleTo('un-altro'), isTrue);
+    expect(foto.isVisibleTo('autore'), isTrue);
   });
 
-  test('alla soglia sparisce per tutti', () {
-    final foto = entry(reporters: const ['uno', 'due', 'tre']);
+  test('la decisione dell amministratore toglie la foto a tutti', () {
+    final foto = entry(moderation: EntryModeration.rejected);
 
     expect(foto.isVisibleTo('un-altro'), isFalse);
-    // Anche per chi l'ha mandata: se restasse visibile solo a lui, penserebbe
-    // di essere ancora in gara.
     expect(foto.isVisibleTo('autore'), isFalse);
-  });
-
-  test('la soglia e tre', () {
-    expect(ChallengeEntry.reportsToHide, 3);
   });
 
   test('chi hai bloccato sparisce senza soglie', () {

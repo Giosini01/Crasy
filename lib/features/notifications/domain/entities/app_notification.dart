@@ -10,6 +10,38 @@ enum NotificationKind {
   /// Qualcuno ha mandato una foto alla challenge che hai lanciato.
   participation,
 
+  /// **Un amico ti ha sfidato di persona.**
+  ///
+  /// E' l'unica notizia dell'app che chiede una risposta: le altre raccontano
+  /// una cosa che e' successa, questa mette qualcuno ad aspettare. Senza,
+  /// una sfida mirata non servirebbe a niente — chi la riceve non saprebbe
+  /// nemmeno di essere stato chiamato in causa, e la sfida scadrebbe da sola
+  /// dentro una scheda che nessuno ha motivo di aprire.
+  duel,
+
+  /// Ha accettato la sfida che gli hai lanciato.
+  duelAccepted,
+
+  /// Ha rifiutato la sfida che gli hai lanciato.
+  duelDeclined,
+
+  /// L'ha portata a termine: la foto e' in gara.
+  duelCompleted,
+
+  /// **Un amico ha lanciato una missione per il gruppo.**
+  ///
+  /// E' l'unica notizia "c'e' una missione nuova" che resta, e la differenza
+  /// con quelle tolte e' chi la riceve: gli annunci per ogni gara pubblica
+  /// andavano a tutti — decine di telefoni che squillano per gare che non
+  /// riguardano nessuno, finche' qualcuno spegne le notifiche e le spegne
+  /// tutte. Questa va **solo ai destinatari di quella missione**, che sono gli
+  /// amici di chi l'ha lanciata: la riguarda per definizione, ed e' privata.
+  ///
+  /// Senza, una missione di party non la vedeva nessuno: vive solo dentro la
+  /// scheda Party, che non ha nessun motivo di essere aperta se non si sa che
+  /// c'e' qualcosa dentro.
+  partyMission,
+
   /// Qualcuno ha dato una fiamma alla tua foto.
   fire,
 
@@ -85,6 +117,14 @@ enum NotificationGroup {
   /// Qualcuno e' entrato in una gara che hai lanciato tu.
   participations('PARTECIPAZIONI'),
 
+  /// Le sfide mirate: quelle che ti hanno lanciato, e le risposte alle tue.
+  ///
+  /// **Una sezione sua, e non mescolata alle partecipazioni.** Una
+  /// partecipazione e' una cosa da guardare; una sfida ricevuta e' una cosa a
+  /// cui rispondere, e finisce in fondo all'elenco insieme a venti fiamme
+  /// esattamente il giorno in cui serviva vederla.
+  duels('SFIDE'),
+
   /// Qualcuno ha scritto sotto la tua foto, o ti ha nominato.
   comments('COMMENTI');
 
@@ -152,6 +192,15 @@ class AppNotification {
     NotificationKind.friendRequest =>
       '@$actorUsername ti ha chiesto l\'amicizia',
     NotificationKind.comeback => 'Ci sono missioni nuove che ti aspettano',
+    NotificationKind.duel => '@$actorUsername ti ha sfidato',
+    NotificationKind.duelAccepted =>
+      '@$actorUsername ha accettato la tua sfida',
+    NotificationKind.duelDeclined =>
+      '@$actorUsername ha rifiutato la tua sfida',
+    NotificationKind.duelCompleted =>
+      '@$actorUsername ha portato a termine la tua sfida',
+    NotificationKind.partyMission =>
+      '@$actorUsername ha lanciato una missione per il party',
     NotificationKind.win => 'Hai vinto',
     NotificationKind.ended => 'La missione è finita: guarda chi ha vinto',
     NotificationKind.removed => 'La tua foto è stata tolta dalla gara',
@@ -177,6 +226,11 @@ class AppNotification {
   /// perche' ci arrivi qualcosa.
   NotificationGroup get group => switch (kind) {
     NotificationKind.fire => NotificationGroup.fires,
+    NotificationKind.duel ||
+    NotificationKind.duelAccepted ||
+    NotificationKind.duelDeclined ||
+    NotificationKind.duelCompleted ||
+    NotificationKind.partyMission => NotificationGroup.duels,
     NotificationKind.comment ||
     NotificationKind.mention => NotificationGroup.comments,
     NotificationKind.win ||

@@ -19,6 +19,7 @@ class ChallengeEntry {
     this.thumbUrl = '',
     this.mediaKind = MediaKind.photo,
     this.caption = '',
+    this.isDuel = false,
   });
 
   final String id;
@@ -72,6 +73,20 @@ class ChallengeEntry {
   /// Sopravvive alla gara. I commenti no — quelli spariscono alla chiusura —
   /// perche' sono una conversazione, e questa e' parte della foto.
   final String caption;
+
+  /// Se questa foto e' la risposta a una **sfida mirata**.
+  ///
+  /// **Sta scritta qui e non ricavata dalla gara**, ed e' il punto: il conto
+  /// delle cinque partecipazioni del giorno guarda le proprie foto, non le
+  /// gare — e una sfida dura ventiquattro ore, quindi quella di stamattina
+  /// stasera e' gia' chiusa e sparita da ogni elenco. Ricavandola, una foto
+  /// mandata a una sfida avrebbe cominciato a pesare sulla giornata qualche
+  /// ora dopo essere stata mandata: il tipo di difetto che nessuno collega
+  /// alla causa.
+  ///
+  /// Falso su tutte le partecipazioni scritte prima che le sfide esistessero,
+  /// ed e' la verita': non erano risposte a nessuna sfida.
+  final bool isDuel;
 
   bool get hasCaption => caption.trim().isNotEmpty;
 
@@ -132,14 +147,20 @@ class ChallengeEntry {
   /// vederlo sparire senza spiegazioni. Una rifiutata non la vede nessuno.
   /// Quante segnalazioni diverse servono per farla sparire a tutti.
   ///
-  /// **Tre, e non una.** Con una sola, due account falsi basterebbero a far
-  /// sparire la foto di un rivale il giorno prima che vinca un premio — e con
-  /// dei soldi in palio quello smette di essere un caso di scuola. Con tre, chi
-  /// vuole censurare qualcuno deve costruire tre identita' diverse.
+  /// **Chi segnala non vede piu' quella foto. Gli altri si, finche' non
+  /// decide una persona.**
   ///
-  /// Chi segnala per davvero non deve aspettare gli altri due: la propria
-  /// segnalazione gliela fa sparire **subito**, da sola.
-  static const int reportsToHide = 3;
+  /// C'era una soglia — tre segnalazioni e la foto spariva a tutti — e adesso
+  /// non c'e' piu'. Una soglia sembra prudente e decide al posto di qualcuno:
+  /// tre account bastano a far sparire la foto di un rivale il giorno prima
+  /// che vinca un premio, e a rimetterla dentro non ci pensa nessuno perche'
+  /// nessuno sa che e' successo. Un contatore non ha mai guardato una foto.
+  ///
+  /// La segnalazione adesso fa una cosa sola, ed e' quella che prometteva: la
+  /// toglie **dagli occhi di chi l'ha mandata** e la porta sul tavolo
+  /// dell'amministratore, che guarda e decide — anche su una segnalazione
+  /// sola, anche su trenta. Vedi la dashboard in `web/admin/` e
+  /// `adminResolveReport` in `functions/index.js`.
 
   /// Chi l'ha segnalata.
   ///
@@ -160,14 +181,6 @@ class ChallengeEntry {
     // che qualcun altro sia d'accordo. E' meta' della promessa che fa il tasto
     // "segnala" — l'altra meta' e' che la guardiamo noi.
     if (viewerId != null && reporters.contains(viewerId)) {
-      return false;
-    }
-
-    // Segnalata da abbastanza gente: sparisce a tutti finche' non l'abbiamo
-    // guardata. **Non e' un giudizio**, e' un sospetto sospeso — meglio una
-    // foto onesta invisibile per un giorno che una foto da denuncia visibile
-    // per un giorno.
-    if (reporters.length >= reportsToHide) {
       return false;
     }
 
@@ -194,6 +207,7 @@ class ChallengeEntry {
     String? thumbUrl,
     MediaKind? mediaKind,
     String? caption,
+    bool? isDuel,
   }) {
     return ChallengeEntry(
       id: id ?? this.id,
@@ -211,6 +225,7 @@ class ChallengeEntry {
       thumbUrl: thumbUrl ?? this.thumbUrl,
       mediaKind: mediaKind ?? this.mediaKind,
       caption: caption ?? this.caption,
+      isDuel: isDuel ?? this.isDuel,
     );
   }
 

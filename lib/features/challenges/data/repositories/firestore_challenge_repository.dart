@@ -8,6 +8,7 @@ import 'package:crasy/features/challenges/data/mappers/challenge_mapper.dart';
 import 'package:crasy/features/challenges/domain/commissioned_order.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
@@ -469,6 +470,11 @@ class FirestoreChallengeRepository implements ChallengeRepository {
       storagePath: storagePath,
       mediaKind: mediaKind,
       caption: caption.trim(),
+      // Se questa gara e' una sfida mirata, la foto se lo porta scritto
+      // dentro: e' quel segno a far si' che una sfida non consumi una delle
+      // cinque partecipazioni del giorno, anche molto dopo che la sfida e'
+      // scaduta e sparita da ogni elenco.
+      isDuel: challenge.isDuel,
     );
 
     // **Una foto sola, e non si cambia.** Il controllo sta dentro la
@@ -641,6 +647,23 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     }
 
     await batch.commit();
+  }
+
+  /// La risposta a una sfida mirata.
+  ///
+  /// Due campi soli, e sono gli unici due che le regole di Firestore lasciano
+  /// toccare al destinatario: **lo stato e il momento in cui ha risposto**.
+  /// Tutto il resto della missione — il premio, la consegna, la scadenza —
+  /// resta di chi l'ha lanciata, e da qui non si puo' sfiorare.
+  @override
+  Future<void> answerDuel({
+    required String challengeId,
+    required DuelStatus status,
+  }) {
+    return _challenges.doc(challengeId).update({
+      'duelStatus': status.name,
+      'respondedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   /// L'estensione che corrisponde a un tipo di file.

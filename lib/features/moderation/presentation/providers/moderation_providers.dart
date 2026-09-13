@@ -58,6 +58,9 @@ class ModerationActions {
     String entryId = '',
     String commentId = '',
     String note = '',
+    String reportedUsername = '',
+    String mediaUrl = '',
+    String challengeTitle = '',
   }) async {
     final userId = _ref.read(currentUserIdProvider);
     final repository = _ref.read(moderationRepositoryProvider);
@@ -76,6 +79,9 @@ class ModerationActions {
         entryId: entryId,
         commentId: commentId,
         note: note,
+        reportedUsername: reportedUsername,
+        mediaUrl: mediaUrl,
+        challengeTitle: challengeTitle,
       );
 
       return true;

@@ -1,6 +1,7 @@
 import 'package:crasy/core/services/firebase/firebase_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/data/repositories/firestore_friends_repository.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
@@ -8,6 +9,13 @@ import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+// Le gare riservate vivono con le altre gare, in `challenge_providers`: il
+// conto delle cinque partecipazioni del giorno deve poterle saltare, e quel
+// conto sta li'. Si riesporta perche' la scheda degli amici e' il posto da cui
+// si guardano, e chi la scrive non deve sapere in che cartella stanno.
+export 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart'
+    show reservedChallengesProvider;
 
 /// Il repository delle amicizie.
 ///
@@ -337,31 +345,18 @@ final friendActivityProblemProvider = Provider<Object?>((ref) {
   return live.hasError ? live.error : null;
 });
 
-/// Le gare **riservate** che posso vedere: le mie e quelle dei miei amici.
-///
-/// Una lettura sola per tutte e due: il filtro e' "il mio identificativo sta fra
-/// i destinatari", e chi le ha lanciate si guarda dopo, in memoria. Due query
-/// separate — le mie, le loro — sarebbero due ascolti su Firestore per una cosa
-/// che il database sa gia' dire in uno.
-final reservedChallengesProvider = StreamProvider<List<Challenge>>((ref) {
-  final userId = ref.watch(currentUserIdProvider);
-
-  if (userId == null) {
-    return Stream.value(const <Challenge>[]);
-  }
-
-  return ref.watch(challengeRepositoryProvider).watchChallengesFor(userId);
-});
-
 /// Le missioni riservate che ho lanciato **io**.
 final myFriendChallengesProvider = Provider<List<Challenge>>((ref) {
   final userId = ref.watch(currentUserIdProvider);
   final riservate =
       ref.watch(reservedChallengesProvider).valueOrNull ?? const <Challenge>[];
 
+  // Senza le sfide mirate: quelle hanno una scheda tutta loro — LANCIATE —
+  // e contarle anche qui vorrebbe dire la stessa sfida in due elenchi della
+  // stessa schermata.
   return [
     for (final challenge in riservate)
-      if (challenge.createdByUserId == userId) challenge,
+      if (challenge.createdByUserId == userId && !challenge.isDuel) challenge,
   ];
 });
 
@@ -375,10 +370,86 @@ final partyChallengesProvider = Provider<List<Challenge>>((ref) {
   final riservate =
       ref.watch(reservedChallengesProvider).valueOrNull ?? const <Challenge>[];
 
+  // **Le sfide mirate non stanno qui.** Sono anche loro gare riservate, ma
+  // hanno un destinatario solo e due schede tutte loro: lasciarle anche nel
+  // party vorrebbe dire la stessa sfida in tre elenchi della stessa
+  // schermata.
   final party = [
     for (final challenge in riservate)
-      if (challenge.isForFriends && challenge.isLiveAt(now)) challenge,
+      if (challenge.isForFriends &&
+          !challenge.isDuel &&
+          challenge.isLiveAt(now))
+        challenge,
   ]..sort((a, b) => a.endsAt.compareTo(b.endsAt));
 
   return party;
 });
+
+/// **Le sfide che mi hanno lanciato**: Mario ha sfidato me.
+///
+/// Prima quelle a cui devo ancora rispondere, poi le altre. Non e' un ordine
+/// cronologico ed e' voluto: una sfida in attesa e' una cosa da fare, e le
+/// cose da fare stanno in cima a qualunque elenco le contenga. A parita' di
+/// stato comanda la scadenza — chi ha meno tempo va prima.
+final receivedDuelsProvider = Provider<List<Challenge>>((ref) {
+  final meId = ref.watch(currentUserIdProvider);
+  final riservate =
+      ref.watch(reservedChallengesProvider).valueOrNull ?? const <Challenge>[];
+
+  if (meId == null) {
+    return const <Challenge>[];
+  }
+
+  return [
+    for (final challenge in riservate)
+      if (challenge.isDuel && challenge.targetUserId == meId) challenge,
+  ]..sort(_leDaFarePrima);
+});
+
+/// **Le sfide che ho lanciato io**: io ho sfidato Mario.
+///
+/// E' la meta' che mancava, ed e' il difetto che la scheda aveva: si lanciava
+/// una sfida e non compariva da nessuna parte. Esce dalla stessa lettura delle
+/// ricevute — una sola interrogazione per tutte e due — e si divide qui in
+/// memoria guardando chi l'ha scritta.
+final sentDuelsProvider = Provider<List<Challenge>>((ref) {
+  final meId = ref.watch(currentUserIdProvider);
+  final riservate =
+      ref.watch(reservedChallengesProvider).valueOrNull ?? const <Challenge>[];
+
+  if (meId == null) {
+    return const <Challenge>[];
+  }
+
+  return [
+    for (final challenge in riservate)
+      if (challenge.isDuel && challenge.createdByUserId == meId) challenge,
+  ]..sort(_leDaFarePrima);
+});
+
+/// Le sfide ricevute a cui non ho ancora risposto.
+///
+/// E' il numero rosso della scheda: **quante persone stanno aspettando una mia
+/// parola**. Non conta le accettate — quelle le ho gia' prese in carico — ne'
+/// le scadute, su cui non c'e' piu' niente da decidere.
+final pendingDuelsCountProvider = Provider<int>((ref) {
+  final now = DateTime.now();
+
+  return ref
+      .watch(receivedDuelsProvider)
+      .where((challenge) => challenge.duelStateAt(now) == DuelState.pending)
+      .length;
+});
+
+/// Prima quelle su cui c'e' ancora qualcosa da fare, poi per scadenza.
+int _leDaFarePrima(Challenge a, Challenge b) {
+  final now = DateTime.now();
+  final aperta = a.isDuelOpenAt(now);
+  final altra = b.isDuelOpenAt(now);
+
+  if (aperta != altra) {
+    return aperta ? -1 : 1;
+  }
+
+  return a.endsAt.compareTo(b.endsAt);
+}

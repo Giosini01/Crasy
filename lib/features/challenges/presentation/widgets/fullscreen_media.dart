@@ -487,6 +487,8 @@ class _Actions extends ConsumerWidget {
             reportedUsername: entry.authorName,
             challengeId: entry.challengeId,
             entryId: entry.id,
+            mediaUrl: entry.mediaUrl,
+            challengeTitle: entry.challengeTitle,
           ),
           icon: Icons.flag_outlined,
           color: AppColors.paper,
