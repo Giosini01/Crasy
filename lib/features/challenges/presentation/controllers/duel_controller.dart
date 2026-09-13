@@ -49,6 +49,7 @@ class DuelController extends AsyncNotifier<void> {
     required String targetUsername,
     required String title,
     required String brief,
+    int prizeCents = 0,
     MediaKind mediaKind = MediaKind.photo,
     ChallengeSource source = ChallengeSource.instant,
     Duration duration = defaultDuration,
@@ -84,11 +85,20 @@ class DuelController extends AsyncNotifier<void> {
       id: '',
       title: title.trim(),
       brief: brief.trim(),
-      // **Gratis, e non e' un risparmio.** Una sfida fra due amici vale per
-      // conto suo: il premio e' la parola data. Mettere dei soldi in mezzo
-      // trasformerebbe un gioco in un pagamento fra privati, con tutto quello
-      // che comporta.
-      prizeCents: 0,
+      // **Gratis o con dei soldi, lo decide chi sfida.**
+      //
+      // Per molto tempo e' stato zero e basta, con la ragione scritta qui
+      // sotto: fra due amici il premio e' la parola data. Resta vero, ed e'
+      // ancora la strada normale — ma non e' l'unica cosa che la gente vuole
+      // fare. "Ti do venti euro se lo fai" e' una sfida che esiste, e
+      // costringerla fuori dall'app non la fa sparire: la fa succedere senza
+      // che l'app ne sappia niente.
+      //
+      // Il minimo e' un euro, come dappertutto, o zero: la via di mezzo — i
+      // dieci centesimi — non e' un premio ne' uno scherzo. Le regole del
+      // database lasciavano gia' passare tutte e due le cose su una missione
+      // fra amici, quindi qui non si apre nessuna porta nuova.
+      prizeCents: prizeCents,
       scope: ChallengeScope.friends,
       // Uno solo puo' partecipare: e' una sfida a lui, non una gara aperta.
       maxParticipants: 1,

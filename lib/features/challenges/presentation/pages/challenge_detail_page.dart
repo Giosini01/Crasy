@@ -25,6 +25,7 @@ import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:crasy/features/challenges/presentation/widgets/winner_reveal.dart';
+import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -205,7 +206,7 @@ class _Body extends ConsumerWidget {
         // proprio il contrario di come funziona qui.
         if (challenge.isDuel) ...[
           const SizedBox(height: AppSpacing.lg),
-          const _DuelRules(),
+          _DuelRules(gratis: challenge.prizeCents == 0),
         ] else if (!challenge.hasEndedAt(DateTime.now())) ...[
           const SizedBox(height: AppSpacing.lg),
           _GameRules(challenge: challenge),
@@ -1152,7 +1153,20 @@ class _DuelOutcome extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 34)),
+          // **Dove c'e' una figuraccia, la figuraccia ha una faccia.**
+          //
+          // Su un rifiuto e su un tempo scaduto l'emoji da sola diceva la cosa
+          // giusta senza farla sentire: e' il fischio del pubblico, e un
+          // fischio senza nessuno a cui e' rivolto e' solo un disegno. Altrove
+          // — in attesa, accettata — resta l'emoji, perche' li' non c'e'
+          // niente da fischiare a nessuno.
+          if (state == DuelState.declined || state == DuelState.expired)
+            _PoopSplat(
+              userId: challenge.targetUserId,
+              username: challenge.targetUsername,
+            )
+          else
+            Text(emoji, style: const TextStyle(fontSize: 34)),
           const SizedBox(height: AppSpacing.sm),
           Text(titolo, style: texts.titleSmall),
           const SizedBox(height: AppSpacing.xxs),
@@ -1322,7 +1336,10 @@ class _DuelJudgement extends ConsumerWidget {
 /// e due, o il giorno in cui arriva un "non vale" sembra un sopruso inventato
 /// sul momento.
 class _DuelRules extends StatelessWidget {
-  const _DuelRules();
+  const _DuelRules({required this.gratis});
+
+  /// Cambia una riga sola, ed e' quella che dice cosa c'e' in palio.
+  final bool gratis;
 
   @override
   Widget build(BuildContext context) {
@@ -1350,13 +1367,23 @@ class _DuelRules extends StatelessWidget {
                 'Nessun altro la vede e nessun altro può parteciparci. Non '
                 'toglie niente alle vostre partecipazioni del giorno.',
           ),
-          _Rule(
-            icon: Icons.handshake_rounded,
-            text: 'In palio c\'è la parola data.',
-            detail:
-                'Non ci sono soldi: chi accetta si impegna a farla, e chi '
-                'rifiuta si becca il buuu.',
-          ),
+          if (gratis)
+            _Rule(
+              icon: Icons.handshake_rounded,
+              text: 'In palio c\'è la parola data.',
+              detail:
+                  'Non ci sono soldi: chi accetta si impegna a farla, e chi '
+                  'rifiuta si becca il buuu.',
+            )
+          else
+            _Rule(
+              icon: Icons.savings_outlined,
+              text: 'C\'è un premio in denaro.',
+              detail:
+                  'Lo paga chi ha lanciato la sfida, direttamente a chi vince: '
+                  'CRASY non lo trattiene e non fa da garante. Vale come una '
+                  'promessa fra voi due, come tutto il resto qui dentro.',
+            ),
           _Rule(
             icon: Icons.gavel_rounded,
             text: 'Decide chi ha lanciato la sfida.',
@@ -1367,6 +1394,126 @@ class _DuelRules extends StatelessWidget {
             accent: true,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// **La cacca che arriva addosso a chi ha detto di no.**
+///
+/// E' la stessa cosa che dice la riga di testo sotto, detta nel modo in cui la
+/// direbbe un amico: non un'etichetta grigia con scritto "rifiutata", ma il
+/// lancio dagli spalti. Rifiutare una sfida d'onore e' l'unica mossa che non
+/// costa niente a chi la fa, e questo e' esattamente quanto deve costare —
+/// niente di piu' di una figuraccia fra amici, ma non zero.
+///
+/// **Parte una volta sola e poi resta li' spiaccicata.** Una cacca che
+/// ricomincia a cadere ogni volta che la schermata si ridisegna diventerebbe
+/// una decorazione lampeggiante, e una presa in giro che si ripete in loop
+/// smette di essere una battuta e diventa accanimento. Chi riapre la missione
+/// la trova gia' addosso, com'e' giusto.
+class _PoopSplat extends StatefulWidget {
+  const _PoopSplat({required this.userId, required this.username});
+
+  final String userId;
+  final String username;
+
+  @override
+  State<_PoopSplat> createState() => _PoopSplatState();
+}
+
+class _PoopSplatState extends State<_PoopSplat>
+    with SingleTickerProviderStateMixin {
+  /// Quanto e' grande la faccia sotto. La cacca si misura su questa.
+  static const double _faccia = 92;
+
+  late final AnimationController _controller = AnimationController(
+    duration: const Duration(milliseconds: 900),
+    vsync: this,
+  );
+
+  /// La caduta: da sopra lo schermo fino alla faccia, sempre piu' veloce.
+  ///
+  /// `easeIn` e non lineare: una cosa che cade accelera, e l'occhio se ne
+  /// accorge subito quando non lo fa.
+  late final Animation<double> _caduta = CurvedAnimation(
+    parent: _controller,
+    curve: const Interval(0, 0.45, curve: Curves.easeIn),
+  );
+
+  /// Lo spiaccicamento: si allarga e si schiaccia nell'istante dell'impatto,
+  /// poi si assesta senza tornare tonda.
+  late final Animation<double> _impatto = CurvedAnimation(
+    parent: _controller,
+    curve: const Interval(0.45, 0.72, curve: Curves.easeOut),
+  );
+
+  /// Il contraccolpo della faccia: mezzo dito in giu' e ritorno.
+  late final Animation<double> _colpo = CurvedAnimation(
+    parent: _controller,
+    curve: const Interval(0.45, 1, curve: Curves.elasticOut),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: _faccia + 24,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          // Prima dell'impatto la faccia sta ferma; dopo, rimbalza e si ferma.
+          final scossa = _colpo.value == 0
+              ? 0.0
+              : (1 - _colpo.value) * 10;
+
+          // La cacca scende da sopra il riquadro fino al centro della faccia.
+          final alto = (1 - _caduta.value) * -(_faccia + 60);
+
+          // Nell'impatto si allarga e si abbassa, e li' resta: una cacca che
+          // torna tonda non si e' spiaccicata su niente.
+          final larga = 1 + _impatto.value * 0.45;
+          final bassa = 1 - _impatto.value * 0.42;
+
+          return Stack(
+            alignment: Alignment.topCenter,
+            clipBehavior: Clip.none,
+            children: [
+              Padding(
+                padding: EdgeInsets.only(top: 12 + scossa),
+                child: FriendAvatar(
+                  userId: widget.userId,
+                  username: widget.username,
+                  size: _faccia,
+                ),
+              ),
+              Positioned(
+                top: 12 + _faccia * 0.28 + alto + scossa,
+                child: Transform.scale(
+                  scaleX: larga,
+                  scaleY: bassa,
+                  child: Transform.rotate(
+                    // Un filo storta mentre cade: dritta sembrerebbe
+                    // appoggiata, non lanciata.
+                    angle: (1 - _caduta.value) * 0.6,
+                    child: const Text('💩', style: TextStyle(fontSize: 48)),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

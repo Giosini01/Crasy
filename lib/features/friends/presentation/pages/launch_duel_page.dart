@@ -3,6 +3,7 @@ import 'package:crasy/core/errors/error_message_mapper.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
@@ -15,6 +16,7 @@ import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -49,9 +51,18 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
   final _title = TextEditingController();
   final _brief = TextEditingController();
 
+  final _prize = TextEditingController();
+
   String? _targetId;
   String _targetName = '';
   MediaKind _mediaKind = MediaKind.photo;
+
+  /// **Gratis finche' non si dice il contrario.** E' la strada normale di una
+  /// sfida fra amici — in palio c'e' la parola data — e una scelta che parte
+  /// dalla parte dei soldi metterebbe un casello davanti alla cosa piu'
+  /// naturale che si fa qui dentro.
+  var _gratis = true;
+
   String? _error;
 
   @override
@@ -64,6 +75,7 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
   void dispose() {
     _title.dispose();
     _brief.dispose();
+    _prize.dispose();
     super.dispose();
   }
 
@@ -157,10 +169,71 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
                       onPick: (kind) => setState(() => _mediaKind = kind),
                     ),
                     const SizedBox(height: AppSpacing.xl),
+                    Text(
+                      'IL PREMIO',
+                      style: texts.labelSmall?.copyWith(
+                        color: palette.textFaint,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _PrizePicker(
+                      gratis: _gratis,
+                      onPick: (scelta) => setState(() => _gratis = scelta),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      _gratis
+                          ? 'Si gioca per la parola data. È la sfida normale.'
+                          : 'Da un euro in su. I soldi li dai tu a chi vince, '
+                                'e la sfida vale come una promessa fra voi.',
+                      style: texts.bodySmall?.copyWith(
+                        color: palette.textFaint,
+                      ),
+                    ),
+                    if (!_gratis) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      TextFormField(
+                        controller: _prize,
+                        decoration: const InputDecoration(
+                          labelText: 'Premio in euro',
+                          // Il suggerimento porta i centesimi apposta: e' il
+                          // solo posto in cui il campo dice di accettarli.
+                          hintText: '10,50',
+                        ),
+                        // `decimal: true` e' quello che mette la virgola sulla
+                        // tastiera dell'iPhone: senza, i centesimi si possono
+                        // accettare quanto si vuole — non c'e' modo di
+                        // digitarli.
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        // Il punto passa insieme alla virgola perche' una
+                        // tastiera in inglese offre quello, e un campo che
+                        // rifiuta il tasto suggerito dalla tastiera stessa
+                        // sembra rotto.
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                        ],
+                        validator: ChallengeDraftValidators.validatePrize,
+                      ),
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        'Almeno '
+                        '${AppMoney.format(ChallengeDraftValidators.prizeMinCents)}.',
+                        style: texts.bodySmall?.copyWith(
+                          color: palette.textFaint,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.xl),
                     // **Le tre cose che non si scelgono, dette prima.** Sono
                     // le stesse tre che il modulo non chiede: chi non le legge
                     // qui se le chiede dopo aver mandato, ed e' tardi.
-                    _Rules(palette: palette, texts: texts),
+                    _Rules(
+                      palette: palette,
+                      texts: texts,
+                      gratis: _gratis,
+                    ),
                     const SizedBox(height: AppSpacing.xl),
                     CrasyButton(
                       label: 'Lancia la sfida',
@@ -196,6 +269,9 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
           targetUsername: _targetName,
           title: _title.text,
           brief: _brief.text,
+          // Scelto GRATIS il campo non e' nemmeno a schermo: si manda zero
+          // senza guardare cosa c'era scritto dentro prima di cambiare idea.
+          prizeCents: _gratis ? 0 : AppMoney.centsFrom(_prize.text) ?? 0,
           mediaKind: _mediaKind,
           // Una sfida fra amici si fa sul momento: e' il senso di sfidare
           // qualcuno. Pescare dall'archivio sarebbe rispondere con una cosa
@@ -352,14 +428,30 @@ class _MediaKindPicker extends StatelessWidget {
 
 /// Le regole di una sfida, scritte.
 class _Rules extends StatelessWidget {
-  const _Rules({required this.palette, required this.texts});
+  const _Rules({
+    required this.palette,
+    required this.texts,
+    required this.gratis,
+  });
 
   final AppPalette palette;
   final TextTheme texts;
 
-  static const List<String> _righe = [
+  /// Cambia una riga sola, ed e' quella che dice cosa c'e' in palio.
+  final bool gratis;
+
+  List<String> get _righe => [
     'La vedete solo voi due.',
-    'Non c’è premio in denaro: in palio c’è la parola data.',
+    if (gratis)
+      'Non c’è premio in denaro: in palio c’è la parola data.'
+    else
+      'Il premio lo paghi tu a chi vince: CRASY non lo trattiene e non fa da '
+          'garante.',
+    // **Questa riga vale il doppio da quando c’è il giudizio.** Chi
+    // riceve la sfida deve sapere prima che a dire se vale sarà chi
+    // gliel’ha lanciata: scoprirlo il giorno del “non vale”
+    // sembra un sopruso inventato sul momento.
+    'Quando manda la foto, sei tu a dire se vale.',
     'Dura 24 ore, poi scade.',
     'Non toglie nessuna delle vostre partecipazioni del giorno.',
   ];
@@ -393,6 +485,80 @@ class _Rules extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// **Gratis, o con dei soldi.** Due tasti, nessuna terza strada.
+///
+/// E' lo stesso paio di tasti del modulo delle missioni fra amici, e per la
+/// stessa ragione: lasciato libero, un campo del premio si riempie di dieci
+/// centesimi — che non sono un premio né uno scherzo, e fanno sembrare piccola
+/// tutta l'app. Due tasti tolgono la domanda invece di lasciarla aperta.
+class _PrizePicker extends StatelessWidget {
+  const _PrizePicker({required this.gratis, required this.onPick});
+
+  final bool gratis;
+  final void Function(bool gratis) onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _PrizeChoice(
+          label: 'GRATIS',
+          selected: gratis,
+          onTap: () => onPick(true),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        _PrizeChoice(
+          label: 'CON PREMIO',
+          selected: !gratis,
+          onTap: () => onPick(false),
+        ),
+      ],
+    );
+  }
+}
+
+/// Un tasto della scelta, con la stessa faccia di FOTO e VIDEO qui sopra.
+class _PrizeChoice extends StatelessWidget {
+  const _PrizeChoice({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          color: selected ? palette.accentTint : Colors.transparent,
+          border: Border.all(
+            color: selected ? palette.accent : palette.line,
+          ),
+        ),
+        child: Text(
+          label,
+          style: context.texts.labelSmall?.copyWith(
+            color: selected ? palette.accent : palette.textSecondary,
+          ),
+        ),
+      ),
     );
   }
 }

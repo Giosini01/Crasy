@@ -147,11 +147,14 @@ class TrophyFront extends StatelessWidget {
                         // numero della vetrina: il premio meno la percentuale
                         // di CRASY. Chi ha commissionato legge quanto ha messo,
                         // perche' e' quello che ha speso.
-                        // Una sfida d'onore non ha mai pagato niente: scritta
-                        // come le altre diventerebbe un trofeo da `€0,00`, che
-                        // e' il modo piu' rapido di far sembrare una vittoria
-                        // una perdita. Al posto della cifra si scrive cos'era.
-                        challenge.isDuel
+                        // Una sfida d'onore vinta non ha pagato niente:
+                        // scritta come le altre diventerebbe un trofeo da
+                        // `€0,00`, che e' il modo piu' rapido di far sembrare
+                        // una vittoria una perdita. Al posto della cifra si
+                        // scrive cos'era. Con dei soldi in palio invece la
+                        // cifra c'e', ed e' quella che si legge: il trofeo dice
+                        // sempre cosa si e' portato a casa.
+                        challenge.isDuel && challenge.prizeCents == 0
                             ? 'ONORE'
                             : AppMoney.format(
                                 kind.isWon
@@ -636,7 +639,7 @@ class _TrophyDetails extends StatelessWidget {
             const SizedBox(height: AppSpacing.lg),
             _Line(
               label: kind.isWon ? 'Hai incassato' : 'Hai messo in palio',
-              value: challenge.isDuel
+              value: challenge.isDuel && challenge.prizeCents == 0
                   ? 'ONORE'
                   : AppMoney.format(
                       kind.isWon

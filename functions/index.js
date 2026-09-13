@@ -1516,6 +1516,102 @@ exports.announceDailyChallenge = onSchedule(
   }
 );
 
+
+/**
+ * Ogni quanto si puo' dire "ci sono nuove sfide per te".
+ *
+ * **Tre ore.** Non e' un limite tecnico ma il prezzo di non essere spenti: una
+ * notifica per ogni gara creata vuol dire cinque squilli nel pomeriggio in cui
+ * qualcuno si diverte a lanciarne cinque, e alla terza la gente non apre l'app
+ * — va nelle impostazioni e spegne tutto. Spente restano spente per sempre,
+ * anche per la fiamma sulla sua foto che le avrebbe fatto piacere ricevere.
+ *
+ * Chi lancia una gara mentre l'annuncio e' ancora caldo non perde niente: la
+ * sua gara e' gia' in prima pagina, ed e' li' che la gente la trova.
+ */
+const ORE_FRA_UN_ANNUNCIO_E_L_ALTRO = 3;
+
+/**
+ * **Dice a tutti che c'e' una gara nuova da fare.**
+ *
+ * Riguarda solo le gare aperte a chiunque — quelle che compaiono nella scheda
+ * delle challenge. Le missioni di party e le sfide mirate hanno gia' il loro
+ * avviso, e va solo a chi le riguarda: annunciarle a tutti vorrebbe dire far
+ * squillare diecimila telefoni per una cosa fra quattro amici.
+ *
+ * Non scrive niente nella campanella di nessuno. Una riga per persona sarebbe
+ * una scrittura per persona — il conto piu' salato che questa app possa farsi —
+ * per dire una cosa che sta gia' in prima pagina: qui serve solo ad accendere
+ * lo schermo di chi non ha l'app aperta.
+ */
+exports.announceNewChallenge = onDocumentCreated(
+  'challenges/{challengeId}',
+  async (event) => {
+    const gara = event.data;
+
+    if (!gara) {
+      return;
+    }
+
+    const dati = gara.data();
+
+    // Fra amici no: quelle hanno gia' il loro avviso, e va a chi le riguarda.
+    if (dati.scope === 'friends' || dati.targetUserId) {
+      return;
+    }
+
+    // Nata gia' finita, o programmata per un altro giorno: annunciarla adesso
+    // vorrebbe dire mandare qualcuno a cercare una cosa che non c'e'.
+    const finisce = dati.endsAt?.toMillis?.() || 0;
+
+    if (finisce && finisce <= Date.now()) {
+      return;
+    }
+
+    // **L'annuncio si prende una volta sola ogni tre ore, e il posto se lo
+    // prende prima di parlare.** Due gare create nello stesso secondo
+    // arriverebbero tutte e due qui dentro, leggerebbero la stessa memoria
+    // vecchia e manderebbero due annunci identici: la transazione fa in modo
+    // che a passare sia una sola, e l'altra se ne vada in silenzio.
+    const limite = Date.now() - ORE_FRA_UN_ANNUNCIO_E_L_ALTRO * 3600000;
+
+    const mando = await db.runTransaction(async (t) => {
+      const memoria = await t.get(MEMORIA);
+      const ultimo = memoria.get('ultimaGaraNuova')?.toMillis?.() || 0;
+
+      if (ultimo > limite) {
+        return false;
+      }
+
+      t.set(
+        MEMORIA,
+        { ultimaGaraNuova: admin.firestore.FieldValue.serverTimestamp() },
+        { merge: true }
+      );
+
+      return true;
+    });
+
+    if (!mando) {
+      logger.info('gara nuova senza annuncio: troppo presto', { id: gara.id });
+
+      return;
+    }
+
+    // **`newChallenge` e non un nome nuovo**, ed e' la differenza fra una
+    // notifica che funziona oggi e una che funziona fra un mese: le app gia'
+    // installate sanno gia' portare questo tipo alla scheda delle challenge —
+    // il codice c'e' ancora, era rimasto senza nessuno che glielo mandasse.
+    // Un tipo inventato adesso lo capirebbe solo chi aggiorna.
+    await annuncia('Ci sono nuove sfide per te', {
+      kind: 'newChallenge',
+      challengeId: gara.id,
+    });
+
+    logger.info('gara nuova annunciata', { id: gara.id });
+  }
+);
+
 /**
  * Un telefono appartiene a un account alla volta.
  *

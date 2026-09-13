@@ -25,13 +25,14 @@ void main() {
     required String to,
     DuelStatus status = DuelStatus.pending,
     DuelVerdict verdict = DuelVerdict.none,
+    int prizeCents = 0,
     Duration durata = const Duration(hours: 24),
   }) {
     return Challenge(
       id: id,
       title: 'Sfida $id',
       brief: 'Fai qualcosa.',
-      prizeCents: 0,
+      prizeCents: prizeCents,
       scope: ChallengeScope.friends,
       createdByUserId: from,
       createdByUsername: from,
@@ -47,6 +48,50 @@ void main() {
   }
 
   _verdetto(duel, now);
+
+  group('gratis o con dei soldi', () {
+    // **Per molto tempo era zero e basta**, con una ragione buona: fra due
+    // amici il premio e' la parola data. Resta la strada normale — ed e' quella
+    // che parte scelta — ma "ti do venti euro se lo fai" e' una sfida che
+    // esiste, e costringerla fuori dall'app non la fa sparire: la fa succedere
+    // senza che l'app ne sappia niente.
+    test('senza premio si legge GRATIS, come ogni altra gara', () {
+      final sfida = duel(id: 'x', from: 'io', to: 'ciccio');
+
+      expect(sfida.prizeCents, 0);
+      expect(sfida.prizeLabel, 'GRATIS');
+    });
+
+    test('con il premio si legge la cifra, e resta una sfida mirata', () {
+      final sfida = duel(
+        id: 'x',
+        from: 'io',
+        to: 'ciccio',
+        prizeCents: 2000,
+      );
+
+      expect(sfida.prizeLabel, isNot('GRATIS'));
+      expect(sfida.prizeLabel, contains('20'));
+      // Il premio non cambia cos'e': resta una sfida a una persona sola, con
+      // il suo giudizio e il suo destinatario.
+      expect(sfida.isDuel, isTrue);
+      expect(sfida.maxParticipants, 1);
+    });
+
+    test('i soldi non pesano sulla giornata piu\' di quanto pesi il gratis', () {
+      // La sfida mirata e' roba in piu' e lo resta: se accettare una sfida con
+      // dei soldi costasse una delle cinque partecipazioni, accettare
+      // diventerebbe una cosa che si paga.
+      final sfida = duel(
+        id: 'x',
+        from: 'mario',
+        to: 'io',
+        prizeCents: 2000,
+      );
+
+      expect(sfida.isDuel, isTrue);
+    });
+  });
 
   ProviderContainer containerWith(List<Challenge> reserved) {
     final container = ProviderContainer(
