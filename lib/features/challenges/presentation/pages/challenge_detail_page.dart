@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/services/share/share_challenge.dart';
@@ -1498,7 +1499,8 @@ class _PoopStormState extends State<_PoopStorm>
   /// Quanto dura il volo di una cacca, sulla durata intera.
   static const double _volo = 0.16;
 
-  /// E quanto dura lo spiaccichio, subito dopo.
+  /// E quanto ci mette a fermarsi, subito dopo: il tempo in cui la scia si
+  /// spegne. Non si deforma — si ferma e basta.
   static const double _spiaccico = 0.05;
 
   /// Quando lo schermo comincia a ripulirsi.
@@ -1574,8 +1576,8 @@ class _PoopStormState extends State<_PoopStorm>
     );
   }
 
-  /// Una cacca a mezz'aria, o gia' spiaccicata, o che sta colando via: dipende
-  /// da che ora e'.
+  /// Una cacca a mezz'aria, o gia' ferma addosso, o che sta colando via:
+  /// dipende da che ora e'.
   Widget _volante(_Tiro tiro, {required double tempo, required Size schermo}) {
     final volo = ((tempo - tiro.parte) / _volo).clamp(0.0, 1.0);
 
@@ -1600,11 +1602,25 @@ class _PoopStormState extends State<_PoopStorm>
     final dove = Offset.lerp(partenza, arrivo, avvicinarsi)!;
 
     final colpo = ((tempo - tiro.parte - _volo) / _spiaccico).clamp(0.0, 1.0);
-    final schiacciata = Curves.easeOut.transform(colpo);
 
-    // **La pulizia.** Sciolgono verso il basso e svaniscono, ognuna con il suo
+    // **La scia, invece della deformazione.**
+    //
+    // Prima si allargavano e si schiacciavano nell'istante dell'impatto, e il
+    // risultato era una cacca stirata — un disegno tirato per i lati, che si
+    // legge come un difetto e non come un colpo. Al suo posto c'e' quello che
+    // succede davvero a una cosa che viaggia veloce: si sfoca **nella
+    // direzione in cui va**, e la sfocatura si spegne quando si ferma.
+    //
+    // Cresce con la velocita' — che con una curva in accelerazione vuol dire
+    // con il quadrato di quanto manca all'arrivo — e sulla misura della cacca:
+    // una grande che passa lascia piu' scia di una piccola.
+    final velocita = colpo <= 0 ? volo * volo : 1 - colpo;
+    final scia = velocita * 9 * (tiro.grande / 40);
+
+    // **La pulizia.** Scivolano verso il basso e svaniscono, ognuna con il suo
     // ritardo: sparissero tutte nello stesso fotogramma sembrerebbe che
-    // qualcuno abbia spento l'interruttore.
+    // qualcuno abbia spento l'interruttore. Nient'altro — non si restringono e
+    // non si allungano, restano quelle che sono fino all'ultimo fotogramma.
     final quandoVia = _pulizia + (tiro.parte * 0.35);
     final via = tempo <= quandoVia
         ? 0.0
@@ -1618,17 +1634,51 @@ class _PoopStormState extends State<_PoopStorm>
         opacity: (1 - via).clamp(0.0, 1.0),
         child: Transform.rotate(
           // Gira mentre vola e si ferma quando arriva: una cacca che continua a
-          // roteare da spiaccicata non sta piu' su niente.
+          // roteare da ferma non sta piu' su niente.
           angle: tiro.storta * (1 - avvicinarsi),
-          child: Transform.scale(
-            // Si allarga e si abbassa nell'istante dell'impatto, e li' resta.
-            // Colando si stringe di nuovo, come una cosa che scivola via.
-            scaleX: (1 + schiacciata * 0.55) * (1 - scivola * 0.35),
-            scaleY: (1 - schiacciata * 0.45) * (1 + scivola * 0.30),
-            child: Text('💩', style: TextStyle(fontSize: tiro.grande)),
-          ),
+          child: _sfocata(scia: scia, verso: tiro.da, grande: tiro.grande),
         ),
       ),
+    );
+  }
+
+  /// La cacca con la sua scia, **nella direzione in cui viaggia**.
+  ///
+  /// La sfocatura non e' uguale sui due assi: e' forte lungo la traiettoria e
+  /// quasi nulla di traverso, che e' quello che fa sembrare una scia invece di
+  /// una cosa fuori fuoco. Le due misure escono dalla direzione di arrivo,
+  /// normalizzata — se arriva da sinistra si sfoca in orizzontale, se piove
+  /// dall'alto in verticale.
+  ///
+  /// Ferma non si sfoca affatto, e il filtro non si applica proprio: sfocare di
+  /// zero costa comunque un passaggio di disegno in piu' per ognuna delle
+  /// diciotto, e per niente.
+  Widget _sfocata({
+    required double scia,
+    required Offset verso,
+    required double grande,
+  }) {
+    final cacca = Text('💩', style: TextStyle(fontSize: grande));
+
+    if (scia < 0.4) {
+      return cacca;
+    }
+
+    final lunghezza = verso.distance;
+
+    if (lunghezza == 0) {
+      return cacca;
+    }
+
+    return ImageFiltered(
+      imageFilter: ImageFilter.blur(
+        sigmaX: scia * (verso.dx / lunghezza).abs(),
+        sigmaY: scia * (verso.dy / lunghezza).abs(),
+        // Senza questo la sfocatura si ferma al bordo del riquadro e la scia
+        // esce tagliata di netto, come se la cacca stesse dietro una finestra.
+        tileMode: TileMode.decal,
+      ),
+      child: cacca,
     );
   }
 }
