@@ -105,6 +105,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
     final view = ref.watch(friendActivityViewProvider);
     final missions = ref.watch(friendChallengesProvider);
     final chiuse = ref.watch(closedPartyProvider);
+    final bocciate = ref.watch(closedDuelsProvider);
     final entries = ref.watch(friendEntriesProvider);
     // **Le missioni che ho lanciato io, prese dal provider che le sa.**
     //
@@ -162,7 +163,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                       sent: sent.length,
                       party: party.length,
                       missions: missions.length,
-                      closed: chiuse.length,
+                      closed: chiuse.length + bocciate.length,
                       entries: entries.length,
                       daFare: ref.watch(pendingDuelsCountProvider),
                     ),
@@ -183,6 +184,8 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                       party: party,
                       missions: missions,
                       closed: chiuse,
+                      rejected: bocciate,
+                      meId: ref.watch(currentUserIdProvider),
                       entries: entries,
                     ),
                   ],
@@ -208,6 +211,8 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
     required List<Challenge> party,
     required List<Challenge> missions,
     required List<Challenge> closed,
+    required List<Challenge> rejected,
+    required String? meId,
     required List<ChallengeEntry> entries,
   }) {
     switch (view) {
@@ -282,7 +287,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
         ];
 
       case FriendActivityView.closed:
-        if (closed.isEmpty) {
+        if (closed.isEmpty && rejected.isEmpty) {
           return const [
             EmptyState(
               title: 'Niente di finito oggi',
@@ -310,7 +315,19 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
               ),
             ),
           ),
-          TrophyGrid(challenges: closed, kind: TrophyKind.won),
+          if (closed.isNotEmpty)
+            TrophyGrid(challenges: closed, kind: TrophyKind.won),
+          // Le bocciate non hanno una foto da mettere in bacheca, quindi non
+          // possono stare nella griglia: ci vanno sotto, con la stessa riga che
+          // hanno nelle altre schede.
+          if (rejected.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            for (final challenge in rejected)
+              _DuelRow(
+                challenge: challenge,
+                received: challenge.targetUserId == meId,
+              ),
+          ],
         ];
 
       case FriendActivityView.entries:

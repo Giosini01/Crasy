@@ -889,12 +889,19 @@ service cloud.firestore {
                     && resource.data.get('duelStatus', '') == 'completed'
                     && resource.data.get('duelVerdict', '') == ''
                     && changedOnly([
-                         'duelVerdict', 'winnerEntryId', 'winnerUserId',
+                         'duelVerdict', 'endsAt',
+                         'winnerEntryId', 'winnerUserId',
                          'winnerUsername', 'winnerMediaUrl',
                          'winnerMediaKind', 'winnerVotes'
                        ])
                     && request.resource.data.duelVerdict
                        in ['approved', 'rejected']
+                    // **La scadenza si puo' spostare, ma solo a adesso.** Il
+                    // verdetto chiude la sfida, e una sfida chiusa che risulta
+                    // ancora aperta resta in cima alle ricevute come una cosa
+                    // da fare. Solo all'indietro: spostarla avanti da qui
+                    // vorrebbe dire allungare una gara scrivendo un verdetto.
+                    && request.resource.data.endsAt <= request.time
                     && winnerPhotoIsReal();
 
       match /entries/{entryId} {

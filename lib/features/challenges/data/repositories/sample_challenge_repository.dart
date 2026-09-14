@@ -366,6 +366,9 @@ class SampleChallengeRepository implements ChallengeRepository {
 
     _challenges[challengeId] = challenge.copyWith(
       duelVerdict: approved ? DuelVerdict.approved : DuelVerdict.rejected,
+      // Come nel repository vero: giudicata vuol dire finita, e finita vuol
+      // dire che la scadenza e' adesso.
+      endsAt: DateTime.now(),
       winnerEntryId: vince ? entry.id : '',
       winnerUserId: vince ? entry.userId : '',
       winnerUsername: vince ? entry.authorName : '',

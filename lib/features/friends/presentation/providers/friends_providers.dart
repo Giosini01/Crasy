@@ -422,6 +422,27 @@ final closedPartyProvider = Provider<List<Challenge>>((ref) {
   ];
 });
 
+/// Le sfide finite **senza una figurina**: giudicate non valide.
+///
+/// **Senza questo elenco sparirebbero e basta.** Una sfida bocciata smette di
+/// essere aperta nell'istante del verdetto — e' giusto, non c'e' piu' niente da
+/// fare — ma non lascia nessuna foto da mettere in bacheca, quindi non entra
+/// nella griglia delle figurine. Senza una riga sua, chi l'ha fatta vedrebbe la
+/// propria sfida svanire dal party senza sapere com'e' andata.
+///
+/// Le rifiutate non stanno qui: quelle restano fra le ricevute per le loro
+/// ventiquattro ore, perche' per cinque ore si puo' ancora tornare indietro e
+/// una cosa su cui si puo' ancora agire non e' finita.
+final closedDuelsProvider = Provider<List<Challenge>>((ref) {
+  final chiuse =
+      ref.watch(recentlyClosedProvider).valueOrNull ?? const <Challenge>[];
+
+  return [
+    for (final challenge in chiuse)
+      if (challenge.isDuel && !challenge.hasTrophy) challenge,
+  ];
+});
+
 /// **Le sfide che mi hanno lanciato**: Mario ha sfidato me.
 ///
 /// Prima quelle a cui devo ancora rispondere, poi le altre. Non e' un ordine

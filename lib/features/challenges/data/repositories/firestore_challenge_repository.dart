@@ -713,6 +713,15 @@ class FirestoreChallengeRepository implements ChallengeRepository {
         'duelVerdict': approved
             ? DuelVerdict.approved.wire
             : DuelVerdict.rejected.wire,
+        // **Il verdetto ferma anche l'orologio.**
+        //
+        // Senza questa riga la sfida restava fra quelle aperte fino alla sua
+        // scadenza naturale: giudicata, decisa, finita — e ancora in cima alle
+        // ricevute come se ci fosse qualcosa da fare. Le schede del party
+        // guardano `endsAt` per sapere cosa e' ancora in corso, quindi dirgli
+        // che e' finita vuol dire scriverlo li'. Da qui esce dalle ricevute e
+        // dalle lanciate, ed entra fra le chiuse.
+        'endsAt': Timestamp.now(),
         // `winnerEntryId` e' il segno che una gara e' chiusa. Vuoto vuol dire
         // chiusa senza vincitore, ed e' esattamente cosa succede a una foto
         // bocciata: non vince nessuno, e nessuno la guarda piu'.
