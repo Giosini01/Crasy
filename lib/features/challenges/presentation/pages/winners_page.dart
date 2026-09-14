@@ -1,5 +1,6 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
@@ -227,6 +228,17 @@ class _WinnerBlock extends ConsumerWidget {
                 video: winner.isVideo,
                 aspectRatio: 1,
                 caption: winner.authorName,
+                // **Quante fiamme ha preso, sopra la foto.**
+                //
+                // Durante la gara i numeri sono nascosti apposta: sapere come
+                // sta andando cambia come si vota, e una gara in cui si vota
+                // guardando la classifica non e' piu' una gara. Ma qui la gara
+                // e' finita, le fiamme sono quelle e non si toccano piu' — e
+                // allora e' l'unica cosa che manca per capire *come* ha vinto.
+                // Due fiamme e ottanta fiamme sono la stessa vittoria scritta
+                // in due modi molto diversi, e chi guarda ha il diritto di
+                // saperlo.
+                overlay: _Fiamme(quante: winner.votes),
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -238,7 +250,18 @@ class _WinnerBlock extends ConsumerWidget {
                     style: texts.titleMedium,
                   ),
                   TextSpan(
-                    text: ' ha vinto ${challenge.prizeLabel} con più fiamme',
+                    // Il numero anche qui, scritto: sulla foto e' un
+                    // distintivo che si guarda, nella frase e' una cosa che si
+                    // legge — e sono i due modi in cui la gente prende
+                    // un'informazione. A zero resta la frase di prima: le gare
+                    // chiuse quando il conteggio non finiva ancora dentro il
+                    // documento non hanno quel numero, e scrivere "con 0
+                    // fiamme" sotto una vittoria sarebbe una bugia.
+                    text: winner.votes > 0
+                        ? ' ha vinto ${challenge.prizeLabel} con '
+                              '${winner.votes} '
+                              '${winner.votes == 1 ? 'fiamma' : 'fiamme'}'
+                        : ' ha vinto ${challenge.prizeLabel} con più fiamme',
                     style: texts.bodyMedium,
                   ),
                 ],
@@ -246,6 +269,61 @@ class _WinnerBlock extends ConsumerWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Il numero di fiamme, appoggiato sull'angolo della foto vincitrice.
+///
+/// **Si legge su qualunque foto.** Un numero bianco su una foto chiara non si
+/// vede, e questa e' l'unica cosa della schermata che deve leggersi sempre:
+/// sotto c'e' una pastiglia scura, che e' il modo piu' semplice di non
+/// dipendere da cosa c'e' nell'immagine.
+class _Fiamme extends StatelessWidget {
+  const _Fiamme({required this.quante});
+
+  final int quante;
+
+  @override
+  Widget build(BuildContext context) {
+    // A zero non si scrive niente: le gare chiuse prima che il conteggio
+    // finisse dentro il documento non ce l'hanno, e uno zero li' direbbe "non
+    // e' piaciuta a nessuno" di una foto che magari aveva vinto a mani basse.
+    if (quante <= 0) {
+      return const SizedBox.shrink();
+    }
+
+    return Align(
+      alignment: Alignment.topRight,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.local_fire_department_rounded,
+                  size: 15,
+                  color: context.palette.accent,
+                ),
+                const SizedBox(width: 3),
+                Text(
+                  '$quante',
+                  style: context.texts.labelMedium?.copyWith(
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

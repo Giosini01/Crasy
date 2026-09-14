@@ -673,24 +673,37 @@ class _TrophyDetails extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
+            // **Aperta, una targa resta una targa.**
+            //
+            // Qui c'era la figurina girabile, con dentro la foto di chi ha
+            // vinto: la stessa cosa che si e' tolta dalla bacheca, che
+            // ricompariva al primo tocco. E una targa non si gira — dietro una
+            // targa c'e' il muro.
             Center(
               child: SizedBox(
                 width: 230,
-                child: FlippableTrophy(challenge: challenge, kind: kind),
+                child: kind == TrophyKind.commissioned
+                    ? AspectRatio(
+                        aspectRatio: TrophyFront.ratio,
+                        child: GoldPlaque(challenge: challenge, grande: true),
+                      )
+                    : FlippableTrophy(challenge: challenge, kind: kind),
               ),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            // Che si giri non si vede: una carta ferma sembra un'immagine.
-            // Una riga sola, piccola, e chi vuole prova.
-            Center(
-              child: Text(
-                'TRASCINALA PER GIRARLA',
-                style: texts.labelSmall?.copyWith(
-                  color: palette.textFaint,
-                  fontSize: 9,
+            if (kind != TrophyKind.commissioned) ...[
+              const SizedBox(height: AppSpacing.sm),
+              // Che si giri non si vede: una carta ferma sembra un'immagine.
+              // Una riga sola, piccola, e chi vuole prova.
+              Center(
+                child: Text(
+                  'TRASCINALA PER GIRARLA',
+                  style: texts.labelSmall?.copyWith(
+                    color: palette.textFaint,
+                    fontSize: 9,
+                  ),
                 ),
               ),
-            ),
+            ],
             const SizedBox(height: AppSpacing.lg),
             Text(challenge.title.toUpperCase(), style: texts.headlineSmall),
             if (challenge.brief.isNotEmpty) ...[
@@ -875,9 +888,20 @@ abstract final class _Oro {
 ///   stesso motivo per cui una scritta incisa su una targa vera si legge anche
 ///   senza colore dentro.
 class GoldPlaque extends StatelessWidget {
-  const GoldPlaque({required this.challenge, super.key});
+  const GoldPlaque({required this.challenge, this.grande = false, super.key});
 
   final Challenge challenge;
+
+  /// Aperta a tutta finestra, invece che nella griglia della bacheca.
+  ///
+  /// Cambia solo quanto sono grandi le scritte: nella griglia una targa e'
+  /// larga mezzo schermo e deve stare leggibile in poco, aperta ha il triplo
+  /// dello spazio — e tenere lo stesso corpo vorrebbe dire una targa grande con
+  /// dentro una scritta da francobollo.
+  final bool grande;
+
+  /// Di quanto crescono le scritte quando la targa e' aperta.
+  double get _scala => grande ? 1.9 : 1;
 
   @override
   Widget build(BuildContext context) {
@@ -929,13 +953,16 @@ class GoldPlaque extends StatelessWidget {
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            padding: EdgeInsets.symmetric(
+              horizontal: 8 * _scala,
+              vertical: 10 * _scala,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _Inciso(
                   testo: 'PROVA D\'ONORE',
-                  size: 7.5,
+                  size: 7.5 * _scala,
                   spaziatura: 1.6,
                   peso: FontWeight.w700,
                 ),
@@ -944,27 +971,29 @@ class GoldPlaque extends StatelessWidget {
                 // una scura e una chiara, che e' un solco in miniatura.
                 const _Filetto(),
                 const SizedBox(height: 6),
-                _Inciso(testo: nome, size: 11, peso: FontWeight.w800),
+                _Inciso(testo: nome, size: 11 * _scala, peso: FontWeight.w800),
                 const SizedBox(height: 4),
                 Expanded(
-                  child: _Inciso(
-                    testo: titolo,
-                    size: 9,
-                    righe: 4,
-                    peso: FontWeight.w600,
-                    allinea: TextAlign.left,
+                  child: Center(
+                    child: _Inciso(
+                      testo: titolo,
+                      size: 10 * _scala,
+                      righe: 4,
+                      peso: FontWeight.w700,
+                    ),
                   ),
                 ),
                 const _Filetto(),
                 const SizedBox(height: 5),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(segno, style: const TextStyle(fontSize: 11)),
-                    const SizedBox(width: 3),
-                    Expanded(
+                    Text(segno, style: TextStyle(fontSize: 11 * _scala)),
+                    const SizedBox(width: 4),
+                    Flexible(
                       child: _Inciso(
                         testo: esito,
-                        size: 8,
+                        size: 8.5 * _scala,
                         spaziatura: 0.9,
                         peso: FontWeight.w800,
                       ),
@@ -1022,11 +1051,16 @@ class GoldPlaque extends StatelessWidget {
   }
 }
 
-/// Una scritta incisa nel metallo.
+/// Una scritta in rilievo sul metallo.
 ///
-/// Due copie sovrapposte: sotto il riflesso chiaro spostato di un punto, sopra
-/// il bruno del solco. Non e' un'ombra — e' il contrario di un'ombra, ed e'
-/// quello che fa sembrare la scritta **dentro** la targa invece che sopra.
+/// **Era incisa, e non si leggeva.** Bruno scuro dentro un solco: su una targa
+/// vera funziona perche' la luce vera e' molto piu' forte di quella disegnata,
+/// su uno schermo diventava una scritta scura su un fondo scuro — cioe' niente.
+///
+/// Adesso e' il contrario: **bianca, con l'ombra sotto**. La lettera sta sopra
+/// il metallo invece che dentro, l'ombra scura spostata in basso a destra la
+/// stacca dal fondo, e si legge da lontano su qualunque punto della sfumatura —
+/// anche sull'oro piu' chiaro.
 class _Inciso extends StatelessWidget {
   const _Inciso({
     required this.testo,
@@ -1034,7 +1068,6 @@ class _Inciso extends StatelessWidget {
     this.spaziatura = 0,
     this.peso = FontWeight.w600,
     this.righe = 1,
-    this.allinea = TextAlign.left,
   });
 
   final String testo;
@@ -1042,7 +1075,6 @@ class _Inciso extends StatelessWidget {
   final double spaziatura;
   final FontWeight peso;
   final int righe;
-  final TextAlign allinea;
 
   @override
   Widget build(BuildContext context) {
@@ -1053,24 +1085,29 @@ class _Inciso extends StatelessWidget {
       height: 1.2,
     );
 
-    Widget copia(Color colore, Offset scarto) {
-      return Transform.translate(
-        offset: scarto,
-        child: Text(
-          testo.toUpperCase(),
-          textAlign: allinea,
-          maxLines: righe,
-          overflow: TextOverflow.ellipsis,
-          style: base?.copyWith(color: colore),
-        ),
-      );
-    }
-
-    return Stack(
-      children: [
-        copia(_Oro.luce, const Offset(0.7, 0.9)),
-        copia(_Oro.incisione, Offset.zero),
-      ],
+    return Text(
+      testo.toUpperCase(),
+      textAlign: TextAlign.center,
+      maxLines: righe,
+      overflow: TextOverflow.ellipsis,
+      style: base?.copyWith(
+        color: Colors.white,
+        shadows: const [
+          // L'ombra portata: e' quella a dire che la lettera sporge. Corta e
+          // poco sfocata, come l'ombra di una cosa appoggiata — larga e
+          // morbida sembrerebbe stampata su un vetro davanti.
+          Shadow(
+            color: _Oro.incisione,
+            offset: Offset(0.8, 1),
+            blurRadius: 1.2,
+          ),
+          Shadow(
+            color: Color(0x66000000),
+            offset: Offset(0, 1.6),
+            blurRadius: 3,
+          ),
+        ],
+      ),
     );
   }
 }
