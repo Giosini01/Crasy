@@ -897,11 +897,25 @@ class GoldPlaque extends StatelessWidget {
   /// dentro una scritta da francobollo.
   final bool grande;
 
-  /// L'oro delle lettere, lo stesso della cornice.
-  static const Color _oro = Color(0xFFE8C766);
+  /// Il bruno del solco: il colore che ha una lettera scavata nell'oro.
+  static const Color _inciso = Color(0xFF6B4A10);
+
+  /// Il riflesso sul bordo di sotto del solco, che e' cio' che rende
+  /// l'incisione una **cavita'** invece di una scritta stampata sopra.
+  static const Color _luce = Color(0xFFFFFAE6);
 
   /// Di quanto crescono le scritte quando la targa e' aperta.
   double get _scala => grande ? 1.9 : 1;
+
+  /// Il riflesso che trasforma una scritta scura in una scritta **scavata**.
+  ///
+  /// Una copia chiarissima spostata di un punto in basso a destra: e' la luce
+  /// che batte sul bordo di sotto del solco. Non e' un'ombra — e' il contrario
+  /// di un'ombra, e senza di lei le lettere sembrano stampate sopra l'oro
+  /// invece che dentro.
+  static const List<Shadow> _solco = [
+    Shadow(color: _luce, offset: Offset(0.7, 0.9), blurRadius: 0.4),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -910,14 +924,23 @@ class GoldPlaque extends StatelessWidget {
 
     return _Laminated(
       child: DecoratedBox(
-        // La piastra: scura come il fondo di una figurina senza foto, cosi' le
-        // due cose sulla stessa bacheca sembrano la stessa famiglia.
+        // **La piastra e' d'oro anche lei, non nera.**
+        //
+        // Era scura, e una piastra scura dentro una cornice dorata e' una
+        // targa da premiazione aziendale: due materiali diversi, uno che fa da
+        // sfondo all'altro. Una targa placcata e' **un pezzo solo** — la
+        // cornice e la lastra sono lo stesso metallo, e a separarle c'e' la
+        // luce e basta.
+        //
+        // Piu' chiara della cornice, non piu' scura: una superficie piana
+        // prende piu' luce di un bordo smussato, ed e' il modo in cui l'occhio
+        // capisce che quella e' la parte dritta.
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF32302B), Color(0xFF1A1917), Color(0xFF0F0E0C)],
-            stops: [0, 0.55, 1],
+            colors: [Color(0xFFFBF0CF), Color(0xFFEBD293), Color(0xFFCFA94D)],
+            stops: [0, 0.48, 1],
           ),
         ),
         child: Padding(
@@ -932,11 +955,12 @@ class GoldPlaque extends StatelessWidget {
                 'PROVA D\'ONORE',
                 textAlign: TextAlign.center,
                 style: texts.labelSmall?.copyWith(
-                  color: _oro,
+                  color: _inciso,
                   fontSize: 7.5 * _scala,
                   letterSpacing: 1.8,
                   fontWeight: FontWeight.w700,
-                ),
+                  shadows: _solco,
+                  ),
               ),
               SizedBox(height: 6 * _scala),
               _Filetto(scala: _scala),
@@ -951,11 +975,12 @@ class GoldPlaque extends StatelessWidget {
                     maxLines: 4,
                     overflow: TextOverflow.ellipsis,
                     style: texts.labelMedium?.copyWith(
-                      color: Colors.white,
+                      color: _inciso,
                       fontSize: 11 * _scala,
                       height: 1.25,
                       fontWeight: FontWeight.w700,
-                    ),
+                      shadows: _solco,
+                      ),
                   ),
                 ),
               ),
@@ -966,9 +991,10 @@ class GoldPlaque extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: texts.labelSmall?.copyWith(
-                  color: Colors.white70,
+                  color: _inciso.withValues(alpha: 0.75),
                   fontSize: 9.5 * _scala,
-                ),
+                  shadows: _solco,
+                  ),
               ),
               SizedBox(height: 8 * _scala),
               _Filetto(scala: _scala),
@@ -984,11 +1010,12 @@ class GoldPlaque extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: texts.labelSmall?.copyWith(
-                        color: _oro,
+                        color: _inciso,
                         fontSize: 8.5 * _scala,
                         letterSpacing: 1,
                         fontWeight: FontWeight.w800,
-                      ),
+                        shadows: _solco,
+                        ),
                     ),
                   ),
                 ],
@@ -1060,13 +1087,13 @@ class _Filetto extends StatelessWidget {
       children: [
         SizedBox(
           height: 0.7 * scala,
-          child: const ColoredBox(color: Color(0xFF000000)),
+          child: ColoredBox(
+            color: GoldPlaque._inciso.withValues(alpha: 0.65),
+          ),
         ),
         SizedBox(
           height: 0.7 * scala,
-          child: ColoredBox(
-            color: GoldPlaque._oro.withValues(alpha: 0.45),
-          ),
+          child: const ColoredBox(color: GoldPlaque._luce),
         ),
       ],
     );
