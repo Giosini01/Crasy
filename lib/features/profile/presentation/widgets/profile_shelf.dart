@@ -1,7 +1,6 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
-import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/countdown_text.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
@@ -101,43 +100,115 @@ List<ChallengeEntry> liveEntries(
   ];
 }
 
-/// Le gare lanciate da una persona: prima quelle aperte adesso, poi i trofei.
+/// Cosa si guarda dentro le LANCIATE.
 ///
-/// **Le due meta' non possono stare nella stessa griglia**, e non e' una scelta
-/// grafica: la figurina e' costruita attorno alla foto di chi ha vinto, e una
-/// gara ancora aperta un vincitore non ce l'ha. Infilarcela dentro darebbe un
-/// rettangolo vuoto con un premio sopra, cioe' l'aria di una cosa rotta proprio
-/// dove si sta guardando se qualcuno ha davvero messo dei soldi.
+/// **Tre cose diverse che prima stavano in fila.** Una gara aperta e' una cosa
+/// su cui si puo' ancora fare qualcosa — entrarci, guardare a che punto e' — e
+/// una finita e' un ricordo; metterle una sotto l'altra vuol dire che chi cerca
+/// la prima scorre in mezzo alle seconde. E quelle riservate agli amici sono
+/// un'altra faccenda ancora: non le vede tutto il mondo, e chi non e' dei loro
+/// non deve nemmeno sapere che esistono.
+enum CommissionedFilter {
+  /// Aperte adesso: ci si puo' ancora entrare.
+  active('ATTIVE'),
+
+  /// Finite: resta la targa.
+  closed('CHIUSE'),
+
+  /// Lanciate al proprio gruppo. **Questa scheda compare solo a chi le puo'
+  /// vedere**, e non serve un controllo per ottenerlo: la lettura del database
+  /// non le porta nemmeno a chi non e' dei loro, quindi l'elenco arriva vuoto e
+  /// la scheda non si disegna.
+  friends('AMICI');
+
+  const CommissionedFilter(this.label);
+
+  final String label;
+}
+
+/// Le gare lanciate da una persona, divise in tre.
 ///
-/// Le aperte prendono una riga per uno con il tempo che manca: sono poche —
-/// quante gare puo' avere aperte una persona nello stesso momento — e sono
-/// l'unica cosa di questa bacheca su cui si possa ancora fare qualcosa.
-class CommissionedShelf extends StatelessWidget {
+/// L'ordine dentro ogni scheda lo ha gia' deciso `commissionedOrder`: qui si
+/// smista soltanto.
+class CommissionedShelf extends StatefulWidget {
   const CommissionedShelf({required this.challenges, super.key});
 
   /// Gia' nell'ordine giusto: ci ha pensato `commissionedOrder`.
   final List<Challenge> challenges;
 
   @override
+  State<CommissionedShelf> createState() => _CommissionedShelfState();
+}
+
+class _CommissionedShelfState extends State<CommissionedShelf> {
+  CommissionedFilter? _scelta;
+
+  /// Se questa gara e' chiusa.
+  ///
+  /// **Due modi di esserlo, e non coincidono.** L'orologio e' passato, oppure
+  /// qualcuno l'ha chiusa prima: una sfida mirata si chiude nell'istante del
+  /// verdetto, che puo' arrivare ore prima della scadenza.
+  static bool _chiusa(Challenge challenge, DateTime now) =>
+      challenge.winnerEntryId != null || challenge.hasEndedAt(now);
+
+  @override
   Widget build(BuildContext context) {
-    // **La divisione si fa su `hasTrophy`, non sull'orologio.** Quello che
-    // arriva qui contiene gia' solo gare aperte e gare con un trofeo — ci ha
-    // pensato `commissionedOrder` — quindi "ha un trofeo" e "e' finita" sono la
-    // stessa cosa, e la prima delle due non dipende da che ora e'.
-    //
-    // Fra il momento in cui il repository ha fatto l'ordine e questo disegno
-    // passa un istante, ma in quell'istante una gara puo' essere scaduta:
-    // rileggendo l'orologio finirebbe fra i trofei **senza avere una foto**,
-    // cioe' una figurina vuota. Cosi' invece resta fra le aperte, con il conto
-    // alla rovescia a zero, finche' il vincitore non c'e' davvero.
-    final live = [
-      for (final challenge in challenges)
-        if (!challenge.hasTrophy) challenge,
+    final now = DateTime.now();
+
+    // Le riservate stanno tutte insieme, aperte e chiuse: sono poche, e quello
+    // che le distingue dalle altre — chi puo' vederle — conta piu' di quanto le
+    // distingua fra loro.
+    final amici = [
+      for (final challenge in widget.challenges)
+        if (challenge.isForFriends) challenge,
     ];
 
-    final trophies = [
-      for (final challenge in challenges)
-        if (challenge.hasTrophy) challenge,
+    final pubbliche = [
+      for (final challenge in widget.challenges)
+        if (!challenge.isForFriends) challenge,
+    ];
+
+    final aperte = [
+      for (final challenge in pubbliche)
+        if (!_chiusa(challenge, now)) challenge,
+    ];
+
+    final chiuse = [
+      for (final challenge in pubbliche)
+        if (_chiusa(challenge, now)) challenge,
+    ];
+
+    final dentro = {
+      CommissionedFilter.active: aperte,
+      CommissionedFilter.closed: chiuse,
+      CommissionedFilter.friends: amici,
+    };
+
+    // **Le schede vuote non si disegnano.** Una parola che non porta da nessuna
+    // parte e' una porta finta, e su AMICI sarebbe pure una spia: direbbe a chi
+    // non e' dei loro che qualcosa c'e'.
+    final schede = [
+      for (final filtro in CommissionedFilter.values)
+        if (dentro[filtro]!.isNotEmpty) filtro,
+    ];
+
+    if (schede.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // La scelta di prima puo' essersi svuotata mentre si guardava — una gara
+    // che scade passa da aperte a chiuse — e allora si cade sulla prima piena.
+    final scelta = schede.contains(_scelta) ? _scelta! : schede.first;
+    final elenco = dentro[scelta]!;
+
+    final righe = [
+      for (final challenge in elenco)
+        if (!_chiusa(challenge, now)) challenge,
+    ];
+
+    final targhe = [
+      for (final challenge in elenco)
+        if (_chiusa(challenge, now)) challenge,
     ];
 
     return Column(
@@ -148,37 +219,64 @@ class CommissionedShelf extends StatelessWidget {
       // prendersi, e si va in errore di impaginazione.
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (live.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.page,
-              0,
-              AppSpacing.page,
-              AppSpacing.sm,
-            ),
-            child: EyebrowLabel('APERTE ADESSO'),
+        // Una sola scheda piena non e' una scelta: la fila di parole sopra
+        // direbbe soltanto dove ci si trova gia'.
+        if (schede.length > 1) ...[
+          _Filtri(
+            schede: schede,
+            selected: scelta,
+            onPick: (filtro) => setState(() => _scelta = filtro),
           ),
-          for (final challenge in live)
-            _LiveCommissionRow(challenge: challenge),
+          const SizedBox(height: AppSpacing.md),
         ],
-        if (trophies.isNotEmpty) ...[
-          // L'occhiello sulle concluse compare **solo se ci sono anche delle
-          // aperte**: da solo sopra una griglia di trofei non separerebbe
-          // niente da niente, e sarebbe una parola in piu' su una schermata che
-          // ne ha gia' tre.
-          if (live.isNotEmpty)
-            const Padding(
-              padding: EdgeInsets.fromLTRB(
-                AppSpacing.page,
-                AppSpacing.lg,
-                AppSpacing.page,
-                AppSpacing.sm,
-              ),
-              child: EyebrowLabel('CONCLUSE'),
-            ),
-          TrophyGrid(challenges: trophies, kind: TrophyKind.commissioned),
-        ],
+        for (final challenge in righe) _LiveCommissionRow(challenge: challenge),
+        if (righe.isNotEmpty && targhe.isNotEmpty)
+          const SizedBox(height: AppSpacing.lg),
+        if (targhe.isNotEmpty)
+          TrophyGrid(challenges: targhe, kind: TrophyKind.commissioned),
       ],
+    );
+  }
+}
+
+/// La fila delle tre parole, con la stessa faccia delle schede del profilo.
+class _Filtri extends StatelessWidget {
+  const _Filtri({
+    required this.schede,
+    required this.selected,
+    required this.onPick,
+  });
+
+  final List<CommissionedFilter> schede;
+  final CommissionedFilter selected;
+  final void Function(CommissionedFilter filtro) onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+      child: Row(
+        children: [
+          for (final filtro in schede)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.md),
+              child: GestureDetector(
+                onTap: () => onPick(filtro),
+                behavior: HitTestBehavior.opaque,
+                child: Text(
+                  filtro.label,
+                  style: context.texts.labelSmall?.copyWith(
+                    color: filtro == selected
+                        ? palette.accent
+                        : palette.textFaint,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
