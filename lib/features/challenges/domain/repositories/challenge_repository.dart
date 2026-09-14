@@ -197,6 +197,15 @@ abstract class ChallengeRepository {
     ChallengeEntry? entry,
   });
 
+  /// Le gare riservate a [userId] **appena finite**: le ultime ventiquattro ore.
+  ///
+  /// E' l'altra meta' di [watchChallengesFor], che si ferma a quelle ancora
+  /// aperte. Senza, una missione fra amici spariva dal party nell'istante in
+  /// cui scadeva — proprio il momento in cui si vuole guardare com'e' finita e
+  /// chi ha vinto. Ventiquattro ore, e poi via: quello che resta e' la figurina
+  /// sul profilo di chi ha vinto, che non scade mai.
+  Stream<List<Challenge>> watchRecentlyClosedFor(String userId);
+
   /// Le gare che [userId] ha **vinto**. La sua bacheca dei trofei.
   Stream<List<Challenge>> watchTrophiesOf(String userId);
 

@@ -178,6 +178,26 @@ class FirestoreChallengeRepository implements ChallengeRepository {
   }
 
   @override
+  Stream<List<Challenge>> watchRecentlyClosedFor(String userId) {
+    // **Le stesse gare di sopra, dall'altra parte della sirena.** Un solo
+    // giorno indietro e non di piu': il party e' una cosa di oggi, e un elenco
+    // che cresce all'infinito smette di dire "guarda com'e' finita" e comincia
+    // a dire "ecco l'archivio".
+    final ieri = Timestamp.fromDate(
+      DateTime.now().subtract(const Duration(hours: 24)),
+    );
+
+    return _challenges
+        .where('audience', arrayContains: userId)
+        .where('endsAt', isLessThanOrEqualTo: Timestamp.now())
+        .where('endsAt', isGreaterThan: ieri)
+        .orderBy('endsAt', descending: true)
+        .limit(30)
+        .snapshots()
+        .map(_challengesFrom);
+  }
+
+  @override
   Stream<ChallengeEntry?> watchTopEntry(
     String challengeId, {
     bool live = false,

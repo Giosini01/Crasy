@@ -333,6 +333,40 @@ class Challenge {
     }
   }
 
+  /// Quanto tempo ha, chi ha detto di no, per tornare indietro.
+  ///
+  /// **Cinque ore.** Un rifiuto che si puo' disfare per sempre non e' un
+  /// rifiuto: e' una risposta rimandata, e chi ha lanciato la sfida resta in
+  /// attesa a tempo indeterminato di una cosa a cui gli hanno gia' detto di no.
+  /// Cinque ore sono abbastanza per un ripensamento vero — quello che viene
+  /// dopo averci pensato su, o dopo che l'altro ti ha preso in giro — e troppo
+  /// poche per tenere qualcuno appeso.
+  ///
+  /// Passate quelle, il no e' definitivo: si rilancia la sfida da capo, che e'
+  /// un gesto di chi l'aveva lanciata e non di chi l'aveva rifiutata.
+  static const Duration reconsiderWindow = Duration(hours: 5);
+
+  /// Se chi ha detto di no e' ancora in tempo per rimettersi in gioco.
+  ///
+  /// **Senza `respondedAt` si dice di si'**, e non e' una svista: la risposta la
+  /// scrive il server con il suo orologio, e nell'istante fra il tocco e la
+  /// conferma il telefono legge quel campo ancora vuoto. Dire di no li' vorrebbe
+  /// dire far sparire il tasto per un attimo proprio a chi ha appena rifiutato
+  /// — cioe' all'unica persona che lo sta guardando.
+  bool canReconsiderAt(DateTime moment) {
+    if (!isDuel || !duelStatus.isDeclined) {
+      return false;
+    }
+
+    final quando = respondedAt;
+
+    if (quando == null) {
+      return true;
+    }
+
+    return moment.isBefore(quando.add(reconsiderWindow));
+  }
+
   /// Se la sfida aspetta ancora qualcosa da chi l'ha ricevuta.
   bool isDuelOpenAt(DateTime moment) {
     final state = duelStateAt(moment);

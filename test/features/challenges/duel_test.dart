@@ -26,6 +26,7 @@ void main() {
     DuelStatus status = DuelStatus.pending,
     DuelVerdict verdict = DuelVerdict.none,
     int prizeCents = 0,
+    DateTime? risposta,
     Duration durata = const Duration(hours: 24),
   }) {
     return Challenge(
@@ -40,6 +41,7 @@ void main() {
       targetUsername: to,
       duelStatus: status,
       duelVerdict: verdict,
+      respondedAt: risposta,
       audience: [from, to],
       maxParticipants: 1,
       startsAt: now.subtract(const Duration(hours: 1)),
@@ -48,6 +50,65 @@ void main() {
   }
 
   _verdetto(duel, now);
+
+  group('cinque ore per ripensarci', () {
+    // **Un no che si puo' disfare per sempre non e' un no**: e' una risposta
+    // rimandata, e chi ha lanciato la sfida resta appeso a tempo indeterminato
+    // a una cosa a cui gli hanno gia' detto di no.
+    Challenge rifiutata({DateTime? quando}) => duel(
+      id: 'x',
+      from: 'mario',
+      to: 'io',
+      status: DuelStatus.declined,
+      risposta: quando,
+    );
+
+    test('appena detto di no si puo\' tornare indietro', () {
+      final sfida = rifiutata(quando: now.subtract(const Duration(minutes: 5)));
+
+      expect(sfida.canReconsiderAt(now), isTrue);
+    });
+
+    test('a quattro ore e mezza si fa ancora in tempo', () {
+      final sfida = rifiutata(
+        quando: now.subtract(const Duration(hours: 4, minutes: 30)),
+      );
+
+      expect(sfida.canReconsiderAt(now), isTrue);
+    });
+
+    test('a sei ore no', () {
+      final sfida = rifiutata(quando: now.subtract(const Duration(hours: 6)));
+
+      expect(sfida.canReconsiderAt(now), isFalse);
+    });
+
+    test('senza l\'ora della risposta si lascia passare', () {
+      // La risposta la scrive il server con il suo orologio, e nell'istante fra
+      // il tocco e la conferma il telefono legge quel campo ancora vuoto. Dire
+      // di no li' vorrebbe dire far sparire il tasto proprio a chi ha appena
+      // rifiutato — cioe' all'unica persona che lo sta guardando.
+      expect(rifiutata().canReconsiderAt(now), isTrue);
+    });
+
+    test('chi non ha rifiutato non ha niente da ripensare', () {
+      for (final stato in [
+        DuelStatus.pending,
+        DuelStatus.accepted,
+        DuelStatus.completed,
+      ]) {
+        final sfida = duel(
+          id: 'x',
+          from: 'mario',
+          to: 'io',
+          status: stato,
+          risposta: now,
+        );
+
+        expect(sfida.canReconsiderAt(now), isFalse, reason: stato.name);
+      }
+    });
+  });
 
   group('gratis o con dei soldi', () {
     // **Per molto tempo era zero e basta**, con una ragione buona: fra due

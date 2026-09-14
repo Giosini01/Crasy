@@ -157,6 +157,15 @@ class DuelController extends AsyncNotifier<void> {
   /// intere. Riaprirla lasciandola scaduta vorrebbe dire riaprirla morta.
   Future<void> accept(Challenge challenge) {
     final now = DateTime.now();
+
+    // **Fuori dalle cinque ore non si torna indietro.** Il controllo sta anche
+    // qui e non solo sul tasto: la schermata puo' essere rimasta aperta mentre
+    // le cinque ore finivano, e a quel punto il tasto direbbe una cosa che non
+    // e' piu' vera. Le regole di Firestore impongono lo stesso limite.
+    if (challenge.duelStatus.isDeclined && !challenge.canReconsiderAt(now)) {
+      return Future<void>.value();
+    }
+
     final riparte =
         challenge.duelStatus.isDeclined && !challenge.endsAt.isAfter(now);
 

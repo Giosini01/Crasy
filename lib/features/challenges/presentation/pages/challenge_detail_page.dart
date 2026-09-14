@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:ui' show ImageFilter;
+import 'dart:math' as math;
 
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/services/share/share_challenge.dart';
@@ -95,7 +95,12 @@ class ChallengeDetailPage extends ConsumerWidget {
             return Stack(
               children: [
                 _Body(challenge: challenge),
-                if (rifiutata) _PoopStorm(key: ValueKey(challenge.id)),
+                if (rifiutata)
+                  _SplatStorm(
+                    key: ValueKey(challenge.id),
+                    userId: challenge.targetUserId,
+                    username: challenge.targetUsername,
+                  ),
               ],
             );
           },
@@ -1143,8 +1148,10 @@ class _DuelOutcome extends ConsumerWidget {
             ? 'Hai rifiutato la sfida.'
             : '@${challenge.targetUsername} ha rifiutato la sfida.',
         sfidato
-            ? 'Se ci hai ripensato puoi ancora rimetterti in gioco: il tempo '
-                  'riparte da adesso.'
+            ? (challenge.canReconsiderAt(DateTime.now())
+                  ? 'Hai cinque ore per rimetterti in gioco. Se lo fai, il '
+                        'tempo della sfida riparte da adesso.'
+                  : 'Le cinque ore per ripensarci sono passate.')
             : 'Non se l\'è sentita. Capita.',
       ),
       DuelState.expired => (
@@ -1212,7 +1219,7 @@ class _DuelOutcome extends ConsumerWidget {
           // Questa e' la schermata che si apre toccando la notifica, ed e'
           // dove uno arriva quando ci ripensa: mandarlo a cercare il tasto in
           // un'altra scheda vuol dire perderlo per strada.
-          if (sfidato && state == DuelState.declined) ...[
+          if (sfidato && challenge.canReconsiderAt(DateTime.now())) ...[
             const SizedBox(height: AppSpacing.md),
             _Reconsider(challenge: challenge),
           ],
@@ -1432,41 +1439,40 @@ class _DuelRules extends StatelessWidget {
   }
 }
 
-/// Una cacca sola della sassaiola, con la sua traiettoria.
+/// Uno schizzo della sassaiola: da dove arriva, dove colpisce, quanto e'
+/// grosso.
 ///
-/// Sono scritte a mano e non tirate a caso: **a caso viene male.** Venti
-/// traiettorie casuali si accavallano, ne arrivano tre dallo stesso punto e
-/// mezzo schermo resta pulito — e la volta dopo e' un'altra cosa, quindi non si
-/// puo' nemmeno sistemare guardandola. Scritte, la sassaiola arriva da tutti i
-/// lati e copre lo schermo in modo uguale ogni volta.
-class _Tiro {
-  const _Tiro({
+/// Sono scritti a mano e non tirati a caso: **a caso viene male.** Quattordici
+/// direzioni casuali si accavallano, tre arrivano dallo stesso lato e mezza
+/// faccia resta pulita — e la volta dopo e' un'altra cosa, quindi non si puo'
+/// nemmeno sistemare guardandola. Scritti, arrivano da tutto il giro e coprono
+/// la faccia in modo uguale ogni volta.
+class _Schizzo {
+  const _Schizzo({
     required this.parte,
+    required this.angolo,
     required this.dove,
-    required this.da,
     required this.grande,
-    required this.storta,
   });
 
-  /// Quando parte, sulla durata intera. Sfalsate: partissero insieme sarebbe
-  /// un blocco solo che si sposta, non una sassaiola.
+  /// Quando parte, sulla durata intera. Sfalsati: partissero insieme sarebbe
+  /// un anello che si stringe, non una sassaiola.
   final double parte;
 
-  /// Dove si spiaccica, in frazione di schermo: `(0,0)` in alto a sinistra,
-  /// `(1,1)` in basso a destra.
-  final Offset dove;
+  /// Da che parte del giro arriva, in radianti. Zero e' destra, e si gira in
+  /// senso orario da li'.
+  final double angolo;
 
-  /// Da che parte arriva. E' una direzione, non un punto: si moltiplica per la
-  /// misura dello schermo, cosi' parte sempre da fuori su qualunque telefono.
-  final Offset da;
+  /// Dove colpisce, in frazione del raggio della faccia: `0` il naso, `1` il
+  /// bordo. Sopra `1` schizza intorno, che serve a non far sembrare la faccia
+  /// un bersaglio con il cerchio disegnato.
+  final double dove;
 
+  /// Quanto e' grosso lo schizzo che lascia, in punti.
   final double grande;
-
-  /// Di quanto gira mentre vola.
-  final double storta;
 }
 
-/// **La sassaiola di cacca, su tutto lo schermo.**
+/// **Gli schizzi che convergono sulla faccia di chi ha detto di no.**
 ///
 /// E' la stessa cosa che dice la riga di testo sotto — *ha rifiutato la sfida*
 /// — detta nel modo in cui la direbbe un amico: non un'etichetta grigia, ma il
@@ -1474,64 +1480,98 @@ class _Tiro {
 /// costa niente a chi la fa, e questo e' esattamente quanto deve costare —
 /// niente di piu' di una figuraccia fra amici, ma non zero.
 ///
-/// **Sta sopra tutta la pagina, e non dentro l'elenco.** Era attaccata alla
-/// foto profilo, in fondo alla pagina, ed e' il motivo per cui non la vedeva
-/// nessuno: la pagina e' una lista che costruisce tutti i suoi pezzi subito,
-/// quindi l'animazione partiva e finiva mentre quel pezzo era ancora sotto il
-/// bordo dello schermo. Chi scorreva fin laggiu' arrivava sempre a cose fatte e
-/// trovava una cacca ferma incollata su una faccia — che e' il contrario di
-/// quello che doveva succedere.
+/// **Tutto converge al centro, e al centro c'e' una persona con un nome.** Le
+/// versioni prima tiravano roba sparsa su tutto lo schermo: si vedeva una
+/// pioggia, non un bersaglio, e soprattutto non si capiva di chi si stesse
+/// parlando. Qui la faccia e il nome stanno fermi in mezzo e tutto il resto
+/// punta li'.
 ///
-/// **Sporca e poi si pulisce.** Le cacche restano appiccicate un secondo, poi
-/// colano via e spariscono: quello che resta e' la riga di testo. Una cacca
-/// incollata per sempre trasforma una battuta in una condanna — ogni volta che
-/// uno riapre quella missione se la ritrova addosso, e li' non e' piu' uno
-/// sfottio fra amici.
-class _PoopStorm extends StatefulWidget {
-  const _PoopStorm({super.key});
+/// **Sta sopra tutta la pagina, e non dentro l'elenco.** Era attaccata alla
+/// foto in fondo alla pagina, ed e' il motivo per cui non la vedeva nessuno: la
+/// pagina costruisce tutti i suoi pezzi subito, quindi l'animazione partiva e
+/// finiva mentre quel pezzo era ancora sotto il bordo dello schermo.
+///
+/// **Sporca e poi si pulisce.** Gli schizzi restano un secondo, poi svaniscono
+/// tutti insieme allo sfondo: quello che resta e' la riga di testo. Una
+/// macchia incollata per sempre trasforma una battuta in una condanna — ogni
+/// volta che uno riapre quella missione se la ritrova addosso.
+class _SplatStorm extends StatelessWidget {
+  const _SplatStorm({
+    required this.userId,
+    required this.username,
+    super.key,
+  });
+
+  final String userId;
+  final String username;
+
+  /// Quanto e' grande la faccia in mezzo.
+  static const double _faccia = 116;
 
   @override
-  State<_PoopStorm> createState() => _PoopStormState();
+  Widget build(BuildContext context) {
+    // **Non ruba nessun tocco.** Sta sopra tutta la pagina, e senza questo per
+    // quasi tre secondi nessun tasto sotto risponderebbe — compreso "CI HO
+    // RIPENSATO", che e' proprio quello che uno cerca subito dopo.
+    return IgnorePointer(
+      child: _SplatStormBody(
+        userId: userId,
+        username: username,
+        faccia: _faccia,
+      ),
+    );
+  }
 }
 
-class _PoopStormState extends State<_PoopStorm>
+class _SplatStormBody extends StatefulWidget {
+  const _SplatStormBody({
+    required this.userId,
+    required this.username,
+    required this.faccia,
+  });
+
+  final String userId;
+  final String username;
+  final double faccia;
+
+  @override
+  State<_SplatStormBody> createState() => _SplatStormBodyState();
+}
+
+class _SplatStormBodyState extends State<_SplatStormBody>
     with SingleTickerProviderStateMixin {
-  /// Quanto dura il volo di una cacca, sulla durata intera.
-  static const double _volo = 0.16;
+  /// Quanto dura il volo di uno schizzo, sulla durata intera.
+  static const double _volo = 0.13;
 
-  /// E quanto ci mette a fermarsi, subito dopo: il tempo in cui la scia si
-  /// spegne. Non si deforma — si ferma e basta.
-  static const double _spiaccico = 0.05;
+  /// Quanto ci mette la macchia ad aprirsi, appena colpisce.
+  static const double _apertura = 0.05;
 
-  /// Quando lo schermo comincia a ripulirsi.
-  static const double _pulizia = 0.62;
+  /// Quando comincia a ripulirsi tutto.
+  static const double _pulizia = 0.70;
 
-  /// La sassaiola. Diciotto, sparse su tutto lo schermo: sotto sembra un
-  /// errore di caricamento, sopra diventa una macchia marrone in cui non si
-  /// legge piu' nessun singolo colpo.
-  static const List<_Tiro> _tiri = [
-    _Tiro(parte: 0.00, dove: Offset(0.22, 0.18), da: Offset(-1.2, -0.4), grande: 44, storta: -2.2),
-    _Tiro(parte: 0.03, dove: Offset(0.74, 0.12), da: Offset(1.2, -0.5), grande: 36, storta: 2.6),
-    _Tiro(parte: 0.06, dove: Offset(0.48, 0.30), da: Offset(0.2, -1.2), grande: 52, storta: -1.6),
-    _Tiro(parte: 0.09, dove: Offset(0.12, 0.44), da: Offset(-1.3, 0.2), grande: 32, storta: 2.0),
-    _Tiro(parte: 0.12, dove: Offset(0.88, 0.38), da: Offset(1.3, 0.1), grande: 40, storta: -2.4),
-    _Tiro(parte: 0.15, dove: Offset(0.34, 0.52), da: Offset(-1.1, 0.6), grande: 48, storta: 1.8),
-    _Tiro(parte: 0.18, dove: Offset(0.64, 0.48), da: Offset(1.1, -0.6), grande: 34, storta: -2.8),
-    _Tiro(parte: 0.21, dove: Offset(0.20, 0.68), da: Offset(-1.2, 0.8), grande: 38, storta: 2.2),
-    _Tiro(parte: 0.24, dove: Offset(0.80, 0.64), da: Offset(1.2, 0.7), grande: 46, storta: -1.9),
-    _Tiro(parte: 0.27, dove: Offset(0.50, 0.74), da: Offset(0.1, 1.3), grande: 30, storta: 2.7),
-    _Tiro(parte: 0.30, dove: Offset(0.30, 0.86), da: Offset(-1.0, 1.1), grande: 42, storta: -2.1),
-    _Tiro(parte: 0.33, dove: Offset(0.70, 0.88), da: Offset(1.0, 1.2), grande: 36, storta: 1.7),
-    _Tiro(parte: 0.36, dove: Offset(0.08, 0.24), da: Offset(-1.4, -0.7), grande: 28, storta: -2.5),
-    _Tiro(parte: 0.39, dove: Offset(0.92, 0.78), da: Offset(1.4, 0.9), grande: 30, storta: 2.3),
-    _Tiro(parte: 0.42, dove: Offset(0.44, 0.08), da: Offset(-0.3, -1.4), grande: 34, storta: -1.5),
-    _Tiro(parte: 0.45, dove: Offset(0.58, 0.94), da: Offset(0.4, 1.4), grande: 32, storta: 2.9),
-    _Tiro(parte: 0.48, dove: Offset(0.16, 0.58), da: Offset(-1.3, -0.2), grande: 26, storta: -2.0),
-    _Tiro(parte: 0.51, dove: Offset(0.84, 0.22), da: Offset(1.3, -0.8), grande: 28, storta: 1.4),
+  /// La sassaiola. Quattordici, sparsi su tutto il giro: sotto sembra un
+  /// errore di caricamento, sopra diventa una macchia sola in cui non si legge
+  /// piu' nessun singolo colpo — e la faccia non si vede piu' affatto, che e'
+  /// il contrario di quello che serve.
+  static const List<_Schizzo> _schizzi = [
+    _Schizzo(parte: 0.00, angolo: -2.60, dove: 0.34, grande: 40),
+    _Schizzo(parte: 0.04, angolo: 0.45, dove: 0.58, grande: 34),
+    _Schizzo(parte: 0.08, angolo: -1.15, dove: 0.20, grande: 46),
+    _Schizzo(parte: 0.12, angolo: 2.05, dove: 0.66, grande: 30),
+    _Schizzo(parte: 0.16, angolo: -0.30, dove: 0.78, grande: 38),
+    _Schizzo(parte: 0.20, angolo: 1.35, dove: 0.28, grande: 44),
+    _Schizzo(parte: 0.24, angolo: 3.00, dove: 0.50, grande: 32),
+    _Schizzo(parte: 0.27, angolo: -1.95, dove: 0.72, grande: 36),
+    _Schizzo(parte: 0.30, angolo: 0.95, dove: 0.06, grande: 50),
+    _Schizzo(parte: 0.33, angolo: -0.75, dove: 1.08, grande: 26),
+    _Schizzo(parte: 0.36, angolo: 2.55, dove: 1.02, grande: 24),
+    _Schizzo(parte: 0.39, angolo: -2.25, dove: 0.94, grande: 28),
+    _Schizzo(parte: 0.42, angolo: 1.75, dove: 1.12, grande: 22),
+    _Schizzo(parte: 0.45, angolo: 0.10, dove: 0.42, grande: 34),
   ];
 
   late final AnimationController _controller = AnimationController(
-    duration: const Duration(milliseconds: 2600),
+    duration: const Duration(milliseconds: 2800),
     vsync: this,
   );
 
@@ -1549,136 +1589,286 @@ class _PoopStormState extends State<_PoopStorm>
 
   @override
   Widget build(BuildContext context) {
-    // **Non ruba nessun tocco.** Sta sopra tutta la pagina, e senza questo per
-    // due secondi e mezzo nessun tasto sotto risponderebbe — compreso "CI HO
-    // RIPENSATO", che e' proprio quello che uno cerca subito dopo.
-    return IgnorePointer(
-      child: LayoutBuilder(
-        builder: (context, vincoli) {
-          final schermo = Size(vincoli.maxWidth, vincoli.maxHeight);
+    final texts = context.texts;
 
-          return AnimatedBuilder(
-            animation: _controller,
-            builder: (context, _) {
-              final tempo = _controller.value;
+    return LayoutBuilder(
+      builder: (context, vincoli) {
+        final schermo = Size(vincoli.maxWidth, vincoli.maxHeight);
 
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  for (final tiro in _tiri)
-                    _volante(tiro, tempo: tempo, schermo: schermo),
-                ],
-              );
-            },
-          );
-        },
-      ),
+        // Un filo sopra la meta': sotto la faccia ci va il nome, e un blocco
+        // centrato davvero finisce per sembrare basso.
+        final centro = Offset(schermo.width / 2, schermo.height * 0.42);
+        final raggio = widget.faccia / 2;
+
+        return AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            final tempo = _controller.value;
+            final via = tempo <= _pulizia
+                ? 0.0
+                : ((tempo - _pulizia) / (1 - _pulizia)).clamp(0.0, 1.0);
+            final visibile = (1 - via).clamp(0.0, 1.0);
+
+            // Lo sfondo si scurisce appena: serve a staccare la faccia dalla
+            // pagina sotto, non a nasconderla. Piu' scuro di cosi' e la
+            // schermata sembrerebbe bloccata da un pannello.
+            final buio = (tempo < 0.08 ? tempo / 0.08 : 1.0) * visibile;
+
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: ColoredBox(
+                    color: Colors.black.withValues(alpha: 0.55 * buio),
+                  ),
+                ),
+                Positioned(
+                  left: centro.dx - raggio,
+                  top: centro.dy - raggio,
+                  child: Opacity(
+                    opacity: visibile,
+                    child: FriendAvatar(
+                      userId: widget.userId,
+                      username: widget.username,
+                      size: widget.faccia,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: centro.dy + raggio + AppSpacing.sm,
+                  child: Opacity(
+                    opacity: visibile,
+                    child: Text(
+                      '@${widget.username}',
+                      textAlign: TextAlign.center,
+                      style: texts.titleMedium?.copyWith(color: Colors.white),
+                    ),
+                  ),
+                ),
+                // Le macchie stanno **sopra** la faccia: sotto sarebbero una
+                // decorazione attorno a un ritratto, non roba tirata addosso a
+                // qualcuno.
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _SchizziPainter(
+                      schizzi: _schizzi,
+                      tempo: tempo,
+                      centro: centro,
+                      raggio: raggio,
+                      lontano: schermo.longestSide,
+                      visibile: visibile,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
+}
 
-  /// Una cacca a mezz'aria, o gia' ferma addosso, o che sta colando via:
-  /// dipende da che ora e'.
-  Widget _volante(_Tiro tiro, {required double tempo, required Size schermo}) {
-    final volo = ((tempo - tiro.parte) / _volo).clamp(0.0, 1.0);
+/// Disegna la sassaiola: quelli che stanno ancora volando e le macchie di
+/// quelli gia' arrivati.
+///
+/// **Un disegno solo per tutti e quattordici**, invece di quattordici pezzi di
+/// interfaccia sovrapposti: sono forme piene senza testo dentro, e farle
+/// disegnare tutte insieme su una tela sola costa un passaggio al posto di
+/// quattordici — su un'animazione che gira a sessanta fotogrammi al secondo la
+/// differenza si vede.
+class _SchizziPainter extends CustomPainter {
+  const _SchizziPainter({
+    required this.schizzi,
+    required this.tempo,
+    required this.centro,
+    required this.raggio,
+    required this.lontano,
+    required this.visibile,
+  });
 
-    // Non ancora partita: non c'e' niente da disegnare. Disegnarla ferma al
-    // punto di partenza vorrebbe dire diciotto cacche appese ai bordi dello
-    // schermo prima che cominci qualcosa.
-    if (volo <= 0) {
-      return const SizedBox.shrink();
+  final List<_Schizzo> schizzi;
+  final double tempo;
+  final Offset centro;
+  final double raggio;
+
+  /// Da quanto lontano partono: la misura piu' lunga dello schermo, cosi'
+  /// nascono fuori da qualunque bordo su qualunque telefono.
+  final double lontano;
+
+  final double visibile;
+
+  /// I marroni. Tre e non uno: una macchia sola di un colore solo sembra una
+  /// forma incollata sopra, tre sfumature sembrano roba.
+  static const List<Color> _marroni = [
+    Color(0xFF6B3F1D),
+    Color(0xFF80501F),
+    Color(0xFF53300F),
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (var i = 0; i < schizzi.length; i++) {
+      final schizzo = schizzi[i];
+      final volo = ((tempo - schizzo.parte) / _SplatStormBodyState._volo).clamp(
+        0.0,
+        1.0,
+      );
+
+      // Non ancora partito: non c'e' niente da disegnare.
+      if (volo <= 0) {
+        continue;
+      }
+
+      final direzione = Offset(
+        math.cos(schizzo.angolo),
+        math.sin(schizzo.angolo),
+      );
+      final arrivo = centro + direzione * (raggio * schizzo.dove);
+      final colore = _marroni[i % _marroni.length];
+
+      if (volo < 1) {
+        _volante(canvas, schizzo, direzione, arrivo, colore, volo);
+
+        continue;
+      }
+
+      _macchia(canvas, schizzo, arrivo, colore, i);
     }
+  }
 
+  /// Lo schizzo mentre viaggia, con la sua scia.
+  ///
+  /// La scia sono tre copie sempre piu' deboli dietro di lui, lungo la
+  /// direzione da cui arriva: e' il modo in cui l'occhio legge la velocita'.
+  /// Una sfocatura uguale su tutti i lati direbbe "fuori fuoco", non "veloce".
+  void _volante(
+    Canvas canvas,
+    _Schizzo schizzo,
+    Offset direzione,
+    Offset arrivo,
+    Color colore,
+    double volo,
+  ) {
     // Accelera mentre arriva: una cosa tirata addosso a qualcuno non viaggia a
     // velocita' costante, e l'occhio se ne accorge subito quando lo fa.
-    final avvicinarsi = Curves.easeIn.transform(volo);
+    final avanti = Curves.easeIn.transform(volo);
+    final partenza = arrivo + direzione * lontano;
+    final dove = Offset.lerp(partenza, arrivo, avanti)!;
+    final misura = schizzo.grande * 0.32;
 
-    final arrivo = Offset(
-      tiro.dove.dx * schermo.width,
-      tiro.dove.dy * schermo.height,
-    );
-    final partenza =
-        arrivo +
-        Offset(tiro.da.dx * schermo.width, tiro.da.dy * schermo.height);
-    final dove = Offset.lerp(partenza, arrivo, avvicinarsi)!;
+    for (var scia = 2; scia >= 0; scia--) {
+      final dietro = dove + direzione * (misura * 1.5 * scia);
+      final forza = (1 - scia * 0.3) * visibile;
 
-    final colpo = ((tempo - tiro.parte - _volo) / _spiaccico).clamp(0.0, 1.0);
-
-    // **La scia, invece della deformazione.**
-    //
-    // Prima si allargavano e si schiacciavano nell'istante dell'impatto, e il
-    // risultato era una cacca stirata — un disegno tirato per i lati, che si
-    // legge come un difetto e non come un colpo. Al suo posto c'e' quello che
-    // succede davvero a una cosa che viaggia veloce: si sfoca **nella
-    // direzione in cui va**, e la sfocatura si spegne quando si ferma.
-    //
-    // Cresce con la velocita' — che con una curva in accelerazione vuol dire
-    // con il quadrato di quanto manca all'arrivo — e sulla misura della cacca:
-    // una grande che passa lascia piu' scia di una piccola.
-    final velocita = colpo <= 0 ? volo * volo : 1 - colpo;
-    final scia = velocita * 9 * (tiro.grande / 40);
-
-    // **La pulizia.** Scivolano verso il basso e svaniscono, ognuna con il suo
-    // ritardo: sparissero tutte nello stesso fotogramma sembrerebbe che
-    // qualcuno abbia spento l'interruttore. Nient'altro — non si restringono e
-    // non si allungano, restano quelle che sono fino all'ultimo fotogramma.
-    final quandoVia = _pulizia + (tiro.parte * 0.35);
-    final via = tempo <= quandoVia
-        ? 0.0
-        : ((tempo - quandoVia) / (1 - quandoVia)).clamp(0.0, 1.0);
-    final scivola = Curves.easeIn.transform(via);
-
-    return Positioned(
-      left: dove.dx - tiro.grande / 2,
-      top: dove.dy - tiro.grande / 2 + scivola * 44,
-      child: Opacity(
-        opacity: (1 - via).clamp(0.0, 1.0),
-        child: Transform.rotate(
-          // Gira mentre vola e si ferma quando arriva: una cacca che continua a
-          // roteare da ferma non sta piu' su niente.
-          angle: tiro.storta * (1 - avvicinarsi),
-          child: _sfocata(scia: scia, verso: tiro.da, grande: tiro.grande),
-        ),
-      ),
-    );
+      canvas.drawCircle(
+        dietro,
+        misura * (1 - scia * 0.18),
+        Paint()..color = colore.withValues(alpha: 0.9 * forza),
+      );
+    }
   }
 
-  /// La cacca con la sua scia, **nella direzione in cui viaggia**.
+  /// La macchia, una volta arrivato.
   ///
-  /// La sfocatura non e' uguale sui due assi: e' forte lungo la traiettoria e
-  /// quasi nulla di traverso, che e' quello che fa sembrare una scia invece di
-  /// una cosa fuori fuoco. Le due misure escono dalla direzione di arrivo,
-  /// normalizzata — se arriva da sinistra si sfoca in orizzontale, se piove
-  /// dall'alto in verticale.
-  ///
-  /// Ferma non si sfoca affatto, e il filtro non si applica proprio: sfocare di
-  /// zero costa comunque un passaggio di disegno in piu' per ognuna delle
-  /// diciotto, e per niente.
-  Widget _sfocata({
-    required double scia,
-    required Offset verso,
-    required double grande,
-  }) {
-    final cacca = Text('💩', style: TextStyle(fontSize: grande));
+  /// Si apre di scatto e poi resta: **non e' un cerchio**, o sembrerebbe un
+  /// bollo appiccicato sopra. E' una forma storta con qualche goccia intorno,
+  /// e le storture sono le stesse ogni volta perche' escono da un conto e non
+  /// dal caso — una macchia che cambia forma a ogni fotogramma tremola.
+  void _macchia(
+    Canvas canvas,
+    _Schizzo schizzo,
+    Offset dove,
+    Color colore,
+    int seme,
+  ) {
+    final aperta = ((tempo - schizzo.parte - _SplatStormBodyState._volo) /
+            _SplatStormBodyState._apertura)
+        .clamp(0.0, 1.0);
 
-    if (scia < 0.4) {
-      return cacca;
+    // Un filo oltre e poi indietro: e' lo scatto che fa sembrare che sia
+    // arrivata di forza invece di comparire.
+    final scatto = Curves.easeOutBack.transform(aperta);
+    final misura = schizzo.grande / 2 * scatto;
+
+    if (misura <= 0) {
+      return;
     }
 
-    final lunghezza = verso.distance;
+    final pennello = Paint()
+      ..color = colore.withValues(alpha: 0.92 * visibile);
 
-    if (lunghezza == 0) {
-      return cacca;
+    canvas.drawPath(_forma(dove, misura, seme), pennello);
+
+    // Le gocce: quattro, sparse intorno e sempre piu' lontane man mano che la
+    // macchia si apre. Sono loro a far sembrare che qualcosa sia **esploso**
+    // li' sopra, invece di essere stato appoggiato.
+    for (var g = 0; g < 4; g++) {
+      final angolo = _caso(seme, g) * math.pi * 2;
+      final distanza = misura * (1.2 + _caso(seme, g + 10) * 1.1);
+      final piccola = misura * (0.14 + _caso(seme, g + 20) * 0.16);
+
+      canvas.drawCircle(
+        dove + Offset(math.cos(angolo), math.sin(angolo)) * distanza,
+        piccola,
+        pennello,
+      );
     }
-
-    return ImageFiltered(
-      imageFilter: ImageFilter.blur(
-        sigmaX: scia * (verso.dx / lunghezza).abs(),
-        sigmaY: scia * (verso.dy / lunghezza).abs(),
-        // Senza questo la sfocatura si ferma al bordo del riquadro e la scia
-        // esce tagliata di netto, come se la cacca stesse dietro una finestra.
-        tileMode: TileMode.decal,
-      ),
-      child: cacca,
-    );
   }
+
+  /// Una forma storta: un giro di punti con il raggio che balla, uniti da
+  /// curve.
+  Path _forma(Offset centro, double misura, int seme) {
+    const lati = 9;
+    final punti = <Offset>[];
+
+    for (var i = 0; i < lati; i++) {
+      final angolo = i / lati * math.pi * 2;
+      final quanto = misura * (0.72 + _caso(seme, i) * 0.55);
+
+      punti.add(
+        centro + Offset(math.cos(angolo), math.sin(angolo)) * quanto,
+      );
+    }
+
+    final path = Path()
+      ..moveTo(
+        (punti[0].dx + punti[lati - 1].dx) / 2,
+        (punti[0].dy + punti[lati - 1].dy) / 2,
+      );
+
+    for (var i = 0; i < lati; i++) {
+      final ora = punti[i];
+      final poi = punti[(i + 1) % lati];
+
+      // Il punto e' il vertice della curva, il mezzo fra due e' dove la curva
+      // passa: cosi' il giro si chiude tondo invece che a spigoli.
+      path.quadraticBezierTo(
+        ora.dx,
+        ora.dy,
+        (ora.dx + poi.dx) / 2,
+        (ora.dy + poi.dy) / 2,
+      );
+    }
+
+    return path..close();
+  }
+
+  /// Un numero fra zero e uno che dipende solo da dove lo si chiede.
+  ///
+  /// Serve a dare a ogni macchia la sua forma storta **senza il caso**: chiamato
+  /// con gli stessi due numeri risponde sempre lo stesso, quindi la macchia sta
+  /// ferma da un fotogramma all'altro invece di tremolare.
+  double _caso(int seme, int i) {
+    final x = math.sin(seme * 12.9898 + i * 78.233) * 43758.5453;
+
+    return x - x.floorToDouble();
+  }
+
+  @override
+  bool shouldRepaint(_SchizziPainter vecchio) =>
+      vecchio.tempo != tempo ||
+      vecchio.centro != centro ||
+      vecchio.visibile != visibile;
 }

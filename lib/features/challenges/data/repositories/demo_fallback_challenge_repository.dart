@@ -244,6 +244,14 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
       _forChallenge(challengeId).deleteChallenge(challengeId);
 
   @override
+  Stream<List<Challenge>> watchRecentlyClosedFor(String userId) {
+    return _unione(
+      _remote.watchRecentlyClosedFor(userId),
+      _samples.watchRecentlyClosedFor(userId),
+    );
+  }
+
+  @override
   Stream<List<Challenge>> watchTrophiesOf(String userId) {
     return _unione(
       _remote.watchTrophiesOf(userId),

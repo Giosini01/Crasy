@@ -385,6 +385,43 @@ final partyChallengesProvider = Provider<List<Challenge>>((ref) {
   return party;
 });
 
+/// **Le missioni del party appena finite**, con dentro chi ha vinto.
+///
+/// Sparivano nell'istante in cui scadevano — il party guarda solo le gare
+/// aperte — cioe' proprio nel momento in cui uno le vuole guardare: com'e'
+/// andata, chi l'ha presa, con che foto. Restavano nella bacheca dei trofei di
+/// chi aveva vinto, che e' il posto giusto per ricordarsele **dopo**, ma il
+/// giorno stesso il gruppo non aveva piu' niente da commentare.
+///
+/// Ventiquattro ore e poi via. Il party e' una cosa di oggi: un elenco che
+/// cresce all'infinito smette di dire "guarda com'e' finita" e comincia a dire
+/// "ecco l'archivio", che e' un'altra schermata e nessuno l'ha chiesta.
+final recentlyClosedProvider = StreamProvider<List<Challenge>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+
+  if (userId == null) {
+    return Stream.value(const <Challenge>[]);
+  }
+
+  return ref.watch(challengeRepositoryProvider).watchRecentlyClosedFor(userId);
+});
+
+/// Quelle che hanno prodotto qualcosa: la figurina c'e' solo se c'e' la foto.
+///
+/// **Le altre non si mostrano**, e non e' una svista: una gara chiusa senza
+/// vincitore — non ha partecipato nessuno, o la sfida e' stata rifiutata — in
+/// una bacheca di figurine sarebbe una cornice vuota, che si legge come un
+/// difetto di caricamento e non come "non e' successo niente".
+final closedPartyProvider = Provider<List<Challenge>>((ref) {
+  final chiuse =
+      ref.watch(recentlyClosedProvider).valueOrNull ?? const <Challenge>[];
+
+  return [
+    for (final challenge in chiuse)
+      if (challenge.hasTrophy) challenge,
+  ];
+});
+
 /// **Le sfide che mi hanno lanciato**: Mario ha sfidato me.
 ///
 /// Prima quelle a cui devo ancora rispondere, poi le altre. Non e' un ordine

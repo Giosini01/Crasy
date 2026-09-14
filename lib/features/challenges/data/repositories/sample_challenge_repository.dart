@@ -85,6 +85,12 @@ class SampleChallengeRepository implements ChallengeRepository {
   Stream<List<Challenge>> watchChallengesFor(String userId) =>
       Stream.value(const <Challenge>[]);
 
+  // Le gare di esempio non sono riservate a nessuno: non entrano nel party, ne'
+  // aperte ne' appena chiuse.
+  @override
+  Stream<List<Challenge>> watchRecentlyClosedFor(String userId) =>
+      Stream.value(const <Challenge>[]);
+
   @override
   Stream<ChallengeEntry?> watchTopEntry(
     String challengeId, {

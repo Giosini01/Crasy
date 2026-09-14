@@ -16,6 +16,7 @@ import 'package:crasy/features/challenges/presentation/widgets/duel_badge.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
+import 'package:crasy/features/profile/presentation/widgets/trophy_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -39,6 +40,9 @@ enum FriendActivityView {
 
   /// Le gare pubbliche che hanno lanciato loro.
   missions('DI AMICI'),
+
+  /// Quelle finite oggi, con la figurina di chi ha vinto.
+  closed('CHIUSE'),
 
   /// Le foto con cui sono in gara adesso.
   ///
@@ -100,6 +104,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
   Widget build(BuildContext context) {
     final view = ref.watch(friendActivityViewProvider);
     final missions = ref.watch(friendChallengesProvider);
+    final chiuse = ref.watch(closedPartyProvider);
     final entries = ref.watch(friendEntriesProvider);
     // **Le missioni che ho lanciato io, prese dal provider che le sa.**
     //
@@ -157,6 +162,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                       sent: sent.length,
                       party: party.length,
                       missions: missions.length,
+                      closed: chiuse.length,
                       entries: entries.length,
                       daFare: ref.watch(pendingDuelsCountProvider),
                     ),
@@ -176,6 +182,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                       sent: sent,
                       party: party,
                       missions: missions,
+                      closed: chiuse,
                       entries: entries,
                     ),
                   ],
@@ -200,6 +207,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
     required List<Challenge> sent,
     required List<Challenge> party,
     required List<Challenge> missions,
+    required List<Challenge> closed,
     required List<ChallengeEntry> entries,
   }) {
     switch (view) {
@@ -273,6 +281,38 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
           for (final challenge in missions) _MissionRow(challenge: challenge),
         ];
 
+      case FriendActivityView.closed:
+        if (closed.isEmpty) {
+          return const [
+            EmptyState(
+              title: 'Niente di finito oggi',
+              message:
+                  'Quando una missione del party o una sfida arriva alla fine, '
+                  'qui trovi la figurina di chi l\'ha vinta. Resta un giorno, '
+                  'poi vive sul profilo di chi se l\'è presa.',
+            ),
+          ];
+        }
+
+        return [
+          // **Le stesse figurine del profilo, e non una scheda nuova.** Una
+          // gara vinta ha gia' una faccia in questa app — la figurina con la
+          // foto e la cifra — e inventarne una seconda per dire la stessa cosa
+          // vorrebbe dire due modi di guardare una vittoria, da tenere
+          // d'accordo per sempre.
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: Text(
+              'Finite nelle ultime 24 ore. Poi restano sul profilo di chi ha '
+              'vinto.',
+              style: context.texts.bodySmall?.copyWith(
+                color: context.palette.textFaint,
+              ),
+            ),
+          ),
+          TrophyGrid(challenges: closed, kind: TrophyKind.won),
+        ];
+
       case FriendActivityView.entries:
         if (entries.isEmpty) {
           return const [
@@ -311,6 +351,7 @@ class _Switch extends ConsumerWidget {
     required this.sent,
     required this.party,
     required this.missions,
+    required this.closed,
     required this.entries,
     required this.daFare,
   });
@@ -319,6 +360,7 @@ class _Switch extends ConsumerWidget {
   final int sent;
   final int party;
   final int missions;
+  final int closed;
   final int entries;
 
   /// Quante sfide ricevute aspettano ancora una risposta.
@@ -335,6 +377,7 @@ class _Switch extends ConsumerWidget {
       FriendActivityView.sent => sent,
       FriendActivityView.party => party,
       FriendActivityView.missions => missions,
+      FriendActivityView.closed => closed,
       FriendActivityView.entries => entries,
     };
 
@@ -722,7 +765,12 @@ class _DuelRow extends ConsumerWidget {
               // ma non l'orologio, e quasi sempre quando uno ci ripensa la
               // scadenza e' gia' passata. Riaprirla scaduta vorrebbe dire un
               // tasto che sembra rotto.
-              if (received && state == DuelState.declined) ...[
+              //
+              // **Ma non per sempre: cinque ore.** Un no che si puo' disfare a
+              // distanza di giorni non e' un no, e' una risposta rimandata — e
+              // chi ha lanciato la sfida resta appeso a tempo indeterminato a
+              // una cosa a cui gli hanno gia' detto di no.
+              if (received && challenge.canReconsiderAt(DateTime.now())) ...[
                 const SizedBox(height: AppSpacing.sm),
                 OutlinedButton(
                   onPressed: busy ? null : () => controller.accept(challenge),

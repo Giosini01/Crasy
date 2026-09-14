@@ -28,7 +28,19 @@ List<Challenge> commissionedOrder(
             // una gara non pagata non si vede da nessuna parte, nemmeno sul
             // profilo di chi l'ha scritta. Sulle gare gia' concluse non si
             // applica, per non far sparire trofei che oggi si vedono.
-            if (challenge.isLiveAt(now) && challenge.isPayable) challenge,
+            //
+            // **E che non sia gia' stata chiusa**, che sembra ovvio e per anni
+            // lo e' stato: una gara normale il vincitore ce l'ha solo dopo la
+            // sirena, quindi "aperta" e "ha un trofeo" non potevano essere vere
+            // insieme. Una sfida mirata si chiude nell'istante in cui chi
+            // l'ha lanciata dice che vale — spesso ore prima della scadenza —
+            // e da quel momento era **tutte e due le cose**: finiva nell'elenco
+            // delle aperte e in quello dei trofei, e la stessa figurina
+            // compariva due volte di fila sul profilo di chi l'aveva lanciata.
+            if (challenge.isLiveAt(now) &&
+                challenge.winnerEntryId == null &&
+                challenge.isPayable)
+              challenge,
         ]
         // Prima quella **che chiude prima**: e' l'unica per cui guardare adesso
         // invece che stasera cambia qualcosa.

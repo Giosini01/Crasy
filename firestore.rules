@@ -842,9 +842,19 @@ service cloud.firestore {
       // allungarsi la scadenza a piacere. E il tempo nuovo puo' andare al
       // massimo venticinque ore avanti — le ventiquattro della sfida piu' il
       // margine di orologi che non sono mai perfettamente d'accordo.
+      //
+      // **E si torna indietro entro cinque ore, non per sempre.** Un no che si
+      // puo' disfare a distanza di giorni non e' un no: e' una risposta
+      // rimandata, e chi ha lanciato la sfida resta appeso a tempo
+      // indeterminato a una cosa a cui gli hanno gia' detto di no. Il conto
+      // parte da `respondedAt`, che e' l'ora del server e non quella del
+      // telefono — l'unica che non si possa spostare mettendo indietro
+      // l'orologio.
       allow update: if signedIn()
                     && resource.data.get('targetUserId', '') == request.auth.uid
                     && resource.data.get('duelStatus', '') == 'declined'
+                    && resource.data.respondedAt
+                       > request.time - duration.value(5, 'h')
                     && changedOnly(['duelStatus', 'respondedAt', 'endsAt'])
                     && request.resource.data.duelStatus == 'accepted'
                     && request.resource.data.endsAt > request.time

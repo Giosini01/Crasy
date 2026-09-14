@@ -30,6 +30,26 @@ void main() {
     );
   }
 
+  test('una sfida vinta prima della scadenza compare una volta sola', () {
+    // **Il difetto vero, e non un caso di scuola.** Per anni "ancora aperta" e
+    // "ha un trofeo" non potevano essere vere insieme: una gara normale il
+    // vincitore ce l'ha solo dopo la sirena. Una sfida mirata invece si chiude
+    // nell'istante in cui chi l'ha lanciata dice che vale, che sono spesso ore
+    // prima della scadenza — e da quel momento finiva in tutte e due le liste.
+    // La stessa figurina compariva due volte di fila sul profilo.
+    final vintaSubito = gara(
+      id: 'sfida-gia-giudicata',
+      inizio: adesso.subtract(const Duration(hours: 2)),
+      // La scadenza e' ancora avanti: la sfida durava un giorno.
+      fine: adesso.add(const Duration(hours: 22)),
+      conTrofeo: true,
+    );
+
+    final ordinate = commissionedOrder([vintaSubito], now: adesso);
+
+    expect(ordinate.map((c) => c.id), ['sfida-gia-giudicata']);
+  });
+
   test('le gare aperte stanno sopra i trofei', () {
     final trofeo = gara(
       id: 'vinta-ieri',
