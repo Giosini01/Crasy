@@ -317,11 +317,9 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
             ),
           ),
           for (final challenge in rejected)
-            _DuelRow(
-              challenge: challenge,
-              received: challenge.targetUserId == meId,
-            ),
-          for (final challenge in closed) _MissionRow(challenge: challenge),
+            _ClosedRow(challenge: challenge, meId: meId),
+          for (final challenge in closed)
+            _ClosedRow(challenge: challenge, meId: meId),
         ];
 
       case FriendActivityView.entries:
@@ -992,5 +990,158 @@ class _MissionRow extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+/// **Una gara finita, in una riga sola: chi, con chi, e com'e' andata.**
+///
+/// Sta a parte da [_DuelRow] e da [_MissionRow] perche' racconta un'altra cosa.
+/// Quelle due servono a **fare** qualcosa — accettare, rifiutare, andare a
+/// scattare, giudicare — e per quello hanno il titolo grande e i comandi
+/// sotto. Qui non c'e' niente da fare: la gara e' finita, e l'unica domanda e'
+/// com'e' finita. Tutto piccolo, tre righe, e si scorre.
+///
+/// **I due nomi ci sono sempre.** Su una sfida chiusa "hai sfidato @mario" non
+/// basta piu': il giorno dopo, in un elenco di roba finita, serve leggere in un
+/// colpo chi l'aveva lanciata e a chi era rivolta — senza doverci entrare.
+class _ClosedRow extends StatelessWidget {
+  const _ClosedRow({required this.challenge, required this.meId});
+
+  final Challenge challenge;
+  final String? meId;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+
+    final (segno, esito, colore) = _comEFinita(palette);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: GestureDetector(
+        onTap: () => context.push(AppRoutes.challengeDetailOf(challenge.id)),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            color: palette.surfaceMuted,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Chi contro chi. Su una missione di party il destinatario non
+              // c'e': c'e' il gruppo, e si scrive cosi'.
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      challenge.isDuel
+                          ? '@${challenge.createdByUsername} → '
+                                '@${challenge.targetUsername}'
+                          : 'Party · @${challenge.createdByUsername}',
+                      style: texts.labelSmall?.copyWith(
+                        color: palette.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(
+                    challenge.prizeLabel,
+                    style: texts.labelSmall?.copyWith(color: palette.accent),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                challenge.title.toUpperCase(),
+                // `labelMedium` e non un titolo: in un elenco di cose finite il
+                // titolo grande ruba lo spazio alla sola riga che si legge
+                // davvero, cioe' quella sotto.
+                style: texts.labelMedium,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Row(
+                children: [
+                  Text(segno, style: const TextStyle(fontSize: 13)),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      esito,
+                      style: texts.labelSmall?.copyWith(color: colore),
+                      maxLines: 2,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// La riga che dice com'e' andata, con il suo segno davanti.
+  ///
+  /// **La merda e' voluta, e sta solo dove ci va.** Su chi si e' tirato
+  /// indietro o non ce l'ha fatta in tempo: e' il fischio del pubblico, ed e'
+  /// esattamente quanto deve costare un no — una figuraccia fra amici, niente
+  /// di piu'. Su una sfida giudicata non valida no: li' la sfida l'ha fatta, e
+  /// il no e' arrivato da chi l'aveva chiesta.
+  (String, String, Color) _comEFinita(AppPalette palette) {
+    if (challenge.isDuel) {
+      final state = challenge.duelStateAt(DateTime.now());
+      final chi = challenge.targetUsername;
+      final io = meId != null && meId == challenge.targetUserId;
+
+      return switch (state) {
+        DuelState.completed => (
+          '🏆',
+          io ? 'Ce l\'hai fatta: sfida vinta.' : '@$chi ha vinto la sfida.',
+          palette.accent,
+        ),
+        DuelState.notValid => (
+          '👎',
+          io
+              ? 'Non è stata giudicata valida.'
+              : 'Hai giudicato la prova non valida.',
+          palette.textSecondary,
+        ),
+        DuelState.declined => (
+          '💩',
+          io ? 'Hai rifiutato la sfida.' : '@$chi ha rifiutato la sfida.',
+          palette.textSecondary,
+        ),
+        DuelState.expired => (
+          '💩',
+          io
+              ? 'Non ce l\'hai fatta in tempo.'
+              : '@$chi non l\'ha fatta in tempo.',
+          palette.textSecondary,
+        ),
+        DuelState.noVerdict => (
+          '⏳',
+          'Nessun giudizio in tempo: chiusa senza vincitore.',
+          palette.textSecondary,
+        ),
+        _ => ('⏳', 'Chiusa.', palette.textSecondary),
+      };
+    }
+
+    if (challenge.winnerUsername.isNotEmpty) {
+      final io = meId != null && meId == challenge.winnerUserId;
+
+      return (
+        '🏆',
+        io ? 'L\'hai vinta tu.' : 'Ha vinto @${challenge.winnerUsername}.',
+        palette.accent,
+      );
+    }
+
+    return ('—', 'Finita senza vincitore.', palette.textSecondary);
   }
 }

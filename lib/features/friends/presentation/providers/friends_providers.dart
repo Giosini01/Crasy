@@ -419,14 +419,54 @@ final recentlyClosedProvider = StreamProvider<List<Challenge>>((ref) {
 /// una cosa successa al gruppo, e in riga si legge benissimo — era la cornice
 /// vuota di una figurina a non stare in piedi.
 final closedPartyProvider = Provider<List<Challenge>>((ref) {
-  final chiuse =
-      ref.watch(recentlyClosedProvider).valueOrNull ?? const <Challenge>[];
+  final now = DateTime.now();
 
   return [
-    for (final challenge in chiuse)
+    for (final challenge in _tutteLeChiuse(ref, now))
       if (!challenge.isDuel) challenge,
   ];
 });
+
+/// Tutto quello che e' finito, da **tutti e due i posti in cui puo' stare**.
+///
+/// **Le due letture del database portano una soglia scritta a mano**, e la
+/// scrivono una volta sola: `endsAt > adesso` per le gare aperte, `endsAt <=
+/// adesso` per quelle chiuse, dove *adesso* e' il momento in cui l'app si e'
+/// messa in ascolto e non quello in cui si guarda. Con l'app aperta quelle due
+/// soglie restano ferme mentre il tempo passa.
+///
+/// E' il motivo per cui una sfida giudicata restava fra le ricevute: il
+/// verdetto le sposta la scadenza ad adesso, che e' **dopo** la soglia delle
+/// aperte — quindi continuava a comparire li' — ed e' **dopo** anche quella
+/// delle chiuse, quindi non compariva qui. Spariva da una parte sola.
+///
+/// Rifare le due letture a ogni minuto costerebbe una lettura del database a
+/// ogni minuto per tutti. Guardare l'orologio qui non costa niente: si prendono
+/// le gare da tutte e due gli elenchi e si tiene quello che a **questo** minuto
+/// e' davvero finito.
+List<Challenge> _tutteLeChiuse(Ref ref, DateTime now) {
+  final chiuse =
+      ref.watch(recentlyClosedProvider).valueOrNull ?? const <Challenge>[];
+  final aperte =
+      ref.watch(reservedChallengesProvider).valueOrNull ?? const <Challenge>[];
+
+  final ieri = now.subtract(const Duration(hours: 24));
+  final tutte = <String, Challenge>{};
+
+  for (final challenge in [...chiuse, ...aperte]) {
+    // Finita davvero: o il tempo e' scaduto, o qualcuno l'ha chiusa prima —
+    // che su una sfida mirata vuol dire che e' arrivato il verdetto.
+    final finita =
+        !challenge.isLiveAt(now) || challenge.duelVerdict.isGiven;
+
+    if (finita && challenge.endsAt.isAfter(ieri)) {
+      tutte[challenge.id] = challenge;
+    }
+  }
+
+  return tutte.values.toList()
+    ..sort((a, b) => b.endsAt.compareTo(a.endsAt));
+}
 
 /// Le sfide mirate finite oggi: giudicate, valide o no.
 ///
@@ -440,11 +480,10 @@ final closedPartyProvider = Provider<List<Challenge>>((ref) {
 /// ventiquattro ore, perche' per cinque ore si puo' ancora tornare indietro e
 /// una cosa su cui si puo' ancora agire non e' finita.
 final closedDuelsProvider = Provider<List<Challenge>>((ref) {
-  final chiuse =
-      ref.watch(recentlyClosedProvider).valueOrNull ?? const <Challenge>[];
+  final now = DateTime.now();
 
   return [
-    for (final challenge in chiuse)
+    for (final challenge in _tutteLeChiuse(ref, now))
       if (challenge.isDuel) challenge,
   ];
 });
@@ -466,7 +505,10 @@ final receivedDuelsProvider = Provider<List<Challenge>>((ref) {
 
   return [
     for (final challenge in riservate)
-      if (challenge.isDuel && challenge.targetUserId == meId) challenge,
+      if (challenge.isDuel &&
+          challenge.targetUserId == meId &&
+          !challenge.duelVerdict.isGiven)
+        challenge,
   ]..sort(_leDaFarePrima);
 });
 
@@ -485,9 +527,17 @@ final sentDuelsProvider = Provider<List<Challenge>>((ref) {
     return const <Challenge>[];
   }
 
+  // **Senza quelle gia' giudicate.** Una sfida decisa non e' piu' una cosa da
+  // fare ne' una cosa da aspettare: sta fra le chiuse. Il controllo e' sul
+  // verdetto e non sulla scadenza perche' la lettura del database porta una
+  // soglia scritta quando l'app si e' messa in ascolto, e una sfida chiusa
+  // mezz'ora dopo la supera comunque — restava li' fino al riavvio.
   return [
     for (final challenge in riservate)
-      if (challenge.isDuel && challenge.createdByUserId == meId) challenge,
+      if (challenge.isDuel &&
+          challenge.createdByUserId == meId &&
+          !challenge.duelVerdict.isGiven)
+        challenge,
   ]..sort(_leDaFarePrima);
 });
 
