@@ -967,7 +967,7 @@ class GoldPlaque extends StatelessWidget {
               FittedBox(
                 fit: BoxFit.scaleDown,
                 child: CrasyWordmark(
-                  size: 34 * _scala,
+                  size: 29 * _scala,
                   alignment: Alignment.center,
                   onDark: true,
                 ),
@@ -985,8 +985,8 @@ class GoldPlaque extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: texts.labelSmall?.copyWith(
                   color: Colors.white.withValues(alpha: 0.55),
-                  fontSize: 8 * _scala,
-                  letterSpacing: 2,
+                  fontSize: 7 * _scala,
+                  letterSpacing: 1.9,
                 ),
               ),
               const Spacer(),
@@ -997,8 +997,8 @@ class GoldPlaque extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: texts.labelSmall?.copyWith(
                   color: Colors.white,
-                  fontSize: 11 * _scala,
-                  letterSpacing: 0.8,
+                  fontSize: 9.5 * _scala,
+                  letterSpacing: 0.6,
                 ),
               ),
               SizedBox(height: AppSpacing.xxs * _scala),
@@ -1007,8 +1007,8 @@ class GoldPlaque extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: texts.labelSmall?.copyWith(
                   color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 8 * _scala,
-                  letterSpacing: 0.6,
+                  fontSize: 7 * _scala,
+                  letterSpacing: 0.5,
                 ),
               ),
               const Spacer(),
@@ -1017,7 +1017,7 @@ class GoldPlaque extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(segno, style: TextStyle(fontSize: 11 * _scala)),
+                  Text(segno, style: TextStyle(fontSize: 9.5 * _scala)),
                   SizedBox(width: 4 * _scala),
                   Flexible(
                     child: Text(
@@ -1026,8 +1026,8 @@ class GoldPlaque extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: texts.labelSmall?.copyWith(
                         color: Colors.white,
-                        fontSize: 8.5 * _scala,
-                        letterSpacing: 1,
+                        fontSize: 7.5 * _scala,
+                        letterSpacing: 0.9,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
