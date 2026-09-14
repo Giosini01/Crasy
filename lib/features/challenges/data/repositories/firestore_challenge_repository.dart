@@ -62,7 +62,9 @@ class FirestoreChallengeRepository implements ChallengeRepository {
         // destinatari non le puo' nemmeno leggere — lo impediscono le regole,
         // non un filtro scritto qui.
         .where('audience', arrayContains: Challenge.everyone)
-        .where('endsAt', isGreaterThan: Timestamp.now())
+        // Arrotondato al minuto: vedi `_adessoAlMinuto`. Con l'ora esatta
+        // questa query cambiava a ogni ricostruzione e si rileggeva intera.
+        .where('endsAt', isGreaterThan: _adessoAlMinuto())
         .orderBy('endsAt')
         // **Cinquanta, non tutte.** Senza tetto questa query legge ogni gara
         // aperta esistente, a ogni avvio, per ogni persona: con dieci utenti non
@@ -97,15 +99,19 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     // Firestore li accetta perche' sono tutti e due su `endsAt`, e sono cio'
     // che tiene questa schermata corta: le gare piu' vecchie non si leggono
     // nemmeno, e poco dopo il server le cancella del tutto.
-    final now = DateTime.now();
+    // **Lo stesso istante per tutti e due i limiti, e per l'altra lista.**
+    //
+    // Prima erano due `now()` diversi presi a un microsecondo di distanza; qui
+    // e' uno solo, arrotondato al minuto — vedi `_adessoAlMinuto`.
+    final adesso = _adessoAlMinuto();
 
     return _challenges
         .where('audience', arrayContains: Challenge.everyone)
-        .where('endsAt', isLessThanOrEqualTo: Timestamp.now())
+        .where('endsAt', isLessThanOrEqualTo: adesso)
         .where(
           'endsAt',
           isGreaterThan: Timestamp.fromDate(
-            now.subtract(Challenge.winnersWindow),
+            adesso.toDate().subtract(Challenge.winnersWindow),
           ),
         )
         .orderBy('endsAt', descending: true)
@@ -120,9 +126,12 @@ class FirestoreChallengeRepository implements ChallengeRepository {
             // cima a coprire le gare vere, quelle in cui qualcuno ha vinto dei
             // soldi. Un giorno basta: chi l'ha fatta ieri sera passa di qui la
             // mattina dopo e vede chi ha vinto.
+            // Questo filtro gira **in memoria**, a ogni emissione: qui
+            // l'orologio vero non costa niente e non entra in nessuna query,
+            // quindi si guarda l'ora esatta e non quella arrotondata.
             if (challenge.isDaily &&
                 challenge.endsAt.isBefore(
-                  now.subtract(const Duration(hours: 24)),
+                  DateTime.now().subtract(const Duration(hours: 24)),
                 )) {
               return false;
             }
@@ -944,6 +953,40 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     );
 
     return uscita.stream;
+  }
+
+  /// **Adesso, arrotondato al minuto.**
+  ///
+  /// Le due liste della home chiedono `endsAt > adesso` e `endsAt <= adesso`, e
+  /// quell'*adesso* finisce **dentro la query**. Con l'ora esatta la query e'
+  /// letteralmente un'altra a ogni ricostruzione: Firestore non puo' riprendere
+  /// l'ascolto da dove era rimasto — non riconosce la domanda — e rilegge tutti
+  /// i documenti dal server. Con `AutoRefresh` che rifaceva le liste ogni
+  /// cinque secondi, erano **settecentoventi riletture complete all'ora**, per
+  /// ogni persona con l'app aperta: la voce piu' alta del conto delle letture,
+  /// di gran lunga.
+  ///
+  /// Tagliando i secondi la domanda resta **la stessa per sessanta secondi**.
+  /// L'ascolto riprende invece di ricominciare, e si paga solo quello che e'
+  /// cambiato davvero.
+  ///
+  /// **Si taglia verso il basso, e conta.** Per le gare aperte (`endsAt >`)
+  /// vuol dire tenerne dentro qualcuna in piu' per meno di un minuto; per le
+  /// finite (`endsAt <=`) vuol dire lasciarne fuori le stesse. Le due liste
+  /// usano lo stesso istante, quindi una gara **esce dalle aperte ed entra
+  /// nelle finite nello stesso momento**: prima, con due `now()` presi a un
+  /// microsecondo di distanza, poteva capitare che per un istante non stesse
+  /// in nessuna delle due — o in tutte e due.
+  ///
+  /// Che una gara appena scaduta resti in elenco fino a un minuto non la fa
+  /// sembrare aperta: il tempo che manca lo conta `CountdownText`, che va per
+  /// conto suo un secondo alla volta e scrive *chiusa* appena scade.
+  static Timestamp _adessoAlMinuto() {
+    final now = DateTime.now();
+
+    return Timestamp.fromDate(
+      DateTime(now.year, now.month, now.day, now.hour, now.minute),
+    );
   }
 
   /// La bacheca si legge dall'ultimo trofeo: e' quello di cui ci si ricorda.

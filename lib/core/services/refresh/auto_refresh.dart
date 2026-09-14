@@ -16,9 +16,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// una gara scaduta continua a comparire, una che comincia dopo non compare mai,
 /// e il tempo che manca resta quello di quando si e' aperta l'app.
 ///
-/// Ogni cinque secondi le liste si rifanno con la data di adesso. Non e' un
-/// costo che si sente: Firestore serve dalla copia locale quello che ha gia', e
-/// va in rete solo per cio' che e' davvero cambiato.
+/// Ogni minuto le liste si rifanno con la data di adesso.
+///
+/// **Erano cinque secondi, e quel numero costava piu' di tutto il resto
+/// dell'app messo insieme.** Il ragionamento scritto qui sotto — Firestore
+/// serve dalla copia locale e va in rete solo per cio' che e' cambiato — e'
+/// giusto per cinque provider su sette, e falso proprio per i due che pesano:
+/// le due liste delle challenge portano `Timestamp.now()` **dentro la query**,
+/// quindi a ogni giro la domanda era letteralmente un'altra, l'ascolto non
+/// poteva riprendere da dove era e i documenti si rileggevano **tutti**. A
+/// dodici giri al minuto erano settecentoventi riletture complete all'ora, per
+/// ogni persona con l'app aperta.
+///
+/// Adesso quelle due query arrotondano l'orologio al minuto (vedi
+/// `_adessoAlMinuto` in `FirestoreChallengeRepository`), quindi la domanda
+/// resta la stessa per sessanta secondi e l'ascolto riprende invece di
+/// ricominciare. Le due cose vanno insieme: il minuto qui e il minuto li'.
+/// Cambiarne una sola rimette il problema, in piccolo.
 ///
 /// Si rifanno **anche al ritorno dell'app**. E' il momento in cui il divario e'
 /// piu' grande — il telefono e' rimasto in tasca un'ora — ed e' anche l'unico in
@@ -28,9 +42,17 @@ class AutoRefresh extends ConsumerStatefulWidget {
 
   final Widget child;
 
-  /// Ogni quanto. Cinque secondi e' quello che serve a non far mai vedere una
-  /// gara scaduta come aperta, che e' la cosa che qui si sta evitando.
-  static const Duration every = Duration(seconds: 5);
+  /// Ogni quanto.
+  ///
+  /// **Un minuto**, ed e' lo stesso minuto a cui sono arrotondate le due query
+  /// delle challenge: rifarle piu' spesso non cambierebbe niente — la domanda
+  /// sarebbe identica e tornerebbe la stessa risposta — e rifarle piu' di rado
+  /// lascerebbe una gara scaduta in elenco piu' a lungo.
+  ///
+  /// Una gara che scade puo' restare in elenco fino a un minuto, e in quel
+  /// minuto non sembra aperta: il tempo che manca lo conta `CountdownText`, che
+  /// va per conto suo un secondo alla volta e scrive *chiusa* appena scade.
+  static const Duration every = Duration(minutes: 1);
 
   @override
   ConsumerState<AutoRefresh> createState() => _AutoRefreshState();
