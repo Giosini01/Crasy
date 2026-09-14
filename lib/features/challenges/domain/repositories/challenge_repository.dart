@@ -207,12 +207,23 @@ abstract class ChallengeRepository {
   Stream<List<Challenge>> watchRecentlyClosedFor(String userId);
 
   /// Le gare che [userId] ha **vinto**. La sua bacheca dei trofei.
-  Stream<List<Challenge>> watchTrophiesOf(String userId);
+  ///
+  /// [viewerId] e' **chi sta guardando**, e cambia cosa si vede: le gare
+  /// riservate compaiono solo a chi ne fa parte. Non e' una regola
+  /// dell'interfaccia — e' la stessa che il database applica leggendo
+  /// `audience` — ma va detta anche qui, perche' una lettura che chiede piu' di
+  /// quello che si puo' avere non torna filtrata: **fallisce tutta**, e la
+  /// bacheca resta vuota per chiunque non sia amico.
+  Stream<List<Challenge>> watchTrophiesOf(String userId, {String? viewerId});
 
   /// Le gare che [userId] ha **commissionato** e che hanno prodotto qualcosa.
   ///
   /// Chi mette i soldi non gareggia, quindi non vincera' mai niente: senza
   /// questo, del gesto piu' impegnativo dell'app non resterebbe traccia. Qui
   /// resta la foto che ha fatto fare.
-  Stream<List<Challenge>> watchCommissionedBy(String userId);
+  ///
+  /// [viewerId] vale come per [watchTrophiesOf]: chi non e' amico di [userId]
+  /// vede le sue gare pubbliche e nient'altro — le missioni lanciate al gruppo
+  /// restano dentro il gruppo.
+  Stream<List<Challenge>> watchCommissionedBy(String userId, {String? viewerId});
 }

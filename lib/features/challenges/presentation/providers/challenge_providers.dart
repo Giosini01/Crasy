@@ -359,7 +359,13 @@ final trophiesOfProvider = StreamProvider.family<List<Challenge>, String>((
   ref,
   userId,
 ) {
-  return ref.watch(challengeRepositoryProvider).watchTrophiesOf(userId);
+  // **Chi guarda cambia cosa si vede.** Le gare riservate compaiono solo a chi
+  // ne fa parte: senza dirlo alla lettura, il database non filtra — rifiuta
+  // tutta la richiesta, e la bacheca di chi ha vinto una missione fra amici
+  // resta vuota per chiunque non sia dei loro.
+  return ref
+      .watch(challengeRepositoryProvider)
+      .watchTrophiesOf(userId, viewerId: ref.watch(currentUserIdProvider));
 });
 
 final myTrophiesProvider = StreamProvider<List<Challenge>>((ref) {
@@ -371,7 +377,7 @@ final myTrophiesProvider = StreamProvider<List<Challenge>>((ref) {
 
   return ref
       .watch(challengeRepositoryProvider)
-      .watchTrophiesOf(authState.user.id);
+      .watchTrophiesOf(authState.user.id, viewerId: authState.user.id);
 });
 
 /// **Quante sfide d'onore ho portato a termine.**
@@ -401,7 +407,9 @@ final commissionsOfProvider = StreamProvider.family<List<Challenge>, String>((
   ref,
   userId,
 ) {
-  return ref.watch(challengeRepositoryProvider).watchCommissionedBy(userId);
+  return ref
+      .watch(challengeRepositoryProvider)
+      .watchCommissionedBy(userId, viewerId: ref.watch(currentUserIdProvider));
 });
 
 final myCommissionsProvider = StreamProvider<List<Challenge>>((ref) {
@@ -413,7 +421,7 @@ final myCommissionsProvider = StreamProvider<List<Challenge>>((ref) {
 
   return ref
       .watch(challengeRepositoryProvider)
-      .watchCommissionedBy(authState.user.id);
+      .watchCommissionedBy(authState.user.id, viewerId: authState.user.id);
 });
 
 /// Cosa stanno facendo adesso le persone che seguo.

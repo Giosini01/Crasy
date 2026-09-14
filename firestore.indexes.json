@@ -73,6 +73,51 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "comment": "La bacheca dei trofei di una persona, letta da chi non e' dei suoi amici: si chiedono solo le gare che chi guarda puo' davvero leggere, quindi il vincitore e l'audience nella stessa lettura.",
+      "collectionGroup": "challenges",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "winnerUserId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "audience",
+          "arrayConfig": "CONTAINS"
+        }
+      ]
+    },
+    {
+      "comment": "Lo stesso per le gare lanciate da una persona: chi non e' suo amico vede le pubbliche e nient'altro.",
+      "collectionGroup": "challenges",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "createdByUserId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "audience",
+          "arrayConfig": "CONTAINS"
+        }
+      ]
+    },
+    {
+      "comment": "Le sfide mirate portate a termine, che si vedono sul profilo di chi le ha vinte anche da fuori: vincitore e verdetto nella stessa lettura.",
+      "collectionGroup": "challenges",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "winnerUserId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "duelVerdict",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [

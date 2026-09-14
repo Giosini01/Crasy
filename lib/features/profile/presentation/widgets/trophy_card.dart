@@ -10,6 +10,7 @@ import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
+import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -557,6 +558,20 @@ class TrophyGrid extends StatelessWidget {
       itemBuilder: (context, index) {
         final challenge = challenges[index];
 
+        // **Una sfida lanciata non e' una figurina.** Una figurina e' la foto
+        // di chi ha vinto dentro una cornice, e quella e' di chi l'ha fatta:
+        // rimetterla sulla bacheca di chi ha solo chiesto la cosa vuol dire
+        // prendersi il merito del lavoro di un altro, e per giunta la stessa
+        // immagine finisce su due profili. Al suo posto c'e' il cartellino
+        // della prova: due nomi, la consegna, e il timbro di com'e' andata.
+        if (challenge.isDuel && kind == TrophyKind.commissioned) {
+          return GestureDetector(
+            onTap: () => context.push(AppRoutes.challengeDetailOf(challenge.id)),
+            behavior: HitTestBehavior.opaque,
+            child: DuelStamp(challenge: challenge),
+          );
+        }
+
         return GestureDetector(
           onTap: () => showTrophy(context, challenge: challenge, kind: kind),
           behavior: HitTestBehavior.opaque,
@@ -763,5 +778,108 @@ class _Line extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: riga,
     );
+  }
+}
+
+/// **La prova d'onore: il cartellino di una sfida che hai lanciato tu.**
+///
+/// Non e' una figurina, ed e' tutto il punto. Una figurina e' la foto di chi ha
+/// vinto dentro una cornice: la si colleziona perche' dentro c'e' **la cosa
+/// che e' successa**, ed e' di chi l'ha fatta. Una sfida lanciata e' il gesto
+/// opposto — non l'hai fatta tu, l'hai chiesta tu — e metterci dentro la foto
+/// di un altro vuol dire prendersi il merito del suo lavoro, oltre che
+/// duplicare la stessa immagine su due profili diversi.
+///
+/// Qui non c'e' nessuna foto. C'e' quello che una sfida e' davvero: **due nomi,
+/// una consegna, e come e' andata a finire** — con il timbro sopra, che e' la
+/// cosa che si legge da lontano scorrendo la bacheca.
+class DuelStamp extends StatelessWidget {
+  const DuelStamp({required this.challenge, super.key});
+
+  final Challenge challenge;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+    final state = challenge.duelStateAt(DateTime.now());
+    final (timbro, segno, colore) = _timbro(state, palette);
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        color: palette.surfaceMuted,
+        // Il bordo prende il colore dell'esito: scorrendo la bacheca si legge
+        // com'e' andata prima ancora di leggere le parole.
+        border: Border.all(color: colore.withValues(alpha: 0.55)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'PROVA D\'ONORE',
+            style: texts.labelSmall?.copyWith(
+              color: palette.textFaint,
+              fontSize: 8,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            '@${challenge.targetUsername}',
+            style: texts.labelMedium,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              challenge.title.toUpperCase(),
+              style: texts.labelSmall?.copyWith(color: palette.textSecondary),
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          // Il timbro, in fondo: e' l'unica cosa che si legge da lontano.
+          Row(
+            children: [
+              Text(segno, style: const TextStyle(fontSize: 13)),
+              const SizedBox(width: AppSpacing.xxs),
+              Expanded(
+                child: Text(
+                  timbro,
+                  style: texts.labelSmall?.copyWith(
+                    color: colore,
+                    fontSize: 9,
+                    letterSpacing: 0.8,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Il timbro: cosa c'e' scritto sopra, con che segno e di che colore.
+  ///
+  /// **La merda sta solo dove ci va**: su chi si e' tirato indietro o non ce
+  /// l'ha fatta in tempo. Su una prova giudicata non valida no — li' la sfida
+  /// l'ha fatta, e il no e' arrivato da chi l'aveva chiesta, cioe' da chi sta
+  /// guardando questa bacheca.
+  (String, String, Color) _timbro(DuelState state, AppPalette palette) {
+    return switch (state) {
+      DuelState.completed => ('SUPERATA', '🏆', palette.accent),
+      DuelState.notValid => ('NON VALIDA', '👎', palette.textSecondary),
+      DuelState.declined => ('RIFIUTATA', '💩', palette.textSecondary),
+      DuelState.expired => ('NON FATTA', '💩', palette.textSecondary),
+      DuelState.noVerdict => ('SENZA GIUDIZIO', '⏳', palette.textFaint),
+      DuelState.judging => ('DA GIUDICARE', '⚖️', palette.accent),
+      _ => ('IN CORSO', '⏳', palette.textFaint),
+    };
   }
 }

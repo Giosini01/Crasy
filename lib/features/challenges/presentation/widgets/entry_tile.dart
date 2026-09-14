@@ -45,17 +45,13 @@ class EntryTile extends ConsumerWidget {
     final texts = context.texts;
     final createdAt = entry.createdAt;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        FireTap(
-          entry: entry,
-          onTap: () => FullscreenMedia.open(
-            context,
-            entries: siblings ?? [entry],
-            entry: entry,
-          ),
-          child: MediaFrame(
+    void apri() => FullscreenMedia.open(
+      context,
+      entries: siblings ?? [entry],
+      entry: entry,
+    );
+
+    final foto = MediaFrame(
             // **L'originale, non la miniatura.** Qui la foto e' larga quanto
             // lo schermo: su un telefono a tripla densita' vuol dire piu' di
             // mille punti veri, e qualunque copia ridotta si vede sgranata.
@@ -67,11 +63,29 @@ class EntryTile extends ConsumerWidget {
             // La propria foto in attesa si vede, con scritto che e' in coda:
             // sapere che sta per essere controllata e' molto meglio che vederla
             // sparire senza spiegazioni.
-            overlay: entry.moderation == EntryModeration.pending
-                ? const _PendingOverlay()
-                : null,
-          ),
-        ),
+      overlay: entry.moderation == EntryModeration.pending
+          ? const _PendingOverlay()
+          : null,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // **Su una sfida uno contro uno la fiamma non c'e'.**
+        //
+        // Le fiamme servono a decidere chi vince fra tanti: con un
+        // partecipante solo non spostano niente, perche' a dire se ha vinto e'
+        // chi la sfida l'ha lanciata. Il doppio tocco qui non farebbe nulla —
+        // `giveFire` lo ferma — e un gesto che non fa nulla e' peggio di un
+        // gesto che non c'e': fa credere di star facendo qualcosa per l'esito.
+        if (entry.isDuel)
+          GestureDetector(
+            onTap: apri,
+            behavior: HitTestBehavior.opaque,
+            child: foto,
+          )
+        else
+          FireTap(entry: entry, onTap: apri, child: foto),
         const SizedBox(height: AppSpacing.sm),
         Row(
           children: [
@@ -121,8 +135,10 @@ class EntryTile extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
-            VoteButton(entry: entry),
+            if (!entry.isDuel) ...[
+              const SizedBox(width: AppSpacing.sm),
+              VoteButton(entry: entry),
+            ],
           ],
         ),
       ],

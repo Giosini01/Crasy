@@ -440,7 +440,7 @@ class SampleChallengeRepository implements ChallengeRepository {
   }
 
   @override
-  Stream<List<Challenge>> watchTrophiesOf(String userId) {
+  Stream<List<Challenge>> watchTrophiesOf(String userId, {String? viewerId}) {
     return _watch(
       () => [
         for (final challenge in _challenges.values)
@@ -451,7 +451,10 @@ class SampleChallengeRepository implements ChallengeRepository {
   }
 
   @override
-  Stream<List<Challenge>> watchCommissionedBy(String userId) {
+  Stream<List<Challenge>> watchCommissionedBy(
+    String userId, {
+    String? viewerId,
+  }) {
     // Le aperte prima, i trofei dopo: la stessa regola del repository vero, e
     // per questo scritta una volta sola nel dominio. Due copie sarebbero due
     // bacheche che si comportano diversamente a seconda che Firebase sia

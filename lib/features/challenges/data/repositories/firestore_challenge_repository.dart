@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -820,41 +821,129 @@ class FirestoreChallengeRepository implements ChallengeRepository {
   }
 
   @override
-  Stream<List<Challenge>> watchTrophiesOf(String userId) {
+  Stream<List<Challenge>> watchTrophiesOf(String userId, {String? viewerId}) {
     // Senza `orderBy`: incrociare un filtro e un ordinamento su campi diversi
     // costringe Firestore a un indice composto, e un indice mancante non e' un
     // errore che si vede scrivendo il codice — e' una schermata vuota in mano a
     // qualcuno. Sono pochi documenti: si ordinano qui.
-    return _challenges
-        .where('winnerUserId', isEqualTo: userId)
-        .snapshots()
-        .map(
-          (snapshot) => _mostRecentFirst([
-            for (final challenge in _challengesFrom(snapshot))
-              // **La sfida del giorno non lascia figurine.**
-              //
-              // Il trofeo dice quanto si e' vinto, ed e' un oggetto che si
-              // colleziona: nasce dal fatto che qualcuno ci ha messo dei soldi
-              // e qualcun altro se li e' presi. Una gara gratis non ha niente
-              // di tutto questo — si fa per giocare — e una bacheca piena di
-              // figurine da zero euro toglie valore proprio a quelle vere.
-              //
-              // Vincerla si vede lo stesso: la gara sta fra i vincitori per un
-              // giorno, con la foto e il nome di chi l'ha presa.
-              if (!challenge.isDaily) challenge,
-          ]),
-        );
+    final vinte = _challenges.where('winnerUserId', isEqualTo: userId);
+
+    return _unione([
+      // Le gare pubbliche: le vede chiunque, come le vede chiunque in home.
+      vinte.where('audience', arrayContains: Challenge.everyone).snapshots(),
+      // Quelle riservate **in cui c'e' anche chi sta guardando**: le missioni
+      // del proprio gruppo di amici, le proprie sfide.
+      if (viewerId != null && viewerId.isNotEmpty)
+        vinte.where('audience', arrayContains: viewerId).snapshots(),
+      // E le sfide mirate portate a termine, che le regole lasciano leggere a
+      // chiunque: e' la meta' pubblica di una sfida — la figuraccia resta fra i
+      // due, la vittoria si vede.
+      vinte.where('duelVerdict', isEqualTo: 'approved').snapshots(),
+    ]).map(
+      (challenges) => _mostRecentFirst([
+        for (final challenge in challenges)
+          // **La sfida del giorno non lascia figurine.**
+          //
+          // Il trofeo dice quanto si e' vinto, ed e' un oggetto che si
+          // colleziona: nasce dal fatto che qualcuno ci ha messo dei soldi e
+          // qualcun altro se li e' presi. Una gara gratis non ha niente di
+          // tutto questo — si fa per giocare — e una bacheca piena di figurine
+          // da zero euro toglie valore proprio a quelle vere.
+          //
+          // Vincerla si vede lo stesso: la gara sta fra i vincitori per un
+          // giorno, con la foto e il nome di chi l'ha presa.
+          if (!challenge.isDaily) challenge,
+      ]),
+    );
   }
 
   @override
-  Stream<List<Challenge>> watchCommissionedBy(String userId) {
-    return _challenges
-        .where('createdByUserId', isEqualTo: userId)
-        .snapshots()
-        .map(
-          (snapshot) =>
-              commissionedOrder(_challengesFrom(snapshot), now: DateTime.now()),
-        );
+  Stream<List<Challenge>> watchCommissionedBy(String userId, {String? viewerId}) {
+    final mie = _challenges.where('createdByUserId', isEqualTo: userId);
+
+    return _unione([
+      mie.where('audience', arrayContains: Challenge.everyone).snapshots(),
+      if (viewerId != null && viewerId.isNotEmpty)
+        mie.where('audience', arrayContains: viewerId).snapshots(),
+    ]).map(
+      (challenges) => commissionedOrder(challenges, now: DateTime.now()),
+    );
+  }
+
+  /// Le stesse gare cercate in piu' modi, riunite senza doppioni.
+  ///
+  /// **Serve a non far fallire una bacheca intera.** Chi puo' vedere una gara
+  /// sta scritto dentro la gara, in `audience`, e le regole del database
+  /// guardano li'. Una lettura che chiede "tutte le gare vinte da Mario" senza
+  /// dire niente sull'`audience` si porta dietro anche le missioni riservate al
+  /// gruppo di amici di Mario: se chi guarda non e' dei loro, Firestore non
+  /// nasconde quella riga — **rifiuta tutta la lettura**, e il profilo di Mario
+  /// resta senza bacheca per chiunque non gli sia amico.
+  ///
+  /// Allora si chiede quello che si puo' avere, in due o tre letture separate —
+  /// le pubbliche, quelle in cui c'e' anche chi guarda, le sfide vinte — e si
+  /// mettono insieme qui. Chi non e' amico di Mario vede le sue gare pubbliche
+  /// e nient'altro, che e' esattamente quello che deve vedere.
+  ///
+  /// Manda **appena arriva la prima**, senza aspettare le altre: una bacheca
+  /// che compare tutta insieme mezzo secondo dopo si legge come un'app lenta,
+  /// e le letture che mancano arrivano un istante dopo aggiungendo le loro
+  /// righe.
+  Stream<List<Challenge>> _unione(
+    List<Stream<QuerySnapshot<Map<String, dynamic>>>> letture,
+  ) {
+    final ultime = List<List<Challenge>>.generate(
+      letture.length,
+      (_) => const <Challenge>[],
+    );
+    final arrivate = List<bool>.filled(letture.length, false);
+    final ascolti = <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
+
+    late StreamController<List<Challenge>> uscita;
+
+    void manda() {
+      if (!arrivate.contains(true)) {
+        return;
+      }
+
+      // Per identificativo: la stessa gara puo' uscire da due letture — una
+      // sfida vinta e' insieme "riservata a me" e "sfida approvata" — e senza
+      // questo comparirebbe due volte nella stessa bacheca.
+      final tutte = <String, Challenge>{};
+
+      for (final lista in ultime) {
+        for (final challenge in lista) {
+          tutte[challenge.id] = challenge;
+        }
+      }
+
+      uscita.add(tutte.values.toList());
+    }
+
+    uscita = StreamController<List<Challenge>>(
+      onListen: () {
+        for (var i = 0; i < letture.length; i++) {
+          final quale = i;
+
+          ascolti.add(
+            letture[i].listen((snapshot) {
+              ultime[quale] = _challengesFrom(snapshot);
+              arrivate[quale] = true;
+              manda();
+            }, onError: uscita.addError),
+          );
+        }
+      },
+      onCancel: () async {
+        for (final ascolto in ascolti) {
+          await ascolto.cancel();
+        }
+
+        ascolti.clear();
+      },
+    );
+
+    return uscita.stream;
   }
 
   /// La bacheca si legge dall'ultimo trofeo: e' quello di cui ci si ricorda.

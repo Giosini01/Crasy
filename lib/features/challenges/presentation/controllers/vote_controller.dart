@@ -32,6 +32,9 @@ enum VoteOutcome {
 
   /// **E' la propria foto.** Non si vota da soli.
   ownEntry,
+
+  /// **E' una sfida uno contro uno.** Qui le fiamme non decidono niente.
+  duel,
 }
 
 /// Chi sta votando adesso.
@@ -291,6 +294,21 @@ Future<VoteOutcome> giveFire(
   // **La stessa regola vive sul database.** Vedi `firestore.rules`, sotto
   // `users/{userId}/votes`: senza quella, questa sarebbe una regola solo
   // dell'interfaccia — cioe' nessuna regola, per chi scrive direttamente.
+  // **Su una sfida mirata non si mette la fiamma.**
+  //
+  // Le fiamme servono a una cosa sola: decidere chi vince fra tanti. Su una
+  // sfida uno contro uno c'e' un partecipante solo, e a dire se ha vinto e'
+  // chi l'ha lanciata — il conteggio non sposta niente, mai. Un comando che
+  // non cambia nulla e' peggio di un comando che non c'e': fa credere che
+  // votando si stia facendo qualcosa per l'esito, e non e' vero.
+  //
+  // Sta qui dentro e non su un bottone perche' qui ci passano tutte e due le
+  // strade — il doppio tocco sulla foto e il tasto della fiamma — e una regola
+  // scritta in un posto solo non puo' valere in uno e non nell'altro.
+  if (entry.isDuel) {
+    return VoteOutcome.duel;
+  }
+
   if (entry.userId == ref.read(currentUserIdProvider)) {
     messenger
       ?..hideCurrentSnackBar()
