@@ -46,14 +46,34 @@ List<Challenge> commissionedOrder(
         // invece che stasera cambia qualcosa.
         ..sort((a, b) => a.endsAt.compareTo(b.endsAt));
 
-  final trophies =
+  final finite =
       [
           for (final challenge in challenges)
-            if (challenge.hasTrophy) challenge,
+            // **Finite, non "che hanno lasciato una foto".**
+            //
+            // Prima passavano solo quelle con un trofeo — vincitore piu'
+            // immagine — perche' questa bacheca era fatta di figurine, e una
+            // cornice con dentro il vuoto si legge come un'immagine che non si
+            // e' caricata. Il risultato era che una gara lanciata, finita senza
+            // che partecipasse nessuno, **spariva dal profilo di chi l'aveva
+            // lanciata** pur restando visibile fra i vincitori: una cosa che
+            // hai fatto e che non c'e' piu' da nessuna parte.
+            //
+            // Adesso qui ci sono targhe, e una targa non ha bisogno di nessuna
+            // foto: puo' dire benissimo "nessun vincitore". La ragione di
+            // escluderle e' caduta insieme alle figurine.
+            // **O finita, o gia' chiusa.** Le due cose non coincidono: una
+            // sfida mirata si chiude nell'istante del verdetto, che puo'
+            // arrivare ore prima della scadenza. Guardare solo l'orologio la
+            // farebbe sparire da tutte e due gli elenchi — fuori dalle aperte
+            // perche' ha gia' un vincitore, fuori da qui perche' l'ora non e'
+            // ancora arrivata.
+            if (challenge.hasEndedAt(now) || challenge.winnerEntryId != null)
+              challenge,
         ]
         // La bacheca si legge dall'ultimo trofeo: e' quello di cui ci si
         // ricorda.
         ..sort((a, b) => b.endsAt.compareTo(a.endsAt));
 
-  return [...live, ...trophies];
+  return [...live, ...finite];
 }

@@ -106,16 +106,24 @@ void main() {
     expect(ordinate.map((c) => c.id), ['nuovo', 'vecchio']);
   });
 
-  test('una gara finita senza vincitore non compare', () {
-    // Nessuno ha partecipato: non c'e' niente da mettere in bacheca, e non e'
-    // piu' nemmeno una gara a cui si possa fare qualcosa.
+  test('una gara finita senza vincitore resta sulla bacheca', () {
+    // **Questa regola e' cambiata, ed e' voluto.** Prima spariva: la bacheca
+    // era fatta di figurine, e una cornice con dentro il vuoto si legge come
+    // un'immagine che non si e' caricata. Ma sparire era peggio — una gara
+    // lanciata, finita senza partecipanti, non c'era piu' da nessuna parte sul
+    // profilo di chi l'aveva lanciata, pur restando visibile fra i vincitori.
+    //
+    // Adesso li' ci sono targhe, e una targa puo' dire "nessun vincitore"
+    // senza sembrare rotta.
     final deserta = gara(
       id: 'deserta',
       inizio: adesso.subtract(const Duration(hours: 2)),
       fine: adesso.subtract(const Duration(hours: 1)),
     );
 
-    expect(commissionedOrder([deserta], now: adesso), isEmpty);
+    expect(commissionedOrder([deserta], now: adesso).map((c) => c.id), [
+      'deserta',
+    ]);
   });
 
   test('una gara non ancora cominciata non compare', () {

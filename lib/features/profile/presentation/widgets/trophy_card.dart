@@ -268,14 +268,23 @@ class _NoPhoto extends StatelessWidget {
 /// sempre uguale per tutte. Qui fa anche una seconda cosa: tiene il titolo e la
 /// data, che davanti toglierebbero spazio alla foto.
 class TrophyBack extends StatelessWidget {
-  const TrophyBack({required this.challenge, required this.kind, super.key});
+  const TrophyBack({
+    required this.challenge,
+    required this.kind,
+    this.ratio = TrophyFront.ratio,
+    super.key,
+  });
 
   final Challenge challenge;
   final TrophyKind kind;
 
+  /// La stessa forma della faccia: vedi `FlippableTrophy.ratio`.
+  final double ratio;
+
   @override
   Widget build(BuildContext context) {
     return _Laminated(
+      ratio: ratio,
       child: DecoratedBox(
         decoration: const BoxDecoration(
           borderRadius: BorderRadius.all(Radius.circular(AppRadius.sm)),
@@ -354,14 +363,19 @@ class TrophyBack extends StatelessWidget {
 
 /// La cornice: il bordo rosso, il riflesso, l'ombra. Uguale sulle due facce.
 class _Laminated extends StatelessWidget {
-  const _Laminated({required this.child});
+  const _Laminated({required this.child, this.ratio = TrophyFront.ratio});
 
   final Widget child;
+
+  /// Le proporzioni. Serve alla targa, che e' **coricata**: la lamina, le
+  /// ombre e l'incavo sono gli stessi della figurina, cambia la forma — ed e'
+  /// la forma a dare a un oggetto la sua faccia, prima del colore.
+  final double ratio;
 
   @override
   Widget build(BuildContext context) {
     return AspectRatio(
-      aspectRatio: TrophyFront.ratio,
+      aspectRatio: ratio,
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.md),
@@ -492,11 +506,19 @@ class FlippableTrophy extends StatefulWidget {
     required this.challenge,
     required this.kind,
     this.fronte,
+    this.ratio = TrophyFront.ratio,
     super.key,
   });
 
   final Challenge challenge;
   final TrophyKind kind;
+
+  /// Le proporzioni delle due facce.
+  ///
+  /// Girando, il retro deve avere la stessa forma della faccia: una targa
+  /// coricata che a meta' giro diventa una carta in piedi non e' piu' lo stesso
+  /// oggetto — e' un oggetto che si trasforma, che e' un'altra cosa.
+  final double ratio;
 
   /// Cosa si vede davanti, quando non e' la figurina.
   ///
@@ -566,6 +588,7 @@ class _FlippableTrophyState extends State<FlippableTrophy>
                     child: TrophyBack(
                       challenge: widget.challenge,
                       kind: widget.kind,
+                      ratio: widget.ratio,
                     ),
                   ),
           );
@@ -602,15 +625,23 @@ class TrophyGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // **Le targhe stanno una per riga, le figurine due.**
+    //
+    // Non e' una scelta di gusto: una targa e' coricata, e due targhe affiancate
+    // dentro una colonna larga mezzo schermo diventano due francobolli in cui
+    // il nome della missione non ci sta. A tutta larghezza si legge, e somiglia
+    // a quello che e' — una targa avvitata a un muro.
+    final targhe = kind == TrophyKind.commissioned;
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: targhe ? 1 : 2,
         crossAxisSpacing: AppSpacing.sm,
         mainAxisSpacing: AppSpacing.md,
-        childAspectRatio: TrophyFront.ratio,
+        childAspectRatio: targhe ? GoldPlaque.ratio : TrophyFront.ratio,
       ),
       itemCount: challenges.length,
       itemBuilder: (context, index) {
@@ -630,12 +661,10 @@ class TrophyGrid extends StatelessWidget {
         // **Il tocco non porta alla missione.** Apre la targa grande, con
         // dentro cos'era e com'e' finita, e si chiude li': da una bacheca non
         // si esce, si guarda.
-        final targa = kind == TrophyKind.commissioned;
-
         return GestureDetector(
           onTap: () => showTrophy(context, challenge: challenge, kind: kind),
           behavior: HitTestBehavior.opaque,
-          child: targa
+          child: targhe
               ? GoldPlaque(challenge: challenge)
               : TrophyFront(challenge: challenge, kind: kind),
         );
@@ -698,6 +727,12 @@ class _TrophyDetails extends StatelessWidget {
                 child: FlippableTrophy(
                   challenge: challenge,
                   kind: kind,
+                  // Girando, il retro deve avere la stessa forma della faccia:
+                  // una targa coricata che a meta' giro diventa una carta in
+                  // piedi non e' piu' lo stesso oggetto.
+                  ratio: kind == TrophyKind.commissioned
+                      ? GoldPlaque.ratio
+                      : TrophyFront.ratio,
                   // **La targa gira come la figurina.** Davanti c'e' la
                   // piastra incisa invece della foto, dietro c'e' lo stesso
                   // retro: il gesto e' quello che si e' gia' imparato, e due
@@ -893,12 +928,25 @@ class GoldPlaque extends StatelessWidget {
   /// dentro una scritta da francobollo.
   final bool grande;
 
-  /// Il bruno del solco: il colore che ha una lettera scavata nell'oro.
-  static const Color _inciso = Color(0xFF6B4A10);
+  /// **Le proporzioni di una targa, non di una carta.**
+  ///
+  /// La figurina e' piu' alta che larga, come le carte da collezione. Una targa
+  /// e' il contrario: **coricata**, perche' e' fatta per essere avvitata a un
+  /// muro e letta di striscio. E' la forma, prima del colore, a dire che i due
+  /// oggetti sulla stessa bacheca sono due cose diverse.
+  static const double ratio = 2.2;
 
-  /// Il riflesso sul bordo di sotto del solco, che e' cio' che rende
-  /// l'incisione una **cavita'** invece di una scritta stampata sopra.
-  static const Color _luce = Color(0xFFFFFAE6);
+  /// Il bianco delle lettere.
+  ///
+  /// **Erano incise nel metallo, e non si leggevano.** Bruno scuro dentro un
+  /// solco: su una targa vera funziona perche' la luce vera e' molto piu' forte
+  /// di quella disegnata, su uno schermo diventava scritta scura su fondo
+  /// dorato — cioe' fatica. Bianche stanno **sopra** il metallo e si leggono da
+  /// lontano su qualunque punto della sfumatura.
+  static const Color _scritta = Colors.white;
+
+  /// L'ombra portata sotto le lettere: e' quella a dire che sporgono.
+  static const Color _ombra = Color(0xFF4A3410);
 
   /// Di quanto crescono le scritte quando la targa e' aperta.
   double get _scala => grande ? 1.9 : 1;
@@ -909,16 +957,24 @@ class GoldPlaque extends StatelessWidget {
   /// che batte sul bordo di sotto del solco. Non e' un'ombra — e' il contrario
   /// di un'ombra, e senza di lei le lettere sembrano stampate sopra l'oro
   /// invece che dentro.
+  /// L'ombra che stacca la lettera dal metallo.
+  ///
+  /// Corta e poco sfocata, come l'ombra di una cosa appoggiata: larga e morbida
+  /// sembrerebbe stampata su un vetro davanti. Due passaggi — uno bruno
+  /// attaccato alla lettera, uno nero piu' largo — perche' su un oro chiaro il
+  /// bianco da solo si perde.
   static const List<Shadow> _solco = [
-    Shadow(color: _luce, offset: Offset(0.7, 0.9), blurRadius: 0.4),
+    Shadow(color: _ombra, offset: Offset(0.8, 1), blurRadius: 1.4),
+    Shadow(color: Color(0x59000000), offset: Offset(0, 1.6), blurRadius: 3.5),
   ];
 
   @override
   Widget build(BuildContext context) {
     final texts = context.texts;
-    final (titolo, nome, esito, segno) = _cosaCEScritto();
+    final (titolo, esito, segno) = _cosaCEScritto();
 
     return _Laminated(
+      ratio: ratio,
       child: DecoratedBox(
         // **La piastra e' d'oro anche lei, non nera.**
         //
@@ -955,7 +1011,7 @@ class GoldPlaque extends StatelessWidget {
                 // una stessa voce — i titoli si stringono, le etichette si
                 // aprono.
                 style: texts.labelSmall?.copyWith(
-                  color: _inciso,
+                  color: _scritta,
                   fontSize: 7.5 * _scala,
                   letterSpacing: 1.8,
                   fontWeight: FontWeight.w800,
@@ -984,7 +1040,7 @@ class GoldPlaque extends StatelessWidget {
                     // scrivono i titoli dappertutto nell'app: si parte da
                     // `displaySmall` e si cambia solo la misura.
                     style: texts.displaySmall?.copyWith(
-                      color: _inciso,
+                      color: _scritta,
                       fontSize: 13 * _scala,
                       height: 1.05,
                       letterSpacing: -0.4 * _scala,
@@ -993,18 +1049,13 @@ class GoldPlaque extends StatelessWidget {
                   ),
                 ),
               ),
-              SizedBox(height: 6 * _scala),
-              Text(
-                nome,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: texts.labelSmall?.copyWith(
-                  color: _inciso.withValues(alpha: 0.75),
-                  fontSize: 9.5 * _scala,
-                  shadows: _solco,
-                ),
-              ),
+              // **Il nome di chi ha vinto non ci va.**
+              //
+              // Questa e' la bacheca di chi la prova l'ha **fatta fare**, e il
+              // nome dell'altro qui dentro sposta il merito nel posto
+              // sbagliato: chi guarda legge il nome di un altro sulla targa di
+              // qualcuno. Chi ha vinto ce l'ha gia' il suo posto — la figurina
+              // sul proprio profilo, con la sua foto sopra.
               SizedBox(height: 8 * _scala),
               _Filetto(scala: _scala),
               SizedBox(height: 7 * _scala),
@@ -1019,7 +1070,7 @@ class GoldPlaque extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: texts.labelSmall?.copyWith(
-                        color: _inciso,
+                        color: _scritta,
                         fontSize: 8.5 * _scala,
                         letterSpacing: 1,
                         fontWeight: FontWeight.w800,
@@ -1042,7 +1093,7 @@ class GoldPlaque extends StatelessWidget {
   /// amico e una gara aperta a tutti sono la stessa cosa vista da chi l'ha
   /// lanciata — una cosa che ha fatto fare a qualcuno — e cambia solo di chi e'
   /// il nome: il destinatario nell'una, chi ha vinto nell'altra.
-  (String, String, String, String) _cosaCEScritto() {
+  (String, String, String) _cosaCEScritto() {
     if (challenge.isDuel) {
       final state = challenge.duelStateAt(DateTime.now());
 
@@ -1056,23 +1107,21 @@ class GoldPlaque extends StatelessWidget {
         _ => ('IN CORSO', '⏳'),
       };
 
-      return (challenge.title, '@${challenge.targetUsername}', esito, segno);
+      return (challenge.title, esito, segno);
     }
 
     if (challenge.winnerUsername.isNotEmpty) {
       return (
         challenge.title,
-        '@${challenge.winnerUsername}',
         challenge.prizeCents == 0
-            ? 'VINTA'
-            : 'VINTA · ${AppMoney.format(challenge.prizeCents)}',
+            ? 'SUPERATA'
+            : 'SUPERATA · ${AppMoney.format(challenge.prizeCents)}',
         '🏆',
       );
     }
 
     return (
       challenge.title,
-      'APERTA A TUTTI',
       challenge.hasEndedAt(DateTime.now()) ? 'NESSUN VINCITORE' : 'IN CORSO',
       challenge.hasEndedAt(DateTime.now()) ? '—' : '⏳',
     );
@@ -1096,11 +1145,11 @@ class _Filetto extends StatelessWidget {
       children: [
         SizedBox(
           height: 0.7 * scala,
-          child: ColoredBox(color: GoldPlaque._inciso.withValues(alpha: 0.65)),
+          child: ColoredBox(color: GoldPlaque._ombra.withValues(alpha: 0.55)),
         ),
         SizedBox(
           height: 0.7 * scala,
-          child: const ColoredBox(color: GoldPlaque._luce),
+          child: const ColoredBox(color: Color(0xFFFFFAE6)),
         ),
       ],
     );
