@@ -69,7 +69,6 @@ AuthKey_*.p8
 # grave — se ne rifa' una e si rifa' il certificato — ma pubblicandola si
 # regala la firma.
 *.pem
-
 # Stessa ragione, per le altre cose che non devono uscire.
 *.jks
 *.keystore

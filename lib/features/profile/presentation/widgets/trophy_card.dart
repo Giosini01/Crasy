@@ -140,10 +140,14 @@ class TrophyFront extends StatelessWidget {
                         letterSpacing: 1.4,
                       ),
                     ),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
                         // **Chi vince legge quello che ha incassato**, non il
                         // numero della vetrina: il premio meno la percentuale
                         // di CRASY. Chi ha commissionato legge quanto ha messo,
@@ -162,11 +166,52 @@ class TrophyFront extends StatelessWidget {
                                     ? challenge.payoutCents
                                     : challenge.prizeCents,
                               ),
-                        style: context.texts.headlineSmall?.copyWith(
-                          color: palette.accent,
-                          height: 1,
+                              style: context.texts.headlineSmall?.copyWith(
+                                color: palette.accent,
+                                height: 1,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                        // **Con quante fiamme l'ha vinta.**
+                        //
+                        // Era l'unica cosa che mancava per capire *come* e'
+                        // andata: la cifra dice quanto valeva la gara, il
+                        // numero qui dice quanta gente ha alzato la mano per
+                        // quella foto. Una vittoria da due fiamme e una da
+                        // ottanta valgono gli stessi soldi e non sono la
+                        // stessa cosa, e sei mesi dopo e' l'unico modo per
+                        // ricordarsene.
+                        //
+                        // A zero non si scrive: le gare chiuse prima che il
+                        // conteggio finisse dentro il documento non ce l'hanno,
+                        // e uno zero li' direbbe "non e' piaciuta a nessuno"
+                        // di una foto che magari aveva vinto a mani basse.
+                        if (challenge.winnerVotes > 0) ...[
+                          const SizedBox(width: 6),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.local_fire_department_rounded,
+                                  size: 12,
+                                  color: Colors.white70,
+                                ),
+                                const SizedBox(width: 1),
+                                Text(
+                                  '${challenge.winnerVotes}',
+                                  style: context.texts.labelSmall?.copyWith(
+                                    color: Colors.white70,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
@@ -558,24 +603,28 @@ class TrophyGrid extends StatelessWidget {
       itemBuilder: (context, index) {
         final challenge = challenges[index];
 
-        // **Una sfida lanciata non e' una figurina.** Una figurina e' la foto
-        // di chi ha vinto dentro una cornice, e quella e' di chi l'ha fatta:
-        // rimetterla sulla bacheca di chi ha solo chiesto la cosa vuol dire
-        // prendersi il merito del lavoro di un altro, e per giunta la stessa
-        // immagine finisce su due profili. Al suo posto c'e' il cartellino
-        // della prova: due nomi, la consegna, e il timbro di com'e' andata.
-        if (challenge.isDuel && kind == TrophyKind.commissioned) {
-          return GestureDetector(
-            onTap: () => context.push(AppRoutes.challengeDetailOf(challenge.id)),
-            behavior: HitTestBehavior.opaque,
-            child: DuelStamp(challenge: challenge),
-          );
-        }
+        // **Quello che si e' fatto fare non e' una figurina: e' una targa.**
+        //
+        // Una figurina e' la foto di chi ha vinto dentro una cornice, e quella
+        // foto e' sua: rimetterla sulla bacheca di chi ha solo *chiesto* la
+        // cosa vuol dire prendersi il merito del lavoro di un altro, e per
+        // giunta mettere la stessa immagine su due profili diversi.
+        //
+        // Vale per tutte e due le specie di prova — la sfida a un amico e la
+        // gara aperta a tutti — perche' da questa parte sono la stessa cosa:
+        // roba che hai fatto fare a qualcuno.
+        //
+        // **Il tocco non porta alla missione.** Apre la targa grande, con
+        // dentro cos'era e com'e' finita, e si chiude li': da una bacheca non
+        // si esce, si guarda.
+        final targa = kind == TrophyKind.commissioned;
 
         return GestureDetector(
           onTap: () => showTrophy(context, challenge: challenge, kind: kind),
           behavior: HitTestBehavior.opaque,
-          child: TrophyFront(challenge: challenge, kind: kind),
+          child: targa
+              ? GoldPlaque(challenge: challenge)
+              : TrophyFront(challenge: challenge, kind: kind),
         );
       },
     );
@@ -781,105 +830,262 @@ class _Line extends StatelessWidget {
   }
 }
 
-/// **La prova d'onore: il cartellino di una sfida che hai lanciato tu.**
+
+/// I metalli della placca.
 ///
-/// Non e' una figurina, ed e' tutto il punto. Una figurina e' la foto di chi ha
-/// vinto dentro una cornice: la si colleziona perche' dentro c'e' **la cosa
-/// che e' successa**, ed e' di chi l'ha fatta. Una sfida lanciata e' il gesto
-/// opposto — non l'hai fatta tu, l'hai chiesta tu — e metterci dentro la foto
-/// di un altro vuol dire prendersi il merito del suo lavoro, oltre che
-/// duplicare la stessa immagine su due profili diversi.
+/// **Sei toni e non uno.** Un rettangolo di un oro solo si legge come un
+/// rettangolo giallo: quello che fa sembrare metallo e' il fatto che la luce lo
+/// prenda in modo diverso a seconda di come e' girato — chiaro dove batte,
+/// scuro dove non arriva. Sono queste sei sfumature, messe in diagonale, a fare
+/// tutto il lavoro: non c'e' nessuna immagine qui dentro.
+abstract final class _Oro {
+  static const Color luce = Color(0xFFFFF4C9);
+  static const Color chiaro = Color(0xFFF0D485);
+  static const Color medio = Color(0xFFD9B455);
+  static const Color scuro = Color(0xFFA9832F);
+  static const Color ombra = Color(0xFF6E5216);
+  static const Color incisione = Color(0xFF5A4211);
+}
+
+/// **La placca dorata: una targa, non una figurina.**
 ///
-/// Qui non c'e' nessuna foto. C'e' quello che una sfida e' davvero: **due nomi,
-/// una consegna, e come e' andata a finire** — con il timbro sopra, che e' la
-/// cosa che si legge da lontano scorrendo la bacheca.
-class DuelStamp extends StatelessWidget {
-  const DuelStamp({required this.challenge, super.key});
+/// Una figurina e' la foto di chi ha vinto dentro una cornice, e quella e' di
+/// chi l'ha fatta: rimetterla sulla bacheca di chi ha solo *chiesto* la cosa
+/// vuol dire prendersi il merito del lavoro di un altro, e per giunta mettere
+/// la stessa immagine su due profili diversi.
+///
+/// Una targa dice un'altra cosa, ed e' quella giusta: **questa prova l'ho fatta
+/// fare io.** E' l'oggetto che si attacca al muro quando si e' organizzato
+/// qualcosa, non quando lo si e' vinto — con dentro chi, cosa, e com'e' finita.
+///
+/// ## Come si fa il rilievo senza nessuna immagine
+///
+/// Tre trucchi, tutti a base di luce:
+///
+/// - **La lastra e' bombata**: un'unica sfumatura in diagonale, chiara in alto
+///   a sinistra e scura in basso a destra, piu' una riga di luce netta sul
+///   bordo alto. E' come cade la luce su una cosa che sporge.
+/// - **Il riquadro dentro e' scavato**: la stessa sfumatura al contrario —
+///   scuro dove la lastra era chiara — perche' una cavita' prende la luce
+///   esattamente all'opposto di un rilievo. E' l'unico dettaglio che separa
+///   "cornice disegnata" da "pezzo di metallo lavorato".
+/// - **La scritta e' incisa**: due copie dello stesso testo, una spostata di un
+///   punto in basso a destra in oro chiarissimo e una sopra in bruno scuro. La
+///   prima fa da riflesso sul fondo del solco, la seconda e' il solco. E' lo
+///   stesso motivo per cui una scritta incisa su una targa vera si legge anche
+///   senza colore dentro.
+class GoldPlaque extends StatelessWidget {
+  const GoldPlaque({required this.challenge, super.key});
 
   final Challenge challenge;
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.palette;
-    final texts = context.texts;
-    final state = challenge.duelStateAt(DateTime.now());
-    final (timbro, segno, colore) = _timbro(state, palette);
+    final (titolo, nome, esito, segno) = _cosaCEScritto();
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
+    return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        color: palette.surfaceMuted,
-        // Il bordo prende il colore dell'esito: scorrendo la bacheca si legge
-        // com'e' andata prima ancora di leggere le parole.
-        border: Border.all(color: colore.withValues(alpha: 0.55)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'PROVA D\'ONORE',
-            style: texts.labelSmall?.copyWith(
-              color: palette.textFaint,
-              fontSize: 8,
-              letterSpacing: 1.2,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            '@${challenge.targetUsername}',
-            style: texts.labelMedium,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Expanded(
-            child: Text(
-              challenge.title.toUpperCase(),
-              style: texts.labelSmall?.copyWith(color: palette.textSecondary),
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          // Il timbro, in fondo: e' l'unica cosa che si legge da lontano.
-          Row(
-            children: [
-              Text(segno, style: const TextStyle(fontSize: 13)),
-              const SizedBox(width: AppSpacing.xxs),
-              Expanded(
-                child: Text(
-                  timbro,
-                  style: texts.labelSmall?.copyWith(
-                    color: colore,
-                    fontSize: 9,
-                    letterSpacing: 0.8,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_Oro.luce, _Oro.chiaro, _Oro.medio, _Oro.scuro],
+          stops: [0, 0.28, 0.68, 1],
+        ),
+        // L'ombra sotto e' quello che stacca la targa dalla parete: senza, per
+        // quanto bella sia la sfumatura, resta un disegno sul fondo.
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.38),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
+        border: const Border(
+          top: BorderSide(color: _Oro.luce, width: 1.4),
+          left: BorderSide(color: _Oro.chiaro),
+          right: BorderSide(color: _Oro.ombra),
+          bottom: BorderSide(color: _Oro.ombra, width: 1.4),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(7),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(3),
+            // **Al contrario della lastra**: scuro dove quella era chiara. E'
+            // cosi' che si vede una cavita' invece di un secondo rilievo.
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [_Oro.scuro, _Oro.medio, _Oro.chiaro],
+              stops: [0, 0.45, 1],
+            ),
+            border: const Border(
+              top: BorderSide(color: _Oro.ombra),
+              left: BorderSide(color: _Oro.ombra),
+              right: BorderSide(color: _Oro.luce),
+              bottom: BorderSide(color: _Oro.luce),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _Inciso(
+                  testo: 'PROVA D\'ONORE',
+                  size: 7.5,
+                  spaziatura: 1.6,
+                  peso: FontWeight.w700,
+                ),
+                const SizedBox(height: 2),
+                // Il filetto sotto l'intestazione: due righe da mezzo punto,
+                // una scura e una chiara, che e' un solco in miniatura.
+                const _Filetto(),
+                const SizedBox(height: 6),
+                _Inciso(testo: nome, size: 11, peso: FontWeight.w800),
+                const SizedBox(height: 4),
+                Expanded(
+                  child: _Inciso(
+                    testo: titolo,
+                    size: 9,
+                    righe: 4,
+                    peso: FontWeight.w600,
+                    allinea: TextAlign.left,
+                  ),
+                ),
+                const _Filetto(),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    Text(segno, style: const TextStyle(fontSize: 11)),
+                    const SizedBox(width: 3),
+                    Expanded(
+                      child: _Inciso(
+                        testo: esito,
+                        size: 8,
+                        spaziatura: 0.9,
+                        peso: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  /// Il timbro: cosa c'e' scritto sopra, con che segno e di che colore.
+  /// Cosa va inciso: il titolo, il nome, com'e' finita e il suo segno.
   ///
-  /// **La merda sta solo dove ci va**: su chi si e' tirato indietro o non ce
-  /// l'ha fatta in tempo. Su una prova giudicata non valida no — li' la sfida
-  /// l'ha fatta, e il no e' arrivato da chi l'aveva chiesta, cioe' da chi sta
-  /// guardando questa bacheca.
-  (String, String, Color) _timbro(DuelState state, AppPalette palette) {
-    return switch (state) {
-      DuelState.completed => ('SUPERATA', '🏆', palette.accent),
-      DuelState.notValid => ('NON VALIDA', '👎', palette.textSecondary),
-      DuelState.declined => ('RIFIUTATA', '💩', palette.textSecondary),
-      DuelState.expired => ('NON FATTA', '💩', palette.textSecondary),
-      DuelState.noVerdict => ('SENZA GIUDIZIO', '⏳', palette.textFaint),
-      DuelState.judging => ('DA GIUDICARE', '⚖️', palette.accent),
-      _ => ('IN CORSO', '⏳', palette.textFaint),
-    };
+  /// **Le due specie di prova si scrivono nello stesso modo.** Una sfida a un
+  /// amico e una gara aperta a tutti sono la stessa cosa vista da chi l'ha
+  /// lanciata — una cosa che ha fatto fare a qualcuno — e cambia solo di chi
+  /// e' il nome: il destinatario nell'una, chi ha vinto nell'altra.
+  (String, String, String, String) _cosaCEScritto() {
+    if (challenge.isDuel) {
+      final state = challenge.duelStateAt(DateTime.now());
+
+      final (esito, segno) = switch (state) {
+        DuelState.completed => ('SUPERATA', '🏆'),
+        DuelState.notValid => ('NON VALIDA', '👎'),
+        DuelState.declined => ('RIFIUTATA', '💩'),
+        DuelState.expired => ('NON FATTA', '💩'),
+        DuelState.noVerdict => ('SENZA GIUDIZIO', '⏳'),
+        DuelState.judging => ('DA GIUDICARE', '⚖️'),
+        _ => ('IN CORSO', '⏳'),
+      };
+
+      return (challenge.title, '@${challenge.targetUsername}', esito, segno);
+    }
+
+    if (challenge.winnerUsername.isNotEmpty) {
+      return (
+        challenge.title,
+        '@${challenge.winnerUsername}',
+        challenge.prizeCents == 0
+            ? 'VINTA'
+            : 'VINTA · ${AppMoney.format(challenge.prizeCents)}',
+        '🏆',
+      );
+    }
+
+    return (
+      challenge.title,
+      'APERTA A TUTTI',
+      challenge.hasEndedAt(DateTime.now()) ? 'NESSUN VINCITORE' : 'IN CORSO',
+      challenge.hasEndedAt(DateTime.now()) ? '—' : '⏳',
+    );
+  }
+}
+
+/// Una scritta incisa nel metallo.
+///
+/// Due copie sovrapposte: sotto il riflesso chiaro spostato di un punto, sopra
+/// il bruno del solco. Non e' un'ombra — e' il contrario di un'ombra, ed e'
+/// quello che fa sembrare la scritta **dentro** la targa invece che sopra.
+class _Inciso extends StatelessWidget {
+  const _Inciso({
+    required this.testo,
+    required this.size,
+    this.spaziatura = 0,
+    this.peso = FontWeight.w600,
+    this.righe = 1,
+    this.allinea = TextAlign.left,
+  });
+
+  final String testo;
+  final double size;
+  final double spaziatura;
+  final FontWeight peso;
+  final int righe;
+  final TextAlign allinea;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = context.texts.labelSmall?.copyWith(
+      fontSize: size,
+      letterSpacing: spaziatura,
+      fontWeight: peso,
+      height: 1.2,
+    );
+
+    Widget copia(Color colore, Offset scarto) {
+      return Transform.translate(
+        offset: scarto,
+        child: Text(
+          testo.toUpperCase(),
+          textAlign: allinea,
+          maxLines: righe,
+          overflow: TextOverflow.ellipsis,
+          style: base?.copyWith(color: colore),
+        ),
+      );
+    }
+
+    return Stack(
+      children: [
+        copia(_Oro.luce, const Offset(0.7, 0.9)),
+        copia(_Oro.incisione, Offset.zero),
+      ],
+    );
+  }
+}
+
+/// Il filetto inciso: una riga scura e una chiara, cioe' un solco sottile.
+class _Filetto extends StatelessWidget {
+  const _Filetto();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: const [
+        SizedBox(height: 0.6, child: ColoredBox(color: _Oro.ombra)),
+        SizedBox(height: 0.6, child: ColoredBox(color: _Oro.luce)),
+      ],
+    );
   }
 }
