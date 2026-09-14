@@ -16,7 +16,6 @@ import 'package:crasy/features/challenges/presentation/widgets/duel_badge.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
-import 'package:crasy/features/profile/presentation/widgets/trophy_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -293,41 +292,36 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
               title: 'Niente di finito oggi',
               message:
                   'Quando una missione del party o una sfida arriva alla fine, '
-                  'qui trovi la figurina di chi l\'ha vinta. Resta un giorno, '
-                  'poi vive sul profilo di chi se l\'è presa.',
+                  'qui vedi com\'è andata. Resta un giorno: la figurina di chi '
+                  'ha vinto vive sul suo profilo, e quella non scade.',
             ),
           ];
         }
 
         return [
-          // **Le stesse figurine del profilo, e non una scheda nuova.** Una
-          // gara vinta ha gia' una faccia in questa app — la figurina con la
-          // foto e la cifra — e inventarne una seconda per dire la stessa cosa
-          // vorrebbe dire due modi di guardare una vittoria, da tenere
-          // d'accordo per sempre.
+          // **Righe, non figurine.** Le figurine stanno sul profilo e solo li':
+          // sono la bacheca di una persona, quello che ha vinto da quando
+          // esiste. Ripeterle qui vorrebbe dire due posti in cui si colleziona
+          // la stessa cosa, con questa scheda che per un giorno mostra una
+          // figurina e il giorno dopo no. Qui si guarda com'e' finita, e
+          // com'e' finita e' una riga — le stesse righe delle altre schede,
+          // cosi' non si impara niente di nuovo.
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.md),
             child: Text(
-              'Finite nelle ultime 24 ore. Poi restano sul profilo di chi ha '
-              'vinto.',
+              'Finite nelle ultime 24 ore. La figurina di chi ha vinto resta '
+              'sul suo profilo.',
               style: context.texts.bodySmall?.copyWith(
                 color: context.palette.textFaint,
               ),
             ),
           ),
-          if (closed.isNotEmpty)
-            TrophyGrid(challenges: closed, kind: TrophyKind.won),
-          // Le bocciate non hanno una foto da mettere in bacheca, quindi non
-          // possono stare nella griglia: ci vanno sotto, con la stessa riga che
-          // hanno nelle altre schede.
-          if (rejected.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.lg),
-            for (final challenge in rejected)
-              _DuelRow(
-                challenge: challenge,
-                received: challenge.targetUserId == meId,
-              ),
-          ],
+          for (final challenge in rejected)
+            _DuelRow(
+              challenge: challenge,
+              received: challenge.targetUserId == meId,
+            ),
+          for (final challenge in closed) _MissionRow(challenge: challenge),
         ];
 
       case FriendActivityView.entries:

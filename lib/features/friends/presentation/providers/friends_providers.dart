@@ -406,29 +406,35 @@ final recentlyClosedProvider = StreamProvider<List<Challenge>>((ref) {
   return ref.watch(challengeRepositoryProvider).watchRecentlyClosedFor(userId);
 });
 
-/// Quelle che hanno prodotto qualcosa: la figurina c'e' solo se c'e' la foto.
+/// Le missioni del party finite oggi, in riga.
 ///
-/// **Le altre non si mostrano**, e non e' una svista: una gara chiusa senza
-/// vincitore — non ha partecipato nessuno, o la sfida e' stata rifiutata — in
-/// una bacheca di figurine sarebbe una cornice vuota, che si legge come un
-/// difetto di caricamento e non come "non e' successo niente".
+/// **Non le figurine.** Le figurine stanno sul profilo e solo li': sono la
+/// bacheca di una persona, quello che ha vinto da quando esiste, e ripeterle
+/// qui vorrebbe dire due posti in cui si colleziona la stessa cosa — con la
+/// scheda del party che per un giorno mostra una figurina e il giorno dopo
+/// no. Qui si guarda **com'e' finita**, che e' una riga: titolo, premio, e chi
+/// se l'e' presa.
+///
+/// Senza il filtro sul trofeo: una missione chiusa senza vincitore e' comunque
+/// una cosa successa al gruppo, e in riga si legge benissimo — era la cornice
+/// vuota di una figurina a non stare in piedi.
 final closedPartyProvider = Provider<List<Challenge>>((ref) {
   final chiuse =
       ref.watch(recentlyClosedProvider).valueOrNull ?? const <Challenge>[];
 
   return [
     for (final challenge in chiuse)
-      if (challenge.hasTrophy) challenge,
+      if (!challenge.isDuel) challenge,
   ];
 });
 
-/// Le sfide finite **senza una figurina**: giudicate non valide.
+/// Le sfide mirate finite oggi: giudicate, valide o no.
 ///
-/// **Senza questo elenco sparirebbero e basta.** Una sfida bocciata smette di
+/// **Senza questo elenco sparirebbero e basta.** Una sfida giudicata smette di
 /// essere aperta nell'istante del verdetto — e' giusto, non c'e' piu' niente da
-/// fare — ma non lascia nessuna foto da mettere in bacheca, quindi non entra
-/// nella griglia delle figurine. Senza una riga sua, chi l'ha fatta vedrebbe la
-/// propria sfida svanire dal party senza sapere com'e' andata.
+/// fare — e quindi esce dalle ricevute e dalle lanciate. Se non ricomparisse
+/// qui, chi l'ha fatta vedrebbe la propria sfida svanire dal party senza sapere
+/// com'e' andata.
 ///
 /// Le rifiutate non stanno qui: quelle restano fra le ricevute per le loro
 /// ventiquattro ore, perche' per cinque ore si puo' ancora tornare indietro e
@@ -439,7 +445,7 @@ final closedDuelsProvider = Provider<List<Challenge>>((ref) {
 
   return [
     for (final challenge in chiuse)
-      if (challenge.isDuel && !challenge.hasTrophy) challenge,
+      if (challenge.isDuel) challenge,
   ];
 });
 
