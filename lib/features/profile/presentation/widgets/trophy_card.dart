@@ -268,23 +268,14 @@ class _NoPhoto extends StatelessWidget {
 /// sempre uguale per tutte. Qui fa anche una seconda cosa: tiene il titolo e la
 /// data, che davanti toglierebbero spazio alla foto.
 class TrophyBack extends StatelessWidget {
-  const TrophyBack({
-    required this.challenge,
-    required this.kind,
-    this.ratio = TrophyFront.ratio,
-    super.key,
-  });
+  const TrophyBack({required this.challenge, required this.kind, super.key});
 
   final Challenge challenge;
   final TrophyKind kind;
 
-  /// La stessa forma della faccia: vedi `FlippableTrophy.ratio`.
-  final double ratio;
-
   @override
   Widget build(BuildContext context) {
     return _Laminated(
-      ratio: ratio,
       child: DecoratedBox(
         decoration: const BoxDecoration(
           borderRadius: BorderRadius.all(Radius.circular(AppRadius.sm)),
@@ -363,19 +354,14 @@ class TrophyBack extends StatelessWidget {
 
 /// La cornice: il bordo rosso, il riflesso, l'ombra. Uguale sulle due facce.
 class _Laminated extends StatelessWidget {
-  const _Laminated({required this.child, this.ratio = TrophyFront.ratio});
+  const _Laminated({required this.child});
 
   final Widget child;
-
-  /// Le proporzioni. Serve alla targa, che e' **coricata**: la lamina, le
-  /// ombre e l'incavo sono gli stessi della figurina, cambia la forma — ed e'
-  /// la forma a dare a un oggetto la sua faccia, prima del colore.
-  final double ratio;
 
   @override
   Widget build(BuildContext context) {
     return AspectRatio(
-      aspectRatio: ratio,
+      aspectRatio: TrophyFront.ratio,
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.md),
@@ -506,19 +492,11 @@ class FlippableTrophy extends StatefulWidget {
     required this.challenge,
     required this.kind,
     this.fronte,
-    this.ratio = TrophyFront.ratio,
     super.key,
   });
 
   final Challenge challenge;
   final TrophyKind kind;
-
-  /// Le proporzioni delle due facce.
-  ///
-  /// Girando, il retro deve avere la stessa forma della faccia: una targa
-  /// coricata che a meta' giro diventa una carta in piedi non e' piu' lo stesso
-  /// oggetto — e' un oggetto che si trasforma, che e' un'altra cosa.
-  final double ratio;
 
   /// Cosa si vede davanti, quando non e' la figurina.
   ///
@@ -588,7 +566,6 @@ class _FlippableTrophyState extends State<FlippableTrophy>
                     child: TrophyBack(
                       challenge: widget.challenge,
                       kind: widget.kind,
-                      ratio: widget.ratio,
                     ),
                   ),
           );
@@ -625,23 +602,21 @@ class TrophyGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // **Le targhe stanno una per riga, le figurine due.**
-    //
-    // Non e' una scelta di gusto: una targa e' coricata, e due targhe affiancate
-    // dentro una colonna larga mezzo schermo diventano due francobolli in cui
-    // il nome della missione non ci sta. A tutta larghezza si legge, e somiglia
-    // a quello che e' — una targa avvitata a un muro.
+    // **La targa ha la forma della figurina.** Sono due oggetti diversi e si
+    // riconoscono al primo sguardo — una ha una foto dentro, l'altra e' metallo
+    // scritto — ma stanno sulla stessa parete, e una parete con due formati
+    // diversi non e' una collezione: e' un disordine.
     final targhe = kind == TrophyKind.commissioned;
 
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: targhe ? 1 : 2,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
         crossAxisSpacing: AppSpacing.sm,
         mainAxisSpacing: AppSpacing.md,
-        childAspectRatio: targhe ? GoldPlaque.ratio : TrophyFront.ratio,
+        childAspectRatio: TrophyFront.ratio,
       ),
       itemCount: challenges.length,
       itemBuilder: (context, index) {
@@ -727,12 +702,6 @@ class _TrophyDetails extends StatelessWidget {
                 child: FlippableTrophy(
                   challenge: challenge,
                   kind: kind,
-                  // Girando, il retro deve avere la stessa forma della faccia:
-                  // una targa coricata che a meta' giro diventa una carta in
-                  // piedi non e' piu' lo stesso oggetto.
-                  ratio: kind == TrophyKind.commissioned
-                      ? GoldPlaque.ratio
-                      : TrophyFront.ratio,
                   // **La targa gira come la figurina.** Davanti c'e' la
                   // piastra incisa invece della foto, dietro c'e' lo stesso
                   // retro: il gesto e' quello che si e' gia' imparato, e due
@@ -928,14 +897,6 @@ class GoldPlaque extends StatelessWidget {
   /// dentro una scritta da francobollo.
   final bool grande;
 
-  /// **Le proporzioni di una targa, non di una carta.**
-  ///
-  /// La figurina e' piu' alta che larga, come le carte da collezione. Una targa
-  /// e' il contrario: **coricata**, perche' e' fatta per essere avvitata a un
-  /// muro e letta di striscio. E' la forma, prima del colore, a dire che i due
-  /// oggetti sulla stessa bacheca sono due cose diverse.
-  static const double ratio = 2.2;
-
   /// Il bianco delle lettere.
   ///
   /// **Erano incise nel metallo, e non si leggevano.** Bruno scuro dentro un
@@ -950,6 +911,15 @@ class GoldPlaque extends StatelessWidget {
 
   /// Di quanto crescono le scritte quando la targa e' aperta.
   double get _scala => grande ? 1.9 : 1;
+
+  /// L'occhiello in cima: dice di che specie e' la prova.
+  String get _intestazione {
+    if (challenge.isDuel) {
+      return 'PROVA D\'ONORE';
+    }
+
+    return challenge.isForFriends ? 'MISSIONE · AMICI' : 'MISSIONE';
+  }
 
   /// Il riflesso che trasforma una scritta scura in una scritta **scavata**.
   ///
@@ -974,115 +944,187 @@ class GoldPlaque extends StatelessWidget {
     final (titolo, esito, segno) = _cosaCEScritto();
 
     return _Laminated(
-      ratio: ratio,
-      child: DecoratedBox(
-        // **La piastra e' d'oro anche lei, non nera.**
-        //
-        // Era scura, e una piastra scura dentro una cornice dorata e' una
-        // targa da premiazione aziendale: due materiali diversi, uno che fa da
-        // sfondo all'altro. Una targa placcata e' **un pezzo solo** — la
-        // cornice e la lastra sono lo stesso metallo, e a separarle c'e' la
-        // luce e basta.
-        //
-        // Piu' chiara della cornice, non piu' scura: una superficie piana
-        // prende piu' luce di un bordo smussato, ed e' il modo in cui l'occhio
-        // capisce che quella e' la parte dritta.
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFFBF0CF), Color(0xFFEBD293), Color(0xFFCFA94D)],
-            stops: [0, 0.48, 1],
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // **La lastra.** Piu' chiara della cornice, non piu' scura: una
+          // superficie piana prende piu' luce di un bordo smussato, ed e' il
+          // modo in cui l'occhio capisce qual e' la parte dritta. Cornice e
+          // lastra sono lo stesso metallo — una targa placcata e' un pezzo
+          // solo, e a separarle c'e' la luce e basta.
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFFBF0CF), Color(0xFFEBD293), Color(0xFFCFA94D)],
+                stops: [0, 0.48, 1],
+              ),
+            ),
           ),
-        ),
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: 10 * _scala,
-            vertical: 12 * _scala,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'PROVA D\'ONORE',
-                textAlign: TextAlign.center,
-                // L'occhiello va nell'altra direzione: maiuscole spaziate e
-                // piccole, come ogni etichetta dell'app. Sono le due meta' di
-                // una stessa voce — i titoli si stringono, le etichette si
-                // aprono.
-                style: texts.labelSmall?.copyWith(
-                  color: _scritta,
-                  fontSize: 7.5 * _scala,
-                  letterSpacing: 1.8,
-                  fontWeight: FontWeight.w800,
-                  shadows: _solco,
+          // **Il colpo di luce che curva la lastra.**
+          //
+          // Una sfumatura in diagonale, da sola, e' una superficie inclinata;
+          // questa banda chiara che le passa sopra di traverso e' il riflesso
+          // di una **superficie bombata**. E' la differenza fra un rettangolo
+          // colorato bene e un pezzo di metallo.
+          const IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment(-1, -0.7),
+                  end: Alignment(1, 0.7),
+                  stops: [0, 0.34, 0.46, 0.58, 1],
+                  colors: [
+                    Color(0x00FFFFFF),
+                    Color(0x00FFFFFF),
+                    Color(0x4DFFFFFF),
+                    Color(0x00FFFFFF),
+                    Color(0x00FFFFFF),
+                  ],
                 ),
               ),
-              SizedBox(height: 6 * _scala),
-              _Filetto(scala: _scala),
-              SizedBox(height: 8 * _scala),
-              // **Il nome della missione e' la cosa piu' grande.** E' quello
-              // che si cerca guardando una targa: cosa hai fatto fare.
-              Expanded(
-                child: Center(
-                  child: Text(
-                    challenge.title.toUpperCase(),
-                    textAlign: TextAlign.center,
-                    maxLines: 4,
-                    overflow: TextOverflow.ellipsis,
-                    // **Il carattere di CRASY, non uno qualunque.**
-                    //
-                    // L'app non ha un font suo: quello che la fa riconoscere e'
-                    // la scala — peso ottocento, interlinea stretta e tracking
-                    // negativo sui titoli, che e' cio' che distingue un titolo
-                    // *composto* da un testo semplicemente ingrandito. Il nome
-                    // della missione e' un titolo, e qui si scrive come si
-                    // scrivono i titoli dappertutto nell'app: si parte da
-                    // `displaySmall` e si cambia solo la misura.
-                    style: texts.displaySmall?.copyWith(
-                      color: _scritta,
-                      fontSize: 13 * _scala,
-                      height: 1.05,
-                      letterSpacing: -0.4 * _scala,
-                      shadows: _solco,
-                    ),
+            ),
+          ),
+          // **L'ombra lungo i bordi.**
+          //
+          // Il centro resta chiaro e i lati si spengono: e' cio' che fa sembrare
+          // la lastra piu' alta in mezzo. Senza, per quanto bella sia la
+          // sfumatura, resta piatta come un foglio.
+          IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  radius: 0.95,
+                  colors: [
+                    Colors.transparent,
+                    _ombra.withValues(alpha: 0.22),
+                  ],
+                  stops: const [0.55, 1],
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: 12 * _scala,
+              vertical: 11 * _scala,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  // **Che cosa e' questa prova**, e sono tre cose diverse.
+                  //
+                  // Una missione aperta a chiunque, una lanciata al proprio
+                  // gruppo di amici e una sfida a una persona sola stanno tutte
+                  // e tre in questa bacheca, e da fuori si somigliavano: stessa
+                  // targa, stessa intestazione. Ma non sono la stessa cosa —
+                  // cambia chi poteva parteciparci, e quindi cosa vuol dire
+                  // averla lanciata.
+                  //
+                  // Chi guarda il profilo di un altro vede quelle per gli amici
+                  // **solo se e' dei loro**: non lo decide questa riga, lo
+                  // decidono le regole del database e la lettura che le
+                  // rispetta (vedi `watchCommissionedBy`). Qui si dice soltanto
+                  // quale delle tre si sta guardando.
+                  _intestazione,
+                  textAlign: TextAlign.center,
+                  // L'occhiello va nella direzione opposta al titolo: maiuscole
+                  // piccole e spaziate, come ogni etichetta dell'app. Sono le
+                  // due meta' di una stessa voce — i titoli si stringono, le
+                  // etichette si aprono.
+                  style: texts.labelSmall?.copyWith(
+                    color: _scritta,
+                    fontSize: 7 * _scala,
+                    letterSpacing: 2.2,
+                    fontWeight: FontWeight.w800,
+                    shadows: _solco,
                   ),
                 ),
-              ),
-              // **Il nome di chi ha vinto non ci va.**
-              //
-              // Questa e' la bacheca di chi la prova l'ha **fatta fare**, e il
-              // nome dell'altro qui dentro sposta il merito nel posto
-              // sbagliato: chi guarda legge il nome di un altro sulla targa di
-              // qualcuno. Chi ha vinto ce l'ha gia' il suo posto — la figurina
-              // sul proprio profilo, con la sua foto sopra.
-              SizedBox(height: 8 * _scala),
-              _Filetto(scala: _scala),
-              SizedBox(height: 7 * _scala),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(segno, style: TextStyle(fontSize: 11 * _scala)),
-                  SizedBox(width: 4 * _scala),
-                  Flexible(
+                SizedBox(height: 7 * _scala),
+                _Fregio(scala: _scala),
+                // **Il nome della missione e' la cosa piu' grande.** E' quello
+                // che si cerca guardando una targa: cosa hai fatto fare.
+                Expanded(
+                  child: Center(
                     child: Text(
-                      esito,
-                      maxLines: 1,
+                      titolo.toUpperCase(),
+                      textAlign: TextAlign.center,
+                      maxLines: 4,
                       overflow: TextOverflow.ellipsis,
-                      style: texts.labelSmall?.copyWith(
+                      // **Il carattere di CRASY, non uno qualunque.**
+                      //
+                      // L'app non ha un font suo: quello che la fa riconoscere
+                      // e' la scala — peso ottocento, interlinea stretta e
+                      // tracking negativo sui titoli, che e' cio' che distingue
+                      // un titolo *composto* da un testo ingrandito. Il nome
+                      // della missione e' un titolo, e si scrive come si
+                      // scrivono i titoli dappertutto nell'app.
+                      style: texts.displaySmall?.copyWith(
                         color: _scritta,
-                        fontSize: 8.5 * _scala,
-                        letterSpacing: 1,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 14 * _scala,
+                        height: 1.02,
+                        letterSpacing: -0.5 * _scala,
                         shadows: _solco,
                       ),
                     ),
                   ),
-                ],
-              ),
-            ],
+                ),
+                // **Il nome di chi ha vinto non ci va.**
+                //
+                // Questa e' la bacheca di chi la prova l'ha *fatta fare*, e il
+                // nome dell'altro qui dentro sposta il merito nel posto
+                // sbagliato. Chi ha vinto ce l'ha gia' il suo posto: la
+                // figurina sul proprio profilo, con la sua foto sopra.
+                _Fregio(scala: _scala),
+                SizedBox(height: 7 * _scala),
+                // L'esito su una riga sua, centrata, con il segno davanti: e'
+                // la cosa che si legge da lontano scorrendo la bacheca.
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(segno, style: TextStyle(fontSize: 11 * _scala)),
+                    SizedBox(width: 5 * _scala),
+                    Flexible(
+                      child: Text(
+                        esito,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: texts.labelSmall?.copyWith(
+                          color: _scritta,
+                          fontSize: 8 * _scala,
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.w800,
+                          shadows: _solco,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
+          // **Le quattro viti.**
+          //
+          // E' il dettaglio che dice "targa" prima di qualunque altra cosa: una
+          // lastra di metallo sta al muro perche' qualcuno ce l'ha avvitata, e
+          // senza le viti resta un rettangolo dorato. Stanno sopra a tutto — le
+          // viti si vedono, non ci si scrive sopra.
+          for (final angolo in const [
+            Alignment.topLeft,
+            Alignment.topRight,
+            Alignment.bottomLeft,
+            Alignment.bottomRight,
+          ])
+            Align(
+              alignment: angolo,
+              child: Padding(
+                padding: EdgeInsets.all(5 * _scala),
+                child: _Vite(misura: 5.5 * _scala),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -1128,14 +1170,59 @@ class GoldPlaque extends StatelessWidget {
   }
 }
 
-/// Il filetto inciso sulla piastra: una riga scura e una chiara sotto.
+/// Il fregio: due filetti con un rombo in mezzo.
 ///
-/// **Due righe e non una.** Una riga sola e' una linea disegnata; due righe di
-/// colore opposto sono un solco — la prima e' il taglio, la seconda e' la luce
-/// che ci batte dentro sul bordo di sotto. E' lo stesso trucco dell'incavo
-/// della cornice, in miniatura.
-class _Filetto extends StatelessWidget {
-  const _Filetto({required this.scala});
+/// **Un filetto da solo e' una riga; questo e' un ornamento.** E' la cosa che
+/// separa una targa incisa da un rettangolo con delle parole sopra, e costa due
+/// righe di codice: su una parete di figurine tutte uguali, e' quello che fa
+/// fermare l'occhio.
+///
+/// Le righe sono due e di colore opposto — una bruna e una chiara — perche' due
+/// righe cosi' sono un **solco**: la prima e' il taglio, la seconda e' la luce
+/// che ci batte dentro sul bordo di sotto.
+class _Fregio extends StatelessWidget {
+  const _Fregio({required this.scala});
+
+  final double scala;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 5 * scala),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(child: _Riga(scala: scala)),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 5 * scala),
+            child: Transform.rotate(
+              angle: math.pi / 4,
+              child: Container(
+                width: 3.4 * scala,
+                height: 3.4 * scala,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: GoldPlaque._ombra.withValues(alpha: 0.75),
+                      offset: Offset(0.7 * scala, 0.8 * scala),
+                      blurRadius: 1.2,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Expanded(child: _Riga(scala: scala)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Mezzo fregio: il solco, senza il rombo.
+class _Riga extends StatelessWidget {
+  const _Riga({required this.scala});
 
   final double scala;
 
@@ -1145,13 +1232,68 @@ class _Filetto extends StatelessWidget {
       children: [
         SizedBox(
           height: 0.7 * scala,
-          child: ColoredBox(color: GoldPlaque._ombra.withValues(alpha: 0.55)),
+          child: ColoredBox(color: GoldPlaque._ombra.withValues(alpha: 0.5)),
         ),
         SizedBox(
           height: 0.7 * scala,
-          child: const ColoredBox(color: Color(0xFFFFFAE6)),
+          child: const ColoredBox(color: Color(0xCCFFFFFF)),
         ),
       ],
+    );
+  }
+}
+
+/// Una vite agli angoli della lastra.
+///
+/// **E' il dettaglio che dice "targa" prima di tutto il resto.** Una lastra di
+/// metallo sta al muro perche' qualcuno ce l'ha avvitata: senza le viti resta
+/// un rettangolo dorato con delle parole sopra.
+///
+/// Tre cose la fanno tonda: la sfumatura che va da chiaro in alto a sinistra a
+/// scuro in basso a destra — cioe' da dove viene la luce su tutta la targa — il
+/// filo scuro attorno, che e' il suo incavo nel metallo, e il taglio del
+/// cacciavite, che e' una riga sola ma si riconosce subito.
+class _Vite extends StatelessWidget {
+  const _Vite({required this.misura});
+
+  final double misura;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: misura,
+      height: misura,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const RadialGradient(
+          center: Alignment(-0.4, -0.5),
+          colors: [Color(0xFFFFF8DD), Color(0xFFC8A04A), Color(0xFF8A6A22)],
+          stops: [0, 0.55, 1],
+        ),
+        border: Border.all(
+          color: GoldPlaque._ombra.withValues(alpha: 0.55),
+          width: 0.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.28),
+            offset: Offset(0, 0.5 * (misura / 5.5)),
+            blurRadius: 1.2,
+          ),
+        ],
+      ),
+      child: Center(
+        child: Transform.rotate(
+          angle: -0.6,
+          child: SizedBox(
+            width: misura * 0.62,
+            height: 0.7,
+            child: ColoredBox(
+              color: GoldPlaque._ombra.withValues(alpha: 0.8),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
