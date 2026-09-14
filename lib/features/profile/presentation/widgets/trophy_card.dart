@@ -148,24 +148,24 @@ class TrophyFront extends StatelessWidget {
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.centerLeft,
                             child: Text(
-                        // **Chi vince legge quello che ha incassato**, non il
-                        // numero della vetrina: il premio meno la percentuale
-                        // di CRASY. Chi ha commissionato legge quanto ha messo,
-                        // perche' e' quello che ha speso.
-                        // Una sfida d'onore vinta non ha pagato niente:
-                        // scritta come le altre diventerebbe un trofeo da
-                        // `€0,00`, che e' il modo piu' rapido di far sembrare
-                        // una vittoria una perdita. Al posto della cifra si
-                        // scrive cos'era. Con dei soldi in palio invece la
-                        // cifra c'e', ed e' quella che si legge: il trofeo dice
-                        // sempre cosa si e' portato a casa.
-                        challenge.isDuel && challenge.prizeCents == 0
-                            ? 'ONORE'
-                            : AppMoney.format(
-                                kind.isWon
-                                    ? challenge.payoutCents
-                                    : challenge.prizeCents,
-                              ),
+                              // **Chi vince legge quello che ha incassato**, non il
+                              // numero della vetrina: il premio meno la percentuale
+                              // di CRASY. Chi ha commissionato legge quanto ha messo,
+                              // perche' e' quello che ha speso.
+                              // Una sfida d'onore vinta non ha pagato niente:
+                              // scritta come le altre diventerebbe un trofeo da
+                              // `€0,00`, che e' il modo piu' rapido di far sembrare
+                              // una vittoria una perdita. Al posto della cifra si
+                              // scrive cos'era. Con dei soldi in palio invece la
+                              // cifra c'e', ed e' quella che si legge: il trofeo dice
+                              // sempre cosa si e' portato a casa.
+                              challenge.isDuel && challenge.prizeCents == 0
+                                  ? 'ONORE'
+                                  : AppMoney.format(
+                                      kind.isWon
+                                          ? challenge.payoutCents
+                                          : challenge.prizeCents,
+                                    ),
                               style: context.texts.headlineSmall?.copyWith(
                                 color: palette.accent,
                                 height: 1,
@@ -736,9 +736,7 @@ class _TrophyDetails extends StatelessWidget {
               value: challenge.isDuel && challenge.prizeCents == 0
                   ? 'ONORE'
                   : AppMoney.format(
-                      kind.isWon
-                          ? challenge.payoutCents
-                          : challenge.prizeCents,
+                      kind.isWon ? challenge.payoutCents : challenge.prizeCents,
                     ),
               accent: true,
             ),
@@ -860,8 +858,6 @@ class _Line extends StatelessWidget {
   }
 }
 
-
-
 /// **La targa: la stessa lamina della figurina, con dentro una lastra incisa.**
 ///
 /// Una figurina e' la foto di chi ha vinto dentro una cornice, e quella foto e'
@@ -954,13 +950,17 @@ class GoldPlaque extends StatelessWidget {
               Text(
                 'PROVA D\'ONORE',
                 textAlign: TextAlign.center,
+                // L'occhiello va nell'altra direzione: maiuscole spaziate e
+                // piccole, come ogni etichetta dell'app. Sono le due meta' di
+                // una stessa voce — i titoli si stringono, le etichette si
+                // aprono.
                 style: texts.labelSmall?.copyWith(
                   color: _inciso,
                   fontSize: 7.5 * _scala,
                   letterSpacing: 1.8,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                   shadows: _solco,
-                  ),
+                ),
               ),
               SizedBox(height: 6 * _scala),
               _Filetto(scala: _scala),
@@ -974,13 +974,22 @@ class GoldPlaque extends StatelessWidget {
                     textAlign: TextAlign.center,
                     maxLines: 4,
                     overflow: TextOverflow.ellipsis,
-                    style: texts.labelMedium?.copyWith(
+                    // **Il carattere di CRASY, non uno qualunque.**
+                    //
+                    // L'app non ha un font suo: quello che la fa riconoscere e'
+                    // la scala — peso ottocento, interlinea stretta e tracking
+                    // negativo sui titoli, che e' cio' che distingue un titolo
+                    // *composto* da un testo semplicemente ingrandito. Il nome
+                    // della missione e' un titolo, e qui si scrive come si
+                    // scrivono i titoli dappertutto nell'app: si parte da
+                    // `displaySmall` e si cambia solo la misura.
+                    style: texts.displaySmall?.copyWith(
                       color: _inciso,
-                      fontSize: 11 * _scala,
-                      height: 1.25,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 13 * _scala,
+                      height: 1.05,
+                      letterSpacing: -0.4 * _scala,
                       shadows: _solco,
-                      ),
+                    ),
                   ),
                 ),
               ),
@@ -994,7 +1003,7 @@ class GoldPlaque extends StatelessWidget {
                   color: _inciso.withValues(alpha: 0.75),
                   fontSize: 9.5 * _scala,
                   shadows: _solco,
-                  ),
+                ),
               ),
               SizedBox(height: 8 * _scala),
               _Filetto(scala: _scala),
@@ -1015,7 +1024,7 @@ class GoldPlaque extends StatelessWidget {
                         letterSpacing: 1,
                         fontWeight: FontWeight.w800,
                         shadows: _solco,
-                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -1087,9 +1096,7 @@ class _Filetto extends StatelessWidget {
       children: [
         SizedBox(
           height: 0.7 * scala,
-          child: ColoredBox(
-            color: GoldPlaque._inciso.withValues(alpha: 0.65),
-          ),
+          child: ColoredBox(color: GoldPlaque._inciso.withValues(alpha: 0.65)),
         ),
         SizedBox(
           height: 0.7 * scala,
