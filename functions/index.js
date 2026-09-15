@@ -190,9 +190,30 @@ async function annuncia(corpo, dati) {
 //
 //     firebase functions:secrets:set STRIPE_SECRET_KEY
 //     firebase deploy --only functions --set-env-vars CRASY_PAYMENTS=on
-if (process.env.CRASY_PAYMENTS === 'on') {
-  const payments = require('./payments');
+//
+// **E `payments` va dichiarato qui fuori, non dentro l'`if`.**
+//
+// Stava dentro, ed era un guasto vero che nessuno vedeva: `const` dentro un
+// blocco vive solo in quel blocco, ma il modulo lo usa in altri tre punti —
+// il rimborso di una gara senza partecipanti, il rimborso di una senza foto
+// ammesse, e il pagamento del vincitore. A pagamenti spenti quel nome
+// semplicemente **non esiste**, e la funzione che chiude le gare moriva con
+// `payments is not defined` **nell'istante esatto in cui trovava una gara da
+// chiudere**.
+//
+// Non si vedeva perche' il caso normale e' non trovarne nessuna: la funzione
+// gira ogni pochi minuti, quasi sempre esce subito, e nei log restano
+// centinaia di esecuzioni a buon fine e una riga rossa ogni tanto. Il risultato
+// e' che **il server non ha mai chiuso una gara**: a chiuderle e' sempre stato
+// il telefono del primo che apriva la schermata dei vincitori, cioe' la strada
+// di riserva — quella che il giorno dei pagamenti veri si spegne da sola.
+//
+// Nullo quando i pagamenti sono spenti, e va bene cosi': non c'e' nessun soldo
+// da restituire ne' da pagare, e i tre punti che lo usano ne tengono conto.
+const payments =
+  process.env.CRASY_PAYMENTS === 'on' ? require('./payments') : null;
 
+if (payments) {
   exports.startChallengePayment = payments.startChallengePayment;
   exports.stripeWebhook = payments.stripeWebhook;
   exports.createPayoutOnboarding = payments.createPayoutOnboarding;
@@ -788,8 +809,11 @@ async function closeChallenge(challenge) {
     await challenge.ref.update({ winnerEntryId: '' });
 
     // E il premio torna a chi l'aveva messo. Non c'e' nessuno a cui darlo, e
-    // tenerlo sarebbe rubare.
-    await payments.refundChallenge(challenge.id);
+    // tenerlo sarebbe rubare. A pagamenti spenti non c'e' niente da
+    // restituire: nessuno ha mai pagato niente.
+    if (payments) {
+      await payments.refundChallenge(challenge.id);
+    }
     logger.info(`Challenge ${challenge.id} chiusa senza partecipanti.`);
 
     return;
@@ -808,7 +832,11 @@ async function closeChallenge(challenge) {
 
   if (eligible.length === 0) {
     await challenge.ref.update({ winnerEntryId: '' });
-    await payments.refundChallenge(challenge.id);
+
+    if (payments) {
+      await payments.refundChallenge(challenge.id);
+    }
+
     logger.info(`Challenge ${challenge.id} chiusa: nessuna foto ammessa.`);
 
     return;
@@ -875,6 +903,10 @@ async function closeChallenge(challenge) {
 
   // Il premio finisce nel portafoglio del vincitore. Non parte nessun
   // bonifico: i soldi sono suoi da adesso e li preleva quando vuole.
+  if (!payments) {
+    return;
+  }
+
   try {
     await payments.payWinner(challenge.id);
   } catch (error) {

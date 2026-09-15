@@ -749,44 +749,21 @@ service cloud.firestore {
       // modificato potrebbe incrementarlo **oltre** a quanto fa il server, e il
       // numero conterebbe il doppio.
 
-      // **Chiudere una gara scaduta. Strada temporanea, e si spegne da sola.**
-      //
-      // A proclamare il vincitore dovrebbe essere il server, e il codice c'e'
-      // gia': una funzione che gira ogni cinque minuti, e che richiede il piano
-      // a pagamento di Firebase. Finche' quel piano non e' attivo **nessuna
-      // challenge si chiude**: scadono e restano li' per sempre, e il giro del
-      // prodotto non si vede mai finire. Cosi' invece la chiude il primo che la
-      // apre dopo la scadenza.
-      //
-      // Il permesso e' legato a `prizeStatus == 'unpaid'`, ed e' la parte che
-      // conta: vale solo dove **CRASY non ha in cassa un centesimo**. Il giorno
-      // in cui i pagamenti si accendono, ogni gara visibile e' pagata e da qui
-      // non si proclama piu' niente — senza che nessuno debba ricordarsi di
-      // cancellare questa regola.
-      //
-      // Va detto cosa questo permette, oggi: **chiunque puo' scrivere il nome
-      // di un vincitore diverso da quello vero**, perche' il conto delle fiamme
-      // lo fa chi scrive e nessuna regola puo' rifarlo. Non ci sono soldi di
-      // mezzo, e il costo di non chiudere mai una gara e' piu' alto. E' una
-      // delle ragioni per cui questa strada deve sparire il giorno in cui il
-      // server si accende — cosa che succede da sola.
-      //
       // **La foto del trofeo dev'essere quella che ha davvero vinto.**
       //
       // Insieme al vincitore si scrive nella gara una copia della sua foto:
       // serve a farla sopravvivere alla pulizia che quarantotto ore dopo
       // cancella le partecipazioni. Ma una copia e' un dato scritto da un
-      // telefono, e senza questo controllo chiunque potrebbe proclamare un
-      // vincitore e attaccarci l'immagine che vuole — una figurina falsa nella
-      // bacheca di qualcun altro.
+      // telefono, e senza questo controllo chi giudica una sfida potrebbe
+      // attaccarci l'immagine che vuole — una figurina falsa nella bacheca di
+      // qualcun altro.
       //
       // Si va a leggere la partecipazione dichiarata vincente e si pretende che
       // l'indirizzo combaci. Vale finche' quella partecipazione esiste, cioe'
       // esattamente il momento in cui si proclama.
       //
-      // Vincitore vuoto vuol dire "non ha partecipato nessuno": non c'e'
-      // nessuna foto da controllare, e la seconda meta' non viene nemmeno
-      // valutata.
+      // Vincitore vuoto vuol dire "non ha vinto nessuno": non c'e' nessuna foto
+      // da controllare, e la seconda meta' non viene nemmeno valutata.
       function winnerPhotoIsReal() {
         return request.resource.data.winnerEntryId == ''
                || request.resource.data.winnerMediaUrl == get(
@@ -794,16 +771,25 @@ service cloud.firestore {
                   ).data.mediaUrl;
       }
 
-      allow update: if signedIn()
-                    && changedOnly([
-                         'winnerEntryId', 'winnerUserId',
-                         'winnerUsername', 'winnerMediaUrl',
-                         'winnerMediaKind', 'winnerVotes'
-                       ])
-                    && winnerPhotoIsReal()
-                    && resource.data.get('prizeStatus', 'unpaid') == 'unpaid'
-                    && resource.data.get('winnerEntryId', null) == null
-                    && resource.data.endsAt <= request.time;
+      // **Il vincitore lo proclama il server, e nessun altro.**
+      //
+      // Qui c'era una strada di riserva: finche' i pagamenti erano spenti,
+      // qualunque telefono poteva chiudere una gara scaduta e scriverci dentro
+      // chi aveva vinto. Serviva perche' la funzione del server non chiudeva
+      // niente — e non lo faceva per un guasto, non per mancanza di piano: il
+      // modulo dei pagamenti era dichiarato dentro un `if`, quindi a pagamenti
+      // spenti quel nome non esisteva e la funzione moriva con
+      // `payments is not defined` **nell'istante in cui trovava una gara da
+      // chiudere**. Nei log restavano centinaia di esecuzioni a buon fine e una
+      // riga rossa ogni tanto, e nessuno la leggeva.
+      //
+      // Riparato quello, la strada di riserva non serve piu' — e va tolta,
+      // perche' quello che permetteva era grosso: **chiunque poteva scrivere il
+      // nome di un vincitore diverso da quello vero**, visto che il conto delle
+      // fiamme lo faceva chi scriveva e nessuna regola poteva rifarlo.
+      //
+      // Il server passa dall'SDK di amministrazione, che queste regole non le
+      // attraversa: da qui il vincitore non lo tocca piu' nessuno.
 
       // **Alla sfida risponde solo chi e' stato sfidato.**
       //
@@ -1016,14 +1002,6 @@ service cloud.firestore {
         // Il valore di partenza si legge con `get('votes', 0)` invece che
         // direttamente: le partecipazioni scritte prima che il campo esistesse
         // altrimenti resterebbero per sempre senza poter ricevere una fiamma.
-        // La vittoria, scritta insieme alla proclamazione qui sopra. Stesse
-        // due condizioni: gara finita, e nessun soldo in cassa.
-        allow update: if signedIn()
-                      && changedOnly(['isWinner'])
-                      && request.resource.data.isWinner == true
-                      && challenge().get('prizeStatus', 'unpaid') == 'unpaid'
-                      && challenge().endsAt <= request.time;
-
         // **La vittoria di una sfida mirata, che arriva prima della scadenza.**
         //
         // La regola qui sopra pretende una gara gia' finita, e su ogni altra

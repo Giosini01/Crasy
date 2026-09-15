@@ -15,7 +15,6 @@ import 'package:crasy/features/challenges/data/reveal_seen_store.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
-import 'package:crasy/features/challenges/presentation/controllers/challenge_closer.dart';
 import 'package:crasy/features/challenges/presentation/controllers/duel_controller.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
@@ -378,7 +377,6 @@ class _EntriesState extends ConsumerState<_Entries> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _openSharedEntry();
-    _closeIfOver();
     _proclamaSeServe();
   }
 
@@ -387,10 +385,10 @@ class _EntriesState extends ConsumerState<_Entries> {
     super.didUpdateWidget(oldWidget);
 
     // **Anche qui, e non solo all'apertura.** La gara arriva spesso ancora
-    // aperta e viene chiusa un istante dopo — dal server o da noi stessi in
-    // `_closeIfOver`. Il vincitore compare in quel momento, con un widget
-    // nuovo: guardando soltanto all'ingresso, il rullo non partirebbe mai
-    // proprio nel caso piu' comune, cioe' chi arriva appena scaduto il tempo.
+    // aperta e il server la chiude un istante dopo: il vincitore compare in
+    // quel momento, con un widget nuovo. Guardando soltanto all'ingresso, il
+    // rullo non partirebbe mai proprio nel caso piu' comune — chi arriva
+    // appena scaduto il tempo.
     _proclamaSeServe();
   }
 
@@ -470,27 +468,6 @@ class _EntriesState extends ConsumerState<_Entries> {
       winner: winner,
       mine: winner.userId == io,
     );
-  }
-
-  /// Chiude la gara se e' scaduta e nessuno l'ha ancora proclamata.
-  ///
-  /// Lo dovrebbe fare il server ogni cinque minuti, e il codice c'e' gia': gli
-  /// manca il piano a pagamento. Finche' non c'e', a chiudere e' il primo che
-  /// apre la gara dopo la scadenza — vedi `ChallengeCloser`, che spiega perche'
-  /// questa strada si spegne da sola il giorno in cui girano dei soldi veri.
-  void _closeIfOver() {
-    final challenge = widget.challenge;
-    final entries = widget.entries;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        // Qui l'elenco arriva dal ramo `data` dello stream, quindi e' per
-        // definizione caricato.
-        ref
-            .read(challengeCloserProvider)
-            .closeIfNeeded(challenge, entries, entriesLoaded: true);
-      }
-    });
   }
 
   /// Apre la foto indicata dall'indirizzo.

@@ -53,8 +53,28 @@ class RevealSeenStore {
   /// passa dalla campanella e legge il finale li', e il rullo di tamburi arriva
   /// a raccontare una cosa gia' saputa. Finche' non l'ha vista, quella riga non
   /// c'e'.
-  Stream<Set<String>> watchSeen(String userId) {
-    if (userId.isEmpty) {
+  /// **Solo le gare che interessano**, non tutta la collezione.
+  ///
+  /// Serviva a rispondere a una domanda sola — *di queste gare che ho vinto,
+  /// quali ho gia' visto proclamare?* — e per rispondere leggeva **ogni
+  /// documento** della collezione, a ogni avvio dell'app. Quella collezione non
+  /// la svuota nessuno: cresce per sempre, e la domanda invece riguarda sempre
+  /// pochissime gare, perche' le vittorie sono poche.
+  ///
+  /// **Un `limit()` qui sarebbe stato sbagliato**, e vale la pena dirlo: senza
+  /// un ordinamento Firestore non promette *quali* documenti restituisce. Se
+  /// fosse rimasto fuori proprio quello della gara che serve, l'app crederebbe
+  /// che il rullo non e' stato visto e mostrerebbe la riga *hai vinto* in
+  /// anticipo — cioe' lo spoiler che tutto questo esiste per evitare.
+  ///
+  /// Si chiedono invece **per nome**, che e' la domanda esatta. Trenta per
+  /// volta e' il tetto di Firestore su `whereIn`, e trenta vittorie da
+  /// guardare insieme non le ha nessuno: oltre quelle, le piu' vecchie si danno
+  /// per viste — il rullo di una gara di sei mesi fa non lo aspetta nessuno.
+  Stream<Set<String>> watchSeen(String userId, List<String> challengeIds) {
+    final cercate = challengeIds.take(30).toList();
+
+    if (userId.isEmpty || cercate.isEmpty) {
       return Stream.value(const <String>{});
     }
 
@@ -62,6 +82,7 @@ class RevealSeenStore {
         .collection('users')
         .doc(userId)
         .collection('revealsSeen')
+        .where(FieldPath.documentId, whereIn: cercate)
         .snapshots()
         .map((snapshot) => {for (final doc in snapshot.docs) doc.id});
   }

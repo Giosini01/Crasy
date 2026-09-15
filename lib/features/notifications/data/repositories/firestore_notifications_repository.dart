@@ -39,12 +39,30 @@ class FirestoreNotificationsRepository {
   /// istante prima che il server le assegnasse l'ora sparirebbe dall'elenco
   /// invece di comparire in cima.
   Stream<List<AppNotification>> watch(String userId) {
-    // Non limitare una query senza un ordinamento: Firestore non promette che
-    // i primi documenti siano i piu' recenti. Con molte notifiche una riga
-    // nuova poteva quindi restare fuori dalla campanella e dal suo badge.
-    // L'ordinamento resta in memoria anche per includere senza ritardi i
-    // timestamp locali appena scritti.
-    return _inbox(userId).snapshots().map((snapshot) {
+    // **Le ultime cinquanta, e non tutte.**
+    //
+    // Questa collezione non ha nessuno che la svuoti: cresce per sempre, e si
+    // rilegge **intera a ogni avvio dell'app**. Con quaranta righe non si nota;
+    // con duemila, fra qualche mese, un avvio costa duemila letture a testa —
+    // ed e' l'unico difetto del conto che **peggiora da solo** mentre nessuno
+    // lo guarda.
+    //
+    // **L'ordinamento adesso si puo' chiedere.** Il motivo per cui non si
+    // faceva era buono: una `orderBy` salta i documenti che quel campo non ce
+    // l'hanno, e una notifica appena scritta ha il timestamp del server ancora
+    // vuoto. Ma qui quel caso **non esiste**: nessuno scrive nella propria
+    // casella — le regole impongono `actorId != userId` — quindi chi legge non
+    // e' mai chi scrive, e quando il documento arriva a destinazione l'ora del
+    // server c'e' gia'.
+    //
+    // L'ordine si rifa' comunque in memoria: serve a mettere in fila le righe
+    // che l'app costruisce da sola — *e' finita*, *hai vinto* — che nel
+    // database non ci sono.
+    return _inbox(userId)
+        .orderBy('createdAt', descending: true)
+        .limit(50)
+        .snapshots()
+        .map((snapshot) {
       final items = [
         for (final document in snapshot.docs)
           _from(document.id, document.data()),

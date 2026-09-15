@@ -200,6 +200,13 @@ final revealSeenStoreProvider = Provider<RevealSeenStore?>((ref) {
 ///
 /// Vuoto quando non c'e' nessuno collegato, cosi' chi lo legge non deve
 /// chiedersi in che stato e'.
+/// **Si chiedono solo quelle che servono.**
+///
+/// A questo elenco si fa una domanda sola: delle gare che ho **vinto**, quali
+/// ho gia' visto proclamare? Le vittorie stanno gia' in mano all'app —
+/// `myEntriesProvider` le porta con se' — quindi si chiedono quelle per nome
+/// invece di leggere una collezione che non svuota nessuno e che cresce per
+/// sempre.
 final revealsSeenProvider = StreamProvider<Set<String>>((ref) {
   final userId = ref.watch(currentUserIdProvider);
   final store = ref.watch(revealSeenStoreProvider);
@@ -208,7 +215,17 @@ final revealsSeenProvider = StreamProvider<Set<String>>((ref) {
     return Stream.value(const <String>{});
   }
 
-  return store.watchSeen(userId);
+  // Le gare in cui ho una foto vincente: sono le sole per cui un rullo di
+  // tamburi possa esserci stato.
+  final mie =
+      ref.watch(myEntriesProvider).valueOrNull ?? const <ChallengeEntry>[];
+
+  final vinte = [
+    for (final entry in mie)
+      if (entry.isWinner) entry.challengeId,
+  ];
+
+  return store.watchSeen(userId, vinte);
 });
 
 /// La foto che rappresenta una challenge: **quella con piu' fiamme**.
