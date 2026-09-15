@@ -932,7 +932,7 @@ class GoldPlaque extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final texts = context.texts;
-    final (titolo, esito, segno) = _cosaCEScritto();
+    final (titolo, esito) = _cosaCEScritto();
 
     return _Laminated(
       child: DecoratedBox(
@@ -1012,27 +1012,28 @@ class GoldPlaque extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              // Com'e' finita, in fondo: e' la riga che si legge da lontano
-              // scorrendo la bacheca.
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(segno, style: TextStyle(fontSize: 9.5 * _scala)),
-                  SizedBox(width: 4 * _scala),
-                  Flexible(
-                    child: Text(
-                      esito,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: texts.labelSmall?.copyWith(
-                        color: Colors.white,
-                        fontSize: 7.5 * _scala,
-                        letterSpacing: 0.9,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
+              // **Com'e' finita, in fondo, e senza emoji.**
+              //
+              // C'era una coppa davanti alla parola, e su una lastra di metallo
+              // inciso un'emoji e' un adesivo appiccicato sopra: rompe l'unica
+              // cosa che questa targa ha da offrire, cioe' l'aria di essere un
+              // oggetto. La parola da sola dice la stessa cosa e resta dentro
+              // il materiale.
+              //
+              // Nemmeno la cifra: quanto valeva la gara si legge dalla
+              // figurina di chi l'ha vinta, dove quel numero vuol dire quanto
+              // ha incassato. Qui vorrebbe dire quanto hai speso, ed e' un
+              // altro discorso — che su una targa non ci va.
+              Text(
+                esito,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: texts.labelSmall?.copyWith(
+                  color: Colors.white,
+                  fontSize: 7.5 * _scala,
+                  letterSpacing: 1.4,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ],
           ),
@@ -1047,37 +1048,30 @@ class GoldPlaque extends StatelessWidget {
   /// amico e una gara aperta a tutti sono la stessa cosa vista da chi l'ha
   /// lanciata — una cosa che ha fatto fare a qualcuno — e cambia solo di chi e'
   /// il nome: il destinatario nell'una, chi ha vinto nell'altra.
-  (String, String, String) _cosaCEScritto() {
+  (String, String) _cosaCEScritto() {
     if (challenge.isDuel) {
       final state = challenge.duelStateAt(DateTime.now());
 
-      final (esito, segno) = switch (state) {
-        DuelState.completed => ('SUPERATA', '🏆'),
-        DuelState.notValid => ('NON VALIDA', '👎'),
-        DuelState.declined => ('RIFIUTATA', '💩'),
-        DuelState.expired => ('NON FATTA', '💩'),
-        DuelState.noVerdict => ('SENZA GIUDIZIO', '⏳'),
-        DuelState.judging => ('DA GIUDICARE', '⚖️'),
-        _ => ('IN CORSO', '⏳'),
+      final esito = switch (state) {
+        DuelState.completed => 'SUPERATA',
+        DuelState.notValid => 'NON VALIDA',
+        DuelState.declined => 'RIFIUTATA',
+        DuelState.expired => 'NON FATTA',
+        DuelState.noVerdict => 'SENZA GIUDIZIO',
+        DuelState.judging => 'DA GIUDICARE',
+        _ => 'IN CORSO',
       };
 
-      return (challenge.title, esito, segno);
+      return (challenge.title, esito);
     }
 
     if (challenge.winnerUsername.isNotEmpty) {
-      return (
-        challenge.title,
-        challenge.prizeCents == 0
-            ? 'SUPERATA'
-            : 'SUPERATA · ${AppMoney.format(challenge.prizeCents)}',
-        '🏆',
-      );
+      return (challenge.title, 'SUPERATA');
     }
 
     return (
       challenge.title,
       challenge.hasEndedAt(DateTime.now()) ? 'NESSUN VINCITORE' : 'IN CORSO',
-      challenge.hasEndedAt(DateTime.now()) ? '—' : '⏳',
     );
   }
 }

@@ -224,6 +224,9 @@ class _CommissionedShelfState extends State<CommissionedShelf> {
         if (schede.length > 1) ...[
           _Filtri(
             schede: schede,
+            quante: {
+              for (final filtro in schede) filtro: dentro[filtro]!.length,
+            },
             selected: scelta,
             onPick: (filtro) => setState(() => _scelta = filtro),
           ),
@@ -243,17 +246,28 @@ class _CommissionedShelfState extends State<CommissionedShelf> {
 class _Filtri extends StatelessWidget {
   const _Filtri({
     required this.schede,
+    required this.quante,
     required this.selected,
     required this.onPick,
   });
 
   final List<CommissionedFilter> schede;
+
+  /// Quante gare ci sono dentro ciascuna.
+  ///
+  /// **Il numero accanto alla parola non e' un ornamento.** Una fila di tre
+  /// parole non dice quale vale la pena toccare, e chi cerca qualcosa le prova
+  /// tutte e tre: il numero trasforma tre porte chiuse in tre porte con
+  /// scritto cosa c'e' dietro.
+  final Map<CommissionedFilter, int> quante;
+
   final CommissionedFilter selected;
   final void Function(CommissionedFilter filtro) onPick;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final texts = context.texts;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
@@ -261,17 +275,48 @@ class _Filtri extends StatelessWidget {
         children: [
           for (final filtro in schede)
             Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.md),
+              padding: const EdgeInsets.only(right: AppSpacing.lg),
               child: GestureDetector(
                 onTap: () => onPick(filtro),
                 behavior: HitTestBehavior.opaque,
-                child: Text(
-                  filtro.label,
-                  style: context.texts.labelSmall?.copyWith(
-                    color: filtro == selected
-                        ? palette.accent
-                        : palette.textFaint,
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          filtro.label,
+                          style: texts.labelSmall?.copyWith(
+                            color: filtro == selected
+                                ? palette.textPrimary
+                                : palette.textFaint,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xxs),
+                        Text(
+                          '${quante[filtro] ?? 0}',
+                          style: texts.labelSmall?.copyWith(
+                            color: filtro == selected
+                                ? palette.accent
+                                : palette.textFaint,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // **Il filetto sotto la scelta.** Il colore da solo dice
+                    // "questa e' diversa", non "questa e' quella aperta": una
+                    // riga sotto la parola e' il modo in cui una scheda dice di
+                    // essere una scheda, ed e' lo stesso gesto che l'app usa
+                    // gia' in cima al profilo.
+                    const SizedBox(height: 4),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      height: 1.5,
+                      width: filtro == selected ? 18 : 0,
+                      color: palette.accent,
+                    ),
+                  ],
                 ),
               ),
             ),

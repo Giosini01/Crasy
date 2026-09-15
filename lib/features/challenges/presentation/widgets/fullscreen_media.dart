@@ -1,6 +1,8 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/services/share/share_entry.dart';
 import 'package:crasy/core/theme/app_colors.dart';
+import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/video_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
@@ -334,11 +336,29 @@ class _BottomBar extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.page,
-        AppSpacing.md,
+        AppSpacing.xl,
         AppSpacing.page,
         AppSpacing.lg,
       ),
-      color: AppColors.ink.withValues(alpha: 0.55),
+      // **Una velatura che sfuma, non un rettangolo appoggiato sopra.**
+      //
+      // Prima era un blocco di nero al cinquantacinque per cento con il bordo
+      // di sopra netto: una riga dritta in mezzo alla foto, che taglia
+      // l'immagine invece di finirla. Una sfumatura che parte da niente e
+      // arriva al nero fa la stessa cosa — rendere leggibile quello che c'e'
+      // scritto sopra — senza che si veda dove comincia.
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.ink.withValues(alpha: 0),
+            AppColors.ink.withValues(alpha: 0.72),
+            AppColors.ink.withValues(alpha: 0.94),
+          ],
+          stops: const [0, 0.45, 1],
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -348,22 +368,14 @@ class _BottomBar extends ConsumerWidget {
           // dritto alla challenge: senza questa riga, quella strada sparirebbe
           // e una foto resterebbe una foto senza sapere per cosa era in gara.
           if (entry.challengeTitle.isNotEmpty)
-            GestureDetector(
-              onTap: () {
-                Navigator.of(context).pop();
-                context.push(AppRoutes.challengeDetailOf(entry.challengeId));
-              },
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: Text(
-                  entry.challengeTitle.toUpperCase(),
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.paper.withValues(alpha: 0.7),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: _MissionPlate(
+                title: entry.challengeTitle,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  context.push(AppRoutes.challengeDetailOf(entry.challengeId));
+                },
               ),
             ),
           // **La didascalia sta qui, in riga.** E' l'unico posto in cui si
@@ -642,6 +654,76 @@ class _ActionState extends State<_Action> {
                 ],
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// **La targhetta con il nome della missione, sotto la foto aperta.**
+///
+/// Era una riga di testo grigia, piccola, in cima al blocco: si leggeva come
+/// una didascalia di servizio, e soprattutto non si capiva che si potesse
+/// toccare — mentre e' l'unica strada che da una foto riporta alla gara per
+/// cui e' stata scattata. Chi arriva qui dalla griglia di un profilo, senza
+/// quella riga, guarda una foto senza sapere per cosa era in gara.
+///
+/// Adesso e' una **targhetta**: un rettangolo appena piu' chiaro del nero, con
+/// il filo di luce attorno, la fiamma davanti e la punta di freccia in fondo.
+/// Tre cose che messe insieme dicono la stessa parola — *questo si tocca, e
+/// porta da qualche parte* — senza scriverlo.
+///
+/// Larga quanto le serve e non quanto lo schermo: una targhetta stretta e'
+/// un oggetto appoggiato sulla foto, una larga tutta e' un'altra fascia sopra
+/// quella che c'e' gia'.
+class _MissionPlate extends StatelessWidget {
+  const _MissionPlate({required this.title, required this.onTap});
+
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(10, 6, 8, 6),
+          decoration: BoxDecoration(
+            color: AppColors.paper.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(color: AppColors.paper.withValues(alpha: 0.22)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.local_fire_department_rounded,
+                size: 14,
+                color: context.palette.accent,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  title.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.texts.labelSmall?.copyWith(
+                    color: AppColors.paper,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 2),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 16,
+                color: AppColors.paper.withValues(alpha: 0.6),
+              ),
+            ],
           ),
         ),
       ),
