@@ -893,8 +893,23 @@ class CommissionedTrophy extends StatelessWidget {
   /// dentro una scritta da francobollo.
   final bool grande;
 
-  /// Di quanto crescono le scritte quando la targa e' aperta.
-  double get _scala => grande ? 1.9 : 1;
+  /// Le proporzioni della coppa, sempre le stesse.
+  ///
+  /// **Senza questa riga il disegno si stira.** Il pittore mappa le sue misure
+  /// sulla larghezza e sull'altezza della scatola che gli capita: in una cella
+  /// alta e stretta la coppa si allunga, in una larga si schiaccia — e sono due
+  /// oggetti diversi, non lo stesso oggetto piu' grande. Fissate qui, la scatola
+  /// puo' essere quello che vuole: la coppa resta questa, e cambia solo quanto
+  /// spazio ha intorno.
+  static const double cupRatio = 0.86;
+
+  /// Di quanto crescono le scritte quando la coppa e' aperta.
+  ///
+  /// **Un e mezzo e non due.** Le scritte stanno sotto la coppa e le tolgono
+  /// spazio: ingrandite troppo, aprire la targa faceva **rimpicciolire** la
+  /// coppa invece di ingrandirla — che e' il contrario di quello che uno si
+  /// aspetta toccandola.
+  double get _scala => grande ? 1.45 : 1;
 
   /// L'occhiello in cima: dice di che specie e' la prova.
   String get _intestazione {
@@ -926,21 +941,22 @@ class CommissionedTrophy extends StatelessWidget {
         children: [
           Expanded(
             child: Padding(
-              // **Nella bacheca la coppa sta larga.** A tutta cella era un
-              // oggetto che preme contro i bordi: un trofeo su una mensola ha
-              // dell'aria intorno, ed e' quell'aria a farlo sembrare posato li'
-              // invece che incollato. Aperta invece si prende tutto lo spazio,
-              // perche' li' e' l'unica cosa da guardare.
-              padding: EdgeInsets.symmetric(
-                horizontal: grande ? 4 : 34,
-                vertical: grande ? 0 : 10,
+              padding: EdgeInsets.symmetric(vertical: 6 * _scala),
+              // **Le proporzioni della coppa non dipendono dalla scatola.**
+              // Centrata dentro lo spazio che ha, con le sue misure: cosi' e'
+              // identica nella bacheca e aperta, e cambia solo quanto e'
+              // grande — che e' l'unica cosa che deve cambiare.
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: cupRatio,
+                  child: grande
+                      ? const _SpinningCup()
+                      : const CustomPaint(
+                          painter: _CupPainter(),
+                          size: Size.infinite,
+                        ),
+                ),
               ),
-              child: grande
-                  ? const _SpinningCup()
-                  : const CustomPaint(
-                      painter: _CupPainter(),
-                      size: Size.infinite,
-                    ),
             ),
           ),
           SizedBox(height: AppSpacing.xs * _scala),
