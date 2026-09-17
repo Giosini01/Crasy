@@ -12,6 +12,7 @@ void main() {
     required DateTime inizio,
     required DateTime fine,
     bool conTrofeo = false,
+    int partecipanti = 1,
   }) {
     return Challenge(
       id: id,
@@ -23,6 +24,7 @@ void main() {
       createdByUsername: 'anna',
       startsAt: inizio,
       endsAt: fine,
+      participantsCount: partecipanti,
       // Un trofeo esiste quando c'e' un vincitore **e** la sua foto: sono le
       // due cose che `hasTrophy` guarda.
       winnerEntryId: conTrofeo ? 'vincitore' : null,
@@ -106,23 +108,34 @@ void main() {
     expect(ordinate.map((c) => c.id), ['nuovo', 'vecchio']);
   });
 
-  test('una gara finita senza vincitore resta sulla bacheca', () {
-    // **Questa regola e' cambiata, ed e' voluto.** Prima spariva: la bacheca
-    // era fatta di figurine, e una cornice con dentro il vuoto si legge come
-    // un'immagine che non si e' caricata. Ma sparire era peggio — una gara
-    // lanciata, finita senza partecipanti, non c'era piu' da nessuna parte sul
-    // profilo di chi l'aveva lanciata, pur restando visibile fra i vincitori.
-    //
-    // Adesso li' ci sono targhe, e una targa puo' dire "nessun vincitore"
-    // senza sembrare rotta.
+  test('una gara a cui non si è presentato nessuno non lascia niente', () {
+    // Una coppa per una cosa che non e' successa svuota di significato tutte
+    // le altre coppe della mensola. Chi l'aveva lanciata lo sa gia', e il
+    // premio gli e' tornato indietro.
     final deserta = gara(
       id: 'deserta',
       inizio: adesso.subtract(const Duration(hours: 2)),
       fine: adesso.subtract(const Duration(hours: 1)),
+      partecipanti: 0,
     );
 
-    expect(commissionedOrder([deserta], now: adesso).map((c) => c.id), [
-      'deserta',
+    expect(commissionedOrder([deserta], now: adesso), isEmpty);
+  });
+
+  test('una gara finita con partecipanti ma senza vincitore resta', () {
+    // **Il difetto vero che questa riga blocca.** Una gara lanciata, finita
+    // con delle foto dentro ma senza un vincitore proclamato, spariva dal
+    // profilo di chi l'aveva scritta pur restando visibile fra i vincitori:
+    // una cosa che hai fatto e che non c'e' piu' da nessuna parte.
+    final senzaVincitore = gara(
+      id: 'senza-vincitore',
+      inizio: adesso.subtract(const Duration(hours: 2)),
+      fine: adesso.subtract(const Duration(hours: 1)),
+      partecipanti: 3,
+    );
+
+    expect(commissionedOrder([senzaVincitore], now: adesso).map((c) => c.id), [
+      'senza-vincitore',
     ]);
   });
 

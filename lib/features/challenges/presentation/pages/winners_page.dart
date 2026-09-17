@@ -180,7 +180,11 @@ class _WinnerBlock extends ConsumerWidget {
                 url: winner.mediaUrl,
                 video: winner.isVideo,
                 aspectRatio: 1,
-                caption: winner.authorName,
+                // **Il nome non sta sulla foto.** Ce l'ha gia' la riga qui
+                // sotto, dove sta dentro una frase che dice anche quanto ha
+                // vinto e con quante fiamme: scritto anche sull'immagine e' la
+                // stessa parola due volte a due dita di distanza, e per giunta
+                // copre la cosa che si e' venuti a guardare.
                 // **Quante fiamme ha preso, sopra la foto.**
                 //
                 // Durante la gara i numeri sono nascosti apposta: sapere come

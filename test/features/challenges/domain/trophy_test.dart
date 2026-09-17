@@ -102,7 +102,7 @@ void main() {
     expect(await repository.watchTrophiesOf('carla').first, isEmpty);
   });
 
-  test('una gara senza partecipanti non lascia una figurina, ma resta', () async {
+  test('una gara senza partecipanti non lascia niente', () async {
     final now = DateTime.now();
     final challenge = await repository.createChallenge(
       Challenge(
@@ -130,16 +130,13 @@ void main() {
 
     expect(chiusa!.hasTrophy, isFalse);
 
-    // **Ma sulla bacheca di chi l'ha lanciata ci resta lo stesso.** Prima
-    // spariva, perche' li' c'erano figurine e una cornice con dentro il vuoto
-    // si legge come un'immagine che non si e' caricata. Sparire era peggio: una
-    // gara lanciata, finita senza che partecipasse nessuno, non c'era piu' da
-    // nessuna parte sul profilo di chi l'aveva scritta — pur restando visibile
-    // fra i vincitori. Adesso li' c'e' una targa, e una targa puo' dire
-    // "nessun vincitore" senza sembrare rotta.
-    final bacheca = await repository.watchCommissionedBy('anna').first;
-
-    expect(bacheca.map((c) => c.id), [challenge.id]);
+    // **E sulla bacheca non ci va.** Una coppa per una cosa che non e'
+    // successa svuota di significato tutte le altre coppe della mensola: chi
+    // l'aveva lanciata lo sa gia', e il premio gli e' tornato indietro.
+    //
+    // Diverso il caso di una gara con delle foto dentro ma senza un vincitore
+    // proclamato: quella resta, ed e' provato in `commissioned_order_test`.
+    expect(await repository.watchCommissionedBy('anna').first, isEmpty);
   });
 
   test('il vincitore incassa il premio meno la percentuale', () {

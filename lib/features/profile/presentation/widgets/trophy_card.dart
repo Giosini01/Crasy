@@ -723,18 +723,6 @@ class _TrophyDetails extends StatelessWidget {
                       ),
               ),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            // Che si giri non si vede: una carta ferma sembra un'immagine.
-            // Una riga sola, piccola, e chi vuole prova.
-            Center(
-              child: Text(
-                'TRASCINALA PER GIRARLA',
-                style: texts.labelSmall?.copyWith(
-                  color: palette.textFaint,
-                  fontSize: 9,
-                ),
-              ),
-            ),
             const SizedBox(height: AppSpacing.lg),
             Text(challenge.title.toUpperCase(), style: texts.headlineSmall),
             if (challenge.brief.isNotEmpty) ...[
@@ -938,7 +926,15 @@ class CommissionedTrophy extends StatelessWidget {
         children: [
           Expanded(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4 * _scala),
+              // **Nella bacheca la coppa sta larga.** A tutta cella era un
+              // oggetto che preme contro i bordi: un trofeo su una mensola ha
+              // dell'aria intorno, ed e' quell'aria a farlo sembrare posato li'
+              // invece che incollato. Aperta invece si prende tutto lo spazio,
+              // perche' li' e' l'unica cosa da guardare.
+              padding: EdgeInsets.symmetric(
+                horizontal: grande ? 4 : 22,
+                vertical: grande ? 0 : 6,
+              ),
               child: grande
                   ? const _SpinningCup()
                   : const CustomPaint(
@@ -1173,6 +1169,18 @@ class _CupPainter extends CustomPainter {
   }
 
   /// Il vaso: la coppa vera e propria.
+  ///
+  /// **Quello che fa sembrare vero un metallo non e' la sfumatura: e' la linea
+  /// dell'orizzonte.** Una superficie lucida non ha un colore proprio — mostra
+  /// quello che ha intorno. In mezzo riflette il punto dove il cielo incontra
+  /// la terra, e quella e' una banda scura netta che taglia l'oggetto a meta':
+  /// sopra il chiaro del cielo, sotto il caldo del pavimento. E' il motivo per
+  /// cui un cucchiaio sembra un cucchiaio e un disegno di un cucchiaio no.
+  ///
+  /// Sopra quella ci vanno due luci, e sono cose diverse: la **banda larga e
+  /// morbida** che segue la forma — la si ha gia' con la sfumatura orizzontale
+  /// — e il **puntino duro**, stretto e quasi bianco, che e' il riflesso della
+  /// sorgente. Senza il secondo l'oro sembra velluto.
   void _vaso(Canvas canvas, double w, double h) {
     final area = Rect.fromLTWH(w * 0.19, h * 0.08, w * 0.62, h * 0.42);
 
@@ -1187,11 +1195,88 @@ class _CupPainter extends CustomPainter {
 
     canvas.drawPath(path, Paint()..shader = _tondo(area));
 
+    // Da qui in poi si dipinge **dentro la sagoma**: sono riflessi sul metallo,
+    // e un riflesso che esce dal bordo e' una macchia.
+    canvas.save();
+    canvas.clipPath(path);
+
+    // **L'orizzonte.** La banda scura dove il cielo finisce e comincia il
+    // pavimento, appena sotto la meta': e' il riflesso che tutti i metalli
+    // lucidi hanno e che nessun disegno piatto ha.
+    canvas.drawRect(
+      area,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            _luce.withValues(alpha: 0.22),
+            Colors.transparent,
+            _ombra.withValues(alpha: 0.55),
+            _ombra.withValues(alpha: 0.10),
+            _chiaro.withValues(alpha: 0.28),
+          ],
+          stops: const [0, 0.34, 0.5, 0.62, 1],
+        ).createShader(area),
+    );
+
+    // **Il puntino duro**: il riflesso della sorgente, stretto e quasi bianco.
+    // Si sposta con la rotazione e si spegne quando la faccia illuminata gira
+    // dall'altra parte.
+    final forza = (0.25 + _versoLuce.abs() * 0.75).clamp(0.0, 1.0);
+    final dove = w * (0.5 + _versoLuce * 0.21);
+
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(dove, h * 0.24),
+        width: w * 0.075,
+        height: h * 0.22,
+      ),
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.55 * forza)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    );
+
+    // E la sua coda, piu' lunga e molto piu' debole: e' la stessa luce vista
+    // dove la superficie comincia a piegarsi via.
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(dove - w * 0.055, h * 0.30),
+        width: w * 0.05,
+        height: h * 0.26,
+      ),
+      Paint()
+        ..color = _luce.withValues(alpha: 0.30 * forza)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+    );
+
+    // **Il buio che rientra ai bordi.** Il fianco che gira via dalla vista non
+    // si spegne piano: si scurisce di colpo nell'ultimo pezzo, ed e' quella
+    // brusca che dice che la superficie sta curvando e non finendo.
+    canvas.drawRect(
+      area,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            Color(0x996E5216),
+            Colors.transparent,
+            Colors.transparent,
+            Color(0xB35E4413),
+          ],
+          stops: [0, 0.14, 0.82, 1],
+        ).createShader(area),
+    );
+
+    canvas.restore();
+
     // **Il bordo: l'unico pezzo che dice che la coppa e' vuota.**
     //
-    // Un'ellisse chiara sopra e una scura appena sotto: la prima e' lo spessore
-    // del metallo visto di taglio, la seconda e' il buio dentro. Senza, la
-    // coppa e' una sagoma piena.
+    // Tre cose sovrapposte: l'anello di metallo visto di taglio, il buio dentro
+    // — che non e' nero piatto ma una sfumatura, perche' la parete di fronte
+    // prende un po' di luce mentre quella vicina no — e il filo acceso sul
+    // labbro.
     final bordo = Rect.fromCenter(
       center: Offset(w * 0.5, h * 0.11),
       width: w * 0.62,
@@ -1199,10 +1284,22 @@ class _CupPainter extends CustomPainter {
     );
 
     canvas.drawOval(bordo, Paint()..color = _ombra);
+
+    final dentro = bordo.deflate(w * 0.022);
+
     canvas.drawOval(
-      bordo.deflate(w * 0.022),
-      Paint()..color = Colors.black.withValues(alpha: 0.55),
+      dentro,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF3A2B0C),
+            Colors.black.withValues(alpha: 0.92),
+          ],
+        ).createShader(dentro),
     );
+
     canvas.drawOval(
       bordo,
       Paint()
@@ -1211,20 +1308,18 @@ class _CupPainter extends CustomPainter {
         ..shader = _tondo(bordo),
     );
 
-    // La virgola di luce sul fianco: si sposta con la rotazione, e sparisce
-    // quando la parte illuminata e' girata dall'altra parte.
+    // Il filo di luce sul labbro, solo sulla meta' illuminata: un anello
+    // acceso tutto intorno sarebbe una collana, non un riflesso.
     canvas.save();
-    canvas.translate(w * _versoLuce * 0.16, 0);
-    canvas.drawPath(
-      Path()
-        ..moveTo(w * 0.28, h * 0.16)
-        ..cubicTo(w * 0.30, h * 0.30, w * 0.35, h * 0.40, w * 0.38, h * 0.45)
-        ..cubicTo(w * 0.33, h * 0.40, w * 0.27, h * 0.30, w * 0.25, h * 0.17)
-        ..close(),
+    canvas.clipRect(
+      Rect.fromLTWH(bordo.left, bordo.top - h * 0.02, bordo.width, h * 0.045),
+    );
+    canvas.drawOval(
+      bordo,
       Paint()
-        ..color = _luce.withValues(
-          alpha: (0.65 * (0.35 + _versoLuce.abs() * 0.65)).clamp(0.0, 1.0),
-        ),
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.010
+        ..color = Colors.white.withValues(alpha: 0.55 * forza),
     );
     canvas.restore();
   }

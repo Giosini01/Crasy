@@ -68,7 +68,14 @@ List<Challenge> commissionedOrder(
             // farebbe sparire da tutte e due gli elenchi — fuori dalle aperte
             // perche' ha gia' un vincitore, fuori da qui perche' l'ora non e'
             // ancora arrivata.
-            if (challenge.hasEndedAt(now) || challenge.winnerEntryId != null)
+            //
+            // **E che ci abbia partecipato qualcuno.** Una gara finita a cui
+            // non si e' presentato nessuno non ha prodotto niente: una coppa
+            // per una cosa che non e' successa svuota di significato tutte le
+            // altre coppe della mensola. Sparisce dalla bacheca e basta — chi
+            // l'aveva lanciata lo sa gia', e il premio gli e' tornato indietro.
+            if ((challenge.hasEndedAt(now) || challenge.winnerEntryId != null)
+                && challenge.participantsCount > 0)
               challenge,
         ]
         // La bacheca si legge dall'ultimo trofeo: e' quello di cui ci si

@@ -250,22 +250,25 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
         ];
 
       case FriendActivityView.party:
+        // **Una riga sola, non due che dicono la stessa cosa.** C'erano
+        // entrambe — la riga di spiegazione e sotto il riquadro vuoto con "il
+        // party è pronto" — e leggerle di fila e' leggere due volte che qui
+        // dentro ci sono le missioni fra amici. Dove non c'e' niente si dice
+        // cosa fare; dove c'e' qualcosa la spiegazione non serve piu', perche'
+        // a spiegare ci pensano le missioni stesse.
         if (party.isEmpty) {
           return const [
-            _PartyIntro(),
-            SizedBox(height: AppSpacing.lg),
             EmptyState(
               title: 'Il party è pronto',
               message:
-                  'Lancia la prima missione per gli amici: la vedete solo voi, '
-                  'e può anche essere gratis.',
+                  'Le vostre missioni private: qui entrano solo i tuoi amici. '
+                  'Lancia la prima e la vedete solo voi — può anche essere '
+                  'gratis.',
             ),
           ];
         }
 
         return [
-          const _PartyIntro(),
-          const SizedBox(height: AppSpacing.md),
           for (final challenge in party) _MissionRow(challenge: challenge),
         ];
 
@@ -461,21 +464,6 @@ class _Switch extends ConsumerWidget {
   }
 }
 
-/// Una sola frase: chiarisce che il party e' privato, non un altro feed.
-class _PartyIntro extends StatelessWidget {
-  const _PartyIntro();
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-    final texts = context.texts;
-
-    return Text(
-      'Le vostre missioni private. Qui entrano solo i tuoi amici.',
-      style: texts.bodyMedium?.copyWith(color: palette.textSecondary),
-    );
-  }
-}
 
 /// Il comando per sfidare un amico, e quello per il party.
 ///
