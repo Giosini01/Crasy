@@ -1077,11 +1077,20 @@ class CommissionedTrophy extends StatelessWidget {
 ///   il rosso e le luci verso il giallo, come fa la plastica vera. Schiarire e
 ///   scurire lo stesso arancione da' un oggetto di cartone.
 class _CupPainter extends CustomPainter {
-  const _CupPainter();
+  const _CupPainter({required this.angolo});
 
-  /// La faccia illuminata guarda sempre chi guarda: dentro una teca la
-  /// coppa non gira, gira la teca.
-  double get _fronte => 1;
+  /// Di quanto e' girata, in radianti.
+  ///
+  /// **La coppa e' dentro la teca, quindi gira con lei.** Girando la vetrina si
+  /// gira anche quello che c'e' dentro — e' una cosa sola, e una coppa che
+  /// restasse ferma mentre la scatola gira sarebbe appesa a niente.
+  ///
+  /// Una coppa girata resta identica di sagoma, ed e' quello che la rende una
+  /// cosa tonda: a cambiare sono la luce che scorre sul fianco e i manici, che
+  /// si scambiano di posto e di taglio si assottigliano.
+  final double angolo;
+
+  double get _fronte => math.cos(angolo);
 
   // L'oro, dalla luce quasi bianca all'ombra bruna.
   static const Color _chiaro = Color(0xFFFFF0B8);
@@ -1412,7 +1421,7 @@ class _CupPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_CupPainter oldDelegate) => false;
+  bool shouldRepaint(_CupPainter oldDelegate) => oldDelegate.angolo != angolo;
 }
 
 /// **La coppa che gira, a trecentosessanta gradi.**
@@ -1496,288 +1505,329 @@ class _SpinningCaseState extends State<_SpinningCase>
   }
 }
 
-/// Gli otto vertici della teca, girati e proiettati sullo schermo.
-///
-/// **E' una scatola vera, non un disegno di scatola.** I quattro montanti
-/// stanno agli angoli di un rettangolo visto dall'alto; girando la teca, ognuno
-/// si sposta lungo la sua ellisse — chi passa davanti si allarga verso i bordi,
-/// chi va dietro si stringe verso il centro. E' quello a far girare la scatola:
-/// le facce si aprono e si chiudono da sole, senza che nessuno decida quale
-/// mostrare.
-///
-/// La `z` dice quanto un vertice e' lontano: serve a sapere **cosa sta davanti
-/// a cosa** — e quindi in che ordine disegnare — e a spostare in su i punti
-/// lontani, che e' il modo in cui si guarda una cosa da appena sopra.
-class _Angoli {
-  const _Angoli({required this.x, required this.z, required this.alto, required this.basso});
+/// Una faccia della teca, gia' proiettata sullo schermo.
+class _Faccia {
+  const _Faccia({
+    required this.indice,
+    required this.path,
+    required this.area,
+    required this.profondita,
+  });
 
-  final List<double> x;
-  final List<double> z;
-  final List<double> alto;
-  final List<double> basso;
+  /// Quale delle quattro: `0` e' il fondo nero, le altre tre sono di vetro.
+  final int indice;
 
-  /// Gli indici dei quattro montanti, dal piu' lontano al piu' vicino: e'
-  /// l'ordine in cui vanno dipinte le facce perche' si coprano giuste.
-  List<int> get daDietro {
-    final indici = [0, 1, 2, 3]..sort((a, b) => z[b].compareTo(z[a]));
+  final Path path;
+  final Rect area;
 
-    return indici;
-  }
+  /// Quanto e' lontana: piu' alto, piu' indietro. Decide **l'ordine in cui si
+  /// dipinge**, ed e' l'unica cosa che tiene insieme tutta la scatola.
+  final double profondita;
+
+  bool get eIlFondo => indice == 0;
 }
 
-/// **La teca: la coppa non gira, gira la vetrina.**
+/// **La teca: una scatola con quattro pareti, non due.**
 ///
-/// Una coppa che ruota su se' stessa e' un oggetto in mano a qualcuno. Una
-/// coppa ferma dentro una vetrina che gira e' un oggetto **esposto**: il
-/// movimento e' quello di chi ci cammina intorno, non di chi la rigira fra le
-/// dita. E' la stessa differenza che passa fra una cosa che possiedi e una che
-/// hai vinto.
+/// La prima versione ne disegnava due — quella dietro e quella davanti — e
+/// girando le altre due non c'erano: le pareti comparivano e sparivano di
+/// colpo, e il vetro si staccava dal nero. Non era un difetto di disegno, era
+/// che meta' della scatola non esisteva.
 ///
-/// Tre lati di vetro e il fondo nero con il marchio: il marchio sta li' e non
-/// sulla coppa, perche' su un trofeo vero il nome di chi lo assegna sta sulla
-/// targa della vetrina, non inciso sull'oggetto.
+/// Qui ci sono tutte e quattro, e ognuna sa quanto e' lontana. Si dipingono
+/// **dalla piu' lontana alla piu' vicina**, con la coppa infilata in mezzo: le
+/// pareti dietro finiscono sotto la coppa, quelle davanti sopra. E' la regola
+/// piu' vecchia che ci sia per disegnare una cosa solida, e basta da sola —
+/// nessuna faccia compare o sparisce, ognuna arriva al suo turno.
+///
+/// Le facce sono tre di vetro e una nera, e la nera e' **sempre la stessa**:
+/// gira insieme alla scatola come su una teca vera. Girandola fino in fondo la
+/// si vede da dietro, ed e' giusto cosi' — e' quello che succede se si cammina
+/// intorno a una vetrina.
 class _CasePainter extends CustomPainter {
   const _CasePainter({required this.angolo, required this.davanti});
 
   final double angolo;
 
-  /// Se disegnare quello che sta **davanti** alla coppa — i vetri — invece di
-  /// quello che le sta dietro. Il pittore e' lo stesso e viene chiamato due
-  /// volte, con la coppa in mezzo: e' cosi' che un oggetto finisce *dentro* una
-  /// scatola invece che sopra.
+  /// Se dipingere quello che sta **davanti** alla coppa invece che dietro. Il
+  /// pittore e' lo stesso e viene chiamato due volte, con la coppa in mezzo: e'
+  /// cosi' che un oggetto finisce *dentro* una scatola invece che sopra.
   final bool davanti;
 
   static const Color _telaio = Color(0xFF0A0A0B);
-  static const Color _telaioLuce = Color(0xFF3A3A3F);
-  static const Color _fondo = Color(0xFF141416);
+  static const Color _telaioLuce = Color(0xFF4A4A50);
+  static const Color _fondoAlto = Color(0xFF1B1B1E);
+  static const Color _fondoBasso = Color(0xFF0B0B0C);
 
   /// Quanto e' profonda la teca rispetto a quanto e' larga.
-  static const double _profondita = 0.62;
+  static const double _profondita = 0.58;
 
-  _Angoli _angoli(double w, double h) {
+  /// Di quanto salgono i punti lontani: e' l'occhio messo appena sopra.
+  static const double _cameraAlta = 0.055;
+
+  /// I quattro montanti, proiettati: `x` sullo schermo, `z` la lontananza,
+  /// `su` e `giu` le due altezze.
+  (List<double>, List<double>, List<double>, List<double>) _montanti(
+    double w,
+    double h,
+  ) {
     final cx = w * 0.5;
-    final a = w * 0.34;
-    final b = w * 0.34 * _profondita;
-    final alto = h * 0.10;
-    final basso = h * 0.90;
+    final a = w * 0.36;
+    final b = w * 0.36 * _profondita;
+    final cielo = h * 0.06;
+    final terra = h * 0.88;
 
     final x = <double>[];
     final z = <double>[];
     final su = <double>[];
     final giu = <double>[];
 
-    // I quattro angoli del rettangolo visto dall'alto, in senso orario.
-    for (final piano in const [(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)]) {
-      final px = piano.$1 * a;
-      final pz = piano.$2 * b;
-      final ruotatoX = px * math.cos(angolo) + pz * math.sin(angolo);
-      final ruotatoZ = -px * math.sin(angolo) + pz * math.cos(angolo);
+    // In pianta, in giro: i primi due dietro, gli altri due davanti.
+    for (final punto in const [
+      (-1.0, 1.0),
+      (1.0, 1.0),
+      (1.0, -1.0),
+      (-1.0, -1.0),
+    ]) {
+      final px = punto.$1 * a;
+      final pz = punto.$2 * b;
 
-      x.add(cx + ruotatoX);
-      z.add(ruotatoZ);
-      // Piu' un punto e' lontano, piu' sale: e' l'occhio messo appena sopra la
-      // teca, e senza questo la scatola e' un rettangolo che si stringe.
-      su.add(alto - ruotatoZ * 0.16);
-      giu.add(basso - ruotatoZ * 0.16);
+      x.add(cx + px * math.cos(angolo) + pz * math.sin(angolo));
+
+      final lontano = -px * math.sin(angolo) + pz * math.cos(angolo);
+
+      z.add(lontano);
+      su.add(cielo - lontano * _cameraAlta);
+      giu.add(terra - lontano * _cameraAlta);
     }
 
-    return _Angoli(x: x, z: z, alto: su, basso: giu);
+    return (x, z, su, giu);
+  }
+
+  List<_Faccia> _facce(double w, double h) {
+    final (x, z, su, giu) = _montanti(w, h);
+    final facce = <_Faccia>[];
+
+    for (var i = 0; i < 4; i++) {
+      final j = (i + 1) % 4;
+
+      final path = Path()
+        ..moveTo(x[i], su[i])
+        ..lineTo(x[j], su[j])
+        ..lineTo(x[j], giu[j])
+        ..lineTo(x[i], giu[i])
+        ..close();
+
+      facce.add(
+        _Faccia(
+          indice: i,
+          path: path,
+          area: Rect.fromLTRB(
+            math.min(x[i], x[j]),
+            math.min(su[i], su[j]),
+            math.max(x[i], x[j]),
+            math.max(giu[i], giu[j]),
+          ),
+          profondita: (z[i] + z[j]) / 2,
+        ),
+      );
+    }
+
+    return facce..sort((a, b) => b.profondita.compareTo(a.profondita));
   }
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
-    final angoli = _angoli(w, h);
-    final ordine = angoli.daDietro;
+    final facce = _facce(w, h);
+    final (x, z, su, giu) = _montanti(w, h);
 
-    if (davanti) {
-      _vetriDavanti(canvas, angoli, ordine, w, h);
+    if (!davanti) {
+      _ombraSotto(canvas, w, h);
+
+      // Le pareti che stanno dietro la coppa.
+      for (final faccia in facce.where((f) => f.profondita > 0)) {
+        _parete(canvas, faccia);
+      }
+
+      _pavimento(canvas, x, giu, z);
 
       return;
     }
 
-    _ombraSotto(canvas, w, h);
-    _pareteDiFondo(canvas, angoli, ordine);
-    _pavimento(canvas, angoli);
+    // Le pareti davanti alla coppa: sono vetro, quindi la coppa si vede
+    // attraverso.
+    for (final faccia in facce.where((f) => f.profondita <= 0)) {
+      _parete(canvas, faccia);
+    }
+
+    _montantiEFasce(canvas, x, su, giu, z, w);
   }
 
-  /// L'ombra della teca sul ripiano.
   void _ombraSotto(Canvas canvas, double w, double h) {
     canvas.drawOval(
       Rect.fromCenter(
-        center: Offset(w * 0.5, h * 0.925),
-        width: w * 0.80,
-        height: h * 0.055,
+        center: Offset(w * 0.5, h * 0.90),
+        width: w * 0.88,
+        height: h * 0.06,
       ),
       Paint()
         ..color = Colors.black.withValues(alpha: 0.22)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 11),
     );
   }
 
-  /// La parete di fondo, nera: quella su cui sta il marchio.
-  ///
-  /// E' la faccia piu' lontana, quindi si disegna per prima e tutto il resto le
-  /// passa davanti. Le due pareti laterali sono vetro, ma **anche il vetro ha
-  /// uno spessore**: si accennano con un velo scuro, o la teca sembra fatta di
-  /// tre pezzi che non si toccano.
-  void _pareteDiFondo(Canvas canvas, _Angoli a, List<int> ordine) {
-    final uno = ordine[0];
-    final due = ordine[1];
-
-    canvas.drawPath(
-      Path()
-        ..moveTo(a.x[uno], a.alto[uno])
-        ..lineTo(a.x[due], a.alto[due])
-        ..lineTo(a.x[due], a.basso[due])
-        ..lineTo(a.x[uno], a.basso[uno])
-        ..close(),
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [_fondo, _telaio],
-        ).createShader(
-          Rect.fromLTRB(
-            math.min(a.x[uno], a.x[due]),
-            math.min(a.alto[uno], a.alto[due]),
-            math.max(a.x[uno], a.x[due]),
-            math.max(a.basso[uno], a.basso[due]),
-          ),
-        ),
-    );
-  }
-
-  /// Il pavimento della teca: il ripiano su cui la coppa e' posata.
-  void _pavimento(Canvas canvas, _Angoli a) {
-    final path = Path()..moveTo(a.x[0], a.basso[0]);
-
-    for (var i = 1; i < 4; i++) {
-      path.lineTo(a.x[i], a.basso[i]);
+  /// Una parete: nera se e' il fondo, altrimenti vetro.
+  void _parete(Canvas canvas, _Faccia faccia) {
+    if (faccia.area.width < 0.5) {
+      // Di taglio non c'e' niente da dipingere: la parete e' una riga, e a
+      // disegnarla si ottiene solo una striscia scura che balla.
+      return;
     }
 
-    path.close();
+    if (faccia.eIlFondo) {
+      canvas.drawPath(
+        faccia.path,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [_fondoAlto, _fondoBasso],
+          ).createShader(faccia.area),
+      );
 
+      return;
+    }
+
+    // **Il vetro non si dipinge: si dipingono i suoi riflessi.** Una lastra
+    // pulita e' invisibile. Quello che si vede e' la banda chiara in diagonale
+    // — il riflesso di una finestra — e un velo appena percettibile che spegne
+    // quello che c'e' dietro.
     canvas.drawPath(
-      path,
-      Paint()..color = const Color(0xFF1A1A1D),
-    );
-
-    // Il filo di luce sul bordo davanti del ripiano: e' quello che dice dove
-    // finisce il pavimento e comincia il vetro.
-    final vicini = a.daDietro.sublist(2);
-
-    canvas.drawLine(
-      Offset(a.x[vicini[0]], a.basso[vicini[0]]),
-      Offset(a.x[vicini[1]], a.basso[vicini[1]]),
-      Paint()
-        ..color = _telaioLuce.withValues(alpha: 0.6)
-        ..strokeWidth = 1.2,
-    );
-  }
-
-  /// I vetri e i montanti che stanno davanti alla coppa.
-  ///
-  /// **Il vetro non si disegna: si disegnano i suoi riflessi.** Una lastra
-  /// pulita e' invisibile — quello che si vede sono la banda chiara in
-  /// diagonale, il filo acceso sugli spigoli e il velo appena azzurro che
-  /// spegne quello che c'e' dietro. Messi insieme dicono "c'e' un vetro" senza
-  /// coprire niente.
-  void _vetriDavanti(Canvas canvas, _Angoli a, List<int> ordine, double w, double h) {
-    final vicini = ordine.sublist(2);
-
-    // Il velo sul vetro davanti, con il riflesso in diagonale.
-    final area = Rect.fromLTRB(
-      math.min(a.x[vicini[0]], a.x[vicini[1]]),
-      math.min(a.alto[vicini[0]], a.alto[vicini[1]]),
-      math.max(a.x[vicini[0]], a.x[vicini[1]]),
-      math.max(a.basso[vicini[0]], a.basso[vicini[1]]),
-    );
-
-    canvas.drawPath(
-      Path()
-        ..moveTo(a.x[vicini[0]], a.alto[vicini[0]])
-        ..lineTo(a.x[vicini[1]], a.alto[vicini[1]])
-        ..lineTo(a.x[vicini[1]], a.basso[vicini[1]])
-        ..lineTo(a.x[vicini[0]], a.basso[vicini[0]])
-        ..close(),
+      faccia.path,
       Paint()
         ..shader = const LinearGradient(
           begin: Alignment(-1, -1),
           end: Alignment(1, 1),
           colors: [
-            Color(0x26FFFFFF),
-            Color(0x00FFFFFF),
-            Color(0x1AFFFFFF),
-            Color(0x00FFFFFF),
+            Color(0x2EFFFFFF),
+            Color(0x08FFFFFF),
+            Color(0x1FFFFFFF),
+            Color(0x05FFFFFF),
           ],
-          stops: [0, 0.35, 0.52, 0.8],
-        ).createShader(area),
+          stops: [0, 0.38, 0.54, 0.85],
+        ).createShader(faccia.area),
     );
+  }
 
-    // I quattro montanti: barre nere sugli spigoli verticali, con il filo di
-    // luce sul lato da cui arriva la luce.
-    for (final i in ordine) {
-      final vicino = (a.z[i] < 0);
-      final spessore = w * (vicino ? 0.030 : 0.022);
+  /// Il ripiano su cui la coppa e' posata.
+  void _pavimento(
+    Canvas canvas,
+    List<double> x,
+    List<double> giu,
+    List<double> z,
+  ) {
+    final path = Path()..moveTo(x[0], giu[0]);
+
+    for (var i = 1; i < 4; i++) {
+      path.lineTo(x[i], giu[i]);
+    }
+
+    path.close();
+
+    canvas.drawPath(path, Paint()..color = const Color(0xFF141416));
+
+    // Il filo di luce sullo spigolo davanti del ripiano: dice dove finisce il
+    // pavimento e comincia il vetro.
+    var vicino = 0;
+
+    for (var i = 1; i < 4; i++) {
+      if (z[i] < z[vicino]) {
+        vicino = i;
+      }
+    }
+
+    final altro = z[(vicino + 1) % 4] < z[(vicino + 3) % 4]
+        ? (vicino + 1) % 4
+        : (vicino + 3) % 4;
+
+    canvas.drawLine(
+      Offset(x[vicino], giu[vicino]),
+      Offset(x[altro], giu[altro]),
+      Paint()
+        ..color = _telaioLuce.withValues(alpha: 0.55)
+        ..strokeWidth = 1.2,
+    );
+  }
+
+  /// I quattro montanti e le due fasce che chiudono la scatola.
+  ///
+  /// Si dipingono per ultimi e tutti insieme: stanno agli angoli, dove la coppa
+  /// non arriva mai, e una cornice continua e' quello che fa leggere le quattro
+  /// pareti come **una cosa sola** invece che come quattro lastre vicine.
+  void _montantiEFasce(
+    Canvas canvas,
+    List<double> x,
+    List<double> su,
+    List<double> giu,
+    List<double> z,
+    double w,
+  ) {
+    for (var i = 0; i < 4; i++) {
+      final vicino = z[i] < 0;
+      final spessore = w * (vicino ? 0.028 : 0.020);
 
       canvas.drawLine(
-        Offset(a.x[i], a.alto[i]),
-        Offset(a.x[i], a.basso[i]),
+        Offset(x[i], su[i]),
+        Offset(x[i], giu[i]),
         Paint()
           ..color = _telaio
           ..strokeWidth = spessore
           ..strokeCap = StrokeCap.round,
       );
 
+      // Il filo di luce sullo spigolo, dalla parte da cui arriva la luce.
       canvas.drawLine(
-        Offset(a.x[i] - spessore * 0.28, a.alto[i]),
-        Offset(a.x[i] - spessore * 0.28, a.basso[i]),
+        Offset(x[i] - spessore * 0.30, su[i]),
+        Offset(x[i] - spessore * 0.30, giu[i]),
         Paint()
-          ..color = _telaioLuce.withValues(alpha: vicino ? 0.75 : 0.35)
-          ..strokeWidth = spessore * 0.22,
+          ..color = _telaioLuce.withValues(alpha: vicino ? 0.8 : 0.4)
+          ..strokeWidth = spessore * 0.20,
       );
     }
 
-    // Il tetto e lo zoccolo: due fasce nere che chiudono la scatola sopra e
-    // sotto. Senza, i montanti sono quattro bastoni in aria.
-    _fascia(canvas, a, alto: true);
-    _fascia(canvas, a, alto: false);
-  }
+    for (final quota in [su, giu]) {
+      final path = Path()..moveTo(x[0], quota[0]);
 
-  /// Una delle due fasce, sopra o sotto.
-  void _fascia(Canvas canvas, _Angoli a, {required bool alto}) {
-    final y = alto ? a.alto : a.basso;
-    final path = Path()..moveTo(a.x[0], y[0]);
+      for (var i = 1; i < 4; i++) {
+        path.lineTo(x[i], quota[i]);
+      }
 
-    for (var i = 1; i < 4; i++) {
-      path.lineTo(a.x[i], y[i]);
+      path.close();
+
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = w * 0.022
+          ..strokeJoin = StrokeJoin.round
+          ..color = _telaio,
+      );
+
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color = _telaioLuce.withValues(alpha: 0.45),
+      );
     }
-
-    path.close();
-
-    canvas.drawPath(
-      path,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.5
-        ..color = _telaio,
-    );
-
-    canvas.drawPath(
-      path,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1
-        ..color = _telaioLuce.withValues(alpha: alto ? 0.5 : 0.3),
-    );
   }
 
   @override
   bool shouldRepaint(_CasePainter oldDelegate) => oldDelegate.angolo != angolo;
 }
-
 
 /// La teca con dentro la coppa: fondo, marchio, coppa, vetri.
 ///
@@ -1812,17 +1862,19 @@ class _Showcase extends StatelessWidget {
             // vetrina: inciso anche sull'oggetto sarebbe scritto due volte. E
             // da qui si comporta come deve — si stringe quando la teca gira di
             // taglio, e sparisce quando il fondo va dietro.
-            if (fronte.abs() > 0.06)
+            // Solo finche' il fondo e' davvero dietro: quando gira di taglio la
+            // parete e' una riga, e una scritta su una riga e' una macchia.
+            if (fronte > 0.12)
               Positioned(
                 left: w * 0.5 - w * 0.17,
-                top: h * 0.20,
+                top: h * 0.155,
                 width: w * 0.34,
                 child: Transform(
                   alignment: Alignment.center,
                   transform: Matrix4.identity()
-                    ..scaleByDouble(fronte.abs(), 1, 1, 1),
+                    ..scaleByDouble(fronte, 1, 1, 1),
                   child: Opacity(
-                    opacity: (0.18 + fronte.abs() * 0.5).clamp(0.0, 1.0),
+                    opacity: (0.15 + fronte * 0.45).clamp(0.0, 1.0),
                     child: const CrasyWordmark(
                       size: 30,
                       alignment: Alignment.center,
@@ -1836,11 +1888,11 @@ class _Showcase extends StatelessWidget {
             // un oggetto ha sempre dell'aria intorno, o non e' esposto: e'
             // incastrato.
             Positioned(
-              left: w * 0.24,
-              top: h * 0.20,
-              width: w * 0.52,
-              height: h * 0.66,
-              child: const CustomPaint(painter: _CupPainter()),
+              left: w * 0.26,
+              top: h * 0.22,
+              width: w * 0.48,
+              height: h * 0.64,
+              child: CustomPaint(painter: _CupPainter(angolo: angolo)),
             ),
             Positioned.fill(
               child: CustomPaint(
