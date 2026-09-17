@@ -1089,29 +1089,11 @@ class _CupPainter extends CustomPainter {
   /// Quanto la faccia illuminata e' girata verso di noi: da `-1` a `1`.
   double get _fronte => math.cos(angolo);
 
-  // L'arancione, dalle luci gialle alle ombre rosse.
-  static const Color _chiaro = Color(0xFFFFB259);
-  static const Color _medio = Color(0xFFFB8C20);
-  static const Color _scuro = Color(0xFFE06A00);
-  static const Color _ombra = Color(0xFFB04A00);
-
-  // **Il basamento e' nero, non bianco.**
-  //
-  // Il bianco era un pezzo che non c'entrava niente: non e' un colore di
-  // CRASY, non e' un materiale che si accompagni all'oro, e sotto un oggetto
-  // caldo faceva l'effetto di un sottobicchiere. Il nero e' il colore su cui
-  // sta scritta tutta l'app, e sotto una coppa e' il marmo dei basamenti veri.
-  static const Color _neroLuce = Color(0xFF3A3A3E);
-  static const Color _neroMedio = Color(0xFF1C1C1F);
-  static const Color _neroOmbra = Color(0xFF0A0A0B);
-
-  /// Il rosso di CRASY: **a gocce, non a pennellate.**
-  ///
-  /// Un trofeo tutto rosso non e' un trofeo, e' un oggetto rosso. Il rosso qui
-  /// dentro vuol dire una cosa sola in tutta l'app — *questo conta* — e vale
-  /// finche' resta raro: due fili sottili, uno sul bordo e uno sul basamento,
-  /// bastano a dire di chi e' questo oggetto.
-  static const Color _rosso = Color(0xFFFA0000);
+  // L'oro, dalla luce quasi bianca all'ombra bruna.
+  static const Color _chiaro = Color(0xFFFFF0B8);
+  static const Color _medio = Color(0xFFE9C468);
+  static const Color _scuro = Color(0xFFC09A33);
+  static const Color _ombra = Color(0xFF7E5F17);
 
   /// La sfumatura di un pezzo tondo, con la luce che segue la rotazione.
   Shader _plastica(Rect area) {
@@ -1153,7 +1135,7 @@ class _CupPainter extends CustomPainter {
     // paio di millimetri, e si vede anche senza saperlo dire.
     canvas.drawOval(
       Rect.fromCenter(
-        center: Offset(w * 0.53, h * 0.955),
+        center: Offset(w * 0.53, h * 0.925),
         width: w * 0.74,
         height: h * 0.055,
       ),
@@ -1164,7 +1146,7 @@ class _CupPainter extends CustomPainter {
 
     canvas.drawOval(
       Rect.fromCenter(
-        center: Offset(w * 0.5, h * 0.928),
+        center: Offset(w * 0.5, h * 0.905),
         width: w * 0.50,
         height: h * 0.022,
       ),
@@ -1277,6 +1259,32 @@ class _CupPainter extends CustomPainter {
         ).createShader(area),
     );
 
+    // **Le venature.** Un metallo colato non e' uniforme: ha striature che
+    // seguono la forma, appena piu' chiare o piu' scure del fondo. Sono
+    // pochissimo visibili di proposito — a vederle bene diventano graffi — ma
+    // sono quello che toglie l'aria di superficie stampata.
+    for (var i = 0; i < 5; i++) {
+      final dove = 0.28 + i * 0.11;
+      final scarto = (i.isEven ? 1 : -1) * 0.012;
+
+      canvas.drawPath(
+        Path()
+          ..moveTo(w * dove, h * 0.20)
+          ..cubicTo(
+            w * (dove + scarto),
+            h * 0.34,
+            w * (dove + scarto * 2),
+            h * 0.46,
+            w * (dove + scarto),
+            h * 0.60,
+          ),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = w * (i.isEven ? 0.012 : 0.007)
+          ..color = (i.isEven ? _chiaro : _ombra).withValues(alpha: 0.13),
+      );
+    }
+
     // **La luce di rimbalzo.** Sul lato in ombra, proprio sul bordo, torna un
     // filo di chiaro: e' la luce che rimbalza da quello che sta intorno. E'
     // debole e sottile, ma senza di lei il lato scuro sembra tagliato via
@@ -1322,16 +1330,6 @@ class _CupPainter extends CustomPainter {
 
     canvas.drawRRect(fascia, Paint()..shader = _plastica(fascia.outerRect));
 
-    // **Il filo rosso sotto la fascia.** Un solo tratto sottile: e' la firma,
-    // e una firma larga non e' piu' una firma.
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(w * 0.20, h * 0.208, w * 0.60, h * 0.011),
-        Radius.circular(h * 0.006),
-      ),
-      Paint()..color = _rosso,
-    );
-
     // L'imboccatura: un'ellisse scura appena sopra la fascia. Poca, perche' su
     // un oggetto di plastica anche il buio e' morbido.
     final bocca = Rect.fromCenter(
@@ -1369,8 +1367,8 @@ class _CupPainter extends CustomPainter {
     canvas.drawPath(
       Path()
         ..moveTo(w * 0.425, h * 0.60)
-        ..cubicTo(w * 0.435, h * 0.66, w * 0.435, h * 0.70, w * 0.41, h * 0.735)
-        ..lineTo(w * 0.59, h * 0.735)
+        ..cubicTo(w * 0.435, h * 0.66, w * 0.435, h * 0.70, w * 0.415, h * 0.745)
+        ..lineTo(w * 0.585, h * 0.745)
         ..cubicTo(w * 0.565, h * 0.70, w * 0.565, h * 0.66, w * 0.575, h * 0.60)
         ..close(),
       Paint()..shader = _plastica(gambo),
@@ -1391,12 +1389,12 @@ class _CupPainter extends CustomPainter {
 
     // Il piede: una fascia tonda schiacciata, come il bordo in cima. I due
     // pezzi si somigliano apposta — su un oggetto solo, le forme si ripetono.
-    final piede = RRect.fromRectAndRadius(
-      Rect.fromLTWH(w * 0.295, h * 0.725, w * 0.41, h * 0.055),
-      Radius.circular(h * 0.028),
+    final nodo = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.325, h * 0.735, w * 0.35, h * 0.048),
+      Radius.circular(h * 0.024),
     );
 
-    canvas.drawRRect(piede, Paint()..shader = _plastica(piede.outerRect));
+    canvas.drawRRect(nodo, Paint()..shader = _plastica(nodo.outerRect));
   }
 
   /// La base: il cilindro bianco su cui la coppa sta in piedi.
@@ -1405,76 +1403,44 @@ class _CupPainter extends CustomPainter {
   /// solo non ha peso. Il bianco freddo sotto l'arancione caldo separa la cosa
   /// dal suo sostegno, e da' alla coppa qualcosa su cui appoggiare.
   void _base(Canvas canvas, double w, double h) {
-    final corpo = Rect.fromLTWH(w * 0.235, h * 0.805, w * 0.53, h * 0.115);
+    // **Niente basamento.** Il cilindro sotto era un secondo oggetto, di un
+    // altro materiale e di un altro colore, e una coppa poggiata su un
+    // sottobicchiere non e' una coppa: e' una coppa con un sottobicchiere. Qui
+    // il piede si allarga e tocca terra da solo — un pezzo solo, dall'orlo al
+    // pavimento.
+    final zoccolo = Rect.fromLTWH(w * 0.28, h * 0.78, w * 0.44, h * 0.10);
 
-    // Il fianco del cilindro: chiaro a sinistra dove batte la luce, grigio a
-    // destra. E' la stessa sfumatura del resto, in un'altra tinta.
-    canvas.drawRRect(
-      RRect.fromRectAndCorners(
-        corpo,
-        bottomLeft: Radius.circular(w * 0.10),
-        bottomRight: Radius.circular(w * 0.10),
-      ),
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [_neroMedio, _neroLuce, _neroMedio, _neroOmbra],
-          stops: [0, 0.28, 0.66, 1],
-        ).createShader(corpo),
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * 0.355, h * 0.78)
+        ..cubicTo(w * 0.34, h * 0.83, w * 0.315, h * 0.855, w * 0.28, h * 0.875)
+        ..lineTo(w * 0.72, h * 0.875)
+        ..cubicTo(w * 0.685, h * 0.855, w * 0.66, h * 0.83, w * 0.645, h * 0.78)
+        ..close(),
+      Paint()..shader = _plastica(zoccolo),
     );
 
-    // L'ombra del piede sul basamento, prima di ogni altra cosa: senza, la
-    // coppa e' posata su un disegno di basamento.
+    // L'orlo del piede: una fascia tonda schiacciata, come quella in cima. Su
+    // un oggetto solo le forme si ripetono, ed e' quello che lo tiene insieme.
+    final orlo = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.255, h * 0.868, w * 0.49, h * 0.045),
+      Radius.circular(h * 0.023),
+    );
+
+    canvas.drawRRect(orlo, Paint()..shader = _plastica(orlo.outerRect));
+
+    // Il buio sotto l'orlo, dove la luce non gira: e' l'ultimo pezzo che
+    // appoggia la coppa invece di lasciarla galleggiare.
     canvas.drawOval(
       Rect.fromCenter(
-        center: Offset(w * 0.5, h * 0.792),
-        width: w * 0.40,
-        height: h * 0.045,
+        center: Offset(w * 0.5, h * 0.905),
+        width: w * 0.44,
+        height: h * 0.028,
       ),
       Paint()
-        ..color = Colors.black.withValues(alpha: 0.55)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
-    );
-
-    // Il filo rosso attorno al basamento, appena sotto il piano: e' l'altra
-    // goccia, e le due si rispondono da una parte all'altra dell'oggetto.
-    canvas.drawRect(
-      Rect.fromLTWH(w * 0.235, h * 0.828, w * 0.53, h * 0.012),
-      Paint()..color = _rosso,
-    );
-
-    // Il coperchio: l'ellisse in cima, piu' chiara perche' guarda in su.
-    final piano = Rect.fromCenter(
-      center: Offset(w * 0.5, h * 0.805),
-      width: w * 0.53,
-      height: h * 0.085,
-    );
-
-    canvas.drawOval(
-      piano,
-      Paint()
-        ..shader = const RadialGradient(
-          center: Alignment(-0.3, -0.4),
-          colors: [_neroLuce, _neroMedio],
-        ).createShader(piano),
-    );
-
-    // L'ombra della coppa sul piano: poca e sfocata, ma e' quella che dice che
-    // la coppa sta **sopra** la base e non davanti.
-    canvas.save();
-    canvas.clipRect(piano);
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(w * 0.52, h * 0.80),
-        width: w * 0.34,
-        height: h * 0.05,
-      ),
-      Paint()
-        ..color = Colors.black.withValues(alpha: 0.75)
+        ..color = _ombra.withValues(alpha: 0.7)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
     );
-    canvas.restore();
   }
 
   @override
@@ -1609,9 +1575,15 @@ class _Cup extends StatelessWidget {
                   transform: Matrix4.identity()
                     ..scaleByDouble(fronte, 1, 1, 1),
                   child: Opacity(
-                    opacity: (0.3 + fronte * 0.7).clamp(0.0, 1.0),
+                    // **Non del tutto coprente, ed e' il punto.** Un marchio a
+                    // piena forza e' un adesivo appiccicato sopra: si stacca
+                    // dalla superficie e sembra un corpo estraneo. Lasciandone
+                    // passare un filo, l'oro di sotto lo attraversa e il
+                    // marchio diventa una cosa **stampata sul metallo** — con
+                    // le sue ombre e le sue luci, che sono quelle della coppa.
+                    opacity: (0.72 * (0.3 + fronte * 0.7)).clamp(0.0, 1.0),
                     child: CrasyWordmark(
-                      size: w * 0.30,
+                      size: w * 0.26,
                       alignment: Alignment.center,
                       onDark: true,
                       // Su un trofeo il marchio non e' l'intestazione di una
@@ -1622,6 +1594,38 @@ class _Cup extends StatelessWidget {
                   ),
                 ),
               ),
+            // **L'ombra della coppa passa anche sopra il marchio.**
+            //
+            // E' la riga che lo fa entrare nel metallo invece di restarci
+            // appoggiato: una scritta stampata su una superficie curva prende
+            // la stessa luce della superficie — chiara dove il fianco e'
+            // chiaro, spenta dove gira nell'ombra. Senza, il marchio e' piatto
+            // e uniforme mentre tutto intorno e' tondo, e l'occhio lo legge
+            // come un oggetto separato appoggiato davanti.
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        _CupPainter._ombra.withValues(alpha: 0.34),
+                        Colors.transparent,
+                        Colors.transparent,
+                        _CupPainter._ombra.withValues(alpha: 0.42),
+                      ],
+                      stops: [
+                        0,
+                        (0.30 + fronte * 0.16).clamp(0.05, 0.6),
+                        (0.62 + fronte * 0.12).clamp(0.62, 0.9),
+                        1,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         );
       },
