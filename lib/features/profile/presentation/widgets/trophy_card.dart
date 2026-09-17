@@ -12,6 +12,7 @@ import 'package:crasy/core/widgets/modal_sheet.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
 
 /// Da che parte del tavolo si guarda un trofeo.
@@ -709,21 +710,17 @@ class _TrophyDetails extends StatelessWidget {
             Center(
               child: SizedBox(
                 width: 230,
-                child: FlippableTrophy(
-                  challenge: challenge,
-                  kind: kind,
-                  // **La targa gira come la figurina.** Davanti c'e' la
-                  // piastra incisa invece della foto, dietro c'e' lo stesso
-                  // retro: il gesto e' quello che si e' gia' imparato, e due
-                  // oggetti sulla stessa bacheca che si girano in due modi
-                  // diversi sono due cose da imparare invece di una.
-                  fronte: kind == TrophyKind.commissioned
-                      ? CommissionedTrophy(challenge: challenge, grande: true)
-                      : null,
-                  retro: kind == TrophyKind.commissioned
-                      ? const TrophyShelfBack()
-                      : null,
-                ),
+                child: kind == TrophyKind.commissioned
+                    ? CommissionedTrophy(challenge: challenge, grande: true)
+                    : FlippableTrophy(
+                        challenge: challenge,
+                        kind: kind,
+                        // **La targa gira come la figurina.** Davanti c'e' la
+                        // piastra incisa invece della foto, dietro c'e' lo stesso
+                        // retro: il gesto e' quello che si e' gia' imparato, e due
+                        // oggetti sulla stessa bacheca che si girano in due modi
+                        // diversi sono due cose da imparare invece di una.
+                      ),
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -892,7 +889,11 @@ class _Line extends StatelessWidget {
 /// perche' e' lo stesso numero visto dalle due parti: quello che uno ha preso,
 /// e quello che un altro ha messo perche' lo prendesse.
 class CommissionedTrophy extends StatelessWidget {
-  const CommissionedTrophy({required this.challenge, this.grande = false, super.key});
+  const CommissionedTrophy({
+    required this.challenge,
+    this.grande = false,
+    super.key,
+  });
 
   final Challenge challenge;
 
@@ -913,9 +914,7 @@ class CommissionedTrophy extends StatelessWidget {
       return 'PROVA D\'ONORE';
     }
 
-    return challenge.isForFriends
-        ? 'HAI FATTO FARE · AMICI'
-        : 'HAI FATTO FARE';
+    return challenge.isForFriends ? 'HAI FATTO FARE · AMICI' : 'HAI FATTO FARE';
   }
 
   /// Il riflesso che trasforma una scritta scura in una scritta **scavata**.
@@ -930,98 +929,80 @@ class CommissionedTrophy extends StatelessWidget {
     final texts = context.texts;
     final (titolo, esito) = _cosaCEScritto();
 
-    return _Laminated(
-      child: DecoratedBox(
-        // **Fondo scuro, e non e' un ripensamento.** L'oro su oro non si vede:
-        // una coppa dorata sopra una lastra dorata e' una sagoma che sparisce.
-        // Il buio caldo la stacca e le fa da faretto — e' il fondo che hanno i
-        // trofei nelle vetrine, per la stessa ragione.
-        decoration: const BoxDecoration(
-          borderRadius: BorderRadius.all(Radius.circular(AppRadius.sm)),
-          gradient: RadialGradient(
-            center: Alignment(0, -0.35),
-            radius: 1.05,
-            colors: [Color(0xFF3B3222), Color(0xFF1C1811), Color(0xFF0D0B07)],
-            stops: [0, 0.55, 1],
-          ),
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(AppSpacing.sm * _scala),
-          child: Column(
-            children: [
-              // La coppa si prende lo spazio che resta: e' lei l'oggetto, le
-              // scritte sono la targhetta sotto.
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6 * _scala),
-                  child: const CustomPaint(
-                    painter: _CupPainter(),
-                    size: Size.infinite,
-                  ),
-                ),
-              ),
-              SizedBox(height: AppSpacing.xs * _scala),
-              // **Di che specie e' questa prova.** Una missione aperta a
-              // chiunque, una per il proprio gruppo e una sfida a una persona
-              // sola non sono la stessa cosa: cambia chi poteva parteciparci.
-              Text(
-                _intestazione,
-                textAlign: TextAlign.center,
-                style: texts.labelSmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 7 * _scala,
-                  letterSpacing: 1.9,
-                ),
-              ),
-              SizedBox(height: 3 * _scala),
-              Text(
-                titolo.toUpperCase(),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: texts.labelSmall?.copyWith(
-                  color: Colors.white,
-                  fontSize: 9.5 * _scala,
-                  letterSpacing: 0.6,
-                ),
-              ),
-              SizedBox(height: 3 * _scala),
-              // **Quanto e' costata, con il carattere delle figurine.**
-              //
-              // E' lo stesso corpo con cui una figurina scrive quanto si e'
-              // incassato — `headlineSmall` in oro — perche' e' lo stesso
-              // genere di numero visto dalle due parti: quello che uno ha
-              // preso, e quello che un altro ha messo perche' lo prendesse.
-              //
-              // A zero non si scrive niente: una missione gratis non ha
-              // nessuna cifra da mostrare, e uno zero li' sembrerebbe un
-              // guasto.
-              if (challenge.prizeCents > 0)
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    AppMoney.format(challenge.prizeCents),
-                    style: texts.headlineSmall?.copyWith(
-                      color: _CupPainter._chiaro,
-                      fontSize: 15 * _scala,
-                      height: 1,
+    // **Niente cornice.** Una coppa dentro una carta e' la foto di una coppa;
+    // una coppa da sola, appoggiata sulla sua ombra, e' un oggetto sulla
+    // mensola — che e' quello che un trofeo deve sembrare.
+    return AspectRatio(
+      aspectRatio: TrophyFront.ratio,
+      child: Column(
+        children: [
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4 * _scala),
+              child: grande
+                  ? const _SpinningCup()
+                  : const CustomPaint(
+                      painter: _CupPainter(),
+                      size: Size.infinite,
                     ),
-                  ),
-                ),
-              SizedBox(height: 3 * _scala),
-              Text(
-                esito,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: texts.labelSmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 7 * _scala,
-                  letterSpacing: 1.4,
+            ),
+          ),
+          SizedBox(height: AppSpacing.xs * _scala),
+          // **Di che specie e' questa prova.** Una missione aperta a chiunque,
+          // una per il proprio gruppo e una sfida a una persona sola non sono
+          // la stessa cosa: cambia chi poteva parteciparci.
+          Text(
+            _intestazione,
+            textAlign: TextAlign.center,
+            style: texts.labelSmall?.copyWith(
+              color: context.palette.textFaint,
+              fontSize: 7 * _scala,
+              letterSpacing: 1.9,
+            ),
+          ),
+          SizedBox(height: 2 * _scala),
+          Text(
+            titolo.toUpperCase(),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: texts.labelSmall?.copyWith(
+              color: context.palette.textPrimary,
+              fontSize: 9.5 * _scala,
+              letterSpacing: 0.4,
+            ),
+          ),
+          // **Quanto e' costata, con il carattere delle figurine.** E' lo
+          // stesso corpo con cui una figurina scrive quanto si e' incassato,
+          // perche' e' lo stesso numero visto dalle due parti. A zero non si
+          // scrive: una missione gratis non ha cifre, e uno zero sembrerebbe un
+          // guasto.
+          if (challenge.prizeCents > 0) ...[
+            SizedBox(height: 2 * _scala),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                AppMoney.format(challenge.prizeCents),
+                style: texts.headlineSmall?.copyWith(
+                  color: _CupPainter._scuro,
+                  fontSize: 15 * _scala,
+                  height: 1,
                 ),
               ),
-            ],
+            ),
+          ],
+          SizedBox(height: 2 * _scala),
+          Text(
+            esito,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: texts.labelSmall?.copyWith(
+              color: context.palette.textFaint,
+              fontSize: 7 * _scala,
+              letterSpacing: 1.4,
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -1061,53 +1042,6 @@ class CommissionedTrophy extends StatelessWidget {
 }
 
 
-
-
-/// Il dietro di una targa: **il marchio e basta.**
-///
-/// Il davanti porta gia' il marchio piccolo, il titolo, la data e com'e'
-/// finita: un retro che ripete le stesse cose rende il giro un gesto che non
-/// mostra niente. Qui c'e' il metallo nudo con il marchio grande in mezzo —
-/// come sul dorso di una carta da collezione, dove non c'e' mai scritto cosa
-/// c'e' davanti.
-///
-/// La luce viene dall'altra parte: gli stessi toni della cornice, girati —
-/// chiaro in basso a destra invece che in alto a sinistra. E' il dietro, e va
-/// illuminato dal dietro.
-class TrophyShelfBack extends StatelessWidget {
-  const TrophyShelfBack({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return _Laminated(
-      child: const DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.all(Radius.circular(AppRadius.sm)),
-          gradient: LinearGradient(
-            begin: Alignment.bottomRight,
-            end: Alignment.topLeft,
-            colors: [Color(0xFFF6DFA0), Color(0xFFC9A227), Color(0xFF8C6D1F)],
-            stops: [0, 0.45, 1],
-          ),
-        ),
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.all(AppSpacing.lg),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: CrasyWordmark(
-                size: 44,
-                alignment: Alignment.center,
-                onDark: true,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// **La coppa, disegnata.**
 ///
 /// Non e' un'immagine e non e' un'emoji: e' una forma costruita a mano, e la
@@ -1129,7 +1063,22 @@ class TrophyShelfBack extends StatelessWidget {
 /// i **manici**, che sono archi e non cerchi perche' stanno dietro al vaso; e
 /// l'**ombra sotto la base**, che la appoggia invece di lasciarla galleggiare.
 class _CupPainter extends CustomPainter {
-  const _CupPainter();
+  const _CupPainter({this.angolo = 0});
+
+  /// Di quanto e' girata, in radianti.
+  ///
+  /// **Una coppa girata resta identica di sagoma**, ed e' quello che la rende
+  /// una cosa tonda: un cilindro visto da qualunque parte ha lo stesso
+  /// profilo. A cambiare sono due cose sole, e sono quelle che fanno il giro
+  /// invece di una figura ferma — **dove batte la luce** e **dove stanno i
+  /// manici**. Girando, la banda chiara scorre lungo il fianco e i manici si
+  /// chiudono verso il centro fino a sparire di taglio, poi riaprono dall'altra
+  /// parte. Sono i due segnali con cui l'occhio misura la rotazione di un
+  /// oggetto liscio.
+  final double angolo;
+
+  /// Quanto la luce si e' spostata: da `-1` (tutta a sinistra) a `1`.
+  double get _versoLuce => math.cos(angolo);
 
   /// Gli ori della coppa, dal colpo di luce all'ombra piu' profonda.
   static const Color _luce = Color(0xFFFFF6D5);
@@ -1141,11 +1090,23 @@ class _CupPainter extends CustomPainter {
   /// La sfumatura di un pezzo tondo: scura ai lati, accesa a un terzo da
   /// sinistra — dove batte la luce di tutta la bacheca.
   Shader _tondo(Rect area) {
-    return const LinearGradient(
+    // Dove sta il colpo di luce adesso. Fermo e' a un terzo da sinistra —
+    // da li' viene la luce di tutta la bacheca; girando scorre lungo il fianco
+    // e si porta dietro tutte le altre sfumature.
+    final centro = (0.5 + _versoLuce * 0.22).clamp(0.12, 0.88);
+
+    return LinearGradient(
       begin: Alignment.centerLeft,
       end: Alignment.centerRight,
-      colors: [_scuro, _medio, _luce, _chiaro, _medio, _ombra],
-      stops: [0, 0.16, 0.33, 0.5, 0.72, 1],
+      colors: const [_scuro, _medio, _luce, _chiaro, _medio, _ombra],
+      stops: [
+        0,
+        (centro - 0.17).clamp(0.01, 0.97),
+        (centro - 0.02).clamp(0.02, 0.98),
+        (centro + 0.13).clamp(0.03, 0.985),
+        (centro + 0.34).clamp(0.04, 0.99),
+        1,
+      ],
     ).createShader(area);
   }
 
@@ -1182,9 +1143,16 @@ class _CupPainter extends CustomPainter {
   void _manici(Canvas canvas, double w, double h) {
     final spessore = w * 0.055;
 
+    // **I manici girano davvero.** Sono attaccati ai due lati opposti del vaso:
+    // girando la coppa, uno viene avanti e l'altro va dietro, e a meta' giro si
+    // scambiano di posto. Di taglio si schiacciano fino a sparire — ed e'
+    // l'istante in cui si vede che l'oggetto ha uno spessore.
+    final apertura = _versoLuce;
+
     for (final verso in const [-1.0, 1.0]) {
-      final attacco = w * (0.5 + verso * 0.20);
-      final fuori = w * (0.5 + verso * 0.44);
+      final largo = verso * apertura;
+      final attacco = w * (0.5 + largo * 0.20);
+      final fuori = w * (0.5 + largo * 0.44);
 
       final path = Path()
         ..moveTo(attacco, h * 0.14)
@@ -1194,7 +1162,8 @@ class _CupPainter extends CustomPainter {
         path,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = spessore
+          // Di taglio il manico si assottiglia invece di sparire di colpo.
+          ..strokeWidth = spessore * (0.35 + largo.abs() * 0.65)
           ..strokeCap = StrokeCap.round
           ..shader = _tondo(
             Rect.fromLTWH(attacco.clamp(0, w) - spessore, 0, spessore * 2, h),
@@ -1242,15 +1211,22 @@ class _CupPainter extends CustomPainter {
         ..shader = _tondo(bordo),
     );
 
-    // Il colpo di luce sul fianco sinistro: una virgola chiara, non una riga.
+    // La virgola di luce sul fianco: si sposta con la rotazione, e sparisce
+    // quando la parte illuminata e' girata dall'altra parte.
+    canvas.save();
+    canvas.translate(w * _versoLuce * 0.16, 0);
     canvas.drawPath(
       Path()
         ..moveTo(w * 0.28, h * 0.16)
         ..cubicTo(w * 0.30, h * 0.30, w * 0.35, h * 0.40, w * 0.38, h * 0.45)
         ..cubicTo(w * 0.33, h * 0.40, w * 0.27, h * 0.30, w * 0.25, h * 0.17)
         ..close(),
-      Paint()..color = _luce.withValues(alpha: 0.65),
+      Paint()
+        ..color = _luce.withValues(
+          alpha: (0.65 * (0.35 + _versoLuce.abs() * 0.65)).clamp(0.0, 1.0),
+        ),
     );
+    canvas.restore();
   }
 
   /// Lo stelo che regge il vaso.
@@ -1321,5 +1297,89 @@ class _CupPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_CupPainter oldDelegate) => false;
+  bool shouldRepaint(_CupPainter oldDelegate) => oldDelegate.angolo != angolo;
+}
+
+/// **La coppa che gira, a trecentosessanta gradi.**
+///
+/// Si trascina con il dito e continua per inerzia, come una cosa appoggiata su
+/// un piatto girevole; un tocco le da' mezzo giro. Da ferma gira piano da sola:
+/// e' il modo in cui un oggetto in vetrina dice che e' un oggetto, e non un
+/// disegno.
+///
+/// **Non e' una carta che si ribalta.** Una carta ha un davanti e un dietro, e
+/// a meta' giro mostra lo spessore di un foglio. Una coppa e' tonda: girandola
+/// la sagoma resta la stessa, e a cambiare sono la luce che scorre sul fianco e
+/// i manici che si chiudono di taglio e riaprono dall'altra parte — vedi
+/// `_CupPainter.angolo`.
+class _SpinningCup extends StatefulWidget {
+  const _SpinningCup();
+
+  @override
+  State<_SpinningCup> createState() => _SpinningCupState();
+}
+
+class _SpinningCupState extends State<_SpinningCup>
+    with SingleTickerProviderStateMixin {
+  /// L'angolo, senza limiti: si gira all'infinito nella stessa direzione.
+  double _angolo = 0;
+
+  /// La velocita' con cui sta girando, in radianti al secondo.
+  double _velocita = 0.6;
+
+  /// Se c'e' un dito sopra: mentre la si tiene, l'inerzia non conta.
+  bool _presa = false;
+
+  late final Ticker _ticker = createTicker(_passo);
+  Duration _ultimo = Duration.zero;
+
+  /// La rotazione lenta che la coppa fa da sola, quando nessuno la tocca.
+  static const double _dolce = 0.6;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker.start();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  void _passo(Duration adesso) {
+    final dt = (adesso - _ultimo).inMicroseconds / 1e6;
+    _ultimo = adesso;
+
+    if (_presa || dt <= 0 || dt > 0.1) {
+      return;
+    }
+
+    setState(() {
+      _angolo += _velocita * dt;
+      // L'inerzia si spegne piano e torna alla rotazione lenta: una spinta
+      // forte fa fare tre giri e poi la coppa riprende a girare da sola,
+      // invece di fermarsi di colpo.
+      _velocita += (_dolce - _velocita) * (1 - math.exp(-dt * 1.6));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => setState(() => _velocita += math.pi * 1.6),
+      onHorizontalDragStart: (_) => _presa = true,
+      onHorizontalDragUpdate: (dettagli) =>
+          setState(() => _angolo += dettagli.delta.dx * 0.018),
+      onHorizontalDragEnd: (dettagli) {
+        _presa = false;
+        _velocita = (dettagli.primaryVelocity ?? 0) * 0.012;
+      },
+      child: CustomPaint(
+        painter: _CupPainter(angolo: _angolo),
+        size: Size.infinite,
+      ),
+    );
+  }
 }
