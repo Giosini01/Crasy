@@ -391,6 +391,90 @@ async function moderateVideo(uri) {
   return frames.some((frame) => BLOCKED_ADULT_LIKELIHOODS.has(frame.pornographyLikelihood));
 }
 
+/**
+ * Controlla il file di una partecipazione e scrive l'esito.
+ *
+ * **Sta in una funzione sua perche' la chiamano in due**: il controllo che
+ * parte appena la foto arriva, e il recupero che ripassa su quelle rimaste
+ * indietro. Due copie della stessa regola sono due regole che al primo
+ * cambiamento si dicono cose diverse — e qui "cose diverse" vuol dire una foto
+ * vietata davanti a tutti.
+ *
+ * Torna `false` quando il controllo non e' riuscito: la partecipazione resta in
+ * attesa, e chi ha chiamato decide se riprovare.
+ */
+async function controllaPartecipazione(snapshot, challengeId) {
+  const storagePath = snapshot.get('storagePath');
+
+  if (!storagePath) {
+    logger.warn(`Partecipazione ${snapshot.id} senza file: rifiutata.`);
+    await snapshot.ref.update({ moderation: 'rejected' });
+
+    return true;
+  }
+
+  const bucket = admin.storage().bucket().name;
+  const mediaKind = snapshot.get('mediaKind') || 'photo';
+  let reasons;
+
+  try {
+    const uri = `gs://${bucket}/${storagePath}`;
+
+    if (mediaKind === 'video') {
+      reasons = (await moderateVideo(uri)) ? ['nudita/sesso esplicito'] : [];
+    } else {
+      const client = new vision.ImageAnnotatorClient();
+      const [result] = await client.safeSearchDetection(uri);
+      reasons = reasonsFromSafeSearch(result.safeSearchAnnotation);
+    }
+  } catch (error) {
+    // Se il controllo non riesce, la foto **resta in attesa**. Non si approva
+    // per comodita': un guasto nostro non puo' diventare il motivo per cui una
+    // foto vietata finisce davanti a tutti.
+    //
+    // Ma restare in attesa vuol dire **invisibile a tutti tranne a chi l'ha
+    // mandata**, e senza nessuno che ripassi era per sempre: e' successo
+    // davvero, con l'API dei video spenta sul progetto — ogni video mandato
+    // restava li', e chi l'aveva mandato lo vedeva benissimo mentre per gli
+    // altri non esisteva. Di qui il recupero qui sotto.
+    logger.error(`Controllo fallito su ${snapshot.id}`, error);
+
+    return false;
+  }
+
+  const rejected = reasons.length > 0;
+
+  await snapshot.ref.update({
+    moderation: rejected ? 'rejected' : 'approved',
+    moderationReasons: reasons,
+    moderatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // Una foto rifiutata non deve contare fra i partecipanti: quel numero dice
+  // quante persone sono in gara, e chi e' stato escluso in gara non c'e'.
+  if (rejected) {
+    await snapshot.ref.parent.parent.update({
+      participantsCount: admin.firestore.FieldValue.increment(-1),
+    });
+
+    logger.warn(
+      `Partecipazione ${snapshot.id} rifiutata: ${reasons.join(', ')}`
+    );
+
+    // **Anche qui l'autore lo deve sapere.** Il silenzio e' lo stesso di quello
+    // delle segnalazioni, ed e' anzi peggiore: qui la foto non e' nemmeno mai
+    // comparsa, quindi chi l'ha mandata crede di essere in gara e aspetta un
+    // risultato che non puo' arrivare.
+    await avvisaChiLHaMandata(
+      String(snapshot.get('userId') || ''),
+      challengeId,
+      String(snapshot.get('challengeTitle') || '')
+    );
+  }
+
+  return true;
+}
+
 exports.moderateEntryPhoto = onDocumentCreated(
   'challenges/{challengeId}/entries/{entryId}',
   async (event) => {
@@ -400,64 +484,71 @@ exports.moderateEntryPhoto = onDocumentCreated(
       return;
     }
 
-    const storagePath = snapshot.get('storagePath');
+    await controllaPartecipazione(snapshot, event.params.challengeId);
+  }
+);
 
-    if (!storagePath) {
-      logger.warn(`Partecipazione ${snapshot.id} senza file: rifiutata.`);
-      await snapshot.ref.update({ moderation: 'rejected' });
+/**
+ * Quanto aspettare prima di considerare una partecipazione "rimasta indietro".
+ *
+ * Il controllo normale dura pochi secondi. Dieci minuti sono abbastanza da non
+ * ripassare mai su una che sta semplicemente lavorando, e pochi da non lasciare
+ * mezza giornata invisibile una foto che invece va bene.
+ */
+const MINUTI_PRIMA_DI_RIPROVARE = 10;
 
+/**
+ * **Ripassa sulle partecipazioni rimaste in attesa.**
+ *
+ * Una foto in attesa la vede **solo chi l'ha mandata**: e' la scelta giusta —
+ * un guasto nostro non puo' far comparire davanti a tutti una foto che nessuno
+ * ha guardato — ma senza nessuno che ripassi diventa una condanna silenziosa.
+ * Chi l'ha mandata la vede benissimo al suo posto, e per tutti gli altri non
+ * esiste: non c'e' nessun segno, da nessuna parte, che qualcosa sia andato
+ * storto.
+ *
+ * **E' successo davvero.** L'API che guarda i video non era mai stata accesa
+ * sul progetto, quindi ogni video falliva il controllo e restava li' per
+ * sempre. Nei log c'era una riga rossa; nell'app, niente.
+ *
+ * Mezz'ora e non cinque minuti: e' una rete di sicurezza, non la strada
+ * principale — quella e' il controllo che parte con la foto e dura pochi
+ * secondi. Una lettura ogni mezz'ora e' il prezzo di non perdere piu' nessuno
+ * per strada.
+ */
+exports.retryStuckModeration = onSchedule(
+  { schedule: 'every 30 minutes', timeoutSeconds: 540, memory: '512MiB' },
+  async () => {
+    const limite = admin.firestore.Timestamp.fromDate(
+      new Date(Date.now() - MINUTI_PRIMA_DI_RIPROVARE * 60000)
+    );
+
+    const rimaste = await db
+      .collectionGroup('entries')
+      .where('moderation', '==', 'pending')
+      .where('createdAt', '<', limite)
+      .limit(20)
+      .get();
+
+    if (rimaste.empty) {
       return;
     }
 
-    const bucket = admin.storage().bucket().name;
-    const mediaKind = snapshot.get('mediaKind') || 'photo';
-    let reasons;
+    let riuscite = 0;
 
-    try {
-      const uri = `gs://${bucket}/${storagePath}`;
-      if (mediaKind === 'video') {
-        reasons = await moderateVideo(uri) ? ['nudita/sesso esplicito'] : [];
-      } else {
-        const client = new vision.ImageAnnotatorClient();
-        const [result] = await client.safeSearchDetection(uri);
-        reasons = reasonsFromSafeSearch(result.safeSearchAnnotation);
+    for (const partecipazione of rimaste.docs) {
+      // L'identificativo della gara non sta dentro il documento: e' il nome del
+      // nonno, perche' le partecipazioni vivono sotto la gara.
+      const challengeId = partecipazione.ref.parent.parent?.id || '';
+
+      if (await controllaPartecipazione(partecipazione, challengeId)) {
+        riuscite += 1;
       }
-    } catch (error) {
-      // Se il controllo non riesce, la foto **resta in attesa**. Non si
-      // approva per comodita': un guasto nostro non puo' diventare il motivo
-      // per cui una foto vietata finisce davanti a tutti.
-      logger.error(`Controllo fallito su ${snapshot.id}`, error);
-
-      return;
     }
 
-    const rejected = reasons.length > 0;
-
-    await snapshot.ref.update({
-      moderation: rejected ? 'rejected' : 'approved',
-      moderationReasons: reasons,
-      moderatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    // Una foto rifiutata non deve contare fra i partecipanti: quel numero dice
-    // quante persone sono in gara, e chi e' stato escluso in gara non c'e'.
-    if (rejected) {
-      await event.data.ref.parent.parent.update({
-        participantsCount: admin.firestore.FieldValue.increment(-1),
-      });
-
-      logger.warn(`Partecipazione ${snapshot.id} rifiutata: ${reasons.join(', ')}`);
-
-      // **Anche qui l'autore lo deve sapere.** Il silenzio e' lo stesso di
-      // quello delle segnalazioni, ed e' anzi peggiore: qui la foto non e'
-      // nemmeno mai comparsa, quindi chi l'ha mandata crede di essere in gara e
-      // aspetta un risultato che non puo' arrivare.
-      await avvisaChiLHaMandata(
-        String(snapshot.get('userId') || ''),
-        event.params.challengeId,
-        String(snapshot.get('challengeTitle') || '')
-      );
-    }
+    logger.info(
+      `Riprovate ${rimaste.size} partecipazioni in attesa: ${riuscite} decise.`
+    );
   }
 );
 

@@ -650,7 +650,7 @@ class TrophyGrid extends StatelessWidget {
           onTap: () => showTrophy(context, challenge: challenge, kind: kind),
           behavior: HitTestBehavior.opaque,
           child: targhe
-              ? GoldPlaque(challenge: challenge)
+              ? CommissionedTrophy(challenge: challenge)
               : TrophyFront(challenge: challenge, kind: kind),
         );
       },
@@ -718,10 +718,10 @@ class _TrophyDetails extends StatelessWidget {
                   // oggetti sulla stessa bacheca che si girano in due modi
                   // diversi sono due cose da imparare invece di una.
                   fronte: kind == TrophyKind.commissioned
-                      ? GoldPlaque(challenge: challenge, grande: true)
+                      ? CommissionedTrophy(challenge: challenge, grande: true)
                       : null,
                   retro: kind == TrophyKind.commissioned
-                      ? const PlaqueBack()
+                      ? const TrophyShelfBack()
                       : null,
                 ),
               ),
@@ -875,30 +875,24 @@ class _Line extends StatelessWidget {
   }
 }
 
-/// **La targa: la stessa lamina della figurina, con dentro una lastra incisa.**
+/// **Il trofeo di chi la prova l'ha fatta fare: una coppa, non una foto.**
 ///
 /// Una figurina e' la foto di chi ha vinto dentro una cornice, e quella foto e'
 /// sua: rimetterla sulla bacheca di chi ha solo *chiesto* la cosa vuol dire
 /// prendersi il merito del lavoro di un altro, e per giunta mettere la stessa
-/// immagine su due profili diversi. Una targa dice l'altra cosa, quella giusta:
-/// **questa prova l'ho fatta fare io.**
+/// immagine su due profili diversi.
 ///
-/// ## Perche' riusa [_Laminated] invece di rifarsi la cornice
+/// Qui c'e' l'oggetto che si da' a chi organizza, non a chi corre: una coppa,
+/// con sotto cosa ha fatto fare e quanto ci ha messo. La coppa e' **disegnata**
+/// e non e' un'emoji — vedi `_CupPainter`: deve essere d'oro come il resto
+/// della bacheca, e l'oro di un'emoji e' quello del sistema operativo, diverso
+/// su ogni telefono e uguale a quello di qualunque altra app.
 ///
-/// La prima versione si disegnava l'oro per conto suo, ed era brutta — un
-/// rettangolo giallo con delle scritte sopra. Tutto quello che fa sembrare
-/// vera una figurina non e' il colore: sono le **due ombre** (una corta, che
-/// dice dove tocca, e una larga, che e' l'aria attorno), i **cinque toni**
-/// dell'oro che curvano la superficie, il **riflesso in diagonale** e
-/// soprattutto l'**incavo** — il filetto scuro che mette il contenuto *sotto*
-/// la cornice invece che accanto. Sono gia' tutti li' dentro, gia' regolati, e
-/// rifarli a mano vuol dire rifarli peggio.
-///
-/// Quindi la targa e' la figurina con un'altra faccia: al posto della foto una
-/// lastra scura incisa, che e' esattamente come sono fatte le targhe vere —
-/// cornice dorata, piastra scura, lettere chiare.
-class GoldPlaque extends StatelessWidget {
-  const GoldPlaque({required this.challenge, this.grande = false, super.key});
+/// La cifra ha il corpo con cui una figurina scrive quanto si e' incassato,
+/// perche' e' lo stesso numero visto dalle due parti: quello che uno ha preso,
+/// e quello che un altro ha messo perche' lo prendesse.
+class CommissionedTrophy extends StatelessWidget {
+  const CommissionedTrophy({required this.challenge, this.grande = false, super.key});
 
   final Challenge challenge;
 
@@ -919,7 +913,9 @@ class GoldPlaque extends StatelessWidget {
       return 'PROVA D\'ONORE';
     }
 
-    return challenge.isForFriends ? 'MISSIONE · AMICI' : 'MISSIONE';
+    return challenge.isForFriends
+        ? 'HAI FATTO FARE · AMICI'
+        : 'HAI FATTO FARE';
   }
 
   /// Il riflesso che trasforma una scritta scura in una scritta **scavata**.
@@ -936,64 +932,52 @@ class GoldPlaque extends StatelessWidget {
 
     return _Laminated(
       child: DecoratedBox(
-        // **La lastra.** Piu' chiara della cornice, non piu' scura: una
-        // superficie piana prende piu' luce di un bordo smussato, ed e' il modo
-        // in cui l'occhio capisce qual e' la parte dritta. Cornice e lastra sono
-        // lo stesso metallo — una targa placcata e' un pezzo solo, e a separarle
-        // c'e' la luce e basta.
+        // **Fondo scuro, e non e' un ripensamento.** L'oro su oro non si vede:
+        // una coppa dorata sopra una lastra dorata e' una sagoma che sparisce.
+        // Il buio caldo la stacca e le fa da faretto — e' il fondo che hanno i
+        // trofei nelle vetrine, per la stessa ragione.
         decoration: const BoxDecoration(
           borderRadius: BorderRadius.all(Radius.circular(AppRadius.sm)),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFFBF0CF),
-              Color(0xFFEBD293),
-              Color(0xFFCFA94D),
-            ],
-            stops: [0, 0.48, 1],
+          gradient: RadialGradient(
+            center: Alignment(0, -0.35),
+            radius: 1.05,
+            colors: [Color(0xFF3B3222), Color(0xFF1C1811), Color(0xFF0D0B07)],
+            stops: [0, 0.55, 1],
           ),
         ),
         child: Padding(
           padding: EdgeInsets.all(AppSpacing.sm * _scala),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Spacer(),
-              // Il marchio come va sul nero: **"cra" bianco, "sy" rosso**. E'
-              // il file vero ricolorato, non una scritta rifatta con un
-              // carattere — quelle lettere sono disegnate, e un font ne darebbe
-              // un'imitazione.
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: CrasyWordmark(
-                  size: 29 * _scala,
-                  alignment: Alignment.center,
-                  onDark: true,
+              // La coppa si prende lo spazio che resta: e' lei l'oggetto, le
+              // scritte sono la targhetta sotto.
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6 * _scala),
+                  child: const CustomPaint(
+                    painter: _CupPainter(),
+                    size: Size.infinite,
+                  ),
                 ),
               ),
               SizedBox(height: AppSpacing.xs * _scala),
-              // **Di che specie e' questa prova.**
-              //
-              // Una missione aperta a chiunque, una lanciata al proprio gruppo
-              // e una sfida a una persona sola stanno tutte e tre in questa
-              // bacheca, e da fuori si somigliavano. Non sono la stessa cosa:
-              // cambia chi poteva parteciparci, e quindi cosa vuol dire averla
-              // lanciata.
+              // **Di che specie e' questa prova.** Una missione aperta a
+              // chiunque, una per il proprio gruppo e una sfida a una persona
+              // sola non sono la stessa cosa: cambia chi poteva parteciparci.
               Text(
                 _intestazione,
                 textAlign: TextAlign.center,
                 style: texts.labelSmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.55),
+                  color: Colors.white.withValues(alpha: 0.5),
                   fontSize: 7 * _scala,
                   letterSpacing: 1.9,
                 ),
               ),
-              const Spacer(),
+              SizedBox(height: 3 * _scala),
               Text(
                 titolo.toUpperCase(),
                 textAlign: TextAlign.center,
-                maxLines: 3,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: texts.labelSmall?.copyWith(
                   color: Colors.white,
@@ -1001,38 +985,38 @@ class GoldPlaque extends StatelessWidget {
                   letterSpacing: 0.6,
                 ),
               ),
-              SizedBox(height: AppSpacing.xxs * _scala),
-              Text(
-                AppDateUtils.formatItalianDate(challenge.endsAt),
-                textAlign: TextAlign.center,
-                style: texts.labelSmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 7 * _scala,
-                  letterSpacing: 0.5,
+              SizedBox(height: 3 * _scala),
+              // **Quanto e' costata, con il carattere delle figurine.**
+              //
+              // E' lo stesso corpo con cui una figurina scrive quanto si e'
+              // incassato — `headlineSmall` in oro — perche' e' lo stesso
+              // genere di numero visto dalle due parti: quello che uno ha
+              // preso, e quello che un altro ha messo perche' lo prendesse.
+              //
+              // A zero non si scrive niente: una missione gratis non ha
+              // nessuna cifra da mostrare, e uno zero li' sembrerebbe un
+              // guasto.
+              if (challenge.prizeCents > 0)
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    AppMoney.format(challenge.prizeCents),
+                    style: texts.headlineSmall?.copyWith(
+                      color: _CupPainter._chiaro,
+                      fontSize: 15 * _scala,
+                      height: 1,
+                    ),
+                  ),
                 ),
-              ),
-              const Spacer(),
-              // **Com'e' finita, in fondo, e senza emoji.**
-              //
-              // C'era una coppa davanti alla parola, e su una lastra di metallo
-              // inciso un'emoji e' un adesivo appiccicato sopra: rompe l'unica
-              // cosa che questa targa ha da offrire, cioe' l'aria di essere un
-              // oggetto. La parola da sola dice la stessa cosa e resta dentro
-              // il materiale.
-              //
-              // Nemmeno la cifra: quanto valeva la gara si legge dalla
-              // figurina di chi l'ha vinta, dove quel numero vuol dire quanto
-              // ha incassato. Qui vorrebbe dire quanto hai speso, ed e' un
-              // altro discorso — che su una targa non ci va.
+              SizedBox(height: 3 * _scala),
               Text(
                 esito,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: texts.labelSmall?.copyWith(
-                  color: Colors.white,
-                  fontSize: 7.5 * _scala,
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 7 * _scala,
                   letterSpacing: 1.4,
-                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
@@ -1090,8 +1074,8 @@ class GoldPlaque extends StatelessWidget {
 /// La luce viene dall'altra parte: gli stessi toni della cornice, girati —
 /// chiaro in basso a destra invece che in alto a sinistra. E' il dietro, e va
 /// illuminato dal dietro.
-class PlaqueBack extends StatelessWidget {
-  const PlaqueBack({super.key});
+class TrophyShelfBack extends StatelessWidget {
+  const TrophyShelfBack({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -1122,4 +1106,220 @@ class PlaqueBack extends StatelessWidget {
       ),
     );
   }
+}
+
+/// **La coppa, disegnata.**
+///
+/// Non e' un'immagine e non e' un'emoji: e' una forma costruita a mano, e la
+/// ragione e' una sola — deve essere **d'oro come tutto il resto della
+/// bacheca**, e un'emoji porta con se' l'oro del sistema operativo, diverso su
+/// ogni telefono e uguale a quello di qualunque altra app.
+///
+/// ## Come si fa il tondo senza nessun modello
+///
+/// Il metallo curvo si riconosce da una cosa sola: **la luce non ci scivola
+/// sopra in modo uniforme**. Una coppa e' un cilindro, quindi ha una banda
+/// chiara verticale dove la superficie guarda la luce e due lati che si
+/// spengono. Tutte le sfumature qui dentro sono **orizzontali** per questo: e'
+/// quella direzione a dire "tondo". Una sfumatura in diagonale, che sulla targa
+/// piatta funziona, qui darebbe un cartoncino ritagliato a forma di coppa.
+///
+/// Il resto sono tre dettagli che l'occhio cerca senza saperlo: l'**ellisse del
+/// bordo** in cima, che e' l'unico pezzo che dice che la coppa e' vuota dentro;
+/// i **manici**, che sono archi e non cerchi perche' stanno dietro al vaso; e
+/// l'**ombra sotto la base**, che la appoggia invece di lasciarla galleggiare.
+class _CupPainter extends CustomPainter {
+  const _CupPainter();
+
+  /// Gli ori della coppa, dal colpo di luce all'ombra piu' profonda.
+  static const Color _luce = Color(0xFFFFF6D5);
+  static const Color _chiaro = Color(0xFFF0D072);
+  static const Color _medio = Color(0xFFD4A43C);
+  static const Color _scuro = Color(0xFF9A7220);
+  static const Color _ombra = Color(0xFF5E4413);
+
+  /// La sfumatura di un pezzo tondo: scura ai lati, accesa a un terzo da
+  /// sinistra — dove batte la luce di tutta la bacheca.
+  Shader _tondo(Rect area) {
+    return const LinearGradient(
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+      colors: [_scuro, _medio, _luce, _chiaro, _medio, _ombra],
+      stops: [0, 0.16, 0.33, 0.5, 0.72, 1],
+    ).createShader(area);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    // L'ombra a terra: un'ellisse schiacciata e sfocata sotto la base. E' la
+    // prima cosa da disegnare e l'ultima che si nota, ed e' quella che appoggia
+    // la coppa sul ripiano invece di lasciarla a mezz'aria.
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(w * 0.5, h * 0.945),
+        width: w * 0.62,
+        height: h * 0.055,
+      ),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.45)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+    );
+
+    _manici(canvas, w, h);
+    _vaso(canvas, w, h);
+    _stelo(canvas, w, h);
+    _base(canvas, w, h);
+  }
+
+  /// I due manici, dietro al vaso.
+  ///
+  /// **Si disegnano prima, ed e' tutto il trucco**: cosi' il vaso ci passa
+  /// sopra e li taglia dove si attaccano, che e' come si vedono davvero. Fatti
+  /// dopo, resterebbero due anelli appoggiati sopra il metallo.
+  void _manici(Canvas canvas, double w, double h) {
+    final spessore = w * 0.055;
+
+    for (final verso in const [-1.0, 1.0]) {
+      final attacco = w * (0.5 + verso * 0.20);
+      final fuori = w * (0.5 + verso * 0.44);
+
+      final path = Path()
+        ..moveTo(attacco, h * 0.14)
+        ..cubicTo(fuori, h * 0.15, fuori, h * 0.38, attacco, h * 0.36);
+
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = spessore
+          ..strokeCap = StrokeCap.round
+          ..shader = _tondo(
+            Rect.fromLTWH(attacco.clamp(0, w) - spessore, 0, spessore * 2, h),
+          ),
+      );
+    }
+  }
+
+  /// Il vaso: la coppa vera e propria.
+  void _vaso(Canvas canvas, double w, double h) {
+    final area = Rect.fromLTWH(w * 0.19, h * 0.08, w * 0.62, h * 0.42);
+
+    // Largo in cima, stretto in fondo, con i fianchi appena rientranti: dritti
+    // sarebbe un secchio.
+    final path = Path()
+      ..moveTo(w * 0.19, h * 0.11)
+      ..cubicTo(w * 0.24, h * 0.40, w * 0.36, h * 0.46, w * 0.40, h * 0.50)
+      ..lineTo(w * 0.60, h * 0.50)
+      ..cubicTo(w * 0.64, h * 0.46, w * 0.76, h * 0.40, w * 0.81, h * 0.11)
+      ..close();
+
+    canvas.drawPath(path, Paint()..shader = _tondo(area));
+
+    // **Il bordo: l'unico pezzo che dice che la coppa e' vuota.**
+    //
+    // Un'ellisse chiara sopra e una scura appena sotto: la prima e' lo spessore
+    // del metallo visto di taglio, la seconda e' il buio dentro. Senza, la
+    // coppa e' una sagoma piena.
+    final bordo = Rect.fromCenter(
+      center: Offset(w * 0.5, h * 0.11),
+      width: w * 0.62,
+      height: h * 0.075,
+    );
+
+    canvas.drawOval(bordo, Paint()..color = _ombra);
+    canvas.drawOval(
+      bordo.deflate(w * 0.022),
+      Paint()..color = Colors.black.withValues(alpha: 0.55),
+    );
+    canvas.drawOval(
+      bordo,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.028
+        ..shader = _tondo(bordo),
+    );
+
+    // Il colpo di luce sul fianco sinistro: una virgola chiara, non una riga.
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * 0.28, h * 0.16)
+        ..cubicTo(w * 0.30, h * 0.30, w * 0.35, h * 0.40, w * 0.38, h * 0.45)
+        ..cubicTo(w * 0.33, h * 0.40, w * 0.27, h * 0.30, w * 0.25, h * 0.17)
+        ..close(),
+      Paint()..color = _luce.withValues(alpha: 0.65),
+    );
+  }
+
+  /// Lo stelo che regge il vaso.
+  void _stelo(Canvas canvas, double w, double h) {
+    final area = Rect.fromLTWH(w * 0.42, h * 0.50, w * 0.16, h * 0.14);
+
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * 0.42, h * 0.50)
+        ..lineTo(w * 0.58, h * 0.50)
+        ..lineTo(w * 0.555, h * 0.64)
+        ..lineTo(w * 0.445, h * 0.64)
+        ..close(),
+      Paint()..shader = _tondo(area),
+    );
+
+    // Il collarino: un anello a meta' stelo. E' il dettaglio che distingue una
+    // coppa da un imbuto su un bastone.
+    final nodo = Rect.fromCenter(
+      center: Offset(w * 0.5, h * 0.555),
+      width: w * 0.22,
+      height: h * 0.035,
+    );
+
+    canvas.drawOval(nodo, Paint()..shader = _tondo(nodo));
+  }
+
+  /// La base: il piedistallo su cui la coppa sta in piedi.
+  void _base(Canvas canvas, double w, double h) {
+    final gambo = Rect.fromLTWH(w * 0.30, h * 0.64, w * 0.40, h * 0.10);
+
+    // Il tronco di piramide che allarga verso il basso.
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * 0.40, h * 0.64)
+        ..lineTo(w * 0.60, h * 0.64)
+        ..lineTo(w * 0.70, h * 0.74)
+        ..lineTo(w * 0.30, h * 0.74)
+        ..close(),
+      Paint()..shader = _tondo(gambo),
+    );
+
+    // Il ripiano, piu' scuro: e' rivolto in su, quindi prende meno luce del
+    // fianco — ed e' quel salto a farlo sembrare un altro pezzo invece della
+    // continuazione dello stesso.
+    final piano = Rect.fromLTWH(w * 0.24, h * 0.74, w * 0.52, h * 0.09);
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(piano, Radius.circular(w * 0.02)),
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [_ombra, _medio, _chiaro, _scuro],
+          stops: [0, 0.3, 0.55, 1],
+        ).createShader(piano),
+    );
+
+    // Il filo di luce sullo spigolo di sopra: e' lo spigolo, ed e' quello che
+    // separa il ripiano dal gambo.
+    canvas.drawLine(
+      Offset(w * 0.25, h * 0.7425),
+      Offset(w * 0.75, h * 0.7425),
+      Paint()
+        ..color = _luce.withValues(alpha: 0.7)
+        ..strokeWidth = h * 0.006,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_CupPainter oldDelegate) => false;
 }

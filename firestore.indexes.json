@@ -118,6 +118,21 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "comment": "Il recupero delle partecipazioni rimaste in attesa le cerca fra tutte le gare insieme, per stato e per data: gruppo di collezioni, quindi indice a mano.",
+      "collectionGroup": "entries",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "moderation",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [
