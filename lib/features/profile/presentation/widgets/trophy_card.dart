@@ -1574,7 +1574,7 @@ class _CasePainter extends CustomPainter {
     final cx = w * 0.5;
     final a = w * 0.36;
     final b = w * 0.36 * _profondita;
-    final cielo = h * 0.06;
+    final cielo = h * 0.16;
     final terra = h * 0.88;
 
     final x = <double>[];
@@ -1697,28 +1697,96 @@ class _CasePainter extends CustomPainter {
           ).createShader(faccia.area),
       );
 
+      // **La luce dentro la teca.** Un fondo nero uniforme si legge come un
+      // blocco pieno: e' il buio, non una parete. Un alone chiaro dietro il
+      // punto dove sta la coppa dice che li' dentro c'e' dello spazio, e che
+      // qualcuno l'ha acceso — che e' cio' che distingue una vetrina da una
+      // scatola chiusa.
+      canvas.save();
+      canvas.clipPath(faccia.path);
+      canvas.drawRect(
+        faccia.area,
+        Paint()
+          ..shader = RadialGradient(
+            center: const Alignment(0, -0.15),
+            radius: 0.85,
+            colors: [
+              Colors.white.withValues(alpha: 0.13),
+              Colors.white.withValues(alpha: 0.03),
+              Colors.transparent,
+            ],
+            stops: const [0, 0.55, 1],
+          ).createShader(faccia.area),
+      );
+      canvas.restore();
+
       return;
     }
 
     // **Il vetro non si dipinge: si dipingono i suoi riflessi.** Una lastra
-    // pulita e' invisibile. Quello che si vede e' la banda chiara in diagonale
-    // — il riflesso di una finestra — e un velo appena percettibile che spegne
-    // quello che c'e' dietro.
-    canvas.drawPath(
-      faccia.path,
+    // pulita e' invisibile, e una lastra senza riflessi e' un buco — era il
+    // motivo per cui la teca sembrava vuota da tre lati e piena da uno.
+    //
+    // Tre cose, e servono tutte e tre:
+    canvas.save();
+    canvas.clipPath(faccia.path);
+
+    // **Uno.** Il velo azzurrino su tutta la lastra: pochissimo, ma e' quello
+    // che dice che fra l'occhio e la coppa c'e' qualcosa.
+    canvas.drawRect(
+      faccia.area,
       Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment(-1, -1),
-          end: Alignment(1, 1),
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
           colors: [
-            Color(0x2EFFFFFF),
-            Color(0x08FFFFFF),
-            Color(0x1FFFFFFF),
-            Color(0x05FFFFFF),
+            const Color(0xFFBFD4E8).withValues(alpha: 0.16),
+            const Color(0xFF8FA8C0).withValues(alpha: 0.05),
           ],
-          stops: [0, 0.38, 0.54, 0.85],
         ).createShader(faccia.area),
     );
+
+    // **Due.** Le due bande diagonali: il riflesso di una finestra. Sono la
+    // firma del vetro — strette, nette, in diagonale, e sempre nella stessa
+    // direzione su tutte le lastre, perche' la finestra e' una sola.
+    final larghezza = faccia.area.width;
+
+    for (final banda in const [(0.10, 0.16, 0.30), (0.52, 0.07, 0.16)]) {
+      final path = Path()
+        ..moveTo(faccia.area.left + larghezza * banda.$1, faccia.area.top)
+        ..lineTo(
+          faccia.area.left + larghezza * (banda.$1 + banda.$2),
+          faccia.area.top,
+        )
+        ..lineTo(
+          faccia.area.left + larghezza * (banda.$1 + banda.$2 - 0.22),
+          faccia.area.bottom,
+        )
+        ..lineTo(
+          faccia.area.left + larghezza * (banda.$1 - 0.22),
+          faccia.area.bottom,
+        )
+        ..close();
+
+      canvas.drawPath(
+        path,
+        Paint()..color = Colors.white.withValues(alpha: banda.$3),
+      );
+    }
+
+    // **Tre.** Il filo acceso sul bordo di sopra: lo spessore della lastra
+    // visto di taglio, ed e' la cosa che si vede per prima su un vetro vero.
+    canvas.drawRect(
+      Rect.fromLTWH(
+        faccia.area.left,
+        faccia.area.top,
+        faccia.area.width,
+        math.max(1.5, faccia.area.height * 0.012),
+      ),
+      Paint()..color = Colors.white.withValues(alpha: 0.32),
+    );
+
+    canvas.restore();
   }
 
   /// Il ripiano su cui la coppa e' posata.
@@ -1867,7 +1935,7 @@ class _Showcase extends StatelessWidget {
             if (fronte > 0.12)
               Positioned(
                 left: w * 0.5 - w * 0.17,
-                top: h * 0.155,
+                top: h * 0.225,
                 width: w * 0.34,
                 child: Transform(
                   alignment: Alignment.center,
@@ -1887,11 +1955,19 @@ class _Showcase extends StatelessWidget {
             // La coppa: ferma, e piu' piccola della teca — dentro una vetrina
             // un oggetto ha sempre dell'aria intorno, o non e' esposto: e'
             // incastrato.
+            // **Appoggiata sul ripiano, non a mezz'aria.**
+            //
+            // Il disegno della coppa tiene il piede al 91% della sua altezza —
+            // sotto c'e' solo l'ombra a terra — quindi il riquadro va messo in
+            // modo che **quel 91% cada esattamente sul pavimento della teca**.
+            // Prima il riquadro era centrato a occhio, e la coppa galleggiava
+            // qualche punto sopra il ripiano: e' il genere di cosa che si vede
+            // subito e non si sa dire.
             Positioned(
-              left: w * 0.26,
-              top: h * 0.22,
-              width: w * 0.48,
-              height: h * 0.64,
+              left: w * 0.20,
+              top: h * (0.88 - 0.913 * 0.60),
+              width: w * 0.60,
+              height: h * 0.60,
               child: CustomPaint(painter: _CupPainter(angolo: angolo)),
             ),
             Positioned.fill(
