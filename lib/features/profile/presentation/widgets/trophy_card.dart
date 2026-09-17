@@ -911,6 +911,9 @@ class CommissionedTrophy extends StatelessWidget {
   /// aspetta toccandola.
   double get _scala => grande ? 1.45 : 1;
 
+  /// Quando e' finita, per il retro della teca.
+  String get _quando => AppDateUtils.formatItalianDate(challenge.endsAt);
+
   /// L'occhiello in cima: dice di che specie e' la prova.
   String get _intestazione {
     if (challenge.isDuel) {
@@ -950,8 +953,8 @@ class CommissionedTrophy extends StatelessWidget {
                 child: AspectRatio(
                   aspectRatio: cupRatio,
                   child: grande
-                      ? const _SpinningCase()
-                      : const _Showcase(angolo: 0),
+                      ? _SpinningCase(data: _quando)
+                      : _Showcase(angolo: 0, data: _quando),
                 ),
               ),
             ),
@@ -1262,6 +1265,35 @@ class _CupPainter extends CustomPainter {
         ).createShader(area),
     );
 
+    // **La cucitura dello stampo.**
+    //
+    // Serve a far **vedere** che la coppa gira. Il resto e' simmetrico: girando
+    // cambia solo dove batte la luce, e senza un segno da seguire l'occhio
+    // legge un tremolio invece di una rotazione. Questa e' una riga sola, la
+    // giunzione dei due mezzi stampi — una cosa che un pezzo fuso ce l'ha
+    // davvero — e si vede scorrere lungo il fianco, stringersi e sparire dietro
+    // il bordo.
+    final cucitura = 0.5 + math.sin(angolo) * 0.26;
+
+    if (cucitura > 0.26 && cucitura < 0.74) {
+      canvas.drawPath(
+        Path()
+          ..moveTo(w * cucitura, h * 0.21)
+          ..cubicTo(
+            w * (cucitura + 0.005),
+            h * 0.36,
+            w * (cucitura + 0.008),
+            h * 0.48,
+            w * (cucitura + 0.004),
+            h * 0.60,
+          ),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = w * 0.010
+          ..color = _chiaro.withValues(alpha: 0.30),
+      );
+    }
+
     // **La luce di rimbalzo.** Sul lato in ombra, proprio sul bordo, torna un
     // filo di chiaro: e' la luce che rimbalza da quello che sta intorno. E'
     // debole e sottile, ma senza di lei il lato scuro sembra tagliato via
@@ -1437,7 +1469,10 @@ class _CupPainter extends CustomPainter {
 /// i manici che si chiudono di taglio e riaprono dall'altra parte — vedi
 /// `_CupPainter.angolo`.
 class _SpinningCase extends StatefulWidget {
-  const _SpinningCase();
+  const _SpinningCase({this.data});
+
+  /// Quando la sfida e' finita: si legge sul retro della teca.
+  final String? data;
 
   @override
   State<_SpinningCase> createState() => _SpinningCaseState();
@@ -1500,7 +1535,7 @@ class _SpinningCaseState extends State<_SpinningCase>
         _presa = false;
         _velocita = (dettagli.primaryVelocity ?? 0) * 0.012;
       },
-      child: _Showcase(angolo: _angolo),
+      child: _Showcase(angolo: _angolo, data: widget.data),
     );
   }
 }
@@ -1679,10 +1714,47 @@ class _CasePainter extends CustomPainter {
   }
 
   /// Una parete: nera se e' il fondo, altrimenti vetro.
+  ///
+  /// **Il vetro dietro e il vetro davanti non sono la stessa cosa.** Quello
+  /// davanti lo si guarda: mostra i riflessi. Quello dietro lo si **attraversa
+  /// con lo sguardo**, e quello che c'e' dall'altra parte e' l'interno della
+  /// teca — buio. Dipingerlo chiaro come quello davanti era il motivo per cui,
+  /// girando di lato, la coppa restava senza sfondo e si perdeva sulla pagina:
+  /// fumé dietro, la coppa ha sempre qualcosa di scuro alle spalle, da
+  /// qualunque parte la si guardi.
   void _parete(Canvas canvas, _Faccia faccia) {
     if (faccia.area.width < 0.5) {
       // Di taglio non c'e' niente da dipingere: la parete e' una riga, e a
       // disegnarla si ottiene solo una striscia scura che balla.
+      return;
+    }
+
+    if (!faccia.eIlFondo && faccia.profondita > 0) {
+      canvas.drawPath(
+        faccia.path,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              const Color(0xFF17171A).withValues(alpha: 0.92),
+              const Color(0xFF0B0B0D).withValues(alpha: 0.96),
+            ],
+          ).createShader(faccia.area),
+      );
+
+      // Anche il vetro scuro riflette, ma appena: un filo sul bordo di sopra e
+      // basta. Di piu' e non si capirebbe piu' che si sta guardando dentro.
+      canvas.drawRect(
+        Rect.fromLTWH(
+          faccia.area.left,
+          faccia.area.top,
+          faccia.area.width,
+          math.max(1, faccia.area.height * 0.008),
+        ),
+        Paint()..color = Colors.white.withValues(alpha: 0.14),
+      );
+
       return;
     }
 
@@ -1691,9 +1763,14 @@ class _CasePainter extends CustomPainter {
         faccia.path,
         Paint()
           ..shader = const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [_fondoAlto, _fondoBasso],
+            // In diagonale e a quattro toni, non due: una parete nera con una
+            // sfumatura dall'alto in basso si legge ancora come una superficie
+            // piatta. Presa di sbieco, con un chiaro che passa e si spegne, si
+            // legge come una parete **illuminata da qualcosa**.
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF26262A), _fondoAlto, Color(0xFF111113), _fondoBasso],
+            stops: [0, 0.35, 0.72, 1],
           ).createShader(faccia.area),
       );
 
@@ -1904,9 +1981,12 @@ class _CasePainter extends CustomPainter {
 /// invece che sopra. Disegnando i vetri per primi la coppa ci passerebbe
 /// davanti, e la teca diventerebbe una cornice.
 class _Showcase extends StatelessWidget {
-  const _Showcase({required this.angolo});
+  const _Showcase({required this.angolo, this.data});
 
   final double angolo;
+
+  /// Quando la sfida e' finita, incisa sul retro della teca.
+  final String? data;
 
   @override
   Widget build(BuildContext context) {
@@ -1917,6 +1997,62 @@ class _Showcase extends StatelessWidget {
         final w = vincoli.maxWidth;
         final h = vincoli.maxHeight;
 
+        // Ci siamo girati dietro: la parete nera e' fra noi e la coppa.
+        final dietro = fronte < 0;
+
+        // **Il marchio sta sulla parete nera, da tutte e due i lati.**
+        //
+        // Dentro e' la targa della vetrina, quella che dice chi assegna il
+        // premio. Girando fino in fondo si arriva **dietro**, e li' la teca
+        // diventava un rettangolo nero e basta: una faccia cieca, l'unico punto
+        // del giro in cui non c'era niente da guardare. Adesso anche il dietro
+        // e' una faccia — marchio e data, come il retro di una targa vera.
+        //
+        // Di taglio non si scrive niente: la parete e' una riga, e una scritta
+        // su una riga e' una macchia.
+        final targa = fronte.abs() <= 0.14
+            ? null
+            : Positioned(
+                left: w * 0.5 - w * 0.19,
+                top: h * (dietro ? 0.34 : 0.225),
+                width: w * 0.38,
+                child: Transform(
+                  alignment: Alignment.center,
+                  transform: Matrix4.identity()
+                    ..scaleByDouble(fronte.abs(), 1, 1, 1),
+                  child: Opacity(
+                    opacity: (0.15 + fronte.abs() * 0.5).clamp(0.0, 1.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CrasyWordmark(
+                          size: 30,
+                          alignment: Alignment.center,
+                          onDark: true,
+                          beta: false,
+                        ),
+                        // La data solo da dietro: davanti la coppa e' la cosa
+                        // da guardare, e una scritta in piu' le toglierebbe
+                        // spazio. Dietro non c'e' altro, ed e' il posto in cui
+                        // su una targa vera sta inciso quando.
+                        if (dietro && data != null) ...[
+                          SizedBox(height: h * 0.022),
+                          Text(
+                            data!.toUpperCase(),
+                            textAlign: TextAlign.center,
+                            style: context.texts.labelSmall?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.65),
+                              fontSize: w * 0.05,
+                              letterSpacing: 1.4,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              );
+
         return Stack(
           children: [
             Positioned.fill(
@@ -1924,45 +2060,17 @@ class _Showcase extends StatelessWidget {
                 painter: _CasePainter(angolo: angolo, davanti: false),
               ),
             ),
-            // **Il marchio sta sulla parete di fondo, non sulla coppa.**
-            //
-            // Su un trofeo vero il nome di chi lo assegna sta sulla targa della
-            // vetrina: inciso anche sull'oggetto sarebbe scritto due volte. E
-            // da qui si comporta come deve — si stringe quando la teca gira di
-            // taglio, e sparisce quando il fondo va dietro.
-            // Solo finche' il fondo e' davvero dietro: quando gira di taglio la
-            // parete e' una riga, e una scritta su una riga e' una macchia.
-            if (fronte > 0.12)
-              Positioned(
-                left: w * 0.5 - w * 0.17,
-                top: h * 0.225,
-                width: w * 0.34,
-                child: Transform(
-                  alignment: Alignment.center,
-                  transform: Matrix4.identity()
-                    ..scaleByDouble(fronte, 1, 1, 1),
-                  child: Opacity(
-                    opacity: (0.15 + fronte * 0.45).clamp(0.0, 1.0),
-                    child: const CrasyWordmark(
-                      size: 30,
-                      alignment: Alignment.center,
-                      onDark: true,
-                      beta: false,
-                    ),
-                  ),
-                ),
-              ),
-            // La coppa: ferma, e piu' piccola della teca — dentro una vetrina
-            // un oggetto ha sempre dell'aria intorno, o non e' esposto: e'
-            // incastrato.
+            // Con la parete in fondo, il marchio le sta sopra e la coppa lo
+            // copre in parte: e' dentro la teca.
+            if (!dietro && targa != null) targa,
             // **Appoggiata sul ripiano, non a mezz'aria.**
             //
             // Il disegno della coppa tiene il piede al 91% della sua altezza —
             // sotto c'e' solo l'ombra a terra — quindi il riquadro va messo in
             // modo che **quel 91% cada esattamente sul pavimento della teca**.
-            // Prima il riquadro era centrato a occhio, e la coppa galleggiava
-            // qualche punto sopra il ripiano: e' il genere di cosa che si vede
-            // subito e non si sa dire.
+            // Prima era centrato a occhio, e la coppa galleggiava qualche punto
+            // sopra il ripiano: il genere di cosa che si vede subito e non si
+            // sa dire.
             Positioned(
               left: w * 0.20,
               top: h * (0.88 - 0.913 * 0.60),
@@ -1975,6 +2083,9 @@ class _Showcase extends StatelessWidget {
                 painter: _CasePainter(angolo: angolo, davanti: true),
               ),
             ),
+            // Da dietro invece la parete e' **fra noi e la coppa**: il marchio
+            // ci va sopra, o resterebbe nascosto dalla parete stessa.
+            if (dietro && targa != null) targa,
           ],
         );
       },
