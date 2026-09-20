@@ -1036,8 +1036,22 @@ class _DeleteChallengeState extends ConsumerState<_DeleteChallenge> {
       return;
     }
 
-    if (mounted) {
-      Navigator.of(context).pop();
+    if (!mounted) {
+      return;
+    }
+
+    // **Cancellata, si torna in home — non "indietro".**
+    //
+    // Indietro presuppone che ci sia un dietro, e spesso non c'e': chi arriva
+    // qui da una notifica, da un link condiviso o dal ritorno di un pagamento
+    // apre il dettaglio come prima schermata. Chiudere l'unica pagina aperta
+    // lasciava uno schermo bianco, subito dopo aver toccato un tasto che dice
+    // "cancella" — nel momento peggiore per far sembrare che sia andato storto
+    // qualcosa.
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.challenges);
     }
   }
 }
