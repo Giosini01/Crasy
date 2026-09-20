@@ -350,6 +350,11 @@ async function onChargeRefunded(charge) {
  * premio resterebbe fermo finche' non torna a premere un bottone.
  */
 async function onAccountUpdated(account) {
+  // **Utile, non necessaria.** Chi preleva controlla comunque da se' com'e'
+  // messo il proprio account (vedi `withdrawWallet`): questa riga serve solo a
+  // risparmiargli quella domanda, quando l'avviso arriva. Se il webhook degli
+  // account collegati non e' registrato, non succede niente di male — nessuno
+  // resta con i soldi bloccati.
   const ready = account.payouts_enabled === true;
   const users = await db
     .collection('users')
@@ -544,9 +549,32 @@ exports.withdrawWallet = onCall(
 
     const accountId = user.get('stripeAccountId');
 
-    if (!accountId || user.get('payoutReady') !== true) {
+    if (!accountId) {
       // Non e' un errore: e' la prima volta. Chi chiama apre la registrazione.
       return { paid: false, reason: 'account-mancante' };
+    }
+
+    // **Se non risulta pronto, si chiede a Stripe invece di crederci.**
+    //
+    // `payoutReady` e' una copia: la scrive il webhook quando Stripe avvisa che
+    // quella registrazione e' andata a buon fine. Ma quell'avviso riguarda un
+    // account *collegato*, e Stripe lo manda solo a una destinazione di tipo
+    // "account connessi" — un secondo indirizzo, con un secondo segreto, da
+    // tenere in piedi per una riga di copia.
+    //
+    // Qui si evita tutto: **al momento del prelievo si domanda a Stripe com'e'
+    // messo quell'account**, che e' l'unico momento in cui la risposta serve
+    // davvero. Una chiamata sola, fatta da una persona che sta gia' aspettando
+    // dei soldi, e la risposta non puo' essere vecchia — cosa che una copia
+    // scritta giorni prima invece puo'.
+    if (user.get('payoutReady') !== true) {
+      const account = await stripe.accounts.retrieve(accountId);
+
+      if (account.payouts_enabled !== true) {
+        return { paid: false, reason: 'account-mancante' };
+      }
+
+      await userRef.update({ payoutReady: true });
     }
 
     const movementRef = userRef.collection('wallet').doc();

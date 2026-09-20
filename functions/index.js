@@ -211,15 +211,6 @@ async function annuncia(corpo, dati) {
 //
 // Nullo quando i pagamenti sono spenti, e va bene cosi': non c'e' nessun soldo
 // da restituire ne' da pagare, e i tre punti che lo usano ne tengono conto.
-const payments =
-  process.env.CRASY_PAYMENTS === 'on' ? require('./payments') : null;
-
-if (payments) {
-  exports.startChallengePayment = payments.startChallengePayment;
-  exports.stripeWebhook = payments.stripeWebhook;
-  exports.createPayoutOnboarding = payments.createPayoutOnboarding;
-  exports.withdrawWallet = payments.withdrawWallet;
-}
 
 // Stessa regione del database: una funzione che scrive su Firestore va dove sta
 // il database, altrimenti ogni scrittura fa un giro per mezzo mondo.
@@ -241,6 +232,35 @@ setGlobalOptions({
   timeoutSeconds: 60,
   memory: '256MiB',
 });
+
+//
+// **Adesso si carica sempre, e l'interruttore non c'e' piu'.**
+//
+// C'era, ed era una variabile d'ambiente: finche' le chiavi di Stripe non
+// esistevano, caricare questo modulo avrebbe fatto fallire la pubblicazione di
+// tutto il resto. Le chiavi adesso ci sono, e quell'interruttore si e'
+// rivelato peggio del problema che risolveva — **pubblicava senza dire niente
+// e lasciava fuori tutte e quattro le funzioni dei soldi**. Il motivo e' che
+// Firebase esegue questo file una prima volta solo per scoprire quali funzioni
+// esistono, e in quel passaggio il `.env` non c'e' ancora: la condizione era
+// falsa, il file usciva pulito, e a schermo appariva un deploy riuscito.
+//
+// Un interruttore che spegne le cose in silenzio e' peggio di nessun
+// interruttore. Quello vero, quello che conta, e' dalla parte dell'app:
+// `--dart-define=CRASY_PAYMENTS`. Finche' quello e' spento nessun telefono
+// chiama queste funzioni, ed esistere senza essere chiamate non costa niente.
+const payments = require('./payments');
+
+exports.startChallengePayment = payments.startChallengePayment;
+exports.stripeWebhook = payments.stripeWebhook;
+exports.createPayoutOnboarding = payments.createPayoutOnboarding;
+exports.withdrawWallet = payments.withdrawWallet;
+
+// **Sta sotto `setGlobalOptions` per lo stesso motivo dell'amministrazione.**
+// Messo in cima al file, le quattro funzioni dei soldi nascevano prima che la
+// regione fosse scelta e finivano in `us-central1` — dove l'app non le cerca
+// nemmeno, perche' chiama `europe-west8`. Pubblicate, esistenti, e
+// irraggiungibili.
 
 // **Le funzioni dell'amministratore, e si esportano qui sotto per un motivo.**
 //
