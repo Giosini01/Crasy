@@ -252,10 +252,14 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
   }
 
   @override
-  Stream<List<Challenge>> watchTrophiesOf(String userId, {String? viewerId}) {
+  Stream<List<Challenge>> watchTrophiesOf(
+    String userId, {
+    String? viewerId,
+    bool friend = false,
+  }) {
     return _unione(
-      _remote.watchTrophiesOf(userId, viewerId: viewerId),
-      _samples.watchTrophiesOf(userId, viewerId: viewerId),
+      _remote.watchTrophiesOf(userId, viewerId: viewerId, friend: friend),
+      _samples.watchTrophiesOf(userId, viewerId: viewerId, friend: friend),
     );
   }
 

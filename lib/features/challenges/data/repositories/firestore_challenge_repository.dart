@@ -830,7 +830,11 @@ class FirestoreChallengeRepository implements ChallengeRepository {
   }
 
   @override
-  Stream<List<Challenge>> watchTrophiesOf(String userId, {String? viewerId}) {
+  Stream<List<Challenge>> watchTrophiesOf(
+    String userId, {
+    String? viewerId,
+    bool friend = false,
+  }) {
     // Senza `orderBy`: incrociare un filtro e un ordinamento su campi diversi
     // costringe Firestore a un indice composto, e un indice mancante non e' un
     // errore che si vede scrivendo il codice — e' una schermata vuota in mano a
@@ -844,10 +848,22 @@ class FirestoreChallengeRepository implements ChallengeRepository {
       // del proprio gruppo di amici, le proprie sfide.
       if (viewerId != null && viewerId.isNotEmpty)
         vinte.where('audience', arrayContains: viewerId).snapshots(),
-      // E le sfide mirate portate a termine, che le regole lasciano leggere a
-      // chiunque: e' la meta' pubblica di una sfida — la figuraccia resta fra i
-      // due, la vittoria si vede.
-      vinte.where('duelVerdict', isEqualTo: 'approved').snapshots(),
+      // **Le sfide mirate superate: agli amici, e solo a loro.**
+      //
+      // Una sfida mirata e' una cosa fra due persone, e finche' e' in corso —
+      // o rifiutata, o bocciata — resta fra loro: passa dalle due righe qui
+      // sopra, cioe' la vede chi e' nell'`audience`. Ma una **superata** e' un
+      // trofeo, e un trofeo che nemmeno i propri amici vedono non e' un trofeo:
+      // e' un appunto privato.
+      //
+      // **Questa riga si chiede solo essendo amici**, e non e' una cortesia
+      // verso il database: le regole aprono queste gare agli amici e a nessun
+      // altro, e una lettura che ne chiedesse una a cui non si ha diritto non
+      // verrebbe filtrata — verrebbe respinta tutta, lasciando la bacheca
+      // vuota. E' lo stesso motivo per cui qui si fanno piu' letture invece di
+      // una.
+      if (friend)
+        vinte.where('duelVerdict', isEqualTo: 'approved').snapshots(),
     ]).map(
       (challenges) => _mostRecentFirst([
         for (final challenge in challenges)

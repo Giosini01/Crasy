@@ -152,7 +152,15 @@ class Challenge {
   /// che capitano, e vince la posizione nella lista invece di quello che uno ha
   /// fatto. Lo zero resta un valore valido — le gare lanciate prima ce l'hanno
   /// dentro e continuano a funzionare — ma non si puo' piu' scegliere.
-  static const List<int> participantCaps = [10, 25, 50];
+  ///
+  /// **Cinquanta era troppo, e si vedeva dalla parte sbagliata.** Il tetto piu'
+  /// alto e' quello che decide quanto vale la scommessa: a cinquanta, una
+  /// possibilita' su cinquanta e' gia' una lotteria — e per chi guarda sono
+  /// cinquanta foto da scorrere, che vuol dire votare fra le prime che
+  /// capitano. Quindici in mezzo perche' dieci e venticinque sono lontani: fra
+  /// i due c'e' proprio la gara che si vuole fare piu' spesso, abbastanza
+  /// grande da non chiudersi subito e abbastanza piccola da guardarsela tutta.
+  static const List<int> participantCaps = [10, 15, 25];
 
   /// **La sfida del giorno di CRASY: gratis, e non consuma una partecipazione.**
   ///

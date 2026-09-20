@@ -413,7 +413,7 @@ class _Laminated extends StatelessWidget {
           // figurina larga due centimetri e' la differenza fra un bordo e una
           // lastra: lo spessore e' cio' che si guarda per capire se una cosa e'
           // fatta di qualcosa.
-          padding: const EdgeInsets.all(6),
+          padding: const EdgeInsets.all(9),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.sm),
             child: Stack(
@@ -527,6 +527,14 @@ class _FlippableTrophyState extends State<FlippableTrophy>
     vsync: this,
   );
 
+  /// Quanto e' spessa la figurina, in punti. Poco: e' pur sempre cartoncino,
+  /// e uno spessore esagerato la fa sembrare una piastrella.
+  static const double _spessore = 7;
+
+  /// In quante fette si costruisce quello spessore. Poche e si vedono le
+  /// righe in mezzo; tante e non cambia piu' niente tranne il lavoro.
+  static const int _fette = 12;
+
   @override
   void dispose() {
     _angolo.dispose();
@@ -553,6 +561,23 @@ class _FlippableTrophyState extends State<FlippableTrophy>
           final angolo = _angolo.value;
           final davanti = math.cos(angolo) >= 0;
 
+          final faccia = davanti
+              ? widget.fronte ??
+                    TrophyFront(challenge: widget.challenge, kind: widget.kind)
+              : Transform(
+                  alignment: Alignment.center,
+                  // Il retro va rigirato su se stesso, o si vedrebbe
+                  // specchiato: e' dietro, quindi lo stiamo guardando dalla
+                  // parte sbagliata.
+                  transform: Matrix4.identity()..rotateY(math.pi),
+                  child:
+                      widget.retro ??
+                      TrophyBack(
+                        challenge: widget.challenge,
+                        kind: widget.kind,
+                      ),
+                );
+
           return Transform(
             alignment: Alignment.center,
             transform: Matrix4.identity()
@@ -560,25 +585,39 @@ class _FlippableTrophyState extends State<FlippableTrophy>
               // schiaccia. E' la distanza dell'occhio dalla scena.
               ..setEntry(3, 2, 0.0013)
               ..rotateY(angolo),
-            child: davanti
-                ? widget.fronte ??
-                      TrophyFront(
-                        challenge: widget.challenge,
-                        kind: widget.kind,
-                      )
-                : Transform(
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // **Il taglio della figurina.**
+                //
+                // Girata, la carta era un foglio: due facce stampate e niente
+                // in mezzo, e nel punto in cui si mette di profilo spariva del
+                // tutto. Una figurina vera ha uno spessore, e di taglio si vede
+                // proprio quello — il cartoncino fra le due stampe.
+                //
+                // Non c'e' un modo di disegnare un solido, quindi si fa come
+                // in tipografia: **si impilano delle fette**. Ognuna e' la
+                // stessa sagoma spostata un pelo piu' indietro lungo la
+                // perpendicolare alla carta — dentro una rotazione, indietro
+                // vuol dire indietro davvero — e una dozzina di fette
+                // attaccate sono un bordo pieno. Di faccia non se ne vede
+                // nessuna, perche' stanno esattamente dietro; di taglio si
+                // vedono tutte, ed e' li' che servono.
+                //
+                // Sono scure, e scurite ancora di piu' man mano che vanno in
+                // fondo: un materiale tagliato non prende la luce come la sua
+                // superficie lucida, e senza quella differenza le fette
+                // sembrerebbero un alone e non uno spessore.
+                for (var fetta = _fette; fetta >= 1; fetta--)
+                  Transform(
                     alignment: Alignment.center,
-                    // Il retro va rigirato su se stesso, o si vedrebbe
-                    // specchiato: e' dietro, quindi lo stiamo guardando dalla
-                    // parte sbagliata.
-                    transform: Matrix4.identity()..rotateY(math.pi),
-                    child:
-                        widget.retro ??
-                        TrophyBack(
-                          challenge: widget.challenge,
-                          kind: widget.kind,
-                        ),
+                    transform: Matrix4.identity()
+                      ..translateByDouble(0, 0, fetta * _spessore / _fette, 1),
+                    child: _Taglio(buio: fetta / _fette),
                   ),
+                faccia,
+              ],
+            ),
           );
         },
       ),
@@ -605,8 +644,41 @@ class _FlippableTrophyState extends State<FlippableTrophy>
 /// misura di una figurina non si vede niente: ne' la foto, ne' il valore, ne'
 /// il bordo. Sono poche per definizione — sono i premi, non le partecipazioni —
 /// quindi vale la pena che si vedano.
+/// Una fetta del taglio: la sagoma della figurina, piena e scura.
+class _Taglio extends StatelessWidget {
+  const _Taglio({required this.buio});
+
+  /// Da zero (appena sotto la faccia) a uno (il fondo del cartoncino).
+  final double buio;
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: TrophyFront.ratio,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          // L'oro della cornice, spento: e' lo stesso materiale visto sul
+          // taglio invece che sulla faccia lucida.
+          color: Color.lerp(
+            const Color(0xFFB8912B),
+            const Color(0xFF3A2D0C),
+            buio,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class TrophyGrid extends StatelessWidget {
   const TrophyGrid({required this.challenges, required this.kind, super.key});
+
+  /// La larghezza per cui le figurine sono disegnate. Non e' quella con cui
+  /// finiscono sullo schermo: e' il foglio su cui sono state fatte, e da cui
+  /// si riducono.
+  static const double _misuraDiDisegno = 168;
+
 
   final List<Challenge> challenges;
   final TrophyKind kind;
@@ -619,10 +691,19 @@ class TrophyGrid extends StatelessWidget {
     // diversi non e' una collezione: e' un disordine.
     final targhe = kind == TrophyKind.commissioned;
 
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+      // **Due per riga, ma un po' piu' strette.** Larghe fin sul bordo, le
+      // figurine erano due poster attaccati: niente aria attorno, e una
+      // collezione senza aria sembra un'unica macchia. Restano due — si
+      // guardano in coppia, ed e' giusto cosi' — ma con un margine in piu' ai
+      // lati, che e' quello che le fa leggere come oggetti appoggiati a una
+      // parete invece che stampati sopra.
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.page + 24,
+      ),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: AppSpacing.sm,
@@ -650,9 +731,23 @@ class TrophyGrid extends StatelessWidget {
         return GestureDetector(
           onTap: () => showTrophy(context, challenge: challenge, kind: kind),
           behavior: HitTestBehavior.opaque,
-          child: targhe
-              ? CommissionedTrophy(challenge: challenge)
-              : TrophyFront(challenge: challenge, kind: kind),
+          // **Si rimpicciolisce tutta intera, scritte comprese.**
+          //
+          // Le misure dentro la figurina — il nome, la cifra, il titolo della
+          // gara — sono state messe a mano per una larghezza precisa.
+          // Stringere solo la cornice ci lascerebbe dentro il testo di prima:
+          // righe che vanno a capo dove non devono, o tagliate. Qui la
+          // figurina si costruisce alla sua misura giusta e poi si riduce come
+          // si riduce una foto — cambia solo quanto e' grande in mano.
+          child: FittedBox(
+            fit: BoxFit.contain,
+            child: SizedBox(
+              width: _misuraDiDisegno,
+              child: targhe
+                  ? CommissionedTrophy(challenge: challenge)
+                  : TrophyFront(challenge: challenge, kind: kind),
+            ),
+          ),
         );
       },
     );

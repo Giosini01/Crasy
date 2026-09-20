@@ -1,6 +1,8 @@
+import 'package:crasy/core/theme/app_colors.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
+import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -32,10 +34,48 @@ class FriendAvatar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final photoUrl = ref
-        .watch(publicProfileProvider(userId))
-        .valueOrNull
-        ?.photoUrl;
+    final profilo = ref.watch(publicProfileProvider(userId)).valueOrNull;
+    final photoUrl = profilo?.photoUrl;
+
+    // **La casa ha il suo segno, non delle iniziali.**
+    //
+    // L'account ufficiale non e' una persona: due lettere dentro un cerchio
+    // grigio lo farebbero sembrare uno che non ha ancora messo la foto, cioe'
+    // esattamente il contrario di quello che deve dire.
+    //
+    // **La fiamma e basta, non il marchio intero.** Il marchio e' una parola
+    // lunga, e dentro un cerchio di due dita diventa una riga illeggibile che
+    // ripete il nome scritto un centimetro piu' in la'. La fiamma da sola
+    // funziona a qualunque misura, ed e' comunque il marchio: e' la meta' che
+    // si riconosce.
+    //
+    // Sta qui e non in un file caricato: una foto si puo' perdere, si puo'
+    // sostituire per sbaglio, e il giorno che succede la casa resta senza
+    // faccia. E si guarda il nome, non un campo sul database — due persone non
+    // possono chiamarsi allo stesso modo, quindi "l'account che si chiama
+    // crasy" e' una definizione che nessuno puo' prendersi.
+    final ufficiale =
+        profilo?.isOfficial ??
+        username.trim().toLowerCase() == UserProfile.officialUsername;
+
+    if (ufficiale) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.paper,
+            border: Border.all(color: context.palette.line),
+          ),
+          child: Icon(
+            Icons.local_fire_department,
+            size: size * 0.62,
+            color: context.palette.accent,
+          ),
+        ),
+      );
+    }
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.pill),

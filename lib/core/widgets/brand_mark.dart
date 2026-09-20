@@ -370,3 +370,39 @@ class _BetaWord extends StatelessWidget {
     );
   }
 }
+
+/// **La fiamma dell'account ufficiale.**
+///
+/// E' la spunta blu di questa app, e non e' una spunta: il rosso e la fiamma
+/// sono i due segni che qui dentro vogliono dire *CRASY*, e un segno preso in
+/// prestito da un'altra app direbbe "verificato da qualcun altro".
+///
+/// Sta accanto al nome e non al posto della foto: chi legge deve poter
+/// riconoscere **il nome** come quello di casa, anche dove la foto non c'e' —
+/// in una riga di commenti, sotto uno scatto, in un elenco di amici.
+class OfficialFlame extends StatelessWidget {
+  const OfficialFlame({this.size = 18, super.key});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: context.palette.accent,
+      ),
+      // **La stessa fiamma della barra in fondo.** Non una simile: quella
+      // identica, `local_fire_department`. Il segno che dice CRASY dev'essere
+      // uno solo — due fiamme appena diverse nella stessa app sono due segni, e
+      // nessuno dei due diventa riconoscibile.
+      child: Icon(
+        Icons.local_fire_department,
+        size: size * 0.68,
+        color: Colors.white,
+      ),
+    );
+  }
+}

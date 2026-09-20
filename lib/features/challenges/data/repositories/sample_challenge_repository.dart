@@ -440,7 +440,11 @@ class SampleChallengeRepository implements ChallengeRepository {
   }
 
   @override
-  Stream<List<Challenge>> watchTrophiesOf(String userId, {String? viewerId}) {
+  Stream<List<Challenge>> watchTrophiesOf(
+    String userId, {
+    String? viewerId,
+    bool friend = false,
+  }) {
     return _watch(
       () => [
         for (final challenge in _challenges.values)

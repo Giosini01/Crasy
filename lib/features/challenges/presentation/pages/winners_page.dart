@@ -2,6 +2,7 @@ import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
@@ -9,8 +10,10 @@ import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/core/widgets/media_gestures.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/leaderboard.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
+import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,12 +24,18 @@ import 'package:go_router/go_router.dart';
 /// non si vede mai nessuno vincere, il premio in palio resta una promessa.
 /// Per questo qui il premio si scrive al passato — **vinti**, non "in palio" —
 /// e accanto c'e' il nome di una persona.
+/// Quale delle tre si sta guardando. Fuori dalla schermata perche' deve
+/// sopravvivere a chi esce e rientra dalla scheda.
+final trendViewProvider = StateProvider<TrendView>((ref) => TrendView.winners);
+
 class WinnersPage extends ConsumerWidget {
   const WinnersPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final challenges = ref.watch(endedChallengesProvider);
+    final view = ref.watch(trendViewProvider);
+    final chiuse = challenges.valueOrNull ?? const <Challenge>[];
 
     return Scaffold(
       body: AppBackground(
@@ -48,21 +57,46 @@ class WinnersPage extends ConsumerWidget {
                     AppSpacing.xxl,
                   ),
                   children: [
-                    const HighlightedText(
-                      'Le challenge chiuse, e chi si è preso i soldi.',
-                      highlight: 'chi si è preso i soldi',
+                    HighlightedText(
+                      switch (view) {
+                        TrendView.winners =>
+                          'Chi si è preso più soldi, adesso.',
+                        TrendView.launchers =>
+                          'Chi ne ha messi di più in palio.',
+                        TrendView.fresh =>
+                          'Le challenge chiuse, e chi si è preso i soldi.',
+                      },
+                      highlight: switch (view) {
+                        TrendView.winners => 'più soldi',
+                        TrendView.launchers => 'in palio',
+                        TrendView.fresh => 'chi si è preso i soldi',
+                      },
                     ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _Switch(selected: view),
                     const SizedBox(height: AppSpacing.xl),
-                    challenges.when(
-                      loading: () => const SizedBox.shrink(),
-                      error: (_, _) => const EmptyState(
-                        title: 'Non disponibile',
-                        message:
-                            'Non riusciamo a caricare le challenge concluse. '
-                            'Controlla la connessione.',
+                    if (view != TrendView.fresh)
+                      _Classifica(
+                        righe: view == TrendView.winners
+                            ? Leaderboard.winners(chiuse)
+                            : Leaderboard.launchers(chiuse),
+                        vuota: view == TrendView.winners
+                            ? 'Quando qualcuno vince una gara con dei soldi in '
+                                  'palio, il podio si riempie da solo.'
+                            : 'Quando qualcuno lancia una gara mettendoci dei '
+                                  'soldi, lo trovi qui.',
+                      )
+                    else
+                      challenges.when(
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, _) => const EmptyState(
+                          title: 'Non disponibile',
+                          message:
+                              'Non riusciamo a caricare le challenge concluse. '
+                              'Controlla la connessione.',
+                        ),
+                        data: (items) => _Winners(challenges: items),
                       ),
-                      data: (items) => _Winners(challenges: items),
-                    ),
                   ],
                 ),
               ),
@@ -281,6 +315,523 @@ class _Fiamme extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Cosa si guarda nella scheda di chi sta andando forte.
+///
+/// **Tre cose, e sono tre domande diverse.** Chi sta vincendo, chi sta facendo
+/// giocare, e cos'e' appena successo. Messe una sotto l'altra sarebbero una
+/// lista lunga in cui non si capisce dove finisce una e comincia l'altra: tre
+/// parole in cima e una sola sotto gli occhi.
+enum TrendView {
+  /// Chi ha portato a casa piu' soldi.
+  winners('VINCITORI'),
+
+  /// Chi ne ha messi di piu' in palio.
+  launchers('CHI FA GIOCARE'),
+
+  /// Le gare appena chiuse, con la foto che ha vinto.
+  fresh('APPENA FINITE');
+
+  const TrendView(this.label);
+
+  final String label;
+}
+/// I tre metalli, ognuno con la sua faccia: il fronte, il piano di sopra, il
+/// fianco in ombra e il colore del numero.
+///
+/// **Quattro toni e non uno.** Un blocco di un colore solo e' un rettangolo
+/// colorato; quello che lo rende un oggetto e' che le sue tre facce prendono la
+/// luce in modo diverso — il piano di sopra guarda la lampada ed e' il piu'
+/// chiaro, il fronte sta in mezzo, il fianco e' girato via ed e' il piu' scuro.
+class _Metallo {
+  const _Metallo({
+    required this.alto,
+    required this.fronteChiaro,
+    required this.fronteScuro,
+    required this.fianco,
+    required this.numero,
+  });
+
+  final Color alto;
+  final Color fronteChiaro;
+  final Color fronteScuro;
+  final Color fianco;
+  final Color numero;
+
+  static const oro = _Metallo(
+    alto: Color(0xFFFFE9A3),
+    fronteChiaro: Color(0xFFF6CE5C),
+    fronteScuro: Color(0xFFD9A62A),
+    fianco: Color(0xFFB98A1E),
+    numero: Color(0xFF7A5A0E),
+  );
+
+  static const argento = _Metallo(
+    alto: Color(0xFFF4F4F7),
+    fronteChiaro: Color(0xFFDDDDE4),
+    fronteScuro: Color(0xFFB9B9C4),
+    fianco: Color(0xFF9E9EAA),
+    numero: Color(0xFF63636E),
+  );
+
+  static const bronzo = _Metallo(
+    alto: Color(0xFFF0C9A8),
+    fronteChiaro: Color(0xFFDDA274),
+    fronteScuro: Color(0xFFB87848),
+    fianco: Color(0xFF9A6138),
+    numero: Color(0xFF6B4023),
+  );
+
+  static const List<_Metallo> tutti = [oro, argento, bronzo];
+}
+
+/// **Il podio.**
+///
+/// Tre gradini e non un elenco numerato, per una ragione sola: un elenco si
+/// legge dall'alto in basso e il primo e' soltanto la riga piu' in alto. Un
+/// podio si guarda tutto insieme, e **il primo e' piu' alto degli altri** — la
+/// differenza si vede prima di leggere qualunque numero.
+///
+/// L'ordine e' quello vero: secondo, primo, terzo. Non e' un vezzo — e' dove
+/// l'occhio si aspetta di trovarli, e metterli in fila uno-due-tre farebbe
+/// sembrare il primo semplicemente quello a sinistra.
+///
+/// **I tre blocchi si toccano, e stanno su una pedana sola.** Staccati erano
+/// tre colonne vicine, e un podio fatto di pezzi separati non e' un podio: e'
+/// un grafico a barre. Quello che lo tiene insieme e' la base che ci passa
+/// sotto tutta intera — la stessa cosa che, su un podio vero, si sale.
+class _Podio extends StatelessWidget {
+  const _Podio({required this.righe});
+
+  final List<LeaderRow> righe;
+
+  /// Quanto e' alto ogni gradino. Le proporzioni sono quelle di un podio vero:
+  /// il primo ha quasi il doppio del terzo.
+  static const Map<int, double> _altezze = {1: 104, 2: 76, 3: 56};
+
+  @override
+  Widget build(BuildContext context) {
+    // Sotto i tre, un podio non e' un podio: con due gradini il terzo posto
+    // vuoto si legge come un errore di caricamento. Si mostra quello che c'e'.
+    final posti = <int>[
+      if (righe.length > 1) 1,
+      0,
+      if (righe.length > 2) 2,
+    ];
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            for (final posto in posti)
+              Expanded(
+                child: _Gradino(
+                  riga: righe[posto],
+                  posto: posto + 1,
+                  altezza: _altezze[posto + 1]!,
+                ),
+              ),
+          ],
+        ),
+        // **La pedana.** Corre sotto tutti e tre e sporge di poco ai lati: e'
+        // quella a dire che i gradini sono un oggetto solo. Il filo chiaro
+        // sopra e' il suo spigolo, il piano su cui i blocchi appoggiano.
+        Container(
+          height: 16,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFE6E6EB), Color(0xFFBDBDC8), Color(0xFF9A9AA6)],
+              stops: [0, 0.35, 1],
+            ),
+            borderRadius: BorderRadius.circular(4),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.22),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Un gradino: chi ci sta sopra, e il blocco su cui sta.
+class _Gradino extends StatelessWidget {
+  const _Gradino({
+    required this.riga,
+    required this.posto,
+    required this.altezza,
+  });
+
+  final LeaderRow riga;
+  final int posto;
+  final double altezza;
+
+  /// Quanto e' spesso il piano di sopra del blocco. E' la faccia che si vede
+  /// guardando da appena sopra, ed e' tutto il tre‑di.
+  static const double _spessore = 9;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+    final metallo = _Metallo.tutti[posto - 1];
+    final grande = posto == 1;
+
+    return GestureDetector(
+      onTap: riga.userId.isEmpty
+          ? null
+          : () => context.push(AppRoutes.userProfileOf(riga.userId)),
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FriendAvatar(
+            userId: riga.userId,
+            username: riga.username,
+            size: grande ? 54 : 42,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Text(
+              '@${riga.username}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: texts.labelSmall?.copyWith(color: palette.textSecondary),
+            ),
+          ),
+          // La cifra e' la cosa piu' grande sopra il blocco: e' quella che fa
+          // la classifica, e deve leggersi prima del nome.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              AppMoney.format(riga.cents),
+              style: (grande ? texts.titleMedium : texts.labelMedium)?.copyWith(
+                color: palette.accent,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          SizedBox(
+            height: altezza,
+            child: Stack(
+              children: [
+                // Il fronte del blocco.
+                Positioned.fill(
+                  top: _spessore,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          metallo.fronteChiaro,
+                          metallo.fronteScuro,
+                          metallo.fianco,
+                        ],
+                        stops: const [0, 0.72, 1],
+                      ),
+                    ),
+                  ),
+                ),
+                // **Il piano di sopra**, piu' chiaro: e' la faccia che guarda
+                // la luce, ed e' l'unica cosa che distingue un blocco da un
+                // rettangolo. Senza, il podio e' piatto come un disegno.
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  height: _spessore,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: metallo.alto,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(3),
+                      ),
+                    ),
+                  ),
+                ),
+                // L'ombra che il blocco piu' alto getta su quello accanto. Sul
+                // primo non c'e': niente lo sovrasta.
+                if (!grande)
+                  Positioned(
+                    top: _spessore,
+                    bottom: 0,
+                    width: 10,
+                    left: posto == 2 ? null : 0,
+                    right: posto == 2 ? 0 : null,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: posto == 2
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          end: posto == 2
+                              ? Alignment.centerLeft
+                              : Alignment.centerRight,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.22),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                // Il numero, dentro il blocco e grande: e' il segno che si
+                // legge da lontano, prima del nome e prima della cifra.
+                Positioned.fill(
+                  top: _spessore,
+                  child: Center(
+                    child: Text(
+                      '$posto',
+                      style: texts.displaySmall?.copyWith(
+                        color: metallo.numero,
+                        fontSize: grande ? 34 : 27,
+                        height: 1,
+                        shadows: [
+                          Shadow(
+                            color: Colors.white.withValues(alpha: 0.45),
+                            offset: const Offset(0, 1.2),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Dal quarto in giu': una riga per uno, senza medaglie.
+///
+/// **Una tessera, non una riga di tabella.** Righe nude separate da niente si
+/// leggono come un tabulato: l'occhio non sa dove finisce una persona e
+/// comincia la successiva, e su venti nomi di fila diventa una cosa che si
+/// scorre senza guardare. Ognuno ha il suo riquadro, e quel riquadro e' la
+/// stessa superficie che l'app usa dappertutto per dire "questo e' un oggetto
+/// su cui si puo' premere".
+///
+/// **E la propria riga si accende.** Una classifica risponde a due domande —
+/// chi sta davanti, e dove sto io — e la seconda senza un segno costringe a
+/// leggere cinquanta nomi cercando il proprio. Qui e' l'unica tessera con il
+/// colore dell'app addosso: si trova prima di aver letto niente.
+class _RigaClassifica extends ConsumerWidget {
+  const _RigaClassifica({required this.riga, required this.posto});
+
+  final LeaderRow riga;
+  final int posto;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+    final texts = context.texts;
+    final sonoIo = riga.userId.isNotEmpty
+        && riga.userId == ref.watch(currentUserIdProvider);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: GestureDetector(
+        onTap: riga.userId.isEmpty
+            ? null
+            : () => context.push(AppRoutes.userProfileOf(riga.userId)),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            color: sonoIo ? palette.accentTint : palette.surfaceMuted,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(
+              color: sonoIo ? palette.accent : palette.line,
+              width: sonoIo ? 1.4 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              // Il numero in una pastiglia sua. Staccato dal nome, si legge
+              // come una posizione e non come l'inizio della parola dopo.
+              SizedBox(
+                width: 26,
+                child: Text(
+                  '$posto',
+                  textAlign: TextAlign.center,
+                  style: texts.labelMedium?.copyWith(
+                    color: sonoIo ? palette.accent : palette.textFaint,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              FriendAvatar(
+                userId: riga.userId,
+                username: riga.username,
+                size: 32,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              // **Il nome sopra, le gare sotto.** Affiancati si contendevano
+              // lo spazio con la cifra, e su un nome lungo qualcosa finiva
+              // tagliato. Incolonnati ci stanno sempre tutti e due, e il conto
+              // delle gare torna a essere quello che e': una precisazione, non
+              // un dato alla pari.
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      sonoIo ? '@${riga.username} · tu' : '@${riga.username}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: texts.labelMedium?.copyWith(
+                        color: palette.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      riga.count == 1 ? '1 gara' : '${riga.count} gare',
+                      style: texts.labelSmall?.copyWith(
+                        color: palette.textFaint,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              // La cifra e' la cosa che fa la classifica: e' l'unica in
+              // grassetto, ed e' in fondo perche' e' li' che l'occhio arriva
+              // dopo aver letto il nome.
+              Text(
+                AppMoney.format(riga.cents),
+                style: texts.titleSmall?.copyWith(color: palette.accent),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Una classifica intera: il podio e la coda.
+class _Classifica extends StatelessWidget {
+  const _Classifica({required this.righe, required this.vuota});
+
+  /// Fin dove arriva l'elenco sotto il podio.
+  ///
+  /// **Cinquanta, e non tutte.** Una classifica serve a rispondere a due
+  /// domande — chi sta davanti, e dove sto io — e per la seconda cinquanta
+  /// righe bastano: chi e' oltre il cinquantesimo non ha bisogno del numero
+  /// preciso, ha bisogno di sapere che non c'e' ancora. Senza un tetto,
+  /// l'elenco cresce quanto le gare chiuse e si scorre a vuoto — ed e' il modo
+  /// piu' sicuro di far smettere di guardarla.
+  static const int _quanti = 50;
+
+  final List<LeaderRow> righe;
+
+  /// Cosa dire quando non c'e' ancora nessuno.
+  final String vuota;
+
+  @override
+  Widget build(BuildContext context) {
+    if (righe.isEmpty) {
+      return EmptyState(title: 'Ancora niente', message: vuota);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _Podio(righe: righe),
+        if (righe.length > 3) ...[
+          const SizedBox(height: AppSpacing.xl),
+          // **Una parola sopra l'elenco.** Senza, le tessere sembrano
+          // continuare il podio e il quarto posto pare un gradino mancato.
+          // Con, si capisce che li' comincia un'altra cosa: la coda.
+          Text(
+            'DAL QUARTO IN GIÙ',
+            style: context.texts.labelSmall?.copyWith(
+              color: context.palette.textFaint,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          for (var i = 3; i < righe.length && i < _quanti; i++)
+            _RigaClassifica(riga: righe[i], posto: i + 1),
+        ],
+      ],
+    );
+  }
+}
+
+/// La fila delle tre parole in cima.
+///
+/// Stessa faccia di quelle del party e del profilo: **un'app non insegna due
+/// volte lo stesso gesto**. Chi ha gia' capito come si cambia scheda fra gli
+/// amici qui non deve capire niente di nuovo.
+class _Switch extends ConsumerWidget {
+  const _Switch({required this.selected});
+
+  final TrendView selected;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final view in TrendView.values)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.lg),
+              child: GestureDetector(
+                onTap: () => ref.read(trendViewProvider.notifier).state = view,
+                behavior: HitTestBehavior.opaque,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      view.label,
+                      style: context.texts.labelSmall?.copyWith(
+                        color: view == selected
+                            ? palette.textPrimary
+                            : palette.textFaint,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // Il filetto sotto la scelta: il colore da solo dice
+                    // "questa e' diversa", non "questa e' quella aperta".
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      height: 1.5,
+                      width: view == selected ? 20 : 0,
+                      color: palette.accent,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

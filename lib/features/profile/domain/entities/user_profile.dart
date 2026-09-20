@@ -28,6 +28,25 @@ class UserProfile {
     this.phone = '',
   });
 
+  /// **Il profilo ufficiale di CRASY.**
+  ///
+  /// Non e' un campo sul database, ed e' voluto: un campo che dice "questo
+  /// account e' ufficiale" e' un campo che qualcuno prima o poi prova a
+  /// scriversi da solo, e difenderlo vuol dire una regola in piu' su ogni
+  /// scrittura del profilo. Il nome invece e' **gia' unico** — due persone non
+  /// possono chiamarsi allo stesso modo, lo impedisce il controllo che si fa
+  /// scegliendolo — quindi "l'account che si chiama crasy" e' una definizione
+  /// che non si puo' falsificare senza prendersi quel nome, e quel nome e'
+  /// gia' preso.
+  ///
+  /// Serve a due cose: la fiamma accanto al nome, e il fatto che quel profilo
+  /// si presenti come una **casa** invece che come una persona — senza scatti,
+  /// senza trofei, senza amici, perche' nessuna di quelle cose lo riguarda.
+  static const String officialUsername = 'crasy';
+
+  bool get isOfficial =>
+      username.trim().toLowerCase() == officialUsername;
+
   final String id;
 
   /// Il nome con cui si firmano le partecipazioni. Minuscolo, senza spazi:

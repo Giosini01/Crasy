@@ -60,6 +60,12 @@ void main() {
     // Lo zero resta valido — le gare vecchie ce l\'hanno dentro, e la riga della
     // folla sa ancora leggerlo — ma non si puo\' piu\' scegliere: era il problema
     // che il tetto doveva risolvere, scritto con altre parole.
-    expect(Challenge.participantCaps, [10, 25, 50]);
+    //
+    // **E cinquanta non c'e' piu'.** Era il tetto piu' alto, e decideva quanto
+    // vale la scommessa: una possibilita' su cinquanta e' gia' una lotteria, e
+    // cinquanta foto da scorrere vogliono dire votare fra le prime che
+    // capitano. Quindici prende il posto in mezzo, che e' la gara che si vuole
+    // fare piu' spesso.
+    expect(Challenge.participantCaps, [10, 15, 25]);
   });
 }

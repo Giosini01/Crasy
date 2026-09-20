@@ -86,6 +86,16 @@ service cloud.firestore {
       allow read: if false;
       allow create: if signedIn()
                     && request.resource.data.reporterId == request.auth.uid
+                    // **CRASY non si segnala.**
+                    //
+                    // Una segnalazione su CRASY arriverebbe a CRASY: la
+                    // riceverebbe la stessa persona che dovrebbe deciderla, e
+                    // l'unico esito possibile sarebbe una riga in piu' nella
+                    // dashboard. Il tasto e' gia' sparito dall'app, ma un tasto
+                    // che sparisce e' un muro nell'interfaccia e basta: la
+                    // riga vera e' questa.
+                    && request.resource.data.get('reportedUserId', '')
+                       != 'crasy'
                     // **Nasce nuova, e da qui non si muove piu'.**
                     //
                     // Lo stato lo cambia solo `adminResolveReport`, che scrive
@@ -485,42 +495,37 @@ service cloud.firestore {
                && challenge().endsAt > request.time;
       }
 
-      // **Una sfida mirata vinta la puo' leggere chiunque. Le altre no.**
+
+      // **Una sfida superata la vedono anche gli amici di chi l'ha fatta.**
       //
-      // Questa riga divide in due la vita di una sfida uno contro uno, e la
-      // divisione e' il punto: **la figuraccia resta fra voi due, la vittoria
-      // diventa di tutti.**
+      // Una sfida mirata e' una cosa fra due persone, e finche' e' in corso —
+      // o rifiutata, o bocciata — resta fra loro: la vedono solo i due
+      // dell'`audience`. Ma una **superata** e' un trofeo, e un trofeo che
+      // nemmeno i propri amici possono vedere non e' un trofeo: e' un appunto
+      // privato.
       //
-      // Finche' e' in corso — lanciata, accettata, rifiutata, scaduta — la
-      // vedono solo i due dell'`audience`, ed e' giusto: nessun altro puo'
-      // parteciparci comunque, accettare davanti a tutti e' pressione e non
-      // gioco, e un rifiuto messo in piazza non e' piu' uno sfottio fra amici —
-      // e' un'esecuzione pubblica, dopo la quale la gente smette di rifiutare
-      // **e** smette di accettare.
+      // Quindi la terza porta si apre a chi e' amico di uno dei due. Non a
+      // tutti, ed e' la differenza che conta: chi non conosce nessuno dei due
+      // non ha motivo di trovarsi una loro sfida sul profilo di uno
+      // sconosciuto.
       //
-      // Portata a termine e giudicata valida, invece, diventa la cosa migliore
-      // che ci sia qui dentro — "Giovanni ha sfidato Mario a ballare a Baiano,
-      // e Mario l'ha fatto" — e fino a oggi la vedevano due persone.
-      //
-      // **E c'e' una ragione tecnica che da sola basterebbe.** Il trofeo di una
-      // sfida vinta finisce sul profilo, e la bacheca dei trofei si cerca per
-      // `winnerUserId` senza nessun vincolo di `audience` — non si puo'
-      // aggiungere, o la stessa query dovrebbe sapere in anticipo di chi e'
-      // il profilo che sta guardando. Con questa regola mancante, fra i trofei
-      // di Mario c'era un documento che un terzo non aveva il permesso di
-      // leggere: e Firestore, in quel caso, non nasconde la riga — **rifiuta
-      // tutta la query**. La sezione TROFEI del profilo di chiunque avesse
-      // vinto una sfida si svuotava per tutti gli altri.
-      //
-      // Le condizioni sono strette apposta: dev'essere una sfida mirata (ha un
-      // destinatario), dev'essere stata **fatta** e **giudicata valida**, e
-      // dev'esserci una foto vincente. Una rifiutata non ha verdetto, una
-      // bocciata ce l'ha ma vale `rejected`, una lasciata scadere vale
-      // `expired`: nessuna delle tre passa di qui.
-      function duelloVinto() {
-        return resource.data.get('targetUserId', '') != ''
-               && resource.data.get('duelVerdict', '') == 'approved'
-               && resource.data.get('winnerEntryId', '') != '';
+      // **Costa una lettura in piu', e solo dove serve.** Le condizioni si
+      // valutano in fila e ci si ferma alla prima vera: una gara pubblica non
+      // arriva mai qui, una riservata in cui si e' dentro nemmeno. Ci arrivano
+      // soltanto le sfide di altri, che sono poche.
+      function amicoDi(chi) {
+        return chi != ''
+               && exists(
+                    /databases/$(database)/documents/users/$(chi)/friends/$(request.auth.uid)
+                  );
+      }
+
+      function sfidaSuperataDiUnAmico() {
+        return resource.data.get('duelVerdict', '') == 'approved'
+               && (
+                    amicoDi(resource.data.get('winnerUserId', ''))
+                    || amicoDi(resource.data.get('createdByUserId', ''))
+                  );
       }
 
       // **Niente si legge senza aver fatto l'accesso, e le gare riservate solo
@@ -564,7 +569,7 @@ service cloud.firestore {
                        resource == null
                        || '*' in resource.data.get('audience', ['*'])
                        || request.auth.uid in resource.data.get('audience', ['*'])
-                       || duelloVinto()
+                       || sfidaSuperataDiUnAmico()
                      );
 
       // Una challenge la lancia chiunque abbia un account.

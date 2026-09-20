@@ -1,6 +1,7 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/countdown_text.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
@@ -386,6 +387,17 @@ class ChallengeAuthor extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ),
+        // **La fiamma accanto al nome, anche qui.**
+        //
+        // E' il posto in cui serve di piu': su una gara, chi l'ha lanciata e'
+        // la sola cosa che dice se fidarsi. Una sfida del giorno e una lanciata
+        // da uno sconosciuto arrivano nello stesso riquadro, con la stessa
+        // riga sotto — e senza un segno, "lanciata da @crasy" e' una riga che
+        // chiunque puo' scriversi prendendosi un nome somigliante.
+        if (official || challenge.byCrasy) ...[
+          const SizedBox(width: AppSpacing.xxs),
+          const OfficialFlame(size: 14),
+        ],
       ],
     );
   }

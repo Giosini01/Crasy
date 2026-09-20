@@ -4,6 +4,7 @@ import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/count_dot.dart';
 import 'package:crasy/features/challenges/presentation/pages/challenges_page.dart';
 import 'package:crasy/features/challenges/presentation/pages/winners_page.dart';
+import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/presentation/pages/friends_activity_page.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/profile/presentation/pages/profile_page.dart';
@@ -73,7 +74,12 @@ class HomePage extends StatefulWidget {
     ),
     HomeTab(
       route: AppRoutes.winners,
-      label: 'Vincitori',
+      // **Non piu' "Vincitori".** Li' dentro adesso ci sono tre cose e solo
+      // una e' fatta di vincitori: chi sta vincendo, chi sta facendo giocare, e
+      // cos'e' appena successo. "In tendenza" e' l'unica parola che le tiene
+      // tutte e tre, e dice anche la cosa giusta — quella scheda racconta
+      // **adesso**, non la storia dell'app.
+      label: 'Tendenza',
       icon: Icons.emoji_events_outlined,
       activeIcon: Icons.emoji_events,
       page: WinnersPage(),
@@ -273,6 +279,20 @@ class _NavItem extends ConsumerWidget {
         ? (ref.watch(incomingRequestsProvider).valueOrNull ?? const []).length
         : 0;
 
+    // **Il pallino sui vincitori: una gara e' finita.**
+    //
+    // Una gara che si chiude e' l'unico momento in cui qualcosa **succede da
+    // solo**, senza che nessuno lo faccia: se non lo dice niente, chi ha
+    // partecipato torna a guardare a caso finche' non si stanca — e chi non
+    // ha partecipato non scopre mai che qui si vince davvero.
+    //
+    // Si conta, e non e' un pallino generico: sono le gare finite di recente
+    // di cui non si e' ancora visto il finale. Si spegne aprendo la scheda,
+    // perche' aprirla e' averlo visto.
+    final finite = tab.route == AppRoutes.winners
+        ? ref.watch(freshWinnersProvider)
+        : 0;
+
     return Semantics(
       selected: active,
       button: true,
@@ -293,11 +313,11 @@ class _NavItem extends ConsumerWidget {
                   size: 22,
                   color: color,
                 ),
-                if (richieste > 0)
+                if (richieste > 0 || finite > 0)
                   Positioned(
                     top: -5,
                     right: -8,
-                    child: CountDot(count: richieste),
+                    child: CountDot(count: richieste + finite),
                   ),
               ],
             ),

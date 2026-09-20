@@ -11,6 +11,8 @@ import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
+import 'package:crasy/features/friends/domain/entities/friendship.dart';
+import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/moderation/presentation/providers/moderation_providers.dart';
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -215,17 +217,64 @@ final revealsSeenProvider = StreamProvider<Set<String>>((ref) {
     return Stream.value(const <String>{});
   }
 
-  // Le gare in cui ho una foto vincente: sono le sole per cui un rullo di
-  // tamburi possa esserci stato.
   final mie =
       ref.watch(myEntriesProvider).valueOrNull ?? const <ChallengeEntry>[];
 
-  final vinte = [
+  // **Le gare finite a cui ho partecipato**, vinte o perse.
+  //
+  // Non solo quelle vinte: il rullo di tamburi lo guarda anche chi ha perso —
+  // e' li' che scopre chi ha vinto — quindi "l'ho gia' visto" riguarda tutte.
+  // Chiederne solo una parte vorrebbe dire un pallino sui vincitori che non si
+  // spegne mai per chi non ha vinto.
+  final finite = {
+    for (final challenge
+        in ref.watch(endedChallengesProvider).valueOrNull ?? const [])
+      challenge.id,
+  };
+
+  final guardabili = [
     for (final entry in mie)
-      if (entry.isWinner) entry.challengeId,
+      if (entry.isWinner || finite.contains(entry.challengeId))
+        entry.challengeId,
   ];
 
-  return store.watchSeen(userId, vinte);
+  return store.watchSeen(userId, guardabili);
+});
+
+/// **Quante gare sono finite senza che tu abbia visto com'e' andata.**
+///
+/// E' il pallino rosso sulla scheda dei vincitori. Una gara che si chiude e' il
+/// solo momento in cui qualcosa **succede da sola**, senza che nessuno la
+/// faccia: se non lo dice niente, chi ha partecipato torna a guardare a caso
+/// finche' non si stanca, e chi non ha partecipato non scopre mai che qui si
+/// vince davvero.
+///
+/// Si conta solo dove c'e' qualcosa da vedere — una gara finita, con un
+/// vincitore, a cui hai partecipato — e si spegne guardandola, perche' il rullo
+/// di tamburi segna di essere stato visto. Un pallino che non si spegne
+/// guardando e' un pallino che si impara a ignorare.
+final freshWinnersProvider = Provider<int>((ref) {
+  final mie = ref.watch(myEntriesProvider).valueOrNull ?? const [];
+
+  if (mie.isEmpty) {
+    return 0;
+  }
+
+  final viste = ref.watch(revealsSeenProvider).valueOrNull ?? const <String>{};
+  final partecipate = {for (final entry in mie) entry.challengeId};
+
+  var quante = 0;
+
+  for (final challenge
+      in ref.watch(endedChallengesProvider).valueOrNull ?? const []) {
+    if ((challenge.winnerEntryId ?? '').isNotEmpty &&
+        partecipate.contains(challenge.id) &&
+        !viste.contains(challenge.id)) {
+      quante++;
+    }
+  }
+
+  return quante;
 });
 
 /// La foto che rappresenta una challenge: **quella con piu' fiamme**.
@@ -380,9 +429,19 @@ final trophiesOfProvider = StreamProvider.family<List<Challenge>, String>((
   // ne fa parte: senza dirlo alla lettura, il database non filtra — rifiuta
   // tutta la richiesta, e la bacheca di chi ha vinto una missione fra amici
   // resta vuota per chiunque non sia dei loro.
-  return ref
-      .watch(challengeRepositoryProvider)
-      .watchTrophiesOf(userId, viewerId: ref.watch(currentUserIdProvider));
+  //
+  // **E l'amicizia cambia cosa si vede ancora di piu'.** Le sfide mirate
+  // superate sono un trofeo che si mostra agli amici: chi non lo e' non le
+  // chiede nemmeno, perche' il database gliele negherebbe e con loro negherebbe
+  // tutta la bacheca.
+  final io = ref.watch(currentUserIdProvider);
+  final amici = ref.watch(myFriendsProvider).valueOrNull ?? const <Friend>[];
+
+  return ref.watch(challengeRepositoryProvider).watchTrophiesOf(
+        userId,
+        viewerId: io,
+        friend: userId == io || amici.any((amico) => amico.userId == userId),
+      );
 });
 
 final myTrophiesProvider = StreamProvider<List<Challenge>>((ref) {
@@ -394,7 +453,12 @@ final myTrophiesProvider = StreamProvider<List<Challenge>>((ref) {
 
   return ref
       .watch(challengeRepositoryProvider)
-      .watchTrophiesOf(authState.user.id, viewerId: authState.user.id);
+      .watchTrophiesOf(
+        authState.user.id,
+        viewerId: authState.user.id,
+        // Le proprie sfide superate si vedono sempre: amico di se' stessi.
+        friend: true,
+      );
 });
 
 /// **Quante sfide d'onore ho portato a termine.**

@@ -1,8 +1,10 @@
 import 'package:crasy/core/constants/app_routes.dart';
+import 'package:crasy/core/theme/app_colors.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
+import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
@@ -52,8 +54,21 @@ class PublicProfilePage extends ConsumerWidget {
           // deve prima trovarne uno.
           //
           // Non compare sul proprio profilo, per ovvi motivi.
+          //
+          // **E nemmeno su quello ufficiale.** Segnalare CRASY vuol dire
+          // mandare una segnalazione su CRASY a CRASY: la riceverebbe la stessa
+          // persona che dovrebbe deciderla, e l'unico esito possibile sarebbe
+          // una riga in piu' nella dashboard. Peggio, il tasto **promette** una
+          // cosa che non puo' succedere — quel profilo non lo si puo' togliere
+          // dall'app, e' l'app — e una promessa che non si mantiene vale meno
+          // di un tasto che non c'e'.
+          //
+          // Bloccare resta possibile da un'altra strada, se uno proprio non
+          // vuole vedere le sfide del giorno: questo comando li teneva
+          // insieme, e quello che si toglie qui e' la segnalazione.
           if (profileState.valueOrNull case final chi?
-              when chi.id != ref.watch(currentUserIdProvider))
+              when chi.id != ref.watch(currentUserIdProvider) &&
+                  !chi.isOfficial)
             IconButton(
               onPressed: () => showReportSheet(
                 context,
@@ -141,7 +156,22 @@ class _BodyState extends ConsumerState<_Body> {
               const SizedBox(height: AppSpacing.md),
               _Avatar(profile: profile),
               const SizedBox(height: AppSpacing.md),
-              Text('@${profile.username}', style: texts.displaySmall),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      '@${profile.username}',
+                      style: texts.displaySmall,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (profile.isOfficial) ...[
+                    const SizedBox(width: AppSpacing.xs),
+                    const OfficialFlame(size: 22),
+                  ],
+                ],
+              ),
               if (profile.hasBio) ...[
                 const SizedBox(height: AppSpacing.xxs),
                 Text(profile.bio, style: texts.bodyMedium),
@@ -158,58 +188,126 @@ class _BodyState extends ConsumerState<_Body> {
             ],
           ),
         ),
-        const SizedBox(height: AppSpacing.lg),
-        // Quanto ha vinto, in grande e per chiunque.
+        // **Il profilo ufficiale si ferma alla presentazione.**
         //
-        // **E' il numero che rende credibile tutta l'app.** Chi arriva da un
-        // link e non ha mai sentito nominare CRASY non ha nessun motivo di
-        // credere che qui si vincano dei soldi veri; vedere che una persona
-        // vera ne ha presi e' l'unica prova che si possa mostrare. Per questo
-        // sta sul profilo di tutti e non solo sul proprio.
-        //
-        // E' il **totale vinto**, non quello che ha ancora da parte: quanti
-        // soldi uno tenga sul conto adesso non e' affare di nessuno, e
-        // scenderebbe ogni volta che preleva — cioe' proprio quando la
-        // promessa e' stata mantenuta meglio.
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-          child: PrizeTotalCard(prizeCents: prizeCents),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        _Stats(entries: entries.length, wins: wins, friends: friends.length),
-        const SizedBox(height: AppSpacing.xl),
-        ProfileShelfTabs(
-          selected: _shelf,
-          onPick: (shelf) => setState(() => _shelf = shelf),
-        ),
-        switch (_shelf) {
-          ProfileShelf.live =>
-            shown.isEmpty
-                ? const _EmptyShelf(
-                    title: 'Non è in nessuna gara',
-                    message:
-                        'Quando partecipa a una challenge aperta lo vedi qui.',
-                  )
-                : _EntryGrid(entries: shown),
-          ProfileShelf.trophies =>
-            trophies.isEmpty
-                ? const _EmptyShelf(
-                    title: 'Non ha ancora vinto',
-                    message: 'Le foto con cui vince restano qui.',
-                  )
-                : TrophyGrid(challenges: trophies, kind: TrophyKind.won),
-          ProfileShelf.commissioned =>
-            commissions.isEmpty
-                ? const _EmptyShelf(
-                    title: 'Non ha ancora fatto fare niente',
-                    message:
-                        'Qui trovi le challenge che ha lanciato: quelle ancora '
-                        'aperte, in cui puoi entrare adesso, e le foto che ha '
-                        'fatto fare mettendo dei soldi in palio.',
-                  )
-                : CommissionedShelf(challenges: commissions),
-        },
+        // Sotto ci sarebbero quanto ha vinto, quanti scatti ha mandato, quante
+        // gare ha vinto, quanti amici ha: numeri che raccontano una persona che
+        // gioca. Questo non gioca — lancia le sfide del giorno — e quei numeri
+        // sarebbero tutti a zero. Una bacheca vuota sotto il nome di casa fa
+        // sembrare l'app abbandonata proprio nel posto in cui uno va a
+        // controllare se e' seria.
+        if (profile.isOfficial) const _OfficialNote(),
+        if (!profile.isOfficial) ...[
+          const SizedBox(height: AppSpacing.lg),
+          // Quanto ha vinto, in grande e per chiunque.
+          //
+          // **E' il numero che rende credibile tutta l'app.** Chi arriva da un
+          // link e non ha mai sentito nominare CRASY non ha nessun motivo di
+          // credere che qui si vincano dei soldi veri; vedere che una persona
+          // vera ne ha presi e' l'unica prova che si possa mostrare. Per questo
+          // sta sul profilo di tutti e non solo sul proprio.
+          //
+          // E' il **totale vinto**, non quello che ha ancora da parte: quanti
+          // soldi uno tenga sul conto adesso non e' affare di nessuno, e
+          // scenderebbe ogni volta che preleva — cioe' proprio quando la
+          // promessa e' stata mantenuta meglio.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+            child: PrizeTotalCard(prizeCents: prizeCents),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          _Stats(entries: entries.length, wins: wins, friends: friends.length),
+          const SizedBox(height: AppSpacing.xl),
+          ProfileShelfTabs(
+            selected: _shelf,
+            onPick: (shelf) => setState(() => _shelf = shelf),
+          ),
+          switch (_shelf) {
+            ProfileShelf.live =>
+              shown.isEmpty
+                  ? const _EmptyShelf(
+                      title: 'Non è in nessuna gara',
+                      message:
+                          'Quando partecipa a una challenge aperta lo vedi qui.',
+                    )
+                  : _EntryGrid(entries: shown),
+            ProfileShelf.trophies =>
+              trophies.isEmpty
+                  ? const _EmptyShelf(
+                      title: 'Non ha ancora vinto',
+                      message: 'Le foto con cui vince restano qui.',
+                    )
+                  : TrophyGrid(challenges: trophies, kind: TrophyKind.won),
+            ProfileShelf.commissioned =>
+              commissions.isEmpty
+                  ? const _EmptyShelf(
+                      title: 'Non ha ancora fatto fare niente',
+                      message:
+                          'Qui trovi le challenge che ha lanciato: quelle ancora '
+                          'aperte, in cui puoi entrare adesso, e le foto che ha '
+                          'fatto fare mettendo dei soldi in palio.',
+                    )
+                  : CommissionedShelf(challenges: commissions),
+          },
+        ],
       ],
+    );
+  }
+}
+
+/// Cos'e' questo profilo, al posto dei numeri che non ha.
+///
+/// **Un profilo ufficiale deve dire di cosa e' la casa**, non quante partite ha
+/// giocato. Senza questa riga resterebbe un nome, una fiamma e il vuoto — e il
+/// vuoto, proprio li', si legge come un'app abbandonata.
+class _OfficialNote extends StatelessWidget {
+  const _OfficialNote();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.page,
+        AppSpacing.lg,
+        AppSpacing.page,
+        0,
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          border: Border.all(color: palette.line),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.local_fire_department_rounded,
+              size: 18,
+              color: palette.accent,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('ACCOUNT UFFICIALE', style: context.texts.labelSmall),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    'Da qui nascono le sfide del giorno. Non gareggia e non '
+                    'vince: le lancia e basta.',
+                    style: context.texts.bodySmall?.copyWith(
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -311,12 +409,26 @@ class _Avatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final photoUrl = profile.photoUrl;
 
+    // La casa ha il suo segno: vedi `FriendAvatar`, dove vale la stessa
+    // ragione — una foto si puo' perdere, un marchio disegnato nell'app no.
     final tondo = ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.pill),
       child: SizedBox(
         width: _size,
         height: _size,
-        child: profile.hasPhoto
+        child: profile.isOfficial
+            ? DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.paper,
+                  border: Border.all(color: context.palette.line),
+                ),
+                child: Icon(
+                  Icons.local_fire_department,
+                  size: _size * 0.58,
+                  color: context.palette.accent,
+                ),
+              )
+            : profile.hasPhoto
             ? Image.network(
                 photoUrl!,
                 fit: BoxFit.cover,

@@ -74,8 +74,17 @@ List<Challenge> commissionedOrder(
             // per una cosa che non e' successa svuota di significato tutte le
             // altre coppe della mensola. Sparisce dalla bacheca e basta — chi
             // l'aveva lanciata lo sa gia', e il premio gli e' tornato indietro.
+            //
+            // **E una sfida ci arriva solo se e' stata superata.** Rifiutata,
+            // lasciata scadere, giudicata non valida o rimasta senza giudizio
+            // sono quattro modi di non averla fatta, e una coppa per una prova
+            // non superata non e' un trofeo: e' un promemoria. Su questa
+            // bacheca ogni coppa vuol dire la stessa cosa — *questa l'ho fatta
+            // fare, e qualcuno l'ha fatta* — ed e' per quello che sotto non
+            // c'e' bisogno di scriverlo.
             if ((challenge.hasEndedAt(now) || challenge.winnerEntryId != null)
-                && challenge.participantsCount > 0)
+                && challenge.participantsCount > 0 &&
+                (!challenge.isDuel || challenge.duelVerdict.isApproved))
               challenge,
         ]
         // La bacheca si legge dall'ultimo trofeo: e' quello di cui ci si
