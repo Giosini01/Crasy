@@ -445,16 +445,23 @@ class _Podio extends StatelessWidget {
         Container(
           height: 16,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFFE6E6EB), Color(0xFFBDBDC8), Color(0xFF9A9AA6)],
-              stops: [0, 0.35, 1],
+              colors: [
+                Colors.white.withValues(alpha: 0.30),
+                Colors.white.withValues(alpha: 0.10),
+                Colors.black.withValues(alpha: 0.10),
+              ],
+              stops: const [0, 0.35, 1],
             ),
             borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: context.palette.line),
+            // L'ombra resta, ed e' quella che salva il vetro: un oggetto
+            // trasparente senza ombra non e' trasparente, e' assente.
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.22),
+                color: Colors.black.withValues(alpha: 0.18),
                 blurRadius: 10,
                 offset: const Offset(0, 5),
               ),
@@ -565,7 +572,14 @@ class _Gradino extends StatelessWidget {
             height: altezza,
             child: Stack(
               children: [
-                // Il fronte del blocco.
+                // **Il fronte, di vetro colorato.**
+                //
+                // Gli stessi tre toni di prima — la luce a sinistra, il corpo,
+                // il fianco girato via — ma velati: il blocco non e' piu' un
+                // pieno di metallo, e' una lastra che lascia passare la
+                // pagina. Quello che lo tiene in piedi come oggetto non e'
+                // piu' il colore, sono gli spigoli: il piano di sopra chiaro,
+                // il filo attorno, l'ombra del vicino.
                 Positioned.fill(
                   top: _spessore,
                   child: DecoratedBox(
@@ -574,11 +588,19 @@ class _Gradino extends StatelessWidget {
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,
                         colors: [
-                          metallo.fronteChiaro,
-                          metallo.fronteScuro,
-                          metallo.fianco,
+                          metallo.fronteChiaro.withValues(alpha: 0.42),
+                          metallo.fronteScuro.withValues(alpha: 0.30),
+                          metallo.fianco.withValues(alpha: 0.42),
                         ],
                         stops: const [0, 0.72, 1],
+                      ),
+                      border: Border(
+                        left: BorderSide(
+                          color: metallo.alto.withValues(alpha: 0.55),
+                        ),
+                        right: BorderSide(
+                          color: metallo.fianco.withValues(alpha: 0.55),
+                        ),
                       ),
                     ),
                   ),
@@ -593,7 +615,11 @@ class _Gradino extends StatelessWidget {
                   height: _spessore,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: metallo.alto,
+                      // Il piano resta il pezzo piu' coperto dei tre: e' lo
+                      // spigolo su cui batte la luce, e su un blocco di vetro
+                      // e' l'unica cosa che dice dove finisce il blocco e
+                      // comincia l'aria.
+                      color: metallo.alto.withValues(alpha: 0.85),
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(3),
                       ),
@@ -634,7 +660,11 @@ class _Gradino extends StatelessWidget {
                     child: Text(
                       '$posto',
                       style: texts.displaySmall?.copyWith(
+                        // Il numero si scurisce: su una lastra trasparente il
+                        // tono di prima si confondeva con quello che passa
+                        // sotto.
                         color: metallo.numero,
+                        fontWeight: FontWeight.w800,
                         fontSize: grande ? 34 : 27,
                         height: 1,
                         shadows: [
