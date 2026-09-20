@@ -69,6 +69,17 @@ abstract final class AppRoutes {
   static const participate = '/challenge/:id/partecipa';
   static const create = '/crea';
 
+  /// Le gare appena chiuse, con la foto di chi ha vinto.
+  ///
+  /// **Una schermata sua, non una striscia in fondo a un'altra.** E' stata
+  /// tutte e due le cose prima di finire qui: una terza scheda dentro la
+  /// tendenza, dove la guardava solo chi era gia' convinto, e un pezzo in
+  /// fondo alla home, dove arrivava dopo tutte le gare aperte — cioe' dopo che
+  /// uno aveva gia' deciso. Quello che ha da dire e' una cosa sola e importa
+  /// a chi sta decidendo: **qualcuno vince sul serio**. Merita di aprirsi
+  /// quando la si chiede, e di essere tutta li' dentro.
+  static const recentlyEnded = '/appena-finite';
+
   /// Il modulo per una missione riservata agli amici.
   ///
   /// **E' una rotta sua e non un parametro**, perche' e' una schermata diversa:

@@ -8,7 +8,6 @@ import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
-import 'package:crasy/features/challenges/presentation/widgets/recent_winners.dart';
 import 'package:crasy/features/notifications/presentation/widgets/notification_bell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,7 +26,6 @@ class ChallengesPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final challenges = ref.watch(liveChallengesProvider);
     final oggi = ref.watch(dailyChallengeProvider);
-    final chiuse = ref.watch(endedChallengesProvider).valueOrNull ?? const [];
 
     return Scaffold(
       body: AppBackground(
@@ -112,22 +110,13 @@ class ChallengesPage extends ConsumerWidget {
                                 ],
                               ),
                       ),
-                      // **Sotto le gare aperte, quelle appena finite.**
-                      //
-                      // Stavano in una scheda loro dentro Tendenza, e li'
-                      // servivano a poco: chi le guardava era gia' convinto.
-                      // Qui invece arrivano sotto gli occhi di chi sta
-                      // decidendo se partecipare, subito dopo l'ultima gara
-                      // aperta, e rispondono all'unica domanda che quella
-                      // persona si sta facendo davvero — *ma qualcuno vince
-                      // sul serio?*
-                      //
-                      // Sono le stesse foto di prima, con lo stesso premio
-                      // scritto al passato: non si e' tolto niente, si e'
-                      // messo dove serviva.
-                      SliverToBoxAdapter(
-                        child: _AppenaFinite(challenges: chiuse),
-                      ),
+                      // **Una riga, non le foto.** Le gare finite hanno una
+                      // schermata loro: qui resta il modo di arrivarci.
+                      // Mettercele dentro voleva dire appoggiare la cosa piu'
+                      // importante che l'app ha da dire in coda a una lista
+                      // che parla d'altro — e per giunta la leggeva solo chi
+                      // scorreva fino in fondo, cioe' chi aveva gia' deciso.
+                      const SliverToBoxAdapter(child: _AppenaFinite()),
                     ],
                   ),
                 ),
@@ -140,46 +129,54 @@ class ChallengesPage extends ConsumerWidget {
   }
 }
 
-/// Le gare appena chiuse, in fondo alla home.
+/// Il modo di arrivare alle gare appena finite.
+///
+/// **Una riga sola in fondo alla home.** Non e' un ripiego: quello che sta
+/// dietro e' l'unica prova che qui si vince davvero, e una prova si va a
+/// vedere — non la si scorre per sbaglio. La riga dice cosa c'e' e si toglie
+/// di mezzo; la roba sta nella sua schermata, tutta insieme.
 class _AppenaFinite extends StatelessWidget {
-  const _AppenaFinite({required this.challenges});
-
-  final List<Challenge> challenges;
+  const _AppenaFinite();
 
   @override
   Widget build(BuildContext context) {
-    // Finche' non se n'e' chiusa nessuna non si scrive niente: uno spazio
-    // vuoto in fondo alla home sembra una cosa che non ha finito di caricare.
-    final conVincitore = [
-      for (final challenge in challenges)
-        if (challenge.participantsCount > 0 && challenge.winnerEntryId != '')
-          challenge,
-    ];
-
-    if (conVincitore.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    final palette = context.palette;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.page,
-        AppSpacing.section,
+        AppSpacing.xl,
         AppSpacing.page,
         AppSpacing.xxl,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'APPENA FINITE',
-            style: context.texts.labelSmall?.copyWith(
-              color: context.palette.textFaint,
-              letterSpacing: 1.2,
+      child: GestureDetector(
+        onTap: () => context.push(AppRoutes.recentlyEnded),
+        behavior: HitTestBehavior.opaque,
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'APPENA FINITE',
+                    style: context.texts.labelSmall?.copyWith(
+                      color: palette.textFaint,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Guarda chi si è preso i soldi',
+                    style: context.texts.titleSmall,
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          RecentWinners(challenges: conVincitore),
-        ],
+            Icon(Icons.chevron_right_rounded, color: palette.textFaint),
+          ],
+        ),
       ),
     );
   }

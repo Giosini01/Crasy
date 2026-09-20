@@ -9,6 +9,7 @@ import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/presentation/pages/challenge_detail_page.dart';
 import 'package:crasy/features/challenges/presentation/pages/create_challenge_page.dart';
 import 'package:crasy/features/challenges/presentation/pages/participate_page.dart';
+import 'package:crasy/features/challenges/presentation/pages/recently_ended_page.dart';
 import 'package:crasy/features/friends/presentation/pages/friends_page.dart';
 import 'package:crasy/features/friends/presentation/pages/launch_duel_page.dart';
 import 'package:crasy/features/home/presentation/pages/home_page.dart';
@@ -298,6 +299,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         AppRoutes.create,
         (state) => const CreateChallengePage(),
         swipeAnywhere: false,
+      ),
+      _pushedRoute(
+        AppRoutes.recentlyEnded,
+        (state) => const RecentlyEndedPage(),
       ),
     ],
     redirect: (context, state) {

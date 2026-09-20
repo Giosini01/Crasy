@@ -51,14 +51,19 @@ class HomePage extends StatefulWidget {
       activeIcon: Icons.local_fire_department,
       page: ChallengesPage(),
     ),
-    // **Gli amici, ma quello che stanno facendo.** Erano gia' stati in questa
-    // barra come elenco di nomi, e da li' erano usciti: una rubrica non merita
-    // un quinto dello spazio che il pollice raggiunge. Quello che c'e' adesso
-    // dietro questa icona cambia ogni giorno — le gare che hanno lanciato, le
-    // foto con cui sono in gara — ed e' una ragione per riaprire l'app.
+    // **Party, non "amici".** Qui dietro non c'e' una rubrica — quella era gia'
+    // stata in questa barra come elenco di nomi, e da li' era uscita: un
+    // indirizzario non merita un quinto dello spazio che il pollice raggiunge.
+    // Quello che c'e' adesso cambia ogni giorno — le sfide che ti hanno
+    // lanciato, le missioni del gruppo, le foto con cui sono in gara — ed e'
+    // una ragione per riaprire l'app.
+    //
+    // "Amici" prometteva l'elenco e faceva trovare altro. **Party dice cosa
+    // succede li' dentro**, ed e' gia' la parola che l'app usa per le missioni
+    // private: una parola sola per una cosa sola.
     HomeTab(
       route: AppRoutes.friendsActivity,
-      label: 'Amici',
+      label: 'Party',
       icon: Icons.people_outline_rounded,
       activeIcon: Icons.people_rounded,
       page: FriendsActivityPage(),
