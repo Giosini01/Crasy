@@ -1446,8 +1446,6 @@ exports.sendPushOnNotification = onDocumentCreated(
       // altri questa e' comunque una notizia spiacevole: la riga resta secca,
       // e il resto sta in campanella.
       removed: 'La tua foto è stata tolta dalla gara',
-      comment: 'Nuovo commento sotto la tua foto',
-      mention: 'Ti hanno nominato in un commento',
       friendRequest: 'Hai una richiesta di amicizia',
       comeback: 'Ci sono missioni aperte. Entra e prova a vincere',
       // **Le sfide mirate dicono il nome, le altre no.**
@@ -1510,7 +1508,7 @@ exports.sendPushOnFriendRequest = onDocumentCreated(
   'users/{userId}/friendRequests/{fromId}',
   async (event) => {
     // Chi l'ha mandata non si dice: uno schermo bloccato lo leggono anche gli
-    // altri, ed e' la stessa regola che vale per le fiamme e i commenti. Il
+    // altri, ed e' la stessa regola che vale per le fiamme. Il
     // nome sta in campanella, che e' anche il posto dove si accetta.
     await mandaAUnaPersona(event.params.userId, 'Hai una richiesta di amicizia', {
       kind: 'friendRequest',
@@ -1564,7 +1562,7 @@ const ORE_FRA_UN_RICHIAMO_E_L_ALTRO = 48;
  * Richiama chi non si fa vedere da qualche giorno.
  *
  * **E' l'unica notifica che non nasce da un fatto.** Tutte le altre raccontano
- * qualcosa che e' successo a chi le riceve — una fiamma, un commento, una
+ * qualcosa che e' successo a chi le riceve — una fiamma, una
  * vittoria — e per questo sono sempre benvenute. Questa invece la mandiamo noi
  * perche' ci fa comodo, e quel privilegio va speso con misura: solo dopo un
  * giorno di silenzio, non piu' di una ogni due giorni, e solo se ci sono

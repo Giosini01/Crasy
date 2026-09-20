@@ -233,7 +233,7 @@ void _casiDettiAVoce() {
     }
   });
 
-  group('i commenti sporchi', () {
+  group('le didascalie sporche', () {
     const vietati = ['negro di merda'];
 
     for (final testo in vietati) {

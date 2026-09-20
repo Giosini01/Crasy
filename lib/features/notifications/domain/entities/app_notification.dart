@@ -70,23 +70,6 @@ enum NotificationKind {
   /// Hai vinto.
   win,
 
-  /// Qualcuno ha commentato la tua foto.
-  ///
-  /// Diversa dalla nomina: li' qualcuno ti **chiama** in una gara qualunque,
-  /// qui qualcuno ha detto qualcosa **sotto la roba tua**. Sono due cose che
-  /// capitano a persone diverse e per motivi diversi, e schiacciarle sulla
-  /// stessa riga vorrebbe dire non far capire a nessuno dei due cos'e'
-  /// successo.
-  comment,
-
-  /// Qualcuno ti ha nominato in un commento sotto una foto.
-  ///
-  /// **Senza questa notizia il tag non servirebbe a niente.** Un commento sotto
-  /// la foto di una gara a cui non partecipi non lo va a leggere nessuno: chi
-  /// nomina qualcuno lo fa per chiamarlo, e chiamare senza far squillare non e'
-  /// chiamare.
-  mention,
-
   /// Una gara a cui hai partecipato e' finita.
   ///
   /// Prima erano due — *sta scegliendo* e *scegli tu* — perche' il vincitore lo
@@ -142,10 +125,7 @@ enum NotificationGroup {
   /// partecipazione e' una cosa da guardare; una sfida ricevuta e' una cosa a
   /// cui rispondere, e finisce in fondo all'elenco insieme a venti fiamme
   /// esattamente il giorno in cui serviva vederla.
-  duels('SFIDE'),
-
-  /// Qualcuno ha scritto sotto la tua foto, o ti ha nominato.
-  comments('COMMENTI');
+  duels('SFIDE');
 
   const NotificationGroup(this.label);
 
@@ -207,7 +187,6 @@ class AppNotification {
     NotificationKind.participation =>
       '@$actorUsername ha partecipato alla tua challenge',
     NotificationKind.fire => '@$actorUsername ha dato una fiamma alla tua foto',
-    NotificationKind.mention => '@$actorUsername ti ha nominato in un commento',
     NotificationKind.friendRequest =>
       '@$actorUsername ti ha chiesto l\'amicizia',
     NotificationKind.comeback => 'Ci sono missioni nuove che ti aspettano',
@@ -229,8 +208,6 @@ class AppNotification {
     NotificationKind.win => 'Hai vinto',
     NotificationKind.ended => 'La missione è finita: guarda chi ha vinto',
     NotificationKind.removed => 'La tua foto è stata tolta dalla gara',
-    NotificationKind.comment =>
-      '@$actorUsername ha commentato la tua foto',
   };
 
   /// La sezione in cui finisce.
@@ -259,8 +236,6 @@ class AppNotification {
     NotificationKind.duelRejected ||
     NotificationKind.duelNoVerdict ||
     NotificationKind.partyMission => NotificationGroup.duels,
-    NotificationKind.comment ||
-    NotificationKind.mention => NotificationGroup.comments,
     NotificationKind.win ||
     NotificationKind.ended ||
     NotificationKind.comeback => NotificationGroup.wins,

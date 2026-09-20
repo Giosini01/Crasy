@@ -4,7 +4,6 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
 import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
-import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
@@ -214,90 +213,5 @@ abstract final class ChallengeEntryMapper {
           : EntryModeration.approved.name,
       'createdAt': FieldValue.serverTimestamp(),
     };
-  }
-}
-
-/// Un commento fra il documento su Firestore e l'oggetto in memoria.
-abstract final class EntryCommentMapper {
-  static EntryComment fromFirestore(
-    String id,
-    String challengeId,
-    String entryId,
-    Map<String, dynamic> data,
-  ) {
-    // I nominati arrivano come elenco di mappe. Un documento scritto male —
-    // una stringa al posto di una mappa, un campo mancante — non deve far
-    // sparire il commento: si salta quella nomina e il testo si legge lo
-    // stesso. Un commento che non compare e' molto peggio di un nome che non
-    // porta da nessuna parte.
-    final grezze = data['mentions'];
-    final mentions = <EntryMention>[];
-
-    if (grezze is List) {
-      for (final voce in grezze) {
-        if (voce is! Map) {
-          continue;
-        }
-
-        final userId = voce['userId'];
-        final username = voce['username'];
-
-        if (userId is String &&
-            username is String &&
-            userId.isNotEmpty &&
-            username.isNotEmpty) {
-          mentions.add(EntryMention(userId: userId, username: username));
-        }
-      }
-    }
-
-    return EntryComment(
-      id: id,
-      challengeId: challengeId,
-      entryId: entryId,
-      userId: data['userId'] as String? ?? '',
-      authorName: data['authorName'] as String? ?? '',
-      text: data['text'] as String? ?? '',
-      mentions: mentions,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
-    );
-  }
-
-  static Map<String, dynamic> toCreateMap(EntryComment comment) {
-    return {
-      'userId': comment.userId,
-      'authorName': comment.authorName,
-      'text': comment.text,
-      'mentions': [
-        for (final mention in comment.mentions)
-          {'userId': mention.userId, 'username': mention.username},
-      ],
-      'createdAt': FieldValue.serverTimestamp(),
-    };
-  }
-
-  /// Dal piu' vecchio: sotto una foto si legge una conversazione, e una
-  /// conversazione si legge nell'ordine in cui e' avvenuta.
-  ///
-  /// Chi non ha ancora l'ora del server va **in fondo**, non all'inizio: e' il
-  /// commento appena mandato, cioe' l'ultimo arrivato. Metterlo in cima lo
-  /// farebbe saltare in testa per mezzo secondo e poi ridiscendere.
-  static int oldestFirst(EntryComment a, EntryComment b) {
-    final at = a.createdAt;
-    final bt = b.createdAt;
-
-    if (at == null && bt == null) {
-      return 0;
-    }
-
-    if (at == null) {
-      return 1;
-    }
-
-    if (bt == null) {
-      return -1;
-    }
-
-    return at.compareTo(bt);
   }
 }

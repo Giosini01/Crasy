@@ -8,7 +8,6 @@ import 'package:crasy/core/widgets/video_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
-import 'package:crasy/features/challenges/presentation/widgets/entry_comments.dart';
 import 'package:crasy/features/moderation/domain/report_reason.dart';
 import 'package:crasy/features/moderation/presentation/widgets/report_sheet.dart';
 import 'package:flutter/material.dart';
@@ -413,24 +412,18 @@ class _BottomBar extends ConsumerWidget {
           const SizedBox(height: AppSpacing.sm),
           // **I comandi su una riga sola, in fondo — per le foto.**
           //
-          // Sono passati per due posti sbagliati prima di arrivare qui. Erano
-          // righe impilate — titolo, didascalia, nome, e sotto tutto il resto i
-          // commenti: l'ultima cosa dell'ultima riga, cioe' il posto peggiore
-          // per quello che si tocca di piu' dopo la fiamma. Poi una colonna a
-          // destra, che risolveva la distanza ma tagliava l'immagine in due.
-          //
-          // Su una riga sola stanno tutti alla stessa altezza, il pollice ci
-          // arriva senza spostarsi, e **i lati della foto restano liberi**:
-          // guardando un'immagine a tutto schermo non deve esserci niente
-          // appoggiato sopra. Condividi sta staccato, all'altro capo: gli altri
-          // due parlano alla gara, quello parla a chi sta fuori.
+          // Stanno tutti alla stessa altezza, il pollice ci arriva senza
+          // spostarsi, e **i lati della foto restano liberi**: guardando
+          // un'immagine a tutto schermo non deve esserci niente appoggiato
+          // sopra. Condividi sta staccato, all'altro capo: la fiamma parla
+          // alla gara, quello parla a chi sta fuori.
         ],
       ),
     );
   }
 }
 
-/// La riga dei comandi: fiamma, commenti, e in fondo condividi.
+/// La riga dei comandi: la fiamma, e in fondo condividi.
 class _Actions extends ConsumerWidget {
   const _Actions({required this.entry, this.vertical = false});
 
@@ -442,14 +435,6 @@ class _Actions extends ConsumerWidget {
     final voted = ref.watch(entryVotedProvider(entry.voteKey));
     final votes = visibleVotes(ref, entry);
     final live = ref.watch(challengeIsLiveProvider(entry.challengeId));
-    final comments = ref
-        .watch(
-          entryCommentsProvider((
-            challengeId: entry.challengeId,
-            entryId: entry.id,
-          )),
-        )
-        .valueOrNull;
 
     final actions = <Widget>[
       _Action(
@@ -464,21 +449,6 @@ class _Actions extends ConsumerWidget {
         tooltip: voted ? 'Togli la fiamma' : 'Dai la fiamma',
         vertical: vertical,
       ),
-      // **I commenti spariscono alla sirena.** Non e' un permesso tolto: un
-      // commento e' tifo, e il tifo si fa durante.
-      if (live) ...[
-        if (!vertical) const SizedBox(width: AppSpacing.lg),
-        _Action(
-          onTap: () => showEntryComments(context, entry: entry),
-          icon: Icons.mode_comment_outlined,
-          color: AppColors.paper,
-          label: comments == null || comments.isEmpty
-              ? ''
-              : '${comments.length}',
-          tooltip: 'Commenti',
-          vertical: vertical,
-        ),
-      ],
       if (!vertical) const Spacer(),
       // **Segnalare sta qui, non dentro un menu di secondo livello.**
       //

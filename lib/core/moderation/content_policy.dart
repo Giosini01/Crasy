@@ -79,7 +79,7 @@ abstract final class ContentPolicy {
   /// Volgarita' e bestemmie.
   ///
   /// **Separata dagli insulti**, e non e' pignoleria: sono due cose che si
-  /// fermano per due ragioni diverse, e chi si vede rifiutare un commento ha
+  /// fermano per due ragioni diverse, e chi si vede rifiutare una didascalia ha
   /// diritto di sapere quale delle due ha toccato. Una parolaccia buttata li'
   /// non fa male a nessuno in particolare; un insulto ha un bersaglio.
   static const profanity = ContentViolation._(

@@ -34,7 +34,6 @@ class ModerationRepository {
     required ReportReason reason,
     String challengeId = '',
     String entryId = '',
-    String commentId = '',
     String note = '',
     String reportedUsername = '',
     String mediaUrl = '',
@@ -51,8 +50,7 @@ class ModerationRepository {
       kind.name,
       if (challengeId.isNotEmpty) challengeId,
       if (entryId.isNotEmpty) entryId,
-      if (commentId.isNotEmpty) commentId,
-      if (entryId.isEmpty && commentId.isEmpty) reportedUserId,
+      if (entryId.isEmpty) reportedUserId,
     ].join('__');
 
     batch.set(_reports.doc('${reporterId}__$target'), {
@@ -62,7 +60,6 @@ class ModerationRepository {
       'reason': reason.name,
       'challengeId': challengeId,
       'entryId': entryId,
-      'commentId': commentId,
       'note': note,
       // **Quello che serve a chi la guardera', copiato dentro.**
       //

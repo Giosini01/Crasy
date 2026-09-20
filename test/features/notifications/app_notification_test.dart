@@ -76,7 +76,7 @@ void main() {
       const casi = {
         // **Ogni tipo ha la sua sezione, e nessuna e' un ripostiglio.** Era la
         // sezione unica "MISSIONI" a raccogliere vittorie, partecipazioni e
-        // nomine tutte insieme: un elenco in cui la cosa che si cercava stava
+        // sfide tutte insieme: un elenco in cui la cosa che si cercava stava
         // sempre in mezzo a due che non c'entravano.
         NotificationKind.win: NotificationGroup.wins,
         // La gara finita sta con le vittorie: quella notizia serve a una cosa
@@ -84,8 +84,6 @@ void main() {
         NotificationKind.ended: NotificationGroup.wins,
         NotificationKind.fire: NotificationGroup.fires,
         NotificationKind.participation: NotificationGroup.participations,
-        NotificationKind.comment: NotificationGroup.comments,
-        NotificationKind.mention: NotificationGroup.comments,
         // Le richieste d'amicizia non compaiono qui: stanno nella scheda
         // Amici, con i comandi per accettare o rifiutare. Il ramo esiste
         // perche' il tipo esiste, non perche' ci arrivi qualcosa.

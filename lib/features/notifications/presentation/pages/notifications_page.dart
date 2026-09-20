@@ -136,8 +136,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   ///
   /// **E' la risposta alla domanda che ci si fa toccando la campanella**: non
   /// "quante notifiche ho" — quello lo dice gia' il pallino — ma *dove sono*.
-  /// Atterrando sempre su VITTORIE, chi aveva due commenti nuovi trovava una
-  /// schermata vuota e doveva cercarli sezione per sezione.
+  /// Atterrando sempre su VITTORIE, chi aveva due sfide nuove trovava una
+  /// schermata vuota e doveva cercarle sezione per sezione.
   ///
   /// Una volta sola, e prima che qualcuno tocchi: da li' in poi comanda chi
   /// guarda, e una schermata che si sposta sotto il dito e' peggio di una
@@ -241,7 +241,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                   message:
                       'Qui finisce quello che fanno gli altri: chi partecipa '
                       'alle tue missioni, chi accende una fiamma sulle tue '
-                      'foto, chi commenta e chi ti nomina.',
+                      'foto, chi ti sfida.',
                 ),
               )
             : Column(
@@ -699,24 +699,15 @@ class _Face extends StatelessWidget {
         Icons.visibility_off_rounded,
         palette.textPrimary,
       ),
-      // La chiocciola: qualcuno ti ha chiamato per nome dentro un commento.
-      NotificationKind.mention => (
-        Icons.alternate_email_rounded,
-        palette.textPrimary,
-      ),
       // La sirena: la gara e' chiusa, i conti sono fatti.
       NotificationKind.ended => (Icons.flag_rounded, palette.textPrimary),
-      NotificationKind.comment => (
-        Icons.mode_comment_outlined,
-        palette.textPrimary,
-      ),
       // Il richiamo: la fiamma vuota, come dire "qui si stava giocando".
       NotificationKind.comeback => (
         Icons.local_fire_department_outlined,
         palette.textPrimary,
       ),
       // **Il guanto di sfida: due spade incrociate.** Una sfida mirata non e'
-      // una partecipazione e non e' un commento — e' qualcuno che ti ha
+      // una partecipazione qualunque — e' qualcuno che ti ha
       // chiamato in causa per nome, e in campanella deve distinguersi al primo
       // sguardo da tutto il resto.
       NotificationKind.duel => (Icons.sports_kabaddi_rounded, palette.accent),

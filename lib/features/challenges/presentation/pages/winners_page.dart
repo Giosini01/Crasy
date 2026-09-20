@@ -6,13 +6,9 @@ import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
-import 'package:crasy/core/widgets/media_frame.dart';
-import 'package:crasy/core/widgets/media_gestures.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
-import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/leaderboard.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
-import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -63,40 +59,25 @@ class WinnersPage extends ConsumerWidget {
                           'Chi si è preso più soldi, adesso.',
                         TrendView.launchers =>
                           'Chi ne ha messi di più in palio.',
-                        TrendView.fresh =>
-                          'Le challenge chiuse, e chi si è preso i soldi.',
                       },
                       highlight: switch (view) {
                         TrendView.winners => 'più soldi',
                         TrendView.launchers => 'in palio',
-                        TrendView.fresh => 'chi si è preso i soldi',
                       },
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     _Switch(selected: view),
                     const SizedBox(height: AppSpacing.xl),
-                    if (view != TrendView.fresh)
-                      _Classifica(
-                        righe: view == TrendView.winners
-                            ? Leaderboard.winners(chiuse)
-                            : Leaderboard.launchers(chiuse),
-                        vuota: view == TrendView.winners
-                            ? 'Quando qualcuno vince una gara con dei soldi in '
-                                  'palio, il podio si riempie da solo.'
-                            : 'Quando qualcuno lancia una gara mettendoci dei '
-                                  'soldi, lo trovi qui.',
-                      )
-                    else
-                      challenges.when(
-                        loading: () => const SizedBox.shrink(),
-                        error: (_, _) => const EmptyState(
-                          title: 'Non disponibile',
-                          message:
-                              'Non riusciamo a caricare le challenge concluse. '
-                              'Controlla la connessione.',
-                        ),
-                        data: (items) => _Winners(challenges: items),
-                      ),
+                    _Classifica(
+                      righe: view == TrendView.winners
+                          ? Leaderboard.winners(chiuse)
+                          : Leaderboard.launchers(chiuse),
+                      vuota: view == TrendView.winners
+                          ? 'Quando qualcuno vince una gara con dei soldi in '
+                                'palio, il podio si riempie da solo.'
+                          : 'Quando qualcuno lancia una gara mettendoci dei '
+                                'soldi, lo trovi qui.',
+                    ),
                   ],
                 ),
               ),
@@ -108,233 +89,20 @@ class WinnersPage extends ConsumerWidget {
   }
 }
 
-/// Le gare finite che vale la pena mostrare.
-///
-/// **Quelle a cui non ha partecipato nessuno non si vedono.** Una challenge
-/// senza foto non ha niente da raccontare: non c'e' un vincitore, non c'e'
-/// un'immagine, e resta una riga che dice "non ha partecipato nessuno" in mezzo
-/// a chi ha vinto dei soldi. Su una schermata che esiste per rendere credibile
-/// la promessa, e' esattamente il contrario di quello che serve.
-///
-/// Sparire dalla vista non vuol dire sparire dai conti: quelle gare vengono
-/// **chiuse lo stesso** — e' cosi' che il premio torna a chi l'aveva messo — ma
-/// a chiuderle e' il server, non questa schermata. Poco dopo le cancella.
-class _Winners extends StatelessWidget {
-  const _Winners({required this.challenges});
-
-  final List<Challenge> challenges;
-
-  @override
-  Widget build(BuildContext context) {
-    final withPeople = [
-      for (final challenge in challenges)
-        if (challenge.participantsCount > 0 && challenge.winnerEntryId != '')
-          challenge,
-    ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (withPeople.isEmpty)
-          const EmptyState(
-            title: 'Nessuna challenge conclusa',
-            message:
-                'Quando la prima challenge si chiude, qui trovi chi ha vinto e '
-                'quanto.',
-          )
-        else
-          for (final challenge in withPeople) ...[
-            _WinnerBlock(challenge: challenge),
-            const SizedBox(height: AppSpacing.section),
-          ],
-      ],
-    );
-  }
-}
-
-class _WinnerBlock extends ConsumerWidget {
-  const _WinnerBlock({required this.challenge});
-
-  final Challenge challenge;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final palette = context.palette;
-    final texts = context.texts;
-    final winnerId = challenge.winnerEntryId;
-    final entries =
-        ref.watch(challengeEntriesProvider(challenge.id)).valueOrNull ??
-        const <ChallengeEntry>[];
-
-    final winner = winnerId == null || winnerId.isEmpty
-        ? null
-        : entries.where((entry) => entry.id == winnerId).firstOrNull;
-
-    return GestureDetector(
-      onTap: () => context.push(AppRoutes.challengeDetailOf(challenge.id)),
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  challenge.prizeLabel,
-                  style: texts.displayMedium?.copyWith(color: palette.accent),
-                ),
-              ),
-              Text(
-                challenge.scopeLabel,
-                style: texts.labelSmall?.copyWith(color: palette.textFaint),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(challenge.title.toUpperCase(), style: texts.headlineMedium),
-          const SizedBox(height: AppSpacing.md),
-          if (winnerId != null && winnerId.isEmpty)
-            Text(
-              'Non ha partecipato nessuno. Il premio torna a chi l\'ha messo.',
-              style: texts.bodyMedium,
-            )
-          else if (winner == null)
-            Text('Vincitore in arrivo.', style: texts.bodyMedium)
-          else ...[
-            // **Solo la foto del vincitore.** Le altre stanno dentro la gara,
-            // per chi vuole andarle a rivedere; qui si racconta come e' finita,
-            // e come e' finita e' una foto sola.
-            MediaTap(
-              onTap: () => FullscreenMedia.open(
-                context,
-                entries: [winner],
-                entry: winner,
-              ),
-              child: MediaFrame(
-                // A tutta larghezza: l'originale.
-                url: winner.mediaUrl,
-                video: winner.isVideo,
-                aspectRatio: 1,
-                // **Il nome non sta sulla foto.** Ce l'ha gia' la riga qui
-                // sotto, dove sta dentro una frase che dice anche quanto ha
-                // vinto e con quante fiamme: scritto anche sull'immagine e' la
-                // stessa parola due volte a due dita di distanza, e per giunta
-                // copre la cosa che si e' venuti a guardare.
-                // **Quante fiamme ha preso, sopra la foto.**
-                //
-                // Durante la gara i numeri sono nascosti apposta: sapere come
-                // sta andando cambia come si vota, e una gara in cui si vota
-                // guardando la classifica non e' piu' una gara. Ma qui la gara
-                // e' finita, le fiamme sono quelle e non si toccano piu' — e
-                // allora e' l'unica cosa che manca per capire *come* ha vinto.
-                // Due fiamme e ottanta fiamme sono la stessa vittoria scritta
-                // in due modi molto diversi, e chi guarda ha il diritto di
-                // saperlo.
-                overlay: _Fiamme(quante: winner.votes),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: '@${winner.authorName}',
-                    style: texts.titleMedium,
-                  ),
-                  TextSpan(
-                    // Il numero anche qui, scritto: sulla foto e' un
-                    // distintivo che si guarda, nella frase e' una cosa che si
-                    // legge — e sono i due modi in cui la gente prende
-                    // un'informazione. A zero resta la frase di prima: le gare
-                    // chiuse quando il conteggio non finiva ancora dentro il
-                    // documento non hanno quel numero, e scrivere "con 0
-                    // fiamme" sotto una vittoria sarebbe una bugia.
-                    text: winner.votes > 0
-                        ? ' ha vinto ${challenge.prizeLabel} con '
-                              '${winner.votes} '
-                              '${winner.votes == 1 ? 'fiamma' : 'fiamme'}'
-                        : ' ha vinto ${challenge.prizeLabel} con più fiamme',
-                    style: texts.bodyMedium,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// Il numero di fiamme, appoggiato sull'angolo della foto vincitrice.
-///
-/// **Si legge su qualunque foto.** Un numero bianco su una foto chiara non si
-/// vede, e questa e' l'unica cosa della schermata che deve leggersi sempre:
-/// sotto c'e' una pastiglia scura, che e' il modo piu' semplice di non
-/// dipendere da cosa c'e' nell'immagine.
-class _Fiamme extends StatelessWidget {
-  const _Fiamme({required this.quante});
-
-  final int quante;
-
-  @override
-  Widget build(BuildContext context) {
-    // A zero non si scrive niente: le gare chiuse prima che il conteggio
-    // finisse dentro il documento non ce l'hanno, e uno zero li' direbbe "non
-    // e' piaciuta a nessuno" di una foto che magari aveva vinto a mani basse.
-    if (quante <= 0) {
-      return const SizedBox.shrink();
-    }
-
-    return Align(
-      alignment: Alignment.topRight,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.55),
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.local_fire_department_rounded,
-                  size: 15,
-                  color: context.palette.accent,
-                ),
-                const SizedBox(width: 3),
-                Text(
-                  '$quante',
-                  style: context.texts.labelMedium?.copyWith(
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// Cosa si guarda nella scheda di chi sta andando forte.
 ///
-/// **Tre cose, e sono tre domande diverse.** Chi sta vincendo, chi sta facendo
-/// giocare, e cos'e' appena successo. Messe una sotto l'altra sarebbero una
-/// lista lunga in cui non si capisce dove finisce una e comincia l'altra: tre
-/// parole in cima e una sola sotto gli occhi.
+/// **Due cose, e sono due domande diverse.** Chi sta vincendo, e chi sta
+/// facendo giocare. Erano tre — c'era anche *cos'e' appena successo* — e quella
+/// terza se n'e' andata in home, sotto le gare aperte: e' li' che la prova che
+/// qualcuno vince davvero serve a qualcosa, non dentro una scheda che bisogna
+/// andare a cercare. Qui restano le classifiche, ed e' l'unico posto dell'app
+/// che dice **chi conta adesso**.
 enum TrendView {
   /// Chi ha portato a casa piu' soldi.
   winners('VINCITORI'),
 
   /// Chi ne ha messi di piu' in palio.
-  launchers('CHI FA GIOCARE'),
-
-  /// Le gare appena chiuse, con la foto che ha vinto.
-  fresh('APPENA FINITE');
+  launchers('CHI FA GIOCARE');
 
   const TrendView(this.label);
 

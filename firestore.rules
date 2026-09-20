@@ -120,10 +120,7 @@ service cloud.firestore {
                           : '__' + request.resource.data.challengeId)
                        + (request.resource.data.entryId == '' ? ''
                           : '__' + request.resource.data.entryId)
-                       + (request.resource.data.commentId == '' ? ''
-                          : '__' + request.resource.data.commentId)
-                       + ((request.resource.data.entryId == ''
-                           && request.resource.data.commentId == '') ? '__'
+                       + (request.resource.data.entryId == '' ? '__'
                           + request.resource.data.reportedUserId : '')
                     && request.resource.data.reportedUserId != request.auth.uid;
 
@@ -356,10 +353,10 @@ service cloud.firestore {
         allow create: if signedIn()
                       && request.resource.data.actorId == request.auth.uid
                       && request.auth.uid != userId
-                      // `mention` sta qui insieme alle altre due perche' e'
-                      // scritta dallo stesso posto: chi commenta nominando
-                      // qualcuno gli scrive la notizia nella campanella. Le
-                      // altre — vittorie, amicizie, gare finite — non le scrive
+                      // **Solo le notizie che qualcuno provoca.** Una
+                      // partecipazione e una fiamma le scrive chi le fa,
+                      // dentro la campanella di chi le riceve. Le altre —
+                      // vittorie, amicizie, gare finite — non le scrive
                       // nessuno: si ricavano dai dati che esistono gia'.
                       // Le quattro delle sfide mirate stanno qui insieme alle
                       // altre perche' le scrive lo stesso posto: chi lancia la
@@ -369,7 +366,7 @@ service cloud.firestore {
                       // essere scritta due volte — e' quello a impedire i
                       // doppioni, non un controllo qui.
                       && request.resource.data.kind
-                         in ['participation', 'fire', 'mention', 'comment',
+                         in ['participation', 'fire',
                              'duel', 'duelAccepted', 'duelDeclined',
                              'duelCompleted', 'duelApproved',
                              'duelRejected']
@@ -1084,43 +1081,6 @@ service cloud.firestore {
                       && request.auth.uid == entryId
                       && resource.data.userId == request.auth.uid
                       && !challengeIsLive();
-
-        // I commenti sotto una foto.
-        //
-        // **Si scrivono solo mentre la gara e' aperta.** E' la stessa riga che
-        // ferma le fiamme alla sirena, e per la stessa ragione: un commento e'
-        // tifo, e il tifo si fa durante. Dopo, sotto la foto restano le fiamme
-        // e basta — l'app smette di mostrarli, ed e' bene che smetta anche di
-        // poterne accettare di nuovi.
-        //
-        // **Restano scritti anche quando spariscono dalla vista.** Cancellarli
-        // davvero e' lavoro del server, che con l'SDK di amministrazione non
-        // passa da qui: dare a un telefono il permesso di cancellare i commenti
-        // altrui vorrebbe dire dare a chiunque il permesso di zittire chiunque.
-        match /comments/{commentId} {
-          allow read: if signedIn();
-
-          allow create: if signedIn()
-                        && request.resource.data.userId == request.auth.uid
-                        && request.resource.data.text is string
-                        && request.resource.data.text.size() > 0
-                        && request.resource.data.text.size() <= 300
-                        // Il nome di chi scrive viaggia con il commento: senza,
-                        // ogni riga costringerebbe a leggere anche il profilo
-                        // di chi l'ha scritta.
-                        && request.resource.data.authorName is string
-                        && challengeIsLive();
-
-          // **Un commento non si corregge.** Non e' rigore fine a se stesso: e'
-          // che nessuno rilegge una conversazione gia' letta, e un commento
-          // riscritto dopo che gli altri hanno risposto cambia il senso di
-          // quello che hanno detto loro. Chi ha sbagliato cancella e riscrive.
-          allow update: if false;
-
-          // Il proprio si toglie, quello degli altri no.
-          allow delete: if signedIn()
-                        && resource.data.userId == request.auth.uid;
-        }
       }
     }
 

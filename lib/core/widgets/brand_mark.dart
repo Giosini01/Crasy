@@ -379,7 +379,7 @@ class _BetaWord extends StatelessWidget {
 ///
 /// Sta accanto al nome e non al posto della foto: chi legge deve poter
 /// riconoscere **il nome** come quello di casa, anche dove la foto non c'e' —
-/// in una riga di commenti, sotto uno scatto, in un elenco di amici.
+/// accanto a un nome, sotto uno scatto, in un elenco di amici.
 class OfficialFlame extends StatelessWidget {
   const OfficialFlame({this.size = 18, super.key});
 

@@ -22,46 +22,42 @@ import 'package:go_router/go_router.dart';
 
 /// Cosa scelgo di guardare qui dentro.
 ///
-/// **Cinque, e ognuna risponde a una domanda diversa.** Prima erano tre, e due
-/// di quelle tre raccontavano la stessa cosa da due lati — le missioni del
-/// gruppo e quelle degli amici. Le sfide mirate hanno reso la divisione
-/// evidente: quello che si viene a sapere qui dentro e' *chi sta aspettando
-/// me* e *chi sto aspettando io*, e sono due file separate.
+/// **Tre, e sono tre momenti e non tre categorie.** Erano sei — ricevute,
+/// lanciate, party, di amici, chiuse, in gara — e ognuna aveva la sua ragione
+/// d'essere presa una per una. Tutte insieme erano una fila che usciva dallo
+/// schermo e che costringeva, ogni volta, a ricordarsi in quale delle sei
+/// stava la cosa che si cercava. Sei nomi da imparare per usare una schermata
+/// sola.
+///
+/// La domanda vera non e' mai stata "di che tipo e' questa cosa": e' **devo
+/// farci qualcosa?**. Una sfida che mi hanno lanciato e una missione del party
+/// a cui non ho ancora mandato niente sono la stessa cosa per chi guarda — due
+/// cose che aspettano me — anche se dentro il programma sono due oggetti
+/// diversi. E una volta mandata la foto, tutte e due diventano la stessa altra
+/// cosa: roba che sta andando avanti senza di me.
 enum FriendActivityView {
-  /// Le sfide che mi hanno lanciato: la palla e' mia.
-  received('RICEVUTE'),
+  /// Quello che aspetta me: le sfide ricevute e le missioni a cui non ho
+  /// ancora mandato niente.
+  todo('DA FARE'),
 
-  /// Le sfide che ho lanciato io: la palla e' loro.
-  sent('LANCIATE'),
+  /// Quello che e' gia' partito: le sfide che ho lanciato io, le missioni in
+  /// cui sono gia' dentro, e le foto con cui gli amici sono in gara adesso.
+  running('IN CORSO'),
 
-  /// Le missioni private aperte a tutto il gruppo.
-  party('PARTY'),
-
-  /// Le gare pubbliche che hanno lanciato loro.
-  missions('DI AMICI'),
-
-  /// Quelle finite oggi, con la figurina di chi ha vinto.
-  closed('CHIUSE'),
-
-  /// Le foto con cui sono in gara adesso.
-  ///
-  /// **I nomi sono corti apposta.** Erano tre e uno si chiamava "DOVE SONO IN
-  /// GARA": su un telefono stretto la fila usciva dallo schermo e il numero
-  /// dell'ultima finiva tagliato sul bordo. Parole corte ci stanno tutte, e una
-  /// fila che si legge intera e' una fila che si usa.
-  entries('IN GARA');
+  /// Com'e' finita.
+  done('FINITE');
 
   const FriendActivityView(this.label);
 
   final String label;
 }
 
-/// Quale delle cinque si sta guardando.
+/// Quale delle tre si sta guardando.
 ///
-/// Si apre sulle **ricevute**: e' l'unica scheda in cui c'e' qualcuno che
-/// aspetta una risposta, e le cose da fare stanno prima di quelle da guardare.
+/// Si apre su **da fare**: e' l'unica scheda in cui c'e' qualcuno che aspetta,
+/// e le cose da fare stanno prima di quelle da guardare.
 final friendActivityViewProvider = StateProvider<FriendActivityView>(
-  (ref) => FriendActivityView.received,
+  (ref) => FriendActivityView.todo,
 );
 
 /// **Party**: le sfide fra amici, le missioni del gruppo, le loro foto in gara.
@@ -71,11 +67,12 @@ final friendActivityViewProvider = StateProvider<FriendActivityView>(
 /// una coda dell'elenco — e' la parte che si guarda, mentre l'elenco e' quella
 /// che si consulta.
 ///
-/// **Le cose non stanno insieme.** Una sfida che ti ha lanciato Mario, una gara
-/// aperta da un amico e una foto che ha mandato sono tre inviti diversi: il
-/// primo chiede una parola, il secondo chiede di mettersi in gioco, il terzo
-/// chiede una fiamma. Mescolati in una lista sola diventano un flusso da
-/// scorrere; separati da una scelta restano tre cose che si fanno.
+/// **Si divide per momento, non per tipo.** Una sfida che ti ha lanciato Mario
+/// e una missione del party a cui non hai ancora mandato niente sono due
+/// oggetti diversi nel programma e la stessa identica cosa per chi guarda: due
+/// cose che aspettano te. Dividerle per specie voleva dire sei schede e sei
+/// nomi da ricordare; dividerle per *devo farci qualcosa* ne vuole tre, e a
+/// quelle tre non c'e' niente da imparare.
 class FriendsActivityPage extends ConsumerStatefulWidget {
   const FriendsActivityPage({super.key});
 
@@ -125,6 +122,37 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
     final sent = ref.watch(sentDuelsProvider);
     final problema = ref.watch(friendActivityProblemProvider);
 
+    // **Quello che ho gia' fatto**, per nome di missione. E' l'unica cosa che
+    // serve a dividere "aspetta me" da "sta andando avanti": una sfida a cui
+    // ho gia' risposto e una missione in cui ho gia' mandato uno scatto non
+    // sono piu' cose da fare, sono cose in corso.
+    final fatte = {
+      for (final entry
+          in ref.watch(myEntriesProvider).valueOrNull ?? const <ChallengeEntry>[])
+        entry.challengeId,
+    };
+
+    bool daFare(Challenge challenge) => !fatte.contains(challenge.id);
+
+    final aperte = [...party, ...missions];
+
+    final todo = <Challenge>[
+      for (final challenge in received)
+        if (daFare(challenge)) challenge,
+      for (final challenge in aperte)
+        if (daFare(challenge)) challenge,
+    ];
+
+    final running = <Challenge>[
+      // Le sfide che ho lanciato io stanno sempre qui: non c'e' niente che
+      // aspetti me, aspettano l'altro.
+      ...sent,
+      for (final challenge in received)
+        if (!daFare(challenge)) challenge,
+      for (final challenge in aperte)
+        if (!daFare(challenge)) challenge,
+    ];
+
     return Scaffold(
       body: AppBackground(
         child: SafeArea(
@@ -158,13 +186,10 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                     const _LaunchDuel(),
                     const SizedBox(height: AppSpacing.md),
                     _Switch(
-                      received: received.length,
-                      sent: sent.length,
-                      party: party.length,
-                      missions: missions.length,
-                      closed: chiuse.length + bocciate.length,
-                      entries: entries.length,
-                      daFare: ref.watch(pendingDuelsCountProvider),
+                      todo: todo.length,
+                      running: running.length + entries.length,
+                      done: chiuse.length + bocciate.length,
+                      daRispondere: ref.watch(pendingDuelsCountProvider),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     if (problema != null) ...[
@@ -178,10 +203,9 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                     ],
                     ..._sezione(
                       view: view,
-                      received: received,
+                      todo: todo,
+                      running: running,
                       sent: sent,
-                      party: party,
-                      missions: missions,
                       closed: chiuse,
                       rejected: bocciate,
                       meId: ref.watch(currentUserIdProvider),
@@ -199,96 +223,79 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
 
   /// Cosa c'e' sotto la fila delle schede.
   ///
-  /// Sta in un metodo suo e non dentro il `build` perche' erano cinque rami di
-  /// un `if` lungo quanto la schermata, e in mezzo a quelli si era gia'
-  /// nascosto un ramo irraggiungibile — la seconda condizione `party` che non
-  /// veniva mai valutata, e con lei l'elenco delle missioni lanciate.
+  /// **Le righe sono le stesse di prima.** Una sfida si vede come si e' sempre
+  /// vista, una missione pure: quello che e' cambiato e' in che mucchio
+  /// finiscono, non come si leggono. Cosi' chi usava le sei schede non deve
+  /// imparare niente di nuovo — deve solo cercare in tre posti invece che in
+  /// sei.
   List<Widget> _sezione({
     required FriendActivityView view,
-    required List<Challenge> received,
+    required List<Challenge> todo,
+    required List<Challenge> running,
     required List<Challenge> sent,
-    required List<Challenge> party,
-    required List<Challenge> missions,
     required List<Challenge> closed,
     required List<Challenge> rejected,
     required String? meId,
     required List<ChallengeEntry> entries,
   }) {
+    // Una sfida mirata e una missione aperta a tutti sono due righe diverse, e
+    // qui stanno nello stesso elenco: si sceglie guardando la missione, non la
+    // scheda in cui ci si trova.
+    Widget riga(Challenge challenge) {
+      if (!challenge.isDuel) {
+        return _MissionRow(challenge: challenge);
+      }
+
+      return _DuelRow(
+        challenge: challenge,
+        received: !sent.any((mia) => mia.id == challenge.id),
+      );
+    }
+
     switch (view) {
-      case FriendActivityView.received:
-        if (received.isEmpty) {
+      case FriendActivityView.todo:
+        if (todo.isEmpty) {
           return const [
             EmptyState(
-              title: 'Nessuno ti ha ancora sfidato',
+              title: 'Non aspetta niente',
               message:
-                  'Quando un amico ti lancia una sfida la trovi qui, e puoi '
-                  'accettarla o rifiutarla. Accettare è una parola data.',
+                  'Quando un amico ti sfida o lancia una missione, la trovi '
+                  'qui. Accettare una sfida è una parola data.',
+            ),
+          ];
+        }
+
+        return [for (final challenge in todo) riga(challenge)];
+
+      case FriendActivityView.running:
+        if (running.isEmpty && entries.isEmpty) {
+          return const [
+            EmptyState(
+              title: 'Niente in corso',
+              message:
+                  'Qui finisce quello che è già partito: le sfide che hai '
+                  'lanciato, le missioni in cui sei dentro e le foto con cui i '
+                  'tuoi amici sono in gara adesso.',
             ),
           ];
         }
 
         return [
-          for (final challenge in received)
-            _DuelRow(challenge: challenge, received: true),
-        ];
-
-      case FriendActivityView.sent:
-        if (sent.isEmpty) {
-          return const [
-            EmptyState(
-              title: 'Non hai sfidato nessuno',
-              message:
-                  'Scegli un amico e lanciagli una missione: la vedete solo '
-                  'voi due, e non toglie niente alla vostra giornata.',
+          for (final challenge in running) riga(challenge),
+          // **Le foto in fondo, non in cima.** Le missioni sono cose in cui si
+          // e' dentro; le foto degli amici sono cose da guardare, e le cose da
+          // guardare non passano davanti a quelle in cui si gioca.
+          for (final entry in entries)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+              // Doppio tocco per la fiamma, tocco singolo per aprirla grande:
+              // gli stessi due gesti della home. Qui non si impara niente di
+              // nuovo, cambia solo di chi sono le foto.
+              child: _InGara(entry: entry),
             ),
-          ];
-        }
-
-        return [
-          for (final challenge in sent)
-            _DuelRow(challenge: challenge, received: false),
         ];
 
-      case FriendActivityView.party:
-        // **Una riga sola, non due che dicono la stessa cosa.** C'erano
-        // entrambe — la riga di spiegazione e sotto il riquadro vuoto con "il
-        // party è pronto" — e leggerle di fila e' leggere due volte che qui
-        // dentro ci sono le missioni fra amici. Dove non c'e' niente si dice
-        // cosa fare; dove c'e' qualcosa la spiegazione non serve piu', perche'
-        // a spiegare ci pensano le missioni stesse.
-        if (party.isEmpty) {
-          return const [
-            EmptyState(
-              title: 'Il party è pronto',
-              message:
-                  'Le vostre missioni private: qui entrano solo i tuoi amici. '
-                  'Lancia la prima e la vedete solo voi — può anche essere '
-                  'gratis.',
-            ),
-          ];
-        }
-
-        return [
-          for (final challenge in party) _MissionRow(challenge: challenge),
-        ];
-
-      case FriendActivityView.missions:
-        if (missions.isEmpty) {
-          return const [
-            EmptyState(
-              title: 'Nessuno ha lanciato niente',
-              message:
-                  'Quando un amico lancia una missione la trovi qui, e puoi '
-                  'partecipare prima di tutti gli altri.',
-            ),
-          ];
-        }
-
-        return [
-          for (final challenge in missions) _MissionRow(challenge: challenge),
-        ];
-
-      case FriendActivityView.closed:
+      case FriendActivityView.done:
         if (closed.isEmpty && rejected.isEmpty) {
           return const [
             EmptyState(
@@ -324,59 +331,30 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
           for (final challenge in closed)
             _ClosedRow(challenge: challenge, meId: meId),
         ];
-
-      case FriendActivityView.entries:
-        if (entries.isEmpty) {
-          return const [
-            EmptyState(
-              title: 'Nessuno è in gara adesso',
-              message:
-                  'Appena un amico manda uno scatto lo vedi qui, e una tua '
-                  'fiamma può essere quella che lo fa vincere.',
-            ),
-          ];
-        }
-
-        return [
-          for (final entry in entries)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-              // Doppio tocco per la fiamma, tocco singolo per aprirla grande:
-              // gli stessi due gesti della home. Qui non si impara niente di
-              // nuovo, cambia solo di chi sono le foto.
-              child: _InGara(entry: entry),
-            ),
-        ];
     }
   }
 }
 
 /// La fila delle schede: una parola e il suo numero.
 ///
-/// **Il numero delle ricevute si fa rosso quando qualcuno aspetta.** E' l'unico
-/// pallino di questa schermata, ed e' il segno che distingue "ci sono tre
-/// sfide" da "ci sono tre sfide **a cui non hai risposto**": la seconda e' una
-/// cosa da fare, la prima e' un archivio.
+/// **Il numero di DA FARE si fa rosso quando qualcuno aspetta una parola.** E'
+/// l'unico pallino di questa schermata, ed e' il segno che distingue "ci sono
+/// tre cose" da "ci sono tre sfide **a cui non hai ancora risposto**": la
+/// seconda e' una promessa in sospeso, la prima e' un elenco.
 class _Switch extends ConsumerWidget {
   const _Switch({
-    required this.received,
-    required this.sent,
-    required this.party,
-    required this.missions,
-    required this.closed,
-    required this.entries,
-    required this.daFare,
+    required this.todo,
+    required this.running,
+    required this.done,
+    required this.daRispondere,
   });
 
-  final int received;
-  final int sent;
-  final int party;
-  final int missions;
-  final int closed;
-  final int entries;
+  final int todo;
+  final int running;
+  final int done;
 
   /// Quante sfide ricevute aspettano ancora una risposta.
-  final int daFare;
+  final int daRispondere;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -385,16 +363,13 @@ class _Switch extends ConsumerWidget {
     final selected = ref.watch(friendActivityViewProvider);
 
     int quante(FriendActivityView view) => switch (view) {
-      FriendActivityView.received => received,
-      FriendActivityView.sent => sent,
-      FriendActivityView.party => party,
-      FriendActivityView.missions => missions,
-      FriendActivityView.closed => closed,
-      FriendActivityView.entries => entries,
+      FriendActivityView.todo => todo,
+      FriendActivityView.running => running,
+      FriendActivityView.done => done,
     };
 
-    // Scorre di lato: bastano un telefono piccolo e un carattere ingrandito
-    // dalle impostazioni perche' cinque parole non ci stiano piu'.
+    // Scorre di lato lo stesso: tre parole ci stanno su qualunque telefono, ma
+    // con il carattere ingrandito dalle impostazioni nessuna misura e' sicura.
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -443,7 +418,7 @@ class _Switch extends ConsumerWidget {
                         ),
                       ),
                     ],
-                    if (view == FriendActivityView.received && daFare > 0) ...[
+                    if (view == FriendActivityView.todo && daRispondere > 0) ...[
                       const SizedBox(width: 5),
                       Container(
                         width: 6,

@@ -5,7 +5,6 @@ import 'package:crasy/features/challenges/data/repositories/sample_challenge_rep
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
-import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 
@@ -151,35 +150,6 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
       mediaKind: mediaKind,
       contentType: contentType,
       caption: caption,
-    );
-  }
-
-  @override
-  Stream<List<EntryComment>> watchComments({
-    required String challengeId,
-    required String entryId,
-  }) {
-    return _forChallenge(
-      challengeId,
-    ).watchComments(challengeId: challengeId, entryId: entryId);
-  }
-
-  @override
-  Future<EntryComment> addComment({
-    required String challengeId,
-    required String entryId,
-    required String userId,
-    required String authorName,
-    required String text,
-    List<EntryMention> mentions = const [],
-  }) {
-    return _forChallenge(challengeId).addComment(
-      challengeId: challengeId,
-      entryId: entryId,
-      userId: userId,
-      authorName: authorName,
-      text: text,
-      mentions: mentions,
     );
   }
 

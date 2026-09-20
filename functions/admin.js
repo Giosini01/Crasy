@@ -209,7 +209,6 @@ exports.adminListReports = onCall(async (request) => {
         (foto && foto.get('challengeTitle')) || dati.challengeTitle || ''
       ),
       entryId: String(dati.entryId || ''),
-      commentId: String(dati.commentId || ''),
       reportedUserId: String(dati.reportedUserId || ''),
       reportedUsername: String(
         (foto && foto.get('authorName')) || dati.reportedUsername || ''

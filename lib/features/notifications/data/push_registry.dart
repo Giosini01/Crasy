@@ -239,7 +239,7 @@ class PushRegistry {
   ///
   /// Non lancia: **un annuncio perso non vale un accesso rotto**. Se
   /// l'iscrizione non riesce si continua a ricevere tutto il resto — fiamme,
-  /// commenti, vittorie — e al prossimo avvio si riprova da sola.
+  /// sfide, vittorie — e al prossimo avvio si riprova da sola.
   Future<void> _iscrivitiAlCanale() async {
     try {
       await _messaging.subscribeToTopic(canaleDiTutti);

@@ -21,7 +21,7 @@ final moderationRepositoryProvider = Provider<ModerationRepository?>((ref) {
 /// Chi ho bloccato.
 ///
 /// **Un ascolto solo, vivo per tutta la sessione.** Serve a ogni schermata che
-/// mostra roba scritta da altri — foto, commenti, richieste di amicizia — e
+/// mostra roba scritta da altri — foto, richieste di amicizia — e
 /// caricarlo dove serve vorrebbe dire caricarlo dieci volte. E' un elenco corto
 /// e cambia quasi mai.
 ///
@@ -56,7 +56,6 @@ class ModerationActions {
     required ReportReason reason,
     String challengeId = '',
     String entryId = '',
-    String commentId = '',
     String note = '',
     String reportedUsername = '',
     String mediaUrl = '',
@@ -77,7 +76,6 @@ class ModerationActions {
         reason: reason,
         challengeId: challengeId,
         entryId: entryId,
-        commentId: commentId,
         note: note,
         reportedUsername: reportedUsername,
         mediaUrl: mediaUrl,

@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
-import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 
 /// L'unico punto da cui l'app prende e scrive le challenge.
@@ -95,26 +94,6 @@ abstract class ChallengeRepository {
     String caption = '',
   });
 
-  /// I commenti sotto una foto, dal piu' vecchio.
-  ///
-  /// Dal piu' vecchio e non dal piu' recente: sotto una foto si legge una
-  /// conversazione, e una conversazione si legge nell'ordine in cui e'
-  /// avvenuta. E' il contrario dei trofei, dove conta l'ultimo.
-  Stream<List<EntryComment>> watchComments({
-    required String challengeId,
-    required String entryId,
-  });
-
-  /// Scrive un commento. Torna quello scritto, cosi' chi chiama sa com'e'
-  /// venuto senza aspettare il giro del flusso.
-  Future<EntryComment> addComment({
-    required String challengeId,
-    required String entryId,
-    required String userId,
-    required String authorName,
-    required String text,
-    List<EntryMention> mentions = const [],
-  });
 
   /// Mette o toglie il voto. [voted] e' lo stato **desiderato**, non quello
   /// attuale: cosi' chi chiama non deve rileggere prima di scrivere.
