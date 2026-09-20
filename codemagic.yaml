@@ -213,14 +213,16 @@ workflows:
         # sul progetto **cosi' com'e' rimasto dopo `pod install`**, e infine
         # firma e impacchetta lo strumento di Codemagic.
         #
-        # **I pagamenti si accendono da una variabile, non da qui.** Finche'
-        # `PAGAMENTI` non e' impostata su Codemagic, la build va su TestFlight
-        # con i soldi spenti: le missioni si lanciano senza pagare, come
-        # adesso. Il giorno in cui Stripe funziona basta aggiungere quella
-        # variabile — nessuna modifica al codice, e si torna indietro
-        # togliendola.
+        # **I pagamenti sono accesi.** Chi lancia una missione paga il premio
+        # prima che la missione esista, come sul sito.
+        #
+        # Sul telefono si apre una pagina di Stripe in **sandbox**, perche' le
+        # chiavi sul server sono quelle di prova: le carte vere vengono
+        # rifiutate e nessuno puo' spendere dei soldi per sbaglio. Il giorno in
+        # cui si passa alle chiavi vere non si tocca niente qui — cambia solo
+        # cosa c'e' in Secret Manager.
         script: |
-          flutter build ios --release --no-codesign --build-number=$NUMERO             ${PAGAMENTI:+--dart-define=CRASY_PAYMENTS=true}
+          flutter build ios --release --no-codesign --build-number=$NUMERO             --dart-define=CRASY_PAYMENTS=true
 
           sed -i '' '/DEVELOPMENT_TEAM = /d' ios/Runner.xcodeproj/project.pbxproj
           sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
