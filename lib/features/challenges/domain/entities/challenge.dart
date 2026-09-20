@@ -443,7 +443,21 @@ class Challenge {
   /// possa pagare una challenge e nasconderle tutte vorrebbe dire un'app vuota.
   /// Acceso l'interruttore, una challenge non pagata non compare da nessuna
   /// parte — nemmeno a chi l'ha scritta, che la ritrova solo pagando.
-  bool get isPayable => !paymentsEnabled || prizeStatus.isVisible;
+  ///
+  /// **Salvo quelle gratis, che non hanno niente da pagare.**
+  ///
+  /// E' la riga che mancava, e il giorno in cui i pagamenti si sono accesi ha
+  /// fatto sparire dalla home la sfida del giorno — che e' gratis da sempre,
+  /// per scelta, ed e' la prima cosa che vede chi apre l'app. Con lei se ne
+  /// sono andate le missioni gratis fra amici e le sfide a un amico senza
+  /// soldi in palio: tutta roba che non aspetta nessun pagamento, nascosta in
+  /// attesa di un pagamento che non esiste.
+  ///
+  /// Zero euro in palio vuol dire niente da incassare e niente da garantire.
+  /// Non c'e' nessuna promessa da tenere, quindi non c'e' niente da
+  /// aspettare.
+  bool get isPayable =>
+      !paymentsEnabled || prizeCents == 0 || prizeStatus.isVisible;
 
   /// Il premio gia' scritto: `€500`, o `GRATIS` per la sfida del giorno.
   ///
