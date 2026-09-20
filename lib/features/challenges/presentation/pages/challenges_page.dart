@@ -131,16 +131,40 @@ class ChallengesPage extends ConsumerWidget {
 
 /// Il modo di arrivare alle gare appena finite.
 ///
-/// **Una riga sola in fondo alla home.** Non e' un ripiego: quello che sta
-/// dietro e' l'unica prova che qui si vince davvero, e una prova si va a
-/// vedere — non la si scorre per sbaglio. La riga dice cosa c'e' e si toglie
-/// di mezzo; la roba sta nella sua schermata, tutta insieme.
-class _AppenaFinite extends StatelessWidget {
+/// **Una scheda, non una riga di testo.** Una riga scritta in fondo a una
+/// lista di gare e' indistinguibile da un pie' di pagina: si legge come una
+/// nota, non come una cosa che si apre. Quello che sta dietro e' l'unica prova
+/// che qui si vince davvero, e una prova deve avere l'aria di valere il tocco.
+///
+/// **Le facce di chi ha vinto, in miniatura.** Sono la cosa che convince, e
+/// costano zero: quelle foto viaggiano gia' dentro la gara chiusa, non si
+/// legge niente in piu' per mostrarle. Sovrapposte come le teste in una
+/// locandina dicono in un colpo quello che la scritta direbbe in una frase —
+/// *sono in tre, e hanno vinto*.
+class _AppenaFinite extends ConsumerWidget {
   const _AppenaFinite();
 
+  /// Quante facce ci stanno prima che diventino una folla illeggibile.
+  static const int _quanteFacce = 3;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
+    final texts = context.texts;
+
+    final vinte = [
+      for (final challenge
+          in ref.watch(endedChallengesProvider).valueOrNull ?? const [])
+        if (challenge.hasTrophy) challenge,
+    ];
+
+    // **Finche' non ha vinto nessuno non si promette niente.** Una scheda che
+    // si apre su una schermata vuota e' peggio di una scheda che non c'e'.
+    if (vinte.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final facce = vinte.take(_quanteFacce).toList();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -152,30 +176,92 @@ class _AppenaFinite extends StatelessWidget {
       child: GestureDetector(
         onTap: () => context.push(AppRoutes.recentlyEnded),
         behavior: HitTestBehavior.opaque,
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'APPENA FINITE',
-                    style: context.texts.labelSmall?.copyWith(
-                      color: palette.textFaint,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Guarda chi si è preso i soldi',
-                    style: context.texts.titleSmall,
-                  ),
-                ],
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: palette.line),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                // Ogni faccia dopo la prima sporge di diciotto: si sovrappongono
+                // per meta', che e' quanto basta a leggerle tutte.
+                width: 34 + (facce.length - 1) * 18,
+                height: 34,
+                child: Stack(
+                  children: [
+                    // **L'ultima disegnata sta sopra, quindi si parte dal
+                    // fondo.** Al contrario, la prima faccia — quella della
+                    // gara chiusa piu' di recente — finirebbe sotto tutte le
+                    // altre.
+                    for (var i = facce.length - 1; i >= 0; i--)
+                      Positioned(
+                        left: i * 18,
+                        child: _FacciaVincente(url: facce[i].winnerMediaUrl),
+                      ),
+                  ],
+                ),
               ),
-            ),
-            Icon(Icons.chevron_right_rounded, color: palette.textFaint),
-          ],
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'APPENA FINITE',
+                      style: texts.labelSmall?.copyWith(
+                        color: palette.accent,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      vinte.length == 1
+                          ? 'Uno si è preso i soldi'
+                          : '${vinte.length} si sono presi i soldi',
+                      style: texts.titleSmall,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: palette.textFaint),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// La foto che ha vinto, dentro un cerchio con il bordo del colore della
+/// pagina: e' quel bordo a staccarla da quella che le sta sotto.
+class _FacciaVincente extends StatelessWidget {
+  const _FacciaVincente({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: palette.surfaceMuted,
+        border: Border.all(color: palette.background, width: 2),
+      ),
+      child: ClipOval(
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          // Una foto che non arriva lascia il cerchio grigio: e' gia' il segno
+          // che li' c'era qualcosa, e una icona di errore in miniatura sarebbe
+          // solo rumore.
+          errorBuilder: (context, error, stack) => const SizedBox.shrink(),
         ),
       ),
     );
