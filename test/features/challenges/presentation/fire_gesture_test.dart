@@ -280,7 +280,7 @@ void main() {
     // **E' l'altra meta' del gioco.** Con i numeri in chiaro si vota chi sta
     // gia' vincendo, chi e' indietro molla a meta' gara, e chi vuole comprare
     // dei voti sa esattamente quanti gliene mancano.
-    expect(visibile(), '–');
+    expect(visibile(), '?');
 
     await tester.tap(find.byKey(const Key('doppio-tocco')));
     await tester.pumpAndSettle();
@@ -288,7 +288,7 @@ void main() {
     // La fiamma e' partita — il conto vero lo dice — ma il numero resta
     // coperto: chi vota non deve poter misurare l'effetto del proprio voto.
     expect(readScreen(tester)(), ('1', 'accesa'));
-    expect(visibile(), '–');
+    expect(visibile(), '?');
   });
 
   testWidgets('a gara finita si rivela tutto', (tester) async {

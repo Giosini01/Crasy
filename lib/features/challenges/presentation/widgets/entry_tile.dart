@@ -219,7 +219,7 @@ class _Fire extends StatelessWidget {
   /// Quante fiamme ha preso, **oppure niente**.
   ///
   /// Nullo vuol dire "a gara aperta non si dice": al posto del numero c'e' un
-  /// trattino. Vedi `visibleVotes`.
+  /// punto interrogativo. Vedi `visibleVotes`.
   final int? votes;
 
   /// Vero quando le fiamme di questa gara sono finite: la si vede piu' pallida.

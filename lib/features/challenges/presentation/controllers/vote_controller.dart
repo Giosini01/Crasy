@@ -213,7 +213,7 @@ final entryVotedProvider = Provider.family<bool, String>((ref, voteKey) {
 /// Il numero da scrivere sotto la foto, **o niente**.
 ///
 /// **A gara aperta le fiamme non si vedono.** Torna `null`, e chi disegna
-/// scrive un trattino al posto del numero.
+/// scrive un punto interrogativo al posto del numero.
 ///
 /// Non e' pudore: e' quello che rende il voto un giudizio invece che un
 /// accodamento. Con i numeri in chiaro succedono tre cose, tutte e tre brutte.
@@ -251,9 +251,12 @@ int? visibleVotes(WidgetRef ref, ChallengeEntry entry) {
 
 /// Come si scrive un numero di fiamme che potrebbe essere nascosto.
 ///
-/// Il trattino e non lo spazio vuoto: uno spazio sembra un difetto, un trattino
-/// dice **"c'e' un numero, non te lo diciamo adesso"**.
-String votesLabel(int? votes) => votes == null ? '–' : '$votes';
+/// **Il punto interrogativo, non il trattino.** Uno spazio vuoto sembra un
+/// difetto e un trattino sembra uno zero scritto male — in mezzo a delle cifre,
+/// una lineetta si legge come "niente". Il punto di domanda e' l'unico segno
+/// che dice la cosa giusta: **c'e' un numero, e non si sa ancora quale.** Ed e'
+/// esattamente quello che deve far venire voglia di tornare a guardare.
+String votesLabel(int? votes) => votes == null ? '?' : '$votes';
 
 /// Accende o spegne la fiamma su una partecipazione.
 ///
