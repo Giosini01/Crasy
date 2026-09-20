@@ -1003,17 +1003,19 @@ class CommissionedTrophy extends StatelessWidget {
               ),
             ),
           ],
-          SizedBox(height: 2 * _scala),
-          Text(
-            esito,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: texts.labelSmall?.copyWith(
-              color: context.palette.textFaint,
-              fontSize: 7 * _scala,
-              letterSpacing: 1.4,
+          if (esito.isNotEmpty) ...[
+            SizedBox(height: 2 * _scala),
+            Text(
+              esito,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: texts.labelSmall?.copyWith(
+                color: context.palette.textFaint,
+                fontSize: 7 * _scala,
+                letterSpacing: 1.4,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -1029,8 +1031,14 @@ class CommissionedTrophy extends StatelessWidget {
     if (challenge.isDuel) {
       final state = challenge.duelStateAt(DateTime.now());
 
+      // **Superata non si scrive.** Questa e' la bacheca delle prove che hai
+      // fatto fare: se una coppa sta qui, e' andata bene — dirlo e' come
+      // scrivere "vinta" sotto una medaglia. Le altre invece vanno dette,
+      // perche' nessuna si indovina: un no, una bocciatura e un silenzio
+      // finiscono tutti e tre con la coppa in bacheca, e senza una riga non si
+      // distinguono.
       final esito = switch (state) {
-        DuelState.completed => 'SUPERATA',
+        DuelState.completed => '',
         DuelState.notValid => 'NON VALIDA',
         DuelState.declined => 'RIFIUTATA',
         DuelState.expired => 'NON FATTA',
@@ -1043,7 +1051,7 @@ class CommissionedTrophy extends StatelessWidget {
     }
 
     if (challenge.winnerUsername.isNotEmpty) {
-      return (challenge.title, 'SUPERATA');
+      return (challenge.title, '');
     }
 
     return (

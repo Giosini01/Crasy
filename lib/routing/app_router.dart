@@ -168,11 +168,48 @@ GoRoute _pushedRoute(
   );
 }
 
+/// Il campanello del router: suona quando cambia dove bisogna stare.
+///
+/// **Serve a non rifare il router.** `GoRouter` ha un modo suo per
+/// riconsiderare la destinazione senza essere ricostruito — si chiama
+/// `refreshListenable`, ed e' esattamente questo: un affare che sa solo dire
+/// *e' cambiato qualcosa, riguarda dove siamo*.
+class _CampanelloDelRouter extends ChangeNotifier {
+  void suona() => notifyListeners();
+}
+
+/// Il router, **costruito una volta sola per tutta la vita dell'app**.
+///
+/// ## Il difetto che questo chiude
+///
+/// Prima questo provider guardava la destinazione di sessione, e il risultato
+/// e' che a **ogni cambio di sessione nasceva un router nuovo**: uscire da un
+/// account e entrare in un altro ne fabbricava uno di zecca, con la sua pila di
+/// pagine vuota, mentre l'app stava ancora mostrando quelle del router di
+/// prima. Si restava su una schermata che non apparteneva piu' a nessuno —
+/// niente rispondeva, e l'unico modo di uscirne era chiudere e riaprire.
+///
+/// Non era un caso limite: succedeva **tutte le volte**, perche' cambiare
+/// account e' precisamente la cosa che fa cambiare la destinazione.
+///
+/// Adesso il router e' uno e resta quello. Quando la destinazione cambia non si
+/// ricostruisce niente: suona il campanello, e il router **riguarda da solo**
+/// dove deve stare — che e' il lavoro per cui il `redirect` esiste. La
+/// destinazione si legge li' dentro al momento del bisogno, non si cattura alla
+/// nascita: catturata, resterebbe quella del primo avvio per sempre.
 final goRouterProvider = Provider<GoRouter>((ref) {
-  final landing = ref.watch(sessionLandingRouteProvider);
+  final campanello = _CampanelloDelRouter();
+
+  ref.onDispose(campanello.dispose);
+
+  // Non `watch`: guardare qui vorrebbe dire ricostruire il provider, cioe'
+  // rifare il router — il difetto di prima. `listen` lascia il router dov'e' e
+  // gli dice soltanto di riguardare.
+  ref.listen(sessionLandingRouteProvider, (_, _) => campanello.suona());
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
+    refreshListenable: campanello,
     routes: [
       _tabRoute(AppRoutes.splash, const SplashPage()),
       _tabRoute(AppRoutes.auth, const AuthPage()),
@@ -265,6 +302,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     ],
     redirect: (context, state) {
       final location = state.matchedLocation;
+
+      // Si legge adesso, non alla nascita del router: e' la riga che fa
+      // funzionare il cambio di account senza riavviare l'app.
+      final landing = ref.read(sessionLandingRouteProvider);
 
       // **Il link dei messaggi passa comunque.** Chi arriva qui non ha una
       // sessione completa — di solito e' li' proprio per completarla — e
