@@ -504,28 +504,10 @@ class _Gradino extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          // **Il primo ha il fuoco dietro.** L'oro dice gia' che e' il primo,
-          // ma l'oro e' il colore del podio e non dell'app: questo alone e' il
-          // rosso di CRASY che si vede solo qui, su una faccia sola, e serve a
-          // far capire in un colpo dove guardare.
-          DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: grande
-                  ? [
-                      BoxShadow(
-                        color: palette.accent.withValues(alpha: 0.45),
-                        blurRadius: 18,
-                        spreadRadius: 1,
-                      ),
-                    ]
-                  : const [],
-            ),
-            child: FriendAvatar(
-              userId: riga.userId,
-              username: riga.username,
-              size: grande ? 54 : 42,
-            ),
+          FriendAvatar(
+            userId: riga.userId,
+            username: riga.username,
+            size: grande ? 54 : 42,
           ),
           const SizedBox(height: AppSpacing.xs),
           Padding(

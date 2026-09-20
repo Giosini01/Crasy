@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:crasy/core/constants/app_routes.dart';
+import 'package:crasy/core/services/firebase/firebase_providers.dart';
 import 'package:crasy/core/services/share/share_challenge.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
@@ -405,9 +406,27 @@ class _EntriesState extends ConsumerState<_Entries> {
     }
 
     final challenge = widget.challenge;
-    final vincitrice = challenge.winnerEntryId ?? '';
+    final vincitrice = challenge.winnerEntryId;
 
-    if (vincitrice.isEmpty || !challenge.isOver) {
+    // **Finita ma non ancora proclamata: si chiede di chiuderla adesso.**
+    //
+    // A decidere e' il server, e il server ci passa da solo ogni pochi minuti.
+    // Ma quei minuti cadono esattamente dove non devono: la sirena e' suonata,
+    // uno apre la missione per sapere com'e' andata, e non c'e' niente —
+    // nessun vincitore, nessun tamburo. Sembra rotta proprio nel momento in
+    // cui dovrebbe dire che si sono vinti dei soldi.
+    //
+    // Chiederlo costa una chiamata e solo quando c'e' davvero qualcuno che
+    // guarda. Non si decide niente da qui: il server rifa' gli stessi controlli
+    // e gli stessi conti che avrebbe fatto fra poco. Quando ha finito, la gara
+    // cambia sotto gli occhi e il rullo parte da se'.
+    if (vincitrice == null && challenge.isOver) {
+      _chiediLaChiusura(challenge.id);
+
+      return;
+    }
+
+    if (vincitrice == null || vincitrice.isEmpty || !challenge.isOver) {
       return;
     }
 
@@ -440,6 +459,32 @@ class _EntriesState extends ConsumerState<_Entries> {
     _revealChiesto = true;
 
     unawaited(_proclama(store: store, io: io, winner: winner));
+  }
+
+  /// Una volta sola per schermata: la gara arriva da uno stream e questo
+  /// widget si ricostruisce a ogni fiamma che qualcuno accende.
+  var _chiusuraChiesta = false;
+
+  void _chiediLaChiusura(String challengeId) {
+    if (_chiusuraChiesta) {
+      return;
+    }
+
+    _chiusuraChiesta = true;
+
+    unawaited(() async {
+      try {
+        await ref
+            .read(firebaseFunctionsProvider)
+            .httpsCallable('closeChallengeNow')
+            .call<Object?>({'challengeId': challengeId});
+      } catch (_) {
+        // **Se non riesce, non si dice niente.** Non e' una cosa che
+        // qualcuno ha chiesto di fare: e' un anticipo di un lavoro che il
+        // server fa comunque da solo fra pochi minuti. Un messaggio d'errore
+        // qui sarebbe un allarme per un ritardo.
+      }
+    }());
   }
 
   Future<void> _proclama({

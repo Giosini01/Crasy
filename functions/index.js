@@ -1,6 +1,7 @@
 'use strict';
 
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const {
   onDocumentCreated,
   onDocumentWritten,
@@ -574,6 +575,76 @@ exports.retryStuckModeration = onSchedule(
  * puliti; quelle rimaste le prende la corsa dopo, che arriva fra cinque minuti.
  */
 const QUANTO_TEMPO_HO = 480 * 1000;
+
+/**
+ * **Chiude subito una gara scaduta, per chi la sta guardando.**
+ *
+ * La spazzatrice passa ogni cinque minuti, e per un conto che deve girare da
+ * solo va benissimo. Per chi sta con il telefono in mano no: la sirena suona,
+ * la gara e' finita, e per qualche minuto non succede niente — nessun
+ * vincitore, nessun tamburo, nessun avviso. Quei minuti sono esattamente il
+ * momento in cui uno guarda, ed e' l'unico momento in cui l'app puo' dire "hai
+ * vinto dei soldi": sprecarlo in un'attesa che sembra un guasto e' il peggior
+ * uso possibile.
+ *
+ * Allora la chiusura si puo' **chiedere**. Chi apre una gara gia' scaduta e
+ * ancora senza verdetto la fa chiudere adesso, e legge il risultato nello
+ * stesso istante.
+ *
+ * ## Perche' non basta far passare la spazzatrice piu' spesso
+ *
+ * Perche' costa. Una corsa a vuoto e' comunque una lettura, e a ogni minuto
+ * fanno quarantamila letture al mese per stare a guardare un elenco quasi
+ * sempre vuoto — lo stesso conto che ci ha gia' morso una volta. Questa strada
+ * costa solo **quando c'e' davvero qualcuno che guarda**, che e' l'unico
+ * momento in cui la fretta serve.
+ *
+ * ## Cosa non puo' fare chi chiama
+ *
+ * Niente che non stia per succedere da solo. La gara deve essere **scaduta** e
+ * **senza vincitore**: tutto il resto — chi vince, quanto prende, chi viene
+ * avvisato — lo decide lo stesso codice della spazzatrice, con gli stessi dati.
+ * Non si passa nessun verdetto, non si anticipa nessuna sirena. Al massimo si
+ * chiede a CRASY di fare adesso il lavoro che avrebbe fatto fra poco.
+ */
+exports.closeChallengeNow = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Serve aver fatto l\'accesso.');
+  }
+
+  const challengeId = String(request.data?.challengeId || '');
+
+  if (!challengeId) {
+    throw new HttpsError('invalid-argument', 'Manca la gara.');
+  }
+
+  const riferimento = db.collection('challenges').doc(challengeId);
+  const challenge = await riferimento.get();
+
+  if (!challenge.exists) {
+    throw new HttpsError('not-found', 'Questa gara non c\'e\'.');
+  }
+
+  // **Gia' chiusa: non si rifa'.** Non e' un errore — e' la corsa normale fra
+  // due telefoni che aprono la stessa gara nello stesso momento, o fra un
+  // telefono e la spazzatrice. Chi arriva secondo trova il lavoro fatto, e
+  // deve sapere che va bene cosi'.
+  const vincitore = challenge.get('winnerEntryId');
+
+  if (vincitore !== null && vincitore !== undefined) {
+    return { chiusa: false, motivo: 'gia-chiusa' };
+  }
+
+  const fine = challenge.get('endsAt');
+
+  if (!fine || fine.toMillis() > Date.now()) {
+    throw new HttpsError('failed-precondition', 'Questa gara non e\' finita.');
+  }
+
+  await closeChallenge(challenge);
+
+  return { chiusa: true };
+});
 
 exports.closeExpiredChallenges = onSchedule(
   {
