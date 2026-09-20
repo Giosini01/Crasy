@@ -53,8 +53,16 @@ const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
  * **Il valore di ripiego e' l'indirizzo vero, non un segnaposto.** Stripe
  * rimanda qui a pagamento fatto, e un indirizzo che non esiste manda chi ha
  * appena messo dei soldi su una pagina bianca — nel momento peggiore
- * possibile. Si sovrascrive con `CRASY_APP_URL` quando l'app avra' un dominio
- * suo. */
+ * possibile. Si sovrascrive con `CRASY_APP_URL`, che e' anche il modo di
+ * cambiare dominio senza toccare il codice.
+ *
+ * **Non e' `crasyapp.com/app`, e c'e' un motivo.** Quell'indirizzo risponde e
+ * ha pure il titolo giusto, ma sta su un altro hosting che per ogni file
+ * sconosciuto rimanda alla pagina vetrina: il browser chiede `main.dart.js` e
+ * si prende dell'HTML, quindi l'app non parte e resta una schermata bianca.
+ * Mandarci chi ha appena pagato sarebbe il peggior momento possibile per
+ * mostrargli una pagina rotta. Il giorno in cui quel dominio sara' collegato a
+ * questo hosting, si cambia una riga nel `.env` e basta. */
 const APP_URL = process.env.CRASY_APP_URL || 'https://crasy.web.app';
 
 // ---------------------------------------------------------------------------
