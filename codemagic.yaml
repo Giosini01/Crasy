@@ -212,8 +212,15 @@ workflows:
         # Quindi: Flutter costruisce senza firmare, poi si applicano i profili
         # sul progetto **cosi' com'e' rimasto dopo `pod install`**, e infine
         # firma e impacchetta lo strumento di Codemagic.
+        #
+        # **I pagamenti si accendono da una variabile, non da qui.** Finche'
+        # `PAGAMENTI` non e' impostata su Codemagic, la build va su TestFlight
+        # con i soldi spenti: le missioni si lanciano senza pagare, come
+        # adesso. Il giorno in cui Stripe funziona basta aggiungere quella
+        # variabile — nessuna modifica al codice, e si torna indietro
+        # togliendola.
         script: |
-          flutter build ios --release --no-codesign --build-number=$NUMERO
+          flutter build ios --release --no-codesign --build-number=$NUMERO             ${PAGAMENTI:+--dart-define=CRASY_PAYMENTS=true}
 
           sed -i '' '/DEVELOPMENT_TEAM = /d' ios/Runner.xcodeproj/project.pbxproj
           sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' ios/Runner.xcodeproj/project.pbxproj

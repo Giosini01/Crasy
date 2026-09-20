@@ -48,8 +48,14 @@ const db = admin.firestore();
 const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
 const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
 
-/** Dove torna la gente dopo aver pagato. */
-const APP_URL = process.env.CRASY_APP_URL || 'https://crasy.app';
+/** Dove torna la gente dopo aver pagato.
+ *
+ * **Il valore di ripiego e' l'indirizzo vero, non un segnaposto.** Stripe
+ * rimanda qui a pagamento fatto, e un indirizzo che non esiste manda chi ha
+ * appena messo dei soldi su una pagina bianca — nel momento peggiore
+ * possibile. Si sovrascrive con `CRASY_APP_URL` quando l'app avra' un dominio
+ * suo. */
+const APP_URL = process.env.CRASY_APP_URL || 'https://crasy.web.app';
 
 // ---------------------------------------------------------------------------
 // I conti
