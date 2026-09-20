@@ -255,6 +255,7 @@ exports.startChallengePayment = payments.startChallengePayment;
 exports.stripeWebhook = payments.stripeWebhook;
 exports.createPayoutOnboarding = payments.createPayoutOnboarding;
 exports.withdrawWallet = payments.withdrawWallet;
+exports.cancelChallenge = payments.cancelChallenge;
 
 // **Sta sotto `setGlobalOptions` per lo stesso motivo dell'amministrazione.**
 // Messo in cima al file, le quattro funzioni dei soldi nascevano prima che la

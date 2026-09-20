@@ -675,6 +675,65 @@ async function refundChallenge(challengeId) {
   logger.info(`Challenge ${challengeId}: nessun partecipante, premio reso.`);
 }
 
+/**
+ * **Annulla una missione pagata, e restituisce i soldi.**
+ *
+ * Le regole del database non lasciano cancellare una gara il cui premio e'
+ * gia' in cassa, ed e' giusto: cancellarla dal telefono vorrebbe dire far
+ * sparire il documento e lasciare dei soldi su Stripe senza piu' niente che
+ * dica a chi tornano. Ma il risultato, visto da chi ha appena sbagliato a
+ * scrivere il titolo di una prova, era un tasto che non funzionava e non
+ * spiegava perche'.
+ *
+ * Quindi la strada c'e', e passa da qui: **prima i soldi tornano indietro,
+ * poi la gara sparisce.** In quest'ordine e non nell'altro — se il rimborso
+ * non riesce, la gara resta dov'e' ed e' recuperabile; cancellandola prima,
+ * quei soldi non avrebbero piu' un padrone.
+ *
+ * Le condizioni sono le stesse della regola che vale per le gare non pagate:
+ * solo chi l'ha lanciata, e solo finche' non ha partecipato nessuno. Dalla
+ * prima foto in poi la gara non e' piu' soltanto sua.
+ */
+exports.cancelChallenge = onCall(
+  { secrets: [STRIPE_SECRET_KEY] },
+  async (request) => {
+    const userId = request.auth && request.auth.uid;
+
+    if (!userId) {
+      throw new HttpsError('unauthenticated', 'Serve un account.');
+    }
+
+    const challengeId = String(request.data && request.data.challengeId);
+    const ref = db.collection('challenges').doc(challengeId);
+    const snapshot = await ref.get();
+
+    if (!snapshot.exists) {
+      return { cancellata: true };
+    }
+
+    if (snapshot.get('createdByUserId') !== userId) {
+      throw new HttpsError('permission-denied', 'Non e\' tua.');
+    }
+
+    if ((snapshot.get('participantsCount') || 0) > 0) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Qualcuno ha gia\' partecipato.'
+      );
+    }
+
+    if (snapshot.get('prizeStatus') === 'held') {
+      await refundChallenge(challengeId);
+    }
+
+    await ref.delete();
+
+    logger.info(`Challenge ${challengeId} annullata da ${userId}.`);
+
+    return { cancellata: true };
+  }
+);
+
 module.exports.payWinner = payWinner;
 module.exports.refundChallenge = refundChallenge;
 module.exports.commissionCents = commissionCents;

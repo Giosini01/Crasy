@@ -960,13 +960,24 @@ class _DeleteChallengeState extends ConsumerState<_DeleteChallenge> {
   Future<void> _ask() async {
     final messenger = ScaffoldMessenger.maybeOf(context);
 
+    // **Se il premio e' gia' in cassa, si dice che torna indietro.**
+    //
+    // E' la sola cosa che uno vuole sapere prima di toccare quel tasto, e
+    // tacerla era il modo piu' sicuro di far restare una missione sbagliata in
+    // home per paura di perderci dei soldi.
+    final pagata = widget.challenge.prizeStatus.isEscrowed;
+
     final conferma = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Cancellare la missione?'),
-        content: const Text(
-          'Non ha ancora partecipato nessuno, quindi si può. Sparisce dalla '
-          'home e non si recupera.',
+        content: Text(
+          pagata
+              ? 'Non ha ancora partecipato nessuno, quindi si può. Il premio '
+                    'ti torna indietro intero, commissioni comprese. La '
+                    'missione sparisce e non si recupera.'
+              : 'Non ha ancora partecipato nessuno, quindi si può. Sparisce '
+                    'dalla home e non si recupera.',
         ),
         actions: [
           TextButton(
@@ -991,9 +1002,23 @@ class _DeleteChallengeState extends ConsumerState<_DeleteChallenge> {
     setState(() => _working = true);
 
     try {
-      await ref
-          .read(challengeRepositoryProvider)
-          .deleteChallenge(widget.challenge.id);
+      if (pagata) {
+        // **Una gara pagata la cancella il server, non il telefono.**
+        //
+        // Le regole del database non lasciano cancellare un documento con dei
+        // soldi in cassa, ed e' giusto: sparirebbe la gara e resterebbero i
+        // soldi su Stripe senza piu' niente che dica a chi tornano. Il server
+        // fa le due cose nell'ordine che le rende sicure — prima il rimborso,
+        // poi la cancellazione.
+        await ref
+            .read(firebaseFunctionsProvider)
+            .httpsCallable('cancelChallenge')
+            .call<Object?>({'challengeId': widget.challenge.id});
+      } else {
+        await ref
+            .read(challengeRepositoryProvider)
+            .deleteChallenge(widget.challenge.id);
+      }
     } on Object {
       // **Quasi sempre vuol dire che qualcuno ha appena partecipato.** Fra il
       // momento in cui il comando e' comparso e quello in cui e' stato toccato
