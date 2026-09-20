@@ -222,7 +222,7 @@ workflows:
         # cui si passa alle chiavi vere non si tocca niente qui — cambia solo
         # cosa c'e' in Secret Manager.
         script: |
-          flutter build ios --release --no-codesign --build-number=$NUMERO             --dart-define=CRASY_PAYMENTS=true
+          flutter build ios --release --no-codesign --build-number=$NUMERO --dart-define=CRASY_PAYMENTS=true
 
           sed -i '' '/DEVELOPMENT_TEAM = /d' ios/Runner.xcodeproj/project.pbxproj
           sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
