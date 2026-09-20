@@ -461,6 +461,24 @@ class _Podio extends StatelessWidget {
             ],
           ),
         ),
+        // **Il filo rosso sotto il podio.** Un podio d'oro e d'argento e' un
+        // podio qualunque: questa riga e' la firma dell'app sotto, ed e' la
+        // stessa cosa che fa un marchio stampato sul bordo di un palco vero.
+        const SizedBox(height: 3),
+        Container(
+          height: 3,
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(2),
+            gradient: LinearGradient(
+              colors: [
+                context.palette.accent.withValues(alpha: 0),
+                context.palette.accent,
+                context.palette.accent.withValues(alpha: 0),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -497,10 +515,28 @@ class _Gradino extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          FriendAvatar(
-            userId: riga.userId,
-            username: riga.username,
-            size: grande ? 54 : 42,
+          // **Il primo ha il fuoco dietro.** L'oro dice gia' che e' il primo,
+          // ma l'oro e' il colore del podio e non dell'app: questo alone e' il
+          // rosso di CRASY che si vede solo qui, su una faccia sola, e serve a
+          // far capire in un colpo dove guardare.
+          DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: grande
+                  ? [
+                      BoxShadow(
+                        color: palette.accent.withValues(alpha: 0.45),
+                        blurRadius: 18,
+                        spreadRadius: 1,
+                      ),
+                    ]
+                  : const [],
+            ),
+            child: FriendAvatar(
+              userId: riga.userId,
+              username: riga.username,
+              size: grande ? 54 : 42,
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Padding(
@@ -622,17 +658,18 @@ class _Gradino extends StatelessWidget {
 
 /// Dal quarto in giu': una riga per uno, senza medaglie.
 ///
-/// **Una tessera, non una riga di tabella.** Righe nude separate da niente si
-/// leggono come un tabulato: l'occhio non sa dove finisce una persona e
-/// comincia la successiva, e su venti nomi di fila diventa una cosa che si
-/// scorre senza guardare. Ognuno ha il suo riquadro, e quel riquadro e' la
-/// stessa superficie che l'app usa dappertutto per dire "questo e' un oggetto
-/// su cui si puo' premere".
+/// **Trasparente, e il rosso solo dove serve.** Le tessere piene erano
+/// cinquanta rettangoli grigi in fila: tanta grafica per dire una cosa sola,
+/// e quella cosa — chi sta sopra chi — l'ordine la diceva gia' da se'. Qui non
+/// c'e' nessun riempimento, c'e' la pagina che si vede attraverso e un filo
+/// sotto ogni riga. Quello che resta a fare il lavoro e' il rosso dell'app:
+/// il numero di posizione e la cifra, cioe' esattamente le due cose per cui
+/// uno apre una classifica.
 ///
 /// **E la propria riga si accende.** Una classifica risponde a due domande —
 /// chi sta davanti, e dove sto io — e la seconda senza un segno costringe a
-/// leggere cinquanta nomi cercando il proprio. Qui e' l'unica tessera con il
-/// colore dell'app addosso: si trova prima di aver letto niente.
+/// leggere cinquanta nomi cercando il proprio. E' l'unica riga con un velo di
+/// colore addosso: si trova prima di aver letto niente.
 class _RigaClassifica extends ConsumerWidget {
   const _RigaClassifica({required this.riga, required this.posto});
 
@@ -646,85 +683,82 @@ class _RigaClassifica extends ConsumerWidget {
     final sonoIo = riga.userId.isNotEmpty
         && riga.userId == ref.watch(currentUserIdProvider);
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-      child: GestureDetector(
-        onTap: riga.userId.isEmpty
-            ? null
-            : () => context.push(AppRoutes.userProfileOf(riga.userId)),
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            color: sonoIo ? palette.accentTint : palette.surfaceMuted,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(
-              color: sonoIo ? palette.accent : palette.line,
-              width: sonoIo ? 1.4 : 1,
+    return GestureDetector(
+      onTap: riga.userId.isEmpty
+          ? null
+          : () => context.push(AppRoutes.userProfileOf(riga.userId)),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          // Il velo rosso c'e' su una riga sola in tutta la schermata, ed e'
+          // quello che la fa trovare scorrendo.
+          color: sonoIo ? palette.accentTint : Colors.transparent,
+          borderRadius: sonoIo
+              ? BorderRadius.circular(AppRadius.sm)
+              : BorderRadius.zero,
+          // Il filo che separa: sotto la propria riga non serve, ce l'ha gia'
+          // il velo a dire dove finisce.
+          border: sonoIo
+              ? null
+              : Border(bottom: BorderSide(color: palette.line)),
+        ),
+        child: Row(
+          children: [
+            // **Il numero e' rosso, ed e' la prima cosa della riga.** E' la
+            // posizione: il motivo per cui questa schermata esiste.
+            SizedBox(
+              width: 30,
+              child: Text(
+                '$posto',
+                textAlign: TextAlign.center,
+                style: texts.labelMedium?.copyWith(color: palette.accent),
+              ),
             ),
-          ),
-          child: Row(
-            children: [
-              // Il numero in una pastiglia sua. Staccato dal nome, si legge
-              // come una posizione e non come l'inizio della parola dopo.
-              SizedBox(
-                width: 26,
-                child: Text(
-                  '$posto',
-                  textAlign: TextAlign.center,
-                  style: texts.labelMedium?.copyWith(
-                    color: sonoIo ? palette.accent : palette.textFaint,
+            const SizedBox(width: AppSpacing.xs),
+            FriendAvatar(
+              userId: riga.userId,
+              username: riga.username,
+              size: 32,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            // Il nome sopra, le gare sotto. Affiancati si contendevano lo
+            // spazio con la cifra, e su un nome lungo qualcosa finiva
+            // tagliato. Incolonnati ci stanno sempre tutti e due, e il conto
+            // delle gare torna a essere quello che e': una precisazione, non
+            // un dato alla pari.
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    sonoIo ? '@${riga.username} · tu' : '@${riga.username}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: texts.labelMedium?.copyWith(
+                      color: palette.textPrimary,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 1),
+                  Text(
+                    riga.count == 1 ? '1 gara' : '${riga.count} gare',
+                    style: texts.labelSmall?.copyWith(color: palette.textFaint),
+                  ),
+                ],
               ),
-              const SizedBox(width: AppSpacing.xs),
-              FriendAvatar(
-                userId: riga.userId,
-                username: riga.username,
-                size: 32,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              // **Il nome sopra, le gare sotto.** Affiancati si contendevano
-              // lo spazio con la cifra, e su un nome lungo qualcosa finiva
-              // tagliato. Incolonnati ci stanno sempre tutti e due, e il conto
-              // delle gare torna a essere quello che e': una precisazione, non
-              // un dato alla pari.
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      sonoIo ? '@${riga.username} · tu' : '@${riga.username}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: texts.labelMedium?.copyWith(
-                        color: palette.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      riga.count == 1 ? '1 gara' : '${riga.count} gare',
-                      style: texts.labelSmall?.copyWith(
-                        color: palette.textFaint,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              // La cifra e' la cosa che fa la classifica: e' l'unica in
-              // grassetto, ed e' in fondo perche' e' li' che l'occhio arriva
-              // dopo aver letto il nome.
-              Text(
-                AppMoney.format(riga.cents),
-                style: texts.titleSmall?.copyWith(color: palette.accent),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            // La cifra e' la cosa che fa la classifica: rossa anche lei, ed e'
+            // in fondo perche' e' li' che l'occhio arriva dopo il nome.
+            Text(
+              AppMoney.format(riga.cents),
+              style: texts.titleSmall?.copyWith(color: palette.accent),
+            ),
+          ],
         ),
       ),
     );
