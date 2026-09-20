@@ -468,24 +468,6 @@ class _Podio extends StatelessWidget {
             ],
           ),
         ),
-        // **Il filo rosso sotto il podio.** Un podio d'oro e d'argento e' un
-        // podio qualunque: questa riga e' la firma dell'app sotto, ed e' la
-        // stessa cosa che fa un marchio stampato sul bordo di un palco vero.
-        const SizedBox(height: 3),
-        Container(
-          height: 3,
-          margin: const EdgeInsets.symmetric(horizontal: 24),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(2),
-            gradient: LinearGradient(
-              colors: [
-                context.palette.accent.withValues(alpha: 0),
-                context.palette.accent,
-                context.palette.accent.withValues(alpha: 0),
-              ],
-            ),
-          ),
-        ),
       ],
     );
   }
