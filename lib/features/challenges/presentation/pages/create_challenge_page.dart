@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/errors/error_message_mapper.dart';
 import 'package:crasy/core/theme/app_palette.dart';
@@ -516,9 +517,43 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     // scritta. Si passa dalla pagina di pagamento di Stripe e si torna con la
     // challenge viva.
     if (paymentsEnabled) {
-      final opened = await ref
-          .read(paymentsServiceProvider)
-          .payChallenge(challengeId);
+      // **Un errore del server va detto, non inghiottito.** Senza questo
+      // `try` un rifiuto di `startChallengePayment` si perdeva per strada: il
+      // bottone tornava com'era, Stripe non si apriva e sullo schermo non
+      // compariva niente — e da fuori sembrava un link che non si apre. Il
+      // codice resta scritto nel messaggio perche' e' l'unica cosa che dice,
+      // da un telefono su TestFlight, cosa guardare nei log.
+      final bool opened;
+
+      try {
+        opened = await ref
+            .read(paymentsServiceProvider)
+            .payChallenge(challengeId);
+      } on FirebaseFunctionsException catch (error) {
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _error =
+              'Non siamo riusciti ad aprire il pagamento (${error.code}). '
+              'La challenge è salvata: riprova fra poco.';
+        });
+
+        return;
+      } catch (_) {
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _error =
+              'Non siamo riusciti ad aprire il pagamento. La challenge è '
+              'salvata: riprova fra poco.';
+        });
+
+        return;
+      }
 
       if (!mounted) {
         return;
