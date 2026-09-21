@@ -399,6 +399,22 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                 const SizedBox(height: AppSpacing.md),
                 InlineBanner(message: _error!),
               ],
+              // **A che punto e' il pagamento, mentre si aspetta.**
+              //
+              // Fra il tocco e il foglio di Stripe ci sono tre passi, e
+              // ognuno puo' fermarsi. Finche' non se ne vedeva nessuno, un
+              // blocco in mezzo era indistinguibile da un bottone morto: e' la
+              // differenza fra "non funziona" e "si e' fermato mentre
+              // preparava il foglio", e la seconda dice da dove ripartire.
+              if (_passo != null && _error == null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  '${_passo!}…',
+                  style: context.texts.bodySmall?.copyWith(
+                    color: context.palette.textFaint,
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSpacing.xl),
               // Il conto, prima del bottone.
               //
@@ -476,12 +492,18 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
   /// si vede.
   String? _daPagare;
 
+  /// A che punto e' il pagamento, mentre si aspetta.
+  String? _passo;
+
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
 
-    setState(() => _error = null);
+    setState(() {
+      _error = null;
+      _passo = null;
+    });
 
     // Si riprova a pagare **quella di prima**, non se ne scrive un'altra.
     final challengeId =
@@ -550,7 +572,21 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
       try {
         opened = await ref
             .read(paymentsServiceProvider)
-            .payChallenge(challengeId);
+            .payChallenge(
+              challengeId,
+              // **Si scrive a schermo a che punto e'.**
+              //
+              // Fra il tocco e il foglio di Stripe ci sono tre passi, e finche'
+              // non se ne vedeva nessuno un blocco in mezzo era
+              // indistinguibile da un bottone morto: niente foglio, niente
+              // errore, niente da raccontare. Adesso l'ultimo passo riuscito
+              // resta scritto, e dice da dove ricominciare a guardare.
+              passo: (passo) {
+                if (mounted) {
+                  setState(() => _passo = passo);
+                }
+              },
+            );
       } on FirebaseFunctionsException catch (error) {
         if (!mounted) {
           return;

@@ -324,7 +324,17 @@ exports.createChallengePaymentIntent = onCall(
         // La carta resta a Stripe per la prossima volta: e\' il motivo per cui
         // la seconda missione si paga con un tocco.
         setup_future_usage: 'off_session',
-        automatic_payment_methods: { enabled: true },
+        // **Solo i metodi che si concludono dentro l'app.**
+        //
+        // Lasciando entrare anche quelli che passano da una pagina esterna —
+        // i bonifici istantanei, certi portafogli — il foglio di Stripe
+        // pretende di sapere dove riportare la gente dopo quel giro, e se non
+        // gliel'hai detto **non si apre affatto**. Non da' errore: resta
+        // chiuso. Da fuori e' un bottone che non fa niente.
+        //
+        // Qui non servono: si paga una missione da pochi euro con la carta, e
+        // il giro piu' corto e' anche quello che si conclude piu' spesso.
+        automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
         description: `Premio: ${snapshot.get('title') || 'challenge CRASY'}`,
         // Come per la pagina: nel metadato solo il nome della gara. L\'importo
         // lo rilegge il webhook dal database, cosi\' non lo decide chi

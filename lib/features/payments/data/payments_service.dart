@@ -33,7 +33,18 @@ class PaymentsService {
   ///
   /// Torna `false` se il pagamento non e' stato fatto. Non lancia: chi chiama
   /// e' una schermata, e ha gia' un modo di dirlo alla persona.
-  Future<bool> payChallenge(String challengeId) async {
+  /// **Nessun passo puo' durare per sempre.**
+  ///
+  /// Un pagamento che si blocca e' peggio di uno che fallisce: il bottone
+  /// torna com'era, non compare niente, e chi guarda pensa che l'app sia rotta
+  /// senza avere niente da riferire. Dieci secondi sono tanti per qualunque
+  /// passo di questi e pochi per la pazienza di chi aspetta.
+  static const _pazienza = Duration(seconds: 10);
+
+  Future<bool> payChallenge(
+    String challengeId, {
+    void Function(String passo)? passo,
+  }) async {
     if (kIsWeb) {
       final result = await _functions
           .httpsCallable('startChallengePayment')
@@ -42,9 +53,12 @@ class PaymentsService {
       return _open(result.data['url']);
     }
 
+    passo?.call('chiedo il pagamento');
+
     final result = await _functions
         .httpsCallable('createChallengePaymentIntent')
-        .call<Map<Object?, Object?>>({'challengeId': challengeId});
+        .call<Map<Object?, Object?>>({'challengeId': challengeId})
+        .timeout(_pazienza, onTimeout: () => throw Exception('server lento'));
 
     final dati = result.data;
     final clientSecret = dati['clientSecret'] as String?;
@@ -71,32 +85,65 @@ class PaymentsService {
     // niente** e' il modo peggiore in cui un pagamento puo' rompersi, perche'
     // non lascia nemmeno da dove ricominciare a guardare.
     try {
-      await Stripe.instance.applySettings();
-
-      await Stripe.instance.initPaymentSheet(
-      paymentSheetParameters: SetupPaymentSheetParameters(
-        paymentIntentClientSecret: clientSecret,
-        customerId: dati['customerId'] as String?,
-        customerEphemeralKeySecret: dati['ephemeralKey'] as String?,
-        merchantDisplayName: 'CRASY',
-        // Chiaro come il resto di CRASY: il foglio segue il tema del telefono
-        // se non gli si dice niente, e un pannello nero che si alza dentro
-        // un'app bianca sembra di un'altra applicazione.
-        style: ThemeMode.light,
-        // **Niente Apple Pay, per adesso.**
-        //
-        // Chiederlo qui non lo fa comparire: serve un identificativo mercante
-        // di Apple, il permesso corrispondente dentro l'app e la stessa cosa
-        // registrata su Stripe. Senza quelle tre, il foglio non si apre e
-        // basta — e fallisce prima ancora di mostrarsi, quindi si vede solo
-        // "non siamo riusciti ad aprire il pagamento" e nessuno capisce
-        // perche'.
-        //
-        // La carta funziona da sola. Apple Pay si aggiunge dopo, quando ci
-        // sara' l'account vero: e' un tocco in meno, non un pagamento in piu'.
-        ),
+      passo?.call('configuro Stripe');
+      await Stripe.instance.applySettings().timeout(
+        _pazienza,
+        onTimeout: () =>
+            throw Exception('Stripe non risponde (configurazione)'),
       );
 
+      passo?.call('preparo il foglio');
+      await Stripe.instance
+          .initPaymentSheet(
+            paymentSheetParameters: SetupPaymentSheetParameters(
+              paymentIntentClientSecret: clientSecret,
+              merchantDisplayName: 'CRASY',
+              // **Dove tornare, se qualcosa esce dall'app.**
+              //
+              // Con i soli pagamenti a carta non ci va nessuno, e infatti il
+              // server chiede a Stripe di non proporne altri. Ma il foglio
+              // vuole saperlo lo stesso prima di aprirsi, e senza resta chiuso
+              // senza dire perche'. `crasy://` e' lo schema con cui l'app si fa
+              // gia' riaprire dal browser dopo il recupero della password: era
+              // gia' registrato, non ce n'e' voluto uno nuovo.
+              returnURL: 'crasy://pagamento',
+              // **Niente carte salvate, per ora.**
+              //
+              // Qui passavano l'identificativo del cliente e una chiave
+              // temporanea, che sono le due cose che fanno ritrovare la carta
+              // la volta dopo. Quella chiave pero' nasce legata a una versione
+              // precisa delle interfacce di Stripe, e quando non combacia con
+              // quella che il telefono si aspetta il foglio non si apre — di
+              // nuovo senza dire niente.
+              //
+              // Un tocco risparmiato la seconda volta non vale un pagamento
+              // che non parte la prima. Si rimettono quando il giro base e'
+              // provato: il cliente su Stripe viene creato lo stesso, quindi
+              // non si perde niente per strada.
+              // Chiaro come il resto di CRASY: il foglio segue il tema del telefono
+              // se non gli si dice niente, e un pannello nero che si alza dentro
+              // un'app bianca sembra di un'altra applicazione.
+              style: ThemeMode.light,
+              // **Niente Apple Pay, per adesso.**
+              //
+              // Chiederlo qui non lo fa comparire: serve un identificativo mercante
+              // di Apple, il permesso corrispondente dentro l'app e la stessa cosa
+              // registrata su Stripe. Senza quelle tre, il foglio non si apre e
+              // basta — e fallisce prima ancora di mostrarsi, quindi si vede solo
+              // "non siamo riusciti ad aprire il pagamento" e nessuno capisce
+              // perche'.
+              //
+              // La carta funziona da sola. Apple Pay si aggiunge dopo, quando ci
+              // sara' l'account vero: e' un tocco in meno, non un pagamento in piu'.
+            ),
+          )
+          .timeout(
+            _pazienza,
+            onTimeout: () =>
+                throw Exception('Stripe non risponde (preparazione)'),
+          );
+
+      passo?.call('apro il foglio');
       await Stripe.instance.presentPaymentSheet();
     } on StripeException catch (errore) {
       // **Chi annulla non ha sbagliato niente.** Il foglio si chiude col dito,
