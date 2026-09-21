@@ -236,8 +236,13 @@ jobs:
         # certificato di sviluppo che qui non c'e' e non ci deve essere. Poi si
         # applicano i profili sul progetto com'e' rimasto dopo pod install, e
         # firma e impacchetta lo strumento di Codemagic.
+        #
+        # **I pagamenti si accendono qui.** Senza `CRASY_PAYMENTS` l'app nasce
+        # con i soldi spenti: la missione parte gratis e Stripe non si apre
+        # mai. Era acceso solo in codemagic.yaml, ma le build per TestFlight
+        # le fa questo file.
         run: |
-          flutter build ios --release --no-codesign --build-number=$NUMERO
+          flutter build ios --release --no-codesign --build-number=$NUMERO --dart-define=CRASY_PAYMENTS=true
 
           sed -i '' '/DEVELOPMENT_TEAM = /d' ios/Runner.xcodeproj/project.pbxproj
           sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' ios/Runner.xcodeproj/project.pbxproj

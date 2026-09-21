@@ -60,7 +60,10 @@ jobs:
         run: flutter pub get
 
       - name: Compila il sito
-        run: flutter build web --release
+        # Con i pagamenti accesi, come l'app su TestFlight: senza questa
+        # riga ogni push ripubblicava un sito in cui le missioni partono
+        # gratis e Stripe non si apre.
+        run: flutter build web --release --dart-define=CRASY_PAYMENTS=true
 
       - name: Firebase CLI
         run: npm install --global firebase-tools
