@@ -23,9 +23,18 @@ import 'package:go_router/go_router.dart';
 /// sua, del gesto piu' impegnativo che si possa fare qui dentro non resterebbe
 /// traccia da nessuna parte. E' anche l'unico posto in cui il profilo racconta
 /// una cosa che uno ha **ordinato** invece che eseguito.
+/// **FIGURINE, non TROFEI.** Un trofeo puo' essere qualunque cosa — una
+/// vittoria, una gara pagata, un riconoscimento — e infatti accanto c'era
+/// LANCIATE, che di trofei e' piena anche lei. Due parole che si somigliano
+/// non dividono niente.
+///
+/// Figurina invece dice **cos'e' quell'oggetto**: la foto con cui si e' vinto,
+/// dentro la sua cornice, che si gira in mano e si colleziona. E si oppone a
+/// LANCIATE senza bisogno di spiegazioni — una l'hai vinta, l'altra l'hai
+/// fatta fare.
 enum ProfileShelf {
   live('IN GARA'),
-  trophies('TROFEI'),
+  trophies('FIGURINE'),
   commissioned('LANCIATE');
 
   const ProfileShelf(this.label);
