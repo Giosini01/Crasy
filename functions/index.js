@@ -252,6 +252,7 @@ setGlobalOptions({
 const payments = require('./payments');
 
 exports.startChallengePayment = payments.startChallengePayment;
+exports.createChallengePaymentIntent = payments.createChallengePaymentIntent;
 exports.stripeWebhook = payments.stripeWebhook;
 exports.createPayoutOnboarding = payments.createPayoutOnboarding;
 exports.withdrawWallet = payments.withdrawWallet;

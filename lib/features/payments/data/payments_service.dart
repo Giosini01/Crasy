@@ -1,13 +1,14 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Il ponte verso i soldi.
 ///
-/// Tutte e tre le chiamate hanno la stessa forma: si manda un identificativo,
-/// torna **un indirizzo da aprire**. Nessun importo parte da qui e nessun
-/// importo torna qui per essere creduto: le cifre le decide il server, e la
-/// pagina su cui si paga e' di Stripe.
+/// **Nessun importo parte da qui, e nessuno torna qui per essere creduto.** Le
+/// cifre le decide il server, e a incassarle e' Stripe: o la sua pagina, sul
+/// sito, o il suo foglio nativo dentro l'app.
 ///
 /// La conseguenza pratica e' che **i numeri di carta non passano mai da CRASY**.
 /// Non e' comodita': e' la differenza fra dover rispettare lo standard PCI e non
@@ -18,16 +19,76 @@ class PaymentsService {
 
   final FirebaseFunctions _functions;
 
-  /// Apre la pagina per pagare il premio di una challenge appena creata.
+  /// Fa pagare il premio di una challenge appena creata.
   ///
-  /// Torna `false` se la pagina non si e' potuta aprire. Non lancia: chi chiama
+  /// **Due strade, e la differenza non e' un dettaglio tecnico.** Sul telefono
+  /// si alza un foglio dentro CRASY: Apple Pay in cima, la carta sotto, due
+  /// tocchi e si e' di nuovo dove si era. Sul sito non esiste niente del
+  /// genere, quindi resta la pagina di Stripe.
+  ///
+  /// Uscire dall'app costa gente: si apre il browser, si perde la schermata, si
+  /// torna indietro a mano. Chi stava lanciando una missione per gioco, a meta'
+  /// strada, si ferma — e quello e' il momento esatto in cui CRASY guadagna o
+  /// non guadagna.
+  ///
+  /// Torna `false` se il pagamento non e' stato fatto. Non lancia: chi chiama
   /// e' una schermata, e ha gia' un modo di dirlo alla persona.
   Future<bool> payChallenge(String challengeId) async {
+    if (kIsWeb) {
+      final result = await _functions
+          .httpsCallable('startChallengePayment')
+          .call<Map<Object?, Object?>>({'challengeId': challengeId});
+
+      return _open(result.data['url']);
+    }
+
     final result = await _functions
-        .httpsCallable('startChallengePayment')
+        .httpsCallable('createChallengePaymentIntent')
         .call<Map<Object?, Object?>>({'challengeId': challengeId});
 
-    return _open(result.data['url']);
+    final dati = result.data;
+    final clientSecret = dati['clientSecret'] as String?;
+    final publishableKey = dati['publishableKey'] as String?;
+
+    if (clientSecret == null || publishableKey == null) {
+      return false;
+    }
+
+    // **La chiave arriva dal server a ogni pagamento**, non sta scritta
+    // dentro l'app. Cosi' il giorno in cui si passa dalle chiavi di prova a
+    // quelle vere nessuno deve scaricare una versione nuova: i telefoni gia'
+    // installati cominciano a pagare sul serio da soli.
+    Stripe.publishableKey = publishableKey;
+    await Stripe.instance.applySettings();
+
+    await Stripe.instance.initPaymentSheet(
+      paymentSheetParameters: SetupPaymentSheetParameters(
+        paymentIntentClientSecret: clientSecret,
+        customerId: dati['customerId'] as String?,
+        customerEphemeralKeySecret: dati['ephemeralKey'] as String?,
+        merchantDisplayName: 'CRASY',
+        // Chiaro come il resto di CRASY: il foglio segue il tema del telefono
+        // se non gli si dice niente, e un pannello nero che si alza dentro
+        // un'app bianca sembra di un'altra applicazione.
+        style: ThemeMode.light,
+        applePay: const PaymentSheetApplePay(merchantCountryCode: 'IT'),
+        googlePay: const PaymentSheetGooglePay(
+          merchantCountryCode: 'IT',
+          testEnv: kDebugMode,
+        ),
+      ),
+    );
+
+    try {
+      await Stripe.instance.presentPaymentSheet();
+    } on StripeException {
+      // **Chi annulla non ha sbagliato niente.** Il foglio si chiude col dito,
+      // ed e' un gesto normale: trattarlo come un errore vorrebbe dire un
+      // messaggio rosso per aver cambiato idea.
+      return false;
+    }
+
+    return true;
   }
 
   /// Apre la registrazione di chi deve incassare: nome, documento, IBAN.

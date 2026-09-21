@@ -70,6 +70,9 @@ const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
  * sulla sua missione. */
 const APP_URL = process.env.CRASY_APP_URL || 'https://crasy.web.app/app';
 
+/** La chiave pubblica di Stripe: non e\' un segreto, la vede chiunque apra l\'app. */
+const PUBLISHABLE_KEY = process.env.CRASY_STRIPE_PUBLISHABLE_KEY || '';
+
 // ---------------------------------------------------------------------------
 // I conti
 // ---------------------------------------------------------------------------
@@ -225,6 +228,131 @@ exports.startChallengePayment = onCall(
   }
 );
 
+/**
+ * **Lo stesso pagamento, ma senza uscire dall'app.**
+ *
+ * La pagina di Stripe funziona e resta li' per il sito, dove non c'e'
+ * alternativa. Sul telefono pero' costringe a uscire: si apre il browser, si
+ * perde la schermata, si torna indietro a mano. Chi stava lanciando una
+ * missione per gioco, a meta' strada, si ferma.
+ *
+ * \'ui non si torna un indirizzo: si torna **il permesso di incassare una cifra
+ * decisa dal server**. L'app lo consegna al foglio di Stripe, che si alza dal
+ * basso dentro CRASY con Apple Pay in cima e la carta sotto. Il numero della
+ * carta continua a non passare da noi — lo prende quel foglio, che e' codice
+ * di Stripe dentro l'app — quindi non cambia niente di cio' che ci tiene fuori
+ * dallo standard PCI.
+ *
+ * **Chi paga diventa un cliente di Stripe, e la seconda volta e' un tocco.**
+ * La carta resta salvata da loro, non da noi: la volta dopo il foglio si apre
+ * con quella gia' dentro. E' la differenza fra lanciare una missione in dieci
+ * secondi e doverla lanciare col portafoglio in mano.
+ */
+exports.createChallengePaymentIntent = onCall(
+  { secrets: [STRIPE_SECRET_KEY] },
+  async (request) => {
+    const userId = request.auth && request.auth.uid;
+
+    if (!userId) {
+      throw new HttpsError('unauthenticated', 'Serve un account.');
+    }
+
+    if (!PUBLISHABLE_KEY) {
+      // Senza, il foglio non si apre nemmeno: meglio dirlo qui che lasciare
+      // l'app davanti a un errore che non vuol dire niente.
+      throw new HttpsError('failed-precondition', 'Pagamenti non configurati.');
+    }
+
+    const challengeId = request.data && request.data.challengeId;
+
+    if (typeof challengeId !== 'string' || challengeId.length === 0) {
+      throw new HttpsError('invalid-argument', 'Manca la challenge.');
+    }
+
+    const ref = db.collection('challenges').doc(challengeId);
+    const snapshot = await ref.get();
+
+    if (!snapshot.exists) {
+      throw new HttpsError('not-found', 'Challenge inesistente.');
+    }
+
+    if (snapshot.get('createdByUserId') !== userId) {
+      throw new HttpsError('permission-denied', 'Non e\' tua.');
+    }
+
+    const status = snapshot.get('prizeStatus');
+
+    if (status && status !== 'unpaid') {
+      throw new HttpsError('failed-precondition', 'Gia\' pagata.');
+    }
+
+    const prize = snapshot.get('prizeCents');
+
+    if (!Number.isInteger(prize) || prize <= 0 || prize > 100000000) {
+      throw new HttpsError('invalid-argument', 'Premio non valido.');
+    }
+
+    const stripe = stripeClient();
+    const userRef = db.collection('users').doc(userId);
+    const user = await userRef.get();
+
+    // Il cliente di Stripe e' quello che tiene le carte salvate. Si crea una
+    // volta per persona e si riusa: crearne uno nuovo a ogni pagamento vuol
+    // dire un elenco di carte vuoto tutte le volte.
+    let customerId = user.get('stripeCustomerId');
+
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        metadata: { userId },
+        name: user.get('username') || undefined,
+      });
+
+      customerId = customer.id;
+      await userRef.set({ stripeCustomerId: customerId }, { merge: true });
+    }
+
+    const ephemeralKey = await stripe.ephemeralKeys.create(
+      { customer: customerId },
+      { apiVersion: '2024-06-20' }
+    );
+
+    const intent = await stripe.paymentIntents.create(
+      {
+        amount: chargeCents(prize),
+        currency: 'eur',
+        customer: customerId,
+        // La carta resta a Stripe per la prossima volta: e\' il motivo per cui
+        // la seconda missione si paga con un tocco.
+        setup_future_usage: 'off_session',
+        automatic_payment_methods: { enabled: true },
+        description: `Premio: ${snapshot.get('title') || 'challenge CRASY'}`,
+        // Come per la pagina: nel metadato solo il nome della gara. L\'importo
+        // lo rilegge il webhook dal database, cosi\' non lo decide chi
+        // intercetta la chiamata.
+        metadata: { challengeId, userId },
+      },
+      { idempotencyKey: `challenge-intent-${challengeId}` }
+    );
+
+    await ref.update({
+      stripePaymentIntentId: intent.id,
+      paymentStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return {
+      clientSecret: intent.client_secret,
+      customerId,
+      ephemeralKey: ephemeralKey.secret,
+      // **La chiave pubblica la manda il server**, invece di stare dentro
+      // l\'app. Cosi\' il giorno in cui si passa dalle chiavi di prova a quelle
+      // vere non serve ricompilare niente: cambia una riga sul server, e anche
+      // i telefoni gia\' installati pagano sul serio.
+      publishableKey: PUBLISHABLE_KEY,
+      chargeCents: chargeCents(prize),
+    };
+  }
+);
+
 // ---------------------------------------------------------------------------
 // 2. Stripe ci richiama
 // ---------------------------------------------------------------------------
@@ -265,6 +393,16 @@ exports.stripeWebhook = onRequest(
           await onCheckoutCompleted(event.data.object);
           break;
 
+        // Il pagamento fatto dentro l'app: non c'e' nessuna pagina e nessuna
+        // sessione, solo il pagamento.
+        case 'payment_intent.succeeded':
+          await accendiLaGara(
+            event.data.object.metadata &&
+              event.data.object.metadata.challengeId,
+            event.data.object.id
+          );
+          break;
+
         case 'charge.refunded':
           await onChargeRefunded(event.data.object);
           break;
@@ -299,8 +437,22 @@ exports.stripeWebhook = onRequest(
  * quella che ha scelto, e comincia quando la challenge diventa visibile.
  */
 async function onCheckoutCompleted(session) {
-  const challengeId = session.metadata && session.metadata.challengeId;
+  await accendiLaGara(
+    session.metadata && session.metadata.challengeId,
+    session.payment_intent
+  );
+}
 
+/**
+ * **Il premio e' arrivato: la gara si accende.**
+ *
+ * Ci si passa da due strade — la pagina di Stripe sul sito e il foglio nativo
+ * dentro l'app — e arrivano come due eventi diversi. Il lavoro pero' e' lo
+ * stesso e sta scritto una volta sola: due copie di questa funzione vorrebbero
+ * dire che un giorno una delle due dimentica di far ripartire il cronometro, e
+ * nessuno se ne accorge finche' non e' su una gara vera.
+ */
+async function accendiLaGara(challengeId, paymentIntentId) {
   if (!challengeId) {
     return;
   }
@@ -329,7 +481,7 @@ async function onCheckoutCompleted(session) {
 
     transaction.update(ref, {
       prizeStatus: 'held',
-      stripePaymentIntentId: session.payment_intent || null,
+      stripePaymentIntentId: paymentIntentId || null,
       paidAt: now,
       startsAt: now,
       endsAt: admin.firestore.Timestamp.fromMillis(

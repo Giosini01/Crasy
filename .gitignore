@@ -46,7 +46,19 @@ app.*.map.json
 
 # Cloud Functions
 functions/node_modules/
-functions/.env
+
+# **`functions/.env` invece sta nel repository, ed e' voluto.**
+#
+# Era qui, per l'abitudine — giustissima — che i file `.env` contengano
+# password. Questo non ne contiene: ci sono un interruttore, l'indirizzo del
+# sito e la chiave *pubblicabile* di Stripe, che e' fatta apposta per stare
+# dentro l'app di chiunque e da sola non incassa un centesimo. Le chiavi vere
+# stanno in Secret Manager, e da li' non escono.
+#
+# Tenendolo fuori, quei tre valori vivevano su un computer solo: il giorno in
+# cui quella cartella si svuota — ed e' successo — il deploy successivo delle
+# funzioni pubblica un server senza chiave pubblicabile, e il pagamento dentro
+# l'app smette di aprirsi senza che nessuno abbia toccato una riga di codice.
 functions/*.local
 
 # Firebase
