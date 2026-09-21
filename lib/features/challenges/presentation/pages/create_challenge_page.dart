@@ -461,6 +461,21 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               'apre.';
   }
 
+  /// La missione gia' scritta, in attesa di essere pagata.
+  ///
+  /// **Esiste per non riscriverla a ogni tentativo.** Una missione si scrive
+  /// prima e si paga dopo: se il pagamento non parte, quella che e' stata
+  /// scritta resta li' — e infatti il messaggio d'errore lo dice, "la
+  /// challenge e' salvata". Premendo di nuovo pero' si ripartiva da capo, e
+  /// ogni tocco lasciava dietro di se' una missione mai pagata e un pagamento
+  /// mai concluso. Undici tentativi, undici missioni fantasma.
+  ///
+  /// Nessuno ci rimetteva dei soldi — un pagamento creato e mai confermato non
+  /// addebita niente — ma il database si riempiva di copie della stessa cosa,
+  /// e chi provava non lo vedeva nemmeno, perche' una missione non pagata non
+  /// si vede.
+  String? _daPagare;
+
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
@@ -468,7 +483,10 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
 
     setState(() => _error = null);
 
-    final challengeId = await ref
+    // Si riprova a pagare **quella di prima**, non se ne scrive un'altra.
+    final challengeId =
+        _daPagare ??
+        await ref
         .read(createChallengeControllerProvider.notifier)
         .create(
           title: _title.text,
@@ -511,6 +529,10 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
 
       return;
     }
+
+    // Da qui in poi la missione esiste. Se il pagamento non riesce, e' questa
+    // che si riprova a pagare.
+    _daPagare = challengeId;
 
     // A pagamenti accesi la challenge **non e' ancora nata**: e' scritta ma non
     // pagata, e finche' non lo e' non la vede nessuno, nemmeno chi l'ha
