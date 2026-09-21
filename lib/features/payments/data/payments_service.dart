@@ -59,9 +59,21 @@ class PaymentsService {
     // quelle vere nessuno deve scaricare una versione nuova: i telefoni gia'
     // installati cominciano a pagare sul serio da soli.
     Stripe.publishableKey = publishableKey;
-    await Stripe.instance.applySettings();
 
-    await Stripe.instance.initPaymentSheet(
+    // **Da qui in poi e' tutto dentro un solo `try`.**
+    //
+    // Prima ne era coperto solo l'ultimo pezzo, quello che mostra il foglio. E
+    // i due passi prima — la configurazione e la preparazione — possono
+    // fallire eccome: una chiave che non combacia col pagamento, un permesso
+    // che manca, il modulo di Stripe non ancora pronto. Quando succedeva li',
+    // l'errore usciva da una porta che nessuno sorvegliava: il bottone tornava
+    // com'era, nessun foglio, nessun messaggio. **Non funziona e non dice
+    // niente** e' il modo peggiore in cui un pagamento puo' rompersi, perche'
+    // non lascia nemmeno da dove ricominciare a guardare.
+    try {
+      await Stripe.instance.applySettings();
+
+      await Stripe.instance.initPaymentSheet(
       paymentSheetParameters: SetupPaymentSheetParameters(
         paymentIntentClientSecret: clientSecret,
         customerId: dati['customerId'] as String?,
@@ -82,10 +94,9 @@ class PaymentsService {
         //
         // La carta funziona da sola. Apple Pay si aggiunge dopo, quando ci
         // sara' l'account vero: e' un tocco in meno, non un pagamento in piu'.
-      ),
-    );
+        ),
+      );
 
-    try {
       await Stripe.instance.presentPaymentSheet();
     } on StripeException catch (errore) {
       // **Chi annulla non ha sbagliato niente.** Il foglio si chiude col dito,
@@ -103,6 +114,11 @@ class PaymentsService {
       throw Exception(
         errore.error.localizedMessage ?? errore.error.message ?? 'Stripe',
       );
+    } on Object catch (errore) {
+      // **Anche quello che non e' un errore di Stripe.** Un guasto del modulo
+      // nativo non arriva come `StripeException`: arriva come un errore di
+      // piattaforma qualunque, e fino a un minuto fa passava dritto e spariva.
+      throw Exception('$errore');
     }
 
     return true;
