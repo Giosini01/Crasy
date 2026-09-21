@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Il ponte verso i soldi.
@@ -71,6 +72,12 @@ class PaymentsService {
       // per la conferma, e senza di quelle un pagamento europeo si blocca a
       // meta'.
       mode: LaunchMode.externalApplication,
+      // **Dal browser si cambia pagina, non se ne apre una nuova.** Una
+      // finestra nuova aperta dopo una chiamata al server non e' piu' figlia
+      // del tocco sul bottone, e Chrome e Safari la bloccano come un popup:
+      // Stripe non compariva e `launchUrl` diceva lo stesso che era andata.
+      // Stripe poi rimanda sul sito, quindi non si perde niente.
+      webOnlyWindowName: kIsWeb ? '_self' : null,
     );
   }
 }
