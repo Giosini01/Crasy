@@ -44,6 +44,21 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# **Niente CocoaPods qui dentro: questo progetto usa Swift Package Manager.**
+#
+# Un `ios/Podfile` ci e' stato per meta' giornata, aggiunto per fissare la
+# versione minima di iOS che il foglio di pagamento di Stripe pretende. Era
+# inutile — il minimo e' gia' 15 nel progetto Xcode — ed era dannoso: tutti i
+# pacchetti di questa app sono ormai Swift Package, e la sola presenza di quel
+# file faceva ripartire CocoaPods accanto a loro. La build moriva con "the
+# sandbox is not in sync with the Podfile.lock", che e' il modo in cui Xcode
+# dice "vi state integrando in due modi diversi e non tornano i conti".
+#
+# Queste righe servono a non farcelo ritrovare per sbaglio.
+ios/Podfile
+ios/Podfile.lock
+ios/Pods/
+
 # Cloud Functions
 functions/node_modules/
 
