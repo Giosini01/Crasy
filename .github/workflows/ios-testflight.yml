@@ -22,9 +22,10 @@
 #
 # E in Settings > Secrets and variables > Actions > Variables (non secret):
 #
-#   APP_STORE_APP_ID                    facoltativa: il numero che Apple
-#                                       assegna all'app. Se manca, il numero
-#                                       di build usa il contatore di GitHub.
+#   APP_STORE_APP_ID                    facoltativa, e ormai non la legge
+#                                       piu' nessuno: il numero di build lo
+#                                       da' l'orologio. Resta perche' toglierla
+#                                       da GitHub non serve a niente.
 # ---------------------------------------------------------------------------
 
 name: CRASY su TestFlight
@@ -211,22 +212,25 @@ jobs:
           keychain add-certificates
 
       - name: Numero di build
-        # Deve salire a ogni caricamento, e App Store Connect rifiuta senza
-        # spiegarsi. Si chiede ad Apple qual e' l'ultimo; al primo giro, quando
-        # l'app non ha ancora build ne' APP_STORE_APP_ID, si ripiega sul
-        # contatore di GitHub, che parte da uno e sale sempre.
+        # **Il momento in cui e' stata fatta, non "l'ultimo piu' uno".**
+        #
+        # Prima si chiedeva ad Apple qual era l'ultimo numero e si aggiungeva
+        # uno. Sembra la cosa giusta e ha un buco: Apple risponde con l'ultimo
+        # **gia' elaborato**, e una build caricata pochi minuti prima sta
+        # ancora in lavorazione. Due tentativi ravvicinati — cioe' la norma
+        # quando si sta inseguendo un errore — chiedono lo stesso numero, e il
+        # secondo si prende un 409 dopo aver compilato e firmato tutto: dieci
+        # minuti di macchina buttati sull'ultimo passo.
+        #
+        # L'orologio quel problema non ce l'ha. Anno, giorno dell'anno, ora e
+        # minuto: sale sempre, non si ripete, e si legge — 262641901 e' il
+        # giorno 264 del 2026 alle 19:01. Sta sotto il limite di Apple e ci
+        # resta per i prossimi settant'anni.
+        #
+        # L'unica collisione possibile e' fra due build dello stesso minuto, e
+        # non e' un caso che valga la pena coprire.
         run: |
-          ULTIMO=$(app-store-connect get-latest-testflight-build-number \
-            "$APP_STORE_APP_ID" \
-            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
-            --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
-            --private-key @file:"$RUNNER_TEMP/authkey.p8" 2>/dev/null || echo "")
-
-          if [ -z "$ULTIMO" ]; then
-            NUMERO=${{ github.run_number }}
-          else
-            NUMERO=$((ULTIMO + 1))
-          fi
+          NUMERO=$(date -u +%y%j%H%M)
 
           echo "Build numero $NUMERO"
           echo "NUMERO=$NUMERO" >> "$GITHUB_ENV"
