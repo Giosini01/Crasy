@@ -22,9 +22,9 @@ class PaymentsService {
   /// Fa pagare il premio di una challenge appena creata.
   ///
   /// **Due strade, e la differenza non e' un dettaglio tecnico.** Sul telefono
-  /// si alza un foglio dentro CRASY: Apple Pay in cima, la carta sotto, due
-  /// tocchi e si e' di nuovo dove si era. Sul sito non esiste niente del
-  /// genere, quindi resta la pagina di Stripe.
+  /// si alza un foglio dentro CRASY: si mette la carta, due tocchi, e si e' di
+  /// nuovo dove si era. Sul sito non esiste niente del genere, quindi resta la
+  /// pagina di Stripe.
   ///
   /// Uscire dall'app costa gente: si apre il browser, si perde la schermata, si
   /// torna indietro a mano. Chi stava lanciando una missione per gioco, a meta'
@@ -71,21 +71,38 @@ class PaymentsService {
         // se non gli si dice niente, e un pannello nero che si alza dentro
         // un'app bianca sembra di un'altra applicazione.
         style: ThemeMode.light,
-        applePay: const PaymentSheetApplePay(merchantCountryCode: 'IT'),
-        googlePay: const PaymentSheetGooglePay(
-          merchantCountryCode: 'IT',
-          testEnv: kDebugMode,
-        ),
+        // **Niente Apple Pay, per adesso.**
+        //
+        // Chiederlo qui non lo fa comparire: serve un identificativo mercante
+        // di Apple, il permesso corrispondente dentro l'app e la stessa cosa
+        // registrata su Stripe. Senza quelle tre, il foglio non si apre e
+        // basta — e fallisce prima ancora di mostrarsi, quindi si vede solo
+        // "non siamo riusciti ad aprire il pagamento" e nessuno capisce
+        // perche'.
+        //
+        // La carta funziona da sola. Apple Pay si aggiunge dopo, quando ci
+        // sara' l'account vero: e' un tocco in meno, non un pagamento in piu'.
       ),
     );
 
     try {
       await Stripe.instance.presentPaymentSheet();
-    } on StripeException {
+    } on StripeException catch (errore) {
       // **Chi annulla non ha sbagliato niente.** Il foglio si chiude col dito,
       // ed e' un gesto normale: trattarlo come un errore vorrebbe dire un
       // messaggio rosso per aver cambiato idea.
-      return false;
+      if (errore.error.code == FailureCode.Canceled) {
+        return false;
+      }
+
+      // **Tutto il resto invece si racconta.** Prima finiva qui dentro
+      // insieme all'annullamento, e una carta rifiutata, una configurazione
+      // sbagliata e un dito sul tasto chiudi davano tutti la stessa riga:
+      // "non siamo riusciti ad aprire il pagamento". Che e' il modo piu'
+      // sicuro di non sapere mai cos'e' successo.
+      throw Exception(
+        errore.error.localizedMessage ?? errore.error.message ?? 'Stripe',
+      );
     }
 
     return true;

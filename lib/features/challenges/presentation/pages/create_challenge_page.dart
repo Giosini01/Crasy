@@ -541,15 +541,20 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
         });
 
         return;
-      } catch (_) {
+      } catch (error) {
         if (!mounted) {
           return;
         }
 
+        // **Anche qui il motivo, non solo il fatto.** Il foglio di Stripe
+        // fallisce per cose che si possono leggere — una carta rifiutata, una
+        // configurazione sbagliata — e nasconderle tutte dietro la stessa
+        // frase vuol dire un'app che non sa mai dire cos'e' andato storto,
+        // ne' a chi la usa ne' a chi la ripara.
         setState(() {
           _error =
-              'Non siamo riusciti ad aprire il pagamento. La challenge è '
-              'salvata: riprova fra poco.';
+              'Non siamo riusciti ad aprire il pagamento: $error. '
+              'La challenge è salvata: riprova fra poco.';
         });
 
         return;
