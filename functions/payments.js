@@ -62,8 +62,13 @@ const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
  * si prende dell'HTML, quindi l'app non parte e resta una schermata bianca.
  * Mandarci chi ha appena pagato sarebbe il peggior momento possibile per
  * mostrargli una pagina rotta. Il giorno in cui quel dominio sara' collegato a
- * questo hosting, si cambia una riga nel `.env` e basta. */
-const APP_URL = process.env.CRASY_APP_URL || 'https://crasy.web.app';
+ * questo hosting, si cambia una riga nel `.env` e basta.
+ *
+ * **E c'e' `/app` in fondo.** Alla radice di `crasy.web.app` adesso c'e' la
+ * vetrina — vedi `tool/prepara_il_sito.py` — e l'app sta sotto `/app`. Senza,
+ * chi aveva appena pagato tornava sulla pagina di presentazione invece che
+ * sulla sua missione. */
+const APP_URL = process.env.CRASY_APP_URL || 'https://crasy.web.app/app';
 
 // ---------------------------------------------------------------------------
 // I conti
