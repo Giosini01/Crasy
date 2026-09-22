@@ -59,7 +59,7 @@ class PaymentsService {
           .call<Map<Object?, Object?>>({
             'challengeId': challengeId,
             'appUrl': appUrl,
-            if (returnRoute != null) 'returnRoute': returnRoute,
+            'returnRoute': ?returnRoute,
           });
 
       return _open(result.data['url']);
