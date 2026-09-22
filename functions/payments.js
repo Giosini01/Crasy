@@ -70,6 +70,51 @@ const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
  * sulla sua missione. */
 const APP_URL = process.env.CRASY_APP_URL || 'https://crasy.web.app/app';
 
+/**
+ * **Si torna nella pagina da cui si e' partiti, non in una fissa.**
+ *
+ * Chi paga dal sito lo fa da `crasyapp.com/app`, oppure da `crasy.web.app/app`:
+ * rimandarlo sempre allo stesso indirizzo scritto nel `.env` voleva dire, con
+ * un valore sbagliato, farlo atterrare sulla vetrina subito dopo aver pagato.
+ * Adesso l'app dice da dove chiama — l'indirizzo dell'app e la schermata in cui
+ * stava prima di aprire il modulo — e Stripe riporta li'.
+ *
+ * **Ma non si riporta dovunque.** Un indirizzo che arriva dal client e finisce
+ * in un redirect e' il modo classico di usare una pagina di pagamento vera per
+ * mandare qualcuno su un sito finto: si accettano solo i domini di CRASY, e
+ * tutto il resto ripiega su `APP_URL`.
+ */
+const DOMINI_DI_RITORNO = new Set([
+  'crasyapp.com',
+  'www.crasyapp.com',
+  'crasy.web.app',
+  'crasy.firebaseapp.com',
+]);
+
+function indirizzoDiRitorno(appUrl, rotta) {
+  let base = APP_URL;
+
+  try {
+    const url = new URL(String(appUrl || ''));
+    const locale = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+
+    if ((url.protocol === 'https:' && DOMINI_DI_RITORNO.has(url.hostname)) || locale) {
+      base = `${url.origin}${url.pathname}`;
+    }
+  } catch (_) {
+    // Indirizzo storto: si usa quello di sempre.
+  }
+
+  // La schermata e' una rotta dell'app, niente di piu': lettere, numeri,
+  // trattini e barre. Niente `//`, niente punti, niente query.
+  const schermata =
+    typeof rotta === 'string' && /^\/[A-Za-z0-9\-_/]*$/.test(rotta) && !rotta.includes('//')
+      ? rotta
+      : '/challenges';
+
+  return `${base.replace(/\/+$/, '')}/#${schermata}`;
+}
+
 /** La chiave pubblica di Stripe: non e\' un segreto, la vede chiunque apra l\'app. */
 const PUBLISHABLE_KEY = process.env.CRASY_STRIPE_PUBLISHABLE_KEY || '';
 
@@ -186,6 +231,10 @@ exports.startChallengePayment = onCall(
     }
 
     const stripe = stripeClient();
+    const ritorno = indirizzoDiRitorno(
+      request.data && request.data.appUrl,
+      request.data && request.data.returnRoute
+    );
 
     const session = await stripe.checkout.sessions.create(
       {
@@ -212,11 +261,21 @@ exports.startChallengePayment = onCall(
         // webhook dal database: se viaggiasse di qua, chi intercetta la
         // chiamata deciderebbe quanto vale la challenge.
         metadata: { challengeId, userId },
-        success_url: `${APP_URL}/#/challenge/${challengeId}?pagato=1`,
-        cancel_url: `${APP_URL}/#/crea?annullato=1`,
+        // Pagato o annullato, si torna dove si era prima di aprire il modulo:
+        // e' li' che la gara comparira' appena Stripe conferma.
+        success_url: ritorno,
+        cancel_url: ritorno,
       },
-      // Due tocchi sul bottone non devono aprire due pagamenti.
-      { idempotencyKey: `challenge-checkout-${challengeId}` }
+      // Due tocchi sul bottone non devono aprire due pagamenti. L'indirizzo di
+      // ritorno sta nella chiave perche' Stripe rifiuta la stessa chiave con
+      // parametri diversi: riprovare da un'altra schermata non deve fallire.
+      {
+        idempotencyKey: `challenge-checkout-${challengeId}-${require('crypto')
+          .createHash('sha1')
+          .update(ritorno)
+          .digest('hex')
+          .slice(0, 12)}`,
+      }
     );
 
     await ref.update({

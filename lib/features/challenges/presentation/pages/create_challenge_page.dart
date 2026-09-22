@@ -505,6 +505,14 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
       _passo = null;
     });
 
+    // Il controllo del modulo e' appena passato, quindi qui c'e' un importo
+    // valido. Lo zero di ripiego non serve a coprire un caso vero: serve a non
+    // avere un `!` su un campo di testo. Scelto GRATIS, il campo del premio non
+    // e' nemmeno a schermo: si manda zero senza guardare cosa c'era scritto.
+    final prizeCents = widget.forFriends && _gratis
+        ? 0
+        : AppMoney.centsFrom(_prize.text) ?? 0;
+
     // Si riprova a pagare **quella di prima**, non se ne scrive un'altra.
     final challengeId =
         _daPagare ??
@@ -513,17 +521,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
         .create(
           title: _title.text,
           brief: _brief.text,
-          // Il controllo del modulo e' appena passato, quindi qui c'e' un
-          // importo valido. Lo zero di ripiego non serve a coprire un caso
-          // vero: serve a non avere un `!` su un campo di testo, che il giorno
-          // che qualcuno tocca il controllo diventa una schermata che si
-          // chiude da sola.
-          // Scelto GRATIS, il campo del premio non e' nemmeno a schermo: si
-          // manda zero senza guardare cosa c'era scritto prima di cambiare
-          // idea.
-          prizeCents: widget.forFriends && _gratis
-              ? 0
-              : AppMoney.centsFrom(_prize.text) ?? 0,
+          prizeCents: prizeCents,
           scope: _scope,
           maxParticipants: _maxPartecipanti,
           mediaKind: _mediaKind,
@@ -560,7 +558,10 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     // pagata, e finche' non lo e' non la vede nessuno, nemmeno chi l'ha
     // scritta. Si passa dalla pagina di pagamento di Stripe e si torna con la
     // challenge viva.
-    if (paymentsEnabled) {
+    // **Senza soldi in palio non c'e' niente da pagare.** Una missione GRATIS
+    // fra amici e' visibile da subito, e mandarla a Stripe con zero euro
+    // voleva dire un rifiuto del server e una gara bloccata a meta'.
+    if (paymentsEnabled && prizeCents > 0) {
       // **Un errore del server va detto, non inghiottito.** Senza questo
       // `try` un rifiuto di `startChallengePayment` si perdeva per strada: il
       // bottone tornava com'era, Stripe non si apriva e sullo schermo non
@@ -574,6 +575,13 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
             .read(paymentsServiceProvider)
             .payChallenge(
               challengeId,
+              // Sul sito, dopo Stripe, si torna alla schermata da cui si era
+              // aperto il modulo: la scheda delle challenge, o l'attivita'
+              // degli amici per le missioni di party. Sono le sole due porte
+              // da cui si entra qui.
+              returnRoute: widget.forFriends
+                  ? AppRoutes.friendsActivity
+                  : AppRoutes.challenges,
               // **Si scrive a schermo a che punto e'.**
               //
               // Fra il tocco e il foglio di Stripe ci sono tre passi, e finche'

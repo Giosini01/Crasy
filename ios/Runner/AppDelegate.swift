@@ -58,6 +58,27 @@ import UserNotifications
       name: UIScene.didActivateNotification,
       object: nil
     )
+
+    centro.addObserver(
+      self,
+      selector: #selector(prendiLaFinestraDellaScena(_:)),
+      name: UIScene.didActivateNotification,
+      object: nil
+    )
+  }
+
+  /// **Stripe cerca la finestra qui, e qui deve esserci.**
+  ///
+  /// Il foglio di pagamento si apre sopra `UIApplication.shared.delegate?.window`:
+  /// con le scene quella casella resta vuota, e il foglio non compare mai.
+  /// La riempie gia' `SceneDelegate` quando UIKit gli assegna la finestra;
+  /// questa e' la rete sotto, se un giorno quel passaggio cambiasse.
+  @objc private func prendiLaFinestraDellaScena(_ avviso: Notification) {
+    guard window == nil, let scena = avviso.object as? UIWindowScene else {
+      return
+    }
+
+    window = scena.windows.first { $0.isKeyWindow } ?? scena.windows.first
   }
 
   /// **Il numero sull'icona si azzera entrando.**

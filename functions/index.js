@@ -1746,6 +1746,56 @@ exports.announceDailyChallenge = onSchedule(
 const ORE_FRA_UN_ANNUNCIO_E_L_ALTRO = 3;
 
 /**
+ * **Una gara esiste per gli altri solo quando il premio e' in cassa.**
+ *
+ * Il documento nasce prima del pagamento — `prizeStatus: 'unpaid'` — perche'
+ * al pagamento serve qualcosa da pagare. Ma per chi guarda quella gara non c'e'
+ * ancora: non compare in home, non si puo' fare. Annunciarla in quel momento
+ * voleva dire far squillare tutti i telefoni per una gara che, se chi la lancia
+ * chiude il foglio di Stripe, **non esistera' mai**: il tocco su "Paga e lancia"
+ * bastava a mandare la notifica, pagato o no.
+ *
+ * Quindi gli annunci non guardano la nascita del documento ma **il momento in
+ * cui diventa visibile**: subito per le gare senza soldi in palio, al passaggio
+ * a `held` — quando Stripe conferma l'incasso — per tutte le altre. E' la stessa
+ * regola con cui l'app decide cosa mostrare (`Challenge.isPayable`).
+ */
+function visibileATutti(dati) {
+  if (!dati) {
+    return false;
+  }
+
+  // Con i pagamenti spenti non c'e' niente da aspettare.
+  if (process.env.CRASY_PAYMENTS !== 'on') {
+    return true;
+  }
+
+  if (!dati.prizeCents) {
+    return true;
+  }
+
+  return dati.prizeStatus === 'held' || dati.prizeStatus === 'paidOut';
+}
+
+/**
+ * I dati della gara **se e' appena diventata visibile**, altrimenti `null`.
+ *
+ * Scatta una volta sola per gara: alla nascita se e' gratis, al pagamento se ha
+ * un premio. Tutte le scritture dopo — voti, partecipanti, chiusura — trovano la
+ * gara gia' visibile prima e non annunciano niente.
+ */
+function appenaApparsa(event) {
+  const prima = event.data?.before?.data();
+  const dopo = event.data?.after?.data();
+
+  if (!visibileATutti(dopo) || visibileATutti(prima)) {
+    return null;
+  }
+
+  return dopo;
+}
+
+/**
  * **Dice a tutti che c'e' una gara nuova da fare.**
  *
  * Riguarda solo le gare aperte a chiunque — quelle che compaiono nella scheda
@@ -1758,16 +1808,22 @@ const ORE_FRA_UN_ANNUNCIO_E_L_ALTRO = 3;
  * per dire una cosa che sta gia' in prima pagina: qui serve solo ad accendere
  * lo schermo di chi non ha l'app aperta.
  */
-exports.announceNewChallenge = onDocumentCreated(
+// **Nome nuovo, e non per estetica.** Prima si chiamava `announceNewChallenge`
+// e scattava sulla nascita del documento; Firebase non lascia cambiare il tipo
+// di evento a una funzione gia' pubblicata, quindi questa e' una funzione nuova
+// e la vecchia va cancellata al deploy (rispondere si' alla domanda del CLI).
+exports.announceLiveChallenge = onDocumentWritten(
   'challenges/{challengeId}',
   async (event) => {
-    const gara = event.data;
+    // Non alla nascita del documento: quando la gara diventa vera. Vedi
+    // `appenaApparsa`.
+    const dati = appenaApparsa(event);
 
-    if (!gara) {
+    if (!dati) {
       return;
     }
 
-    const dati = gara.data();
+    const gara = { id: event.params.challengeId };
 
     // Fra amici no: quelle hanno gia' il loro avviso, e va a chi le riguarda.
     if (dati.scope === 'friends' || dati.targetUserId) {
@@ -1938,10 +1994,14 @@ const AMICI_DA_AVVISARE = 100;
  * rieseguita, riscriverebbe le stesse righe invece di crearne di nuove, e il
  * push parte solo sulla **nascita** di un documento.
  */
-exports.notifyFriendsOnPartyChallenge = onDocumentCreated(
+// Nome nuovo per lo stesso motivo di `announceLiveChallenge`: la vecchia
+// `notifyFriendsOnPartyChallenge` scattava sulla nascita e va cancellata.
+exports.notifyFriendsOnLivePartyChallenge = onDocumentWritten(
   'challenges/{challengeId}',
   async (event) => {
-    const dati = event.data?.data();
+    // Come l'annuncio a tutti: una missione con un premio non pagato non la
+    // vede nessuno, e avvisare gli amici vorrebbe dire mandarli a cercarla.
+    const dati = appenaApparsa(event);
 
     if (!dati) {
       return;

@@ -44,11 +44,23 @@ class PaymentsService {
   Future<bool> payChallenge(
     String challengeId, {
     void Function(String passo)? passo,
+    String? returnRoute,
   }) async {
     if (kIsWeb) {
+      // **Stripe riporta dove si era, non su un indirizzo fisso.** L'app puo'
+      // stare su `crasyapp.com/app` o su `crasy.web.app/app`: si manda il suo
+      // indirizzo vero — senza la schermata dopo il `#` — e la schermata da
+      // cui si era aperto il modulo. Il server accetta solo domini di CRASY.
+      final base = Uri.base;
+      final appUrl = '${base.origin}${base.path}';
+
       final result = await _functions
           .httpsCallable('startChallengePayment')
-          .call<Map<Object?, Object?>>({'challengeId': challengeId});
+          .call<Map<Object?, Object?>>({
+            'challengeId': challengeId,
+            'appUrl': appUrl,
+            if (returnRoute != null) 'returnRoute': returnRoute,
+          });
 
       return _open(result.data['url']);
     }
