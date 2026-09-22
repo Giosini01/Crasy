@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -18,6 +19,9 @@ class PaymentsService {
   PaymentsService(this._functions);
 
   final FirebaseFunctions _functions;
+
+  /// Lo stesso filo verso Swift che usa il pallino delle notifiche.
+  static const _filo = MethodChannel('crasy/pallino');
 
   /// Fa pagare il premio di una challenge appena creata.
   ///
@@ -156,7 +160,24 @@ class PaymentsService {
           );
 
       passo?.call('apro il foglio');
-      await Stripe.instance.presentPaymentSheet();
+
+      // **Su iPhone il foglio ha bisogno di una finestra in prestito.** Stripe
+      // la cerca nell'AppDelegate, che con le scene non ne ha: senza, il foglio
+      // si apre nel vuoto e l'attesa non finisce mai. Si presta solo adesso e
+      // si riprende subito dopo — vedi `prestaLaFinestra` in AppDelegate.swift.
+      final iPhone = defaultTargetPlatform == TargetPlatform.iOS;
+
+      if (iPhone) {
+        await _filo.invokeMethod<void>('prestaLaFinestra');
+      }
+
+      try {
+        await Stripe.instance.presentPaymentSheet();
+      } finally {
+        if (iPhone) {
+          await _filo.invokeMethod<void>('restituisciLaFinestra');
+        }
+      }
     } on StripeException catch (errore) {
       // **Chi annulla non ha sbagliato niente.** Il foglio si chiude col dito,
       // ed e' un gesto normale: trattarlo come un errore vorrebbe dire un

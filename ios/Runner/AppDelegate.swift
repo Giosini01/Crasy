@@ -58,27 +58,6 @@ import UserNotifications
       name: UIScene.didActivateNotification,
       object: nil
     )
-
-    centro.addObserver(
-      self,
-      selector: #selector(prendiLaFinestraDellaScena(_:)),
-      name: UIScene.didActivateNotification,
-      object: nil
-    )
-  }
-
-  /// **Stripe cerca la finestra qui, e qui deve esserci.**
-  ///
-  /// Il foglio di pagamento si apre sopra `UIApplication.shared.delegate?.window`:
-  /// con le scene quella casella resta vuota, e il foglio non compare mai.
-  /// La riempie gia' `SceneDelegate` quando UIKit gli assegna la finestra;
-  /// questa e' la rete sotto, se un giorno quel passaggio cambiasse.
-  @objc private func prendiLaFinestraDellaScena(_ avviso: Notification) {
-    guard window == nil, let scena = avviso.object as? UIWindowScene else {
-      return
-    }
-
-    window = scena.windows.first { $0.isKeyWindow } ?? scena.windows.first
   }
 
   /// **Il numero sull'icona si azzera entrando.**
@@ -126,12 +105,58 @@ import UserNotifications
     )
 
     filo.setMethodCallHandler { [weak self] chiamata, rispondi in
-      if chiamata.method == "azzera" {
+      switch chiamata.method {
+      case "azzera":
         self?.azzeraIlPallino()
         rispondi(nil)
-      } else {
+      case "prestaLaFinestra":
+        self?.prestaLaFinestra()
+        rispondi(nil)
+      case "restituisciLaFinestra":
+        self?.restituisciLaFinestra()
+        rispondi(nil)
+      default:
         rispondi(FlutterMethodNotImplemented)
       }
     }
+  }
+
+  /// Se la finestra l'abbiamo prestata noi, e va quindi restituita.
+  private var finestraPrestata = false
+
+  /// **Il foglio di Stripe si apre sopra la finestra dell'AppDelegate.**
+  ///
+  /// Il suo codice nativo la cerca in `UIApplication.shared.delegate?.window`,
+  /// che in un'app a scene come CRASY e' vuota: il foglio si presentava sopra
+  /// un controller mai mostrato, e "apro il foglio" restava li' per sempre.
+  ///
+  /// **Si presta solo per il tempo del pagamento, mai all'avvio.** Assegnarla
+  /// fin dall'apertura dell'app lasciava lo schermo nero: l'avvio di Flutter
+  /// con le scene non se l'aspetta. Qui la chiede Dart un attimo prima di
+  /// mostrare il foglio, e la riprende indietro appena il foglio si chiude.
+  private func prestaLaFinestra() {
+    guard window == nil else {
+      return
+    }
+
+    let finestre = UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+      .flatMap { $0.windows }
+
+    guard let finestra = finestre.first(where: { $0.isKeyWindow }) ?? finestre.first else {
+      return
+    }
+
+    window = finestra
+    finestraPrestata = true
+  }
+
+  private func restituisciLaFinestra() {
+    guard finestraPrestata else {
+      return
+    }
+
+    window = nil
+    finestraPrestata = false
   }
 }
