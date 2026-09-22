@@ -662,7 +662,27 @@ exports.createPayoutOnboarding = onCall(
     let accountId = user.get('stripeAccountId');
 
     if (!accountId) {
-      // **Se Stripe rifiuta di creare il conto, lo si dice.**
+      // **Questa riga oggi fallisce, e non per colpa sua.**
+      //
+      // Stripe ha chiuso la creazione di conti collegati "v1" alle
+      // integrazioni nuove: risponde che bisogna usare la v2. E la v2, per
+      // quello che serve a noi — un conto che *riceve* soldi — vuole una
+      // capacita' che al momento e' ancora in anteprima, cioe' raggiungibile
+      // solo dichiarando una versione delle interfacce che Stripe puo'
+      // cambiare quando vuole. Provata: senza quella capacita' il conto nasce
+      // ma non si puo' ne' registrare ne' pagare.
+      //
+      // La via d'uscita e' un interruttore nella dashboard — "Assistenza
+      // Accounts v1" — che riapre questa strada a chi l'integrazione ce l'ha
+      // gia' scritta. Finche' non e' acceso, il prelievo non parte per
+      // nessuno.
+      //
+      // **Il resto dei soldi funziona:** incassare il premio, tenerlo, girarlo
+      // nel portafoglio di chi vince. E' solo l'ultimo passo — farlo uscire da
+      // CRASY — a essere fermo, e i soldi nel frattempo non si perdono: stanno
+      // sul conto Stripe di CRASY, contati uno per uno.
+      //
+      // **Se Stripe rifiuta, lo si dice.**
       //
       // Rifiuta davvero, e non per un guasto: le integrazioni nuove non
       // possono piu' creare conti collegati nel modo in cui li chiede questa
