@@ -69,6 +69,14 @@ abstract final class AppRoutes {
   static const participate = '/challenge/:id/partecipa';
   static const create = '/crea';
 
+  /// I soldi vinti, e il modo di portarseli via.
+  ///
+  /// **Una schermata sua e non un riquadro nel profilo.** Il riquadro dice
+  /// quanto, e va bene per guardare; prelevare e' l'unico momento in cui dei
+  /// soldi veri escono da CRASY, ed e' la fine di tutto il giro. Merita di
+  /// aprirsi.
+  static const wallet = '/portafoglio';
+
   /// Le gare appena chiuse, con la foto di chi ha vinto.
   ///
   /// **Una schermata sua, non una striscia in fondo a un'altra.** E' stata

@@ -86,6 +86,22 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     //
                     // Si vedono solo qui perche' la barra con l'azione ce l'ha
                     // solo questa scheda: sulle altre il marchio sta da solo.
+                    // **Il portafoglio ha la sua icona, in cima.**
+                    //
+                    // C'e' anche il riquadro piu' sotto, ma quello si guarda:
+                    // per prelevare bisognava trovare un tasto piccolo accanto
+                    // alla cifra, dentro una schermata che parla d'altro. I
+                    // soldi che uno ha vinto sono la cosa piu' importante che
+                    // ci sia qui dentro, e non devono stare a meta' pagina.
+                    IconButton(
+                      onPressed: () => context.push(AppRoutes.wallet),
+                      icon: const Icon(
+                        Icons.account_balance_wallet_outlined,
+                        size: 20,
+                      ),
+                      tooltip: 'Portafoglio',
+                      color: palette.textFaint,
+                    ),
                     if (profileState.valueOrNull case final mio?)
                       IconButton(
                         onPressed: () => editProfile(context, ref, mio),

@@ -17,6 +17,7 @@ import 'package:crasy/features/home/presentation/pages/splash_page.dart';
 import 'package:crasy/features/legal/presentation/pages/consent_page.dart';
 import 'package:crasy/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:crasy/features/onboarding/presentation/pages/onboarding_page.dart';
+import 'package:crasy/features/payments/presentation/pages/wallet_page.dart';
 import 'package:crasy/features/profile/presentation/pages/public_profile_page.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:crasy/features/tutorial/presentation/pages/tutorial_page.dart';
@@ -304,6 +305,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         AppRoutes.recentlyEnded,
         (state) => const RecentlyEndedPage(),
       ),
+      _pushedRoute(AppRoutes.wallet, (state) => const WalletPage()),
     ],
     redirect: (context, state) {
       final location = state.matchedLocation;
