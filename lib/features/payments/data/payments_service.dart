@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:crasy/core/theme/app_colors.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -140,6 +141,54 @@ class PaymentsService {
               // se non gli si dice niente, e un pannello nero che si alza dentro
               // un'app bianca sembra di un'altra applicazione.
               style: ThemeMode.light,
+              // **Il tasto dice PAGA, in italiano.**
+              //
+              // Il foglio segue la lingua del telefono, e su un telefono in
+              // inglese diceva "Pay" in mezzo a una schermata scritta in
+              // italiano. La parola sul tasto che tira fuori i soldi e' l'ultima
+              // che uno legge prima di premere: deve essere nella sua lingua.
+              primaryButtonLabel: 'Paga',
+              // **E ha la faccia di CRASY.**
+              //
+              // Il foglio di Stripe nasce blu, e blu e' il colore di Stripe.
+              // Chi lo vede alzarsi si trova davanti un pezzo di un'altra
+              // applicazione proprio nel momento in cui deve fidarsi — che e'
+              // il momento peggiore per sembrare un'altra cosa. Il rosso, il
+              // bianco e gli angoli sono gli stessi del resto dell'app: non
+              // sta cambiando posto, sta pagando dentro CRASY.
+              appearance: const PaymentSheetAppearance(
+                colors: PaymentSheetAppearanceColors(
+                  primary: AppColors.crasyRed,
+                  background: AppColors.paper,
+                  componentBackground: AppColors.paperMuted,
+                  componentBorder: AppColors.line,
+                  componentDivider: AppColors.line,
+                  componentText: AppColors.ink,
+                  primaryText: AppColors.ink,
+                  secondaryText: AppColors.inkSoft,
+                  placeholderText: AppColors.inkFaint,
+                  icon: AppColors.inkSoft,
+                  error: AppColors.crasyRed,
+                ),
+                shapes: PaymentSheetShape(
+                  borderRadius: 12,
+                  borderWidth: 1,
+                ),
+                primaryButton: PaymentSheetPrimaryButtonAppearance(
+                  colors: PaymentSheetPrimaryButtonTheme(
+                    light: PaymentSheetPrimaryButtonThemeColors(
+                      background: AppColors.crasyRed,
+                      text: AppColors.paper,
+                      border: AppColors.crasyRed,
+                    ),
+                    dark: PaymentSheetPrimaryButtonThemeColors(
+                      background: AppColors.crasyRed,
+                      text: AppColors.paper,
+                      border: AppColors.crasyRed,
+                    ),
+                  ),
+                ),
+              ),
               // **Niente Apple Pay, per adesso.**
               //
               // Chiederlo qui non lo fa comparire: serve un identificativo mercante

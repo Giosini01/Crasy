@@ -308,7 +308,22 @@ exports.startChallengePayment = onCall(
  * secondi e doverla lanciare col portafoglio in mano.
  */
 exports.createChallengePaymentIntent = onCall(
-  { secrets: [STRIPE_SECRET_KEY] },
+  {
+    secrets: [STRIPE_SECRET_KEY],
+    // **Mezzo giga di memoria, e si paga solo quando gira.**
+    //
+    // Non serve per la memoria: su Cloud Run la potenza del processore va
+    // insieme a quella, e il doppio di memoria vuol dire meta' del tempo per
+    // gli stessi conti. Su una funzione che qualcuno aspetta guardando lo
+    // schermo, sono decimi di secondo che si sentono.
+    //
+    // **Quello che non si fa e' tenerne una sempre accesa** (`minInstances`).
+    // Toglierebbe i due o tre secondi della prima chiamata dopo una pausa —
+    // il momento in cui la funzione deve nascere da zero — ma si paga a mese
+    // anche nelle notti in cui non paga nessuno. Con i numeri di adesso non
+    // vale; il giorno in cui si lanciano missioni tutto il giorno, si'.
+    memory: '512MiB',
+  },
   async (request) => {
     const userId = request.auth && request.auth.uid;
 
@@ -370,11 +385,6 @@ exports.createChallengePaymentIntent = onCall(
       await userRef.set({ stripeCustomerId: customerId }, { merge: true });
     }
 
-    const ephemeralKey = await stripe.ephemeralKeys.create(
-      { customer: customerId },
-      { apiVersion: '2024-06-20' }
-    );
-
     const intent = await stripe.paymentIntents.create(
       {
         amount: chargeCents(prize),
@@ -411,7 +421,18 @@ exports.createChallengePaymentIntent = onCall(
     return {
       clientSecret: intent.client_secret,
       customerId,
-      ephemeralKey: ephemeralKey.secret,
+      // **La chiave temporanea non si fa piu'.**
+      //
+      // Serviva a mostrare le carte salvate dentro il foglio, e il foglio non
+      // le mostra: quella strada si era rivelata fragile — la chiave nasce
+      // legata a una versione precisa delle interfacce di Stripe — e l'abbiamo
+      // tolta. Continuare a fabbricarla voleva dire una chiamata a Stripe in
+      // piu' **a ogni pagamento**, cioe' mezzo secondo di attesa in cambio di
+      // niente, proprio nel punto in cui si sta aspettando col dito a mezz'aria.
+      //
+      // Il cliente invece resta, e costa una chiamata sola la prima volta: e'
+      // il posto in cui le carte si accumulano, ed e' quello che rendera'
+      // veloce il ritorno quando le rimetteremo.
       // **La chiave pubblica la manda il server**, invece di stare dentro
       // l\'app. Cosi\' il giorno in cui si passa dalle chiavi di prova a quelle
       // vere non serve ricompilare niente: cambia una riga sul server, e anche
