@@ -64,7 +64,29 @@ class _WalletPageState extends ConsumerState<WalletPage> {
         // chi si e'.** Pagare qualcuno senza sapere chi e' e' vietato, e non e'
         // una regola di CRASY: vale per chiunque mandi del denaro. Si fa una
         // volta sola, e la pagina che si apre e' di Stripe.
-        await payments.startPayoutOnboarding();
+        //
+        // **Se pero' non parte, si dice cosa non va.**
+        //
+        // Puo' non partire per una ragione che non riguarda chi sta premendo:
+        // il conto per incassare va configurato una volta sola, e finche' non
+        // lo e' nessuno puo' prelevare. Dirgli "riprova" sarebbe mandarlo a
+        // sbattere contro lo stesso muro.
+        try {
+          await payments.startPayoutOnboarding();
+        } on Object catch (errore) {
+          if (mounted) {
+            setState(() {
+              _working = false;
+              _message = '$errore'.contains('incasso-non-configurato')
+                  ? 'I prelievi non sono ancora aperti. I soldi restano tuoi '
+                        'e non si perdono: riprova fra qualche giorno.'
+                  : 'Non siamo riusciti ad aprire la registrazione. Riprova '
+                        'fra poco.';
+            });
+          }
+
+          return;
+        }
 
         if (mounted) {
           setState(() {

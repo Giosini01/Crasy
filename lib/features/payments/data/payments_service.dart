@@ -261,7 +261,12 @@ class PaymentsService {
   Future<bool> startPayoutOnboarding() async {
     final result = await _functions
         .httpsCallable('createPayoutOnboarding')
-        .call<Map<Object?, Object?>>();
+        .call<Map<Object?, Object?>>({
+          // Come per il pagamento: finita la registrazione, Stripe riporta
+          // dove si era. Dal telefono non c'e' un indirizzo da mandare e il
+          // server ripiega sul sito.
+          if (kIsWeb) 'appUrl': '${Uri.base.origin}${Uri.base.path}',
+        });
 
     return _open(result.data['url']);
   }

@@ -662,14 +662,31 @@ exports.createPayoutOnboarding = onCall(
     let accountId = user.get('stripeAccountId');
 
     if (!accountId) {
-      const account = await stripe.accounts.create({
-        type: 'express',
-        country: 'IT',
-        email: request.auth.token.email,
-        capabilities: { transfers: { requested: true } },
-        business_type: 'individual',
-        metadata: { userId },
-      });
+      // **Se Stripe rifiuta di creare il conto, lo si dice.**
+      //
+      // Rifiuta davvero, e non per un guasto: le integrazioni nuove non
+      // possono piu' creare conti collegati nel modo in cui li chiede questa
+      // riga, e va riacceso un interruttore nella dashboard. Senza questo
+      // controllo l'errore arrivava all'app come "non ci siamo riusciti,
+      // riprova" — e riprovare non serviva a niente, perche' non era un
+      // problema di quel momento.
+      const account = await stripe.accounts
+        .create({
+          type: 'express',
+          country: 'IT',
+          email: request.auth.token.email,
+          capabilities: { transfers: { requested: true } },
+          business_type: 'individual',
+          metadata: { userId },
+        })
+        .catch((errore) => {
+          logger.error('Conto per incassare non creato.', errore);
+
+          throw new HttpsError(
+            'failed-precondition',
+            'incasso-non-configurato'
+          );
+        });
 
       accountId = account.id;
       await userRef.set({ stripeAccountId: accountId }, { merge: true });
@@ -678,8 +695,11 @@ exports.createPayoutOnboarding = onCall(
     const link = await stripe.accountLinks.create({
       account: accountId,
       type: 'account_onboarding',
-      refresh_url: `${APP_URL}/#/profile?incasso=riprova`,
-      return_url: `${APP_URL}/#/profile?incasso=fatto`,
+      // Si torna da dove si era partiti, come per il pagamento: l'app manda
+      // il proprio indirizzo, e chi non lo manda — il telefono — ripiega sul
+      // sito. Vedi `indirizzoDiRitorno`.
+      refresh_url: indirizzoDiRitorno(request.data && request.data.appUrl, '/profile'),
+      return_url: indirizzoDiRitorno(request.data && request.data.appUrl, '/profile'),
     });
 
     return { url: link.url };
