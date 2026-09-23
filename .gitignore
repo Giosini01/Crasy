@@ -101,3 +101,18 @@ AuthKey_*.p8
 *.keystore
 key.properties
 service-account*.json
+
+# **Le chiavi non entrano nel progetto, nemmeno per un minuto.**
+#
+# Questa riga nasce da un file vero: `KEY_STRIPE_PRIVATA.txt`, appoggiato nella
+# cartella per comodita' mentre si configurava Stripe, e finito dentro un
+# commit al primo `git add`. A fermarlo e' stato GitHub, che riconosce le
+# chiavi di Stripe e ha rifiutato il push — ma su un repository pubblico basta
+# una volta che non lo riconosca.
+#
+# Le chiavi vivono in Secret Manager. Se una serve sottomano, tenerla fuori da
+# questa cartella costa niente.
+*.key
+*KEY*.txt
+*chiave*.txt
+*secret*.txt
