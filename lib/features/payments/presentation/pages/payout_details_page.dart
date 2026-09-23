@@ -6,6 +6,7 @@ import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/payments/domain/entities/payout_details.dart';
 import 'package:crasy/features/payments/presentation/providers/payments_providers.dart';
+import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,7 +42,6 @@ class _PayoutDetailsPageState extends ConsumerState<PayoutDetailsPage> {
   final _codice = TextEditingController();
   final _iban = TextEditingController();
 
-  DateTime? _nato;
   bool _working = false;
   String? _error;
   bool _riempito = false;
@@ -67,29 +67,16 @@ class _PayoutDetailsPageState extends ConsumerState<PayoutDetailsPage> {
     _cognome.text = dati.lastName;
     _codice.text = dati.fiscalCode;
     _iban.text = dati.iban;
-    _nato = dati.birthDate;
-  }
-
-  Future<void> _scegliLaData() async {
-    final oggi = DateTime.now();
-    final scelta = await showDatePicker(
-      context: context,
-      initialDate: _nato ?? DateTime(oggi.year - 25),
-      firstDate: DateTime(oggi.year - 100),
-      lastDate: oggi,
-      helpText: 'Quando sei nato',
-      locale: const Locale('it'),
-    );
-
-    if (scelta != null && mounted) {
-      setState(() => _nato = scelta);
-    }
   }
 
   Future<void> _salva() async {
-    // La data non sta nel modulo — si sceglie da un calendario — quindi il suo
-    // errore va cercato a mano, o si salverebbe senza.
-    final erroreData = PayoutValidators.birthDate(_nato);
+    // **La data di nascita non si richiede: c'e' gia'.** La si da' iscrivendosi
+    // — serve a tenere fuori i minorenni — e ridomandarla qui vorrebbe dire
+    // farsi raccontare due volte la stessa cosa e poi doverle tenere
+    // d'accordo. Si prende dal profilo, e se li' manca o e' di un minorenne il
+    // controllo scatta lo stesso.
+    final nato = ref.read(currentUserProfileProvider).valueOrNull?.birthDate;
+    final erroreData = PayoutValidators.birthDate(nato);
 
     if (!(_formKey.currentState?.validate() ?? false) || erroreData != null) {
       setState(() => _error = erroreData);
@@ -117,7 +104,7 @@ class _PayoutDetailsPageState extends ConsumerState<PayoutDetailsPage> {
           lastName: _cognome.text,
           fiscalCode: _codice.text,
           iban: _iban.text,
-          birthDate: _nato,
+          birthDate: nato,
         ),
       );
     } on Object {
@@ -183,27 +170,6 @@ class _PayoutDetailsPageState extends ConsumerState<PayoutDetailsPage> {
                   textCapitalization: TextCapitalization.words,
                   decoration: const InputDecoration(labelText: 'Cognome'),
                   validator: PayoutValidators.name,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                // La data si sceglie, non si scrive: una data battuta a mano su
-                // un telefono esce sbagliata piu' spesso di quanto esca giusta.
-                InkWell(
-                  onTap: _scegliLaData,
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Data di nascita',
-                    ),
-                    child: Text(
-                      _nato == null
-                          ? 'Scegli'
-                          : '${_nato!.day}/${_nato!.month}/${_nato!.year}',
-                      style: texts.bodyLarge?.copyWith(
-                        color: _nato == null
-                            ? palette.textFaint
-                            : palette.textPrimary,
-                      ),
-                    ),
-                  ),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(

@@ -373,17 +373,7 @@ exports.createChallengePaymentIntent = onCall(
     // Il cliente di Stripe e' quello che tiene le carte salvate. Si crea una
     // volta per persona e si riusa: crearne uno nuovo a ogni pagamento vuol
     // dire un elenco di carte vuoto tutte le volte.
-    let customerId = user.get('stripeCustomerId');
-
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        metadata: { userId },
-        name: user.get('username') || undefined,
-      });
-
-      customerId = customer.id;
-      await userRef.set({ stripeCustomerId: customerId }, { merge: true });
-    }
+    const customerId = await clienteDi(stripe, userId, userRef, user);
 
     const intent = await stripe.paymentIntents.create(
       {
@@ -453,6 +443,92 @@ exports.createChallengePaymentIntent = onCall(
     };
   }
 );
+
+/**
+ * **Il cliente su Stripe di una persona: uno solo, per sempre.**
+ *
+ * E' la riga da cui dipende la promessa piu' concreta che l'app fa a chi paga:
+ * **la carta si mette una volta.** La carta non sta su CRASY e non sta sul
+ * telefono — sta attaccata a un cliente su Stripe — quindi ritrovare quel
+ * cliente e ritrovare la carta sono la stessa cosa. Sbagliato quello, il foglio
+ * di pagamento si apre vuoto e chiede di nuovo sedici cifre a chi le ha gia'
+ * date.
+ *
+ * Ed e' quello che succedeva: si leggeva l'identificativo dal profilo e, non
+ * trovandolo, se ne creava uno nuovo. Due tocchi ravvicinati sul bottone — cioe'
+ * la normalita' quando una schermata sembra non rispondere — passavano tutti e
+ * due da quel "non c'e'", creavano due clienti, e l'ultimo a scrivere vinceva.
+ * Nel database restava il cliente vuoto; le carte erano attaccate all'altro, e
+ * non le ha piu' viste nessuno.
+ *
+ * Adesso ci sono tre difese in fila, e la prima che trova qualcosa vince:
+ *
+ * 1. **Quello scritto nel profilo**, controllando che esista ancora davvero.
+ *    Un identificativo che punta a un cliente cancellato e' peggio di nessun
+ *    identificativo, perche' fa fallire il pagamento invece di ricominciare.
+ *
+ * 2. **La ricerca su Stripe per nome dell'utente.** Copre i casi gia' rotti —
+ *    come i due clienti che abbiamo davvero trovato — e si prende quello con
+ *    piu' carte: fra un cliente vuoto e uno con sei carte, quello giusto e'
+ *    quello che ha le carte.
+ *
+ * 3. **La creazione, con una chiave di non ripetizione.** Se due chiamate
+ *    arrivano insieme, Stripe risponde a tutte e due con lo **stesso** cliente
+ *    invece di crearne due. E' la difesa che impedisce al problema di
+ *    ripresentarsi.
+ */
+async function clienteDi(stripe, userId, userRef, user) {
+  const scritto = user.get('stripeCustomerId');
+
+  if (scritto) {
+    const trovato = await stripe.customers
+      .retrieve(scritto)
+      .catch(() => null);
+
+    if (trovato && !trovato.deleted) {
+      return scritto;
+    }
+
+    logger.warn(`Cliente ${scritto} non esiste piu': se ne cerca un altro.`);
+  }
+
+  // **Chi ha piu' carte vince.** Non il piu' recente: il piu' recente e'
+  // proprio quello nato per sbaglio, e quello vuoto.
+  const cercati = await stripe.customers
+    .search({ query: `metadata['userId']:'${userId}'`, limit: 10 })
+    .catch(() => null);
+
+  if (cercati && cercati.data.length > 0) {
+    let migliore = cercati.data[0];
+    let quante = -1;
+
+    for (const candidato of cercati.data) {
+      const carte = await stripe.paymentMethods
+        .list({ customer: candidato.id, type: 'card', limit: 10 })
+        .catch(() => ({ data: [] }));
+
+      if (carte.data.length > quante) {
+        quante = carte.data.length;
+        migliore = candidato;
+      }
+    }
+
+    await userRef.set({ stripeCustomerId: migliore.id }, { merge: true });
+
+    return migliore.id;
+  }
+
+  const creato = await stripe.customers.create(
+    { metadata: { userId }, name: user.get('username') || undefined },
+    // La chiave e' il nome della persona: due chiamate insieme ottengono lo
+    // stesso cliente, non due.
+    { idempotencyKey: `crasy-cliente-${userId}` }
+  );
+
+  await userRef.set({ stripeCustomerId: creato.id }, { merge: true });
+
+  return creato.id;
+}
 
 // ---------------------------------------------------------------------------
 // 2. Stripe ci richiama
