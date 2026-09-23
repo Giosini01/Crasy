@@ -82,6 +82,24 @@ class _WalletPageState extends ConsumerState<WalletPage> {
         return;
       }
 
+      if (reason == 'gia-in-corso') {
+        setState(() {
+          _working = false;
+          _message = 'Ne hai già chiesto uno: è in viaggio.';
+        });
+
+        return;
+      }
+
+      if (reason == 'dati-mancanti') {
+        setState(() {
+          _working = false;
+          _message = 'Mancano i dati per il bonifico: compilali e riprova.';
+        });
+
+        return;
+      }
+
       if (reason == 'account-mancante') {
         // **La prima volta non e' un errore: e' il momento in cui bisogna dire
         // chi si e'.** Pagare qualcuno senza sapere chi e' e' vietato, e non e'
@@ -149,6 +167,7 @@ class _WalletPageState extends ConsumerState<WalletPage> {
     final texts = context.texts;
     final wallet = ref.watch(walletProvider).valueOrNull ?? const Wallet();
     final dati = ref.watch(payoutDetailsProvider).valueOrNull;
+    final inViaggio = wallet.withdrawingCents;
     final balance = ref.watch(walletBalanceProvider);
     final quanto = Wallet.minimumWithdrawalCents - balance;
 
@@ -210,13 +229,32 @@ class _WalletPageState extends ConsumerState<WalletPage> {
                 // prelievo esiste, ne' quanto gli manca: vedrebbe dei soldi
                 // fermi e nessun modo di prenderli. Spento e con scritto quanto
                 // manca, invece, dice due cose in una riga sola.
-                CrasyButton(
-                  label: wallet.canWithdraw
-                      ? 'Preleva ${AppMoney.format(balance)}'
-                      : 'Ti mancano ${AppMoney.format(quanto)}',
-                  loading: _working,
-                  onPressed: wallet.canWithdraw ? _withdraw : null,
-                ),
+                // **Un prelievo gia' chiesto si vede, e blocca il bottone.**
+                //
+                // Senza, chi ha chiesto i soldi vedrebbe il saldo a zero e un
+                // bottone spento, senza sapere se la richiesta e' arrivata. E'
+                // il momento in cui uno si preoccupa piu' di tutti.
+                if (inViaggio > 0)
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(color: palette.line),
+                    ),
+                    child: Text(
+                      '${AppMoney.format(inViaggio)} sono in viaggio verso il '
+                      'tuo conto. Arrivano in qualche giorno.',
+                      style: texts.bodyMedium,
+                    ),
+                  )
+                else
+                  CrasyButton(
+                    label: wallet.canWithdraw
+                        ? 'Preleva ${AppMoney.format(balance)}'
+                        : 'Ti mancano ${AppMoney.format(quanto)}',
+                    loading: _working,
+                    onPressed: wallet.canWithdraw ? _withdraw : null,
+                  ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   dati != null && dati.isComplete

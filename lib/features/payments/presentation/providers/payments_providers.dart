@@ -69,10 +69,16 @@ final walletProvider = StreamProvider<Wallet>((ref) {
   // insieme: un saldo che cambia senza la riga che lo spiega, anche solo per
   // mezzo secondo, e' un numero che compare dal nulla.
   return repository.watchBalance(userId).asyncExpand((balance) {
-    return repository
-        .watchMovements(userId)
-        .map(
-          (movements) => Wallet(balanceCents: balance, movements: movements),
-        );
+    return repository.watchWithdrawing(userId).asyncExpand((inViaggio) {
+      return repository
+          .watchMovements(userId)
+          .map(
+            (movements) => Wallet(
+              balanceCents: balance,
+              withdrawingCents: inViaggio,
+              movements: movements,
+            ),
+          );
+    });
   });
 });

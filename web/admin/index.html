@@ -198,6 +198,18 @@
       <h2 id="titolo">Segnalazioni</h2>
       <div id="elenco"></div>
     </div>
+
+    <!-- **I bonifici da fare a mano.**
+
+         Finche' Stripe non apre i conti dei beneficiari, il prelievo non parte
+         da solo: la richiesta entra in fila e il bonifico lo fa una persona.
+         Qui c'e' quello che serve per farlo — quanto, a chi, su quale IBAN — e
+         il tasto per dire che e' partito. Nessuna macchina puo' sapere se quel
+         bonifico e' stato fatto davvero: lo dice chi l'ha fatto. -->
+    <div class="scatola">
+      <h2>Prelievi da pagare</h2>
+      <div id="prelievi"></div>
+    </div>
   </section>
 </main>
 
@@ -245,11 +257,14 @@ const functions = getFunctions(app, 'europe-west8');
 const chiediChiSono = httpsCallable(functions, 'adminWhoAmI');
 const chiediElenco = httpsCallable(functions, 'adminListReports');
 const decidi = httpsCallable(functions, 'adminResolveReport');
+const chiediPrelievi = httpsCallable(functions, 'adminListPayouts');
+const segnaPagato = httpsCallable(functions, 'adminMarkPayoutPaid');
 
 const $ = (id) => document.getElementById(id);
 const accesso = $('accesso');
 const tavolo = $('tavolo');
 const elenco = $('elenco');
+const prelievi = $('prelievi');
 const avviso = $('avviso');
 
 let filtro = 'new';
@@ -392,6 +407,94 @@ async function carica() {
   }
 }
 
+function euro(centesimi) {
+  return (centesimi / 100).toFixed(2).replace('.', ',') + ' €';
+}
+
+function rigaPrelievo(richiesta) {
+  const nodo = document.createElement('div');
+  nodo.className = 'report';
+
+  const intestatario = `${richiesta.firstName} ${richiesta.lastName}`.trim();
+
+  const testa = document.createElement('p');
+  testa.innerHTML =
+    `<strong>${euro(richiesta.amountCents)}</strong> a ` +
+    `<strong>${intestatario}</strong> (@${richiesta.username})`;
+  nodo.appendChild(testa);
+
+  // L'IBAN si puo' selezionare e copiare: va ricopiato nell'home banking, e
+  // ricopiarlo a mano guardando lo schermo e' il modo migliore di sbagliarlo.
+  const conto = document.createElement('p');
+  conto.className = 'nota';
+  conto.innerHTML =
+    `<code style="user-select:all">${richiesta.iban}</code>` +
+    (richiesta.fiscalCode ? ` · ${richiesta.fiscalCode}` : '');
+  nodo.appendChild(conto);
+
+  const comandi = document.createElement('div');
+  comandi.className = 'filtri';
+
+  const fatto = document.createElement('button');
+  fatto.textContent = 'Bonifico fatto';
+  fatto.addEventListener('click', async () => {
+    fatto.disabled = true;
+
+    try {
+      await segnaPagato({ id: richiesta.id });
+      await caricaPrelievi();
+    } catch (errore) {
+      fatto.disabled = false;
+      dillo(errore.message || 'Non siamo riusciti a segnarlo.');
+    }
+  });
+
+  const annulla = document.createElement('button');
+  annulla.textContent = 'Non riuscito';
+  annulla.title = 'I soldi tornano nel portafoglio di chi li ha chiesti';
+  annulla.addEventListener('click', async () => {
+    annulla.disabled = true;
+
+    try {
+      await segnaPagato({ id: richiesta.id, rimborsa: true });
+      await caricaPrelievi();
+    } catch (errore) {
+      annulla.disabled = false;
+      dillo(errore.message || 'Non siamo riusciti a segnarlo.');
+    }
+  });
+
+  comandi.appendChild(fatto);
+  comandi.appendChild(annulla);
+  nodo.appendChild(comandi);
+
+  return nodo;
+}
+
+async function caricaPrelievi() {
+  prelievi.innerHTML = '<p class="nota">Carico…</p>';
+
+  try {
+    const esito = await chiediPrelievi();
+    const richieste = esito.data.richieste || [];
+
+    prelievi.innerHTML = '';
+
+    if (richieste.length === 0) {
+      prelievi.innerHTML = '<p class="nota">Nessuno aspetta dei soldi.</p>';
+
+      return;
+    }
+
+    for (const richiesta of richieste) {
+      prelievi.appendChild(rigaPrelievo(richiesta));
+    }
+  } catch (errore) {
+    prelievi.innerHTML = '';
+    dillo(errore.message || 'Non riusciamo a leggere i prelievi.');
+  }
+}
+
 for (const tasto of document.querySelectorAll('.filtri [data-stato]')) {
   tasto.addEventListener('click', () => {
     filtro = tasto.dataset.stato;
@@ -473,6 +576,7 @@ onAuthStateChanged(auth, async (utente) => {
   mostra(accesso, false);
   mostra(tavolo, true);
   carica();
+  caricaPrelievi();
 });
 </script>
 </body>

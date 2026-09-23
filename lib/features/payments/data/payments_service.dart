@@ -296,12 +296,25 @@ class PaymentsService {
   /// Torna il motivo per cui **non** e' partito, oppure `null` se e' partito.
   /// Non lancia per il caso piu' comune — l'account che non c'e' ancora — che
   /// non e' un errore ma il primo passo: chi chiama apre la registrazione.
+  /// Chiede il prelievo. Torna il motivo per cui **non** e' partito, oppure
+  /// `null` se e' partito.
+  ///
+  /// **Si mette in fila, non parte da sola.** Il bonifico automatico ha bisogno
+  /// di un conto collegato su Stripe, e quei conti oggi non si possono creare:
+  /// non e' un guasto nostro. Restava da scegliere fra dire "non si puo'
+  /// prelevare" a chi ha vinto dei soldi veri — una promessa rotta — e far
+  /// finta che il bonifico fosse partito, che e' peggio.
+  ///
+  /// Quindi si fa la cosa che si faceva prima delle macchine: la richiesta
+  /// entra in una fila e il bonifico lo fa una persona, con i dati che sono
+  /// gia' stati controllati. Dal lato di chi ha vinto cambia solo il tempo:
+  /// i soldi escono dal saldo subito e arrivano in qualche giorno.
   Future<String?> withdraw() async {
     final result = await _functions
-        .httpsCallable('withdrawWallet')
+        .httpsCallable('requestPayout')
         .call<Map<Object?, Object?>>();
 
-    if (result.data['paid'] == true) {
+    if (result.data['ok'] == true) {
       return null;
     }
 

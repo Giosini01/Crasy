@@ -15,10 +15,22 @@
 /// dove sono i soldi e' la cosa piu' vicina a una truffa che si possa costruire
 /// in buona fede.
 class Wallet {
-  const Wallet({this.balanceCents = 0, this.movements = const []});
+  const Wallet({
+    this.balanceCents = 0,
+    this.withdrawingCents = 0,
+    this.movements = const [],
+  });
 
   /// Quanto c'e' dentro, in centesimi.
   final int balanceCents;
+
+  /// Quanto e' gia' stato chiesto e sta arrivando sul conto.
+  ///
+  /// **E' uscito dal saldo ma non e' ancora arrivato**, ed e' giusto che si
+  /// veda: chi ha chiesto un prelievo e trova il portafoglio a zero, senza una
+  /// riga che glielo spieghi, pensa che i suoi soldi siano spariti. E' anche
+  /// la riga che impedisce di chiedere due volte gli stessi soldi.
+  final int withdrawingCents;
 
   /// Da dove viene, dal piu' recente.
   final List<WalletMovement> movements;

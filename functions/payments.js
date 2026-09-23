@@ -1164,3 +1164,190 @@ module.exports.refundChallenge = refundChallenge;
 module.exports.commissionCents = commissionCents;
 module.exports.payoutCents = payoutCents;
 module.exports.chargeCents = chargeCents;
+
+// ---------------------------------------------------------------------------
+// 4. Il prelievo a mano, finche' Stripe non apre i conti
+// ---------------------------------------------------------------------------
+
+/**
+ * **Chiedere i propri soldi, quando la macchina non puo' ancora mandarli.**
+ *
+ * Il bonifico automatico ha bisogno di un conto collegato su Stripe, e quei
+ * conti oggi non si possono creare: non e' un guasto nostro ed e' documentato
+ * poco piu' sopra. Restava una scelta sola, e nessuna delle due strade ovvie
+ * andava bene: dire "non si puo' prelevare" a chi ha vinto dei soldi veri e'
+ * una promessa rotta, e fingere che il bonifico sia partito e' peggio.
+ *
+ * Quindi si fa la cosa che si faceva prima che esistessero le macchine: **la
+ * richiesta si mette in fila, e il bonifico lo fa una persona.** I dati per
+ * farlo ci sono gia' tutti — nome, codice fiscale, IBAN controllato — e chi
+ * tiene CRASY li vede in un elenco con accanto quanto deve mandare.
+ *
+ * **I soldi escono dal saldo nell'istante in cui si chiede.** Non restano
+ * disponibili "tanto poi glieli mando": finiscono in `withdrawingCents`, che
+ * vuol dire *sono tuoi, sono in viaggio, non li puoi chiedere due volte*. E'
+ * la stessa riga che impedisce a chi preme due volte di farsi pagare due volte.
+ */
+exports.requestPayout = onCall(async (request) => {
+  const userId = request.auth && request.auth.uid;
+
+  if (!userId) {
+    throw new HttpsError('unauthenticated', 'Serve un account.');
+  }
+
+  const userRef = db.collection('users').doc(userId);
+  const dati = (await userRef.collection('private').doc('payout').get()).data();
+
+  if (!dati || !dati.iban || !dati.firstName || !dati.lastName) {
+    throw new HttpsError('failed-precondition', 'dati-mancanti');
+  }
+
+  const richiestaRef = db.collection('payoutRequests').doc();
+
+  const quanto = await db.runTransaction(async (transaction) => {
+    const fresco = await transaction.get(userRef);
+    const saldo = fresco.get('walletCents') || 0;
+
+    if (saldo < MIN_WITHDRAWAL_CENTS) {
+      return 0;
+    }
+
+    // **Una richiesta alla volta.** Due in fila per la stessa persona vorrebbe
+    // dire due bonifici da fare a mano, e il secondo per dei soldi che il
+    // primo aveva gia' portato via.
+    if ((fresco.get('withdrawingCents') || 0) > 0) {
+      return -1;
+    }
+
+    transaction.update(userRef, {
+      walletCents: 0,
+      withdrawingCents: saldo,
+    });
+
+    transaction.set(richiestaRef, {
+      userId,
+      username: fresco.get('username') || '',
+      amountCents: saldo,
+      status: 'pending',
+      // **I dati si copiano qui dentro, non si leggono al momento del
+      // bonifico.** Se qualcuno cambia IBAN dopo aver chiesto il prelievo, i
+      // soldi devono andare dove aveva detto quando li ha chiesti — e chi fa
+      // il bonifico deve poter dimostrare su quale IBAN glieli ha mandati.
+      firstName: dati.firstName,
+      lastName: dati.lastName,
+      fiscalCode: dati.fiscalCode || '',
+      iban: dati.iban,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return saldo;
+  });
+
+  if (quanto === 0) {
+    return { ok: false, reason: 'saldo-basso', minimumCents: MIN_WITHDRAWAL_CENTS };
+  }
+
+  if (quanto < 0) {
+    return { ok: false, reason: 'gia-in-corso' };
+  }
+
+  logger.info(`Prelievo chiesto da ${userId}: ${quanto} centesimi.`);
+
+  return { ok: true, amountCents: quanto };
+});
+
+/** L'elenco dei bonifici da fare. Solo per chi tiene CRASY. */
+exports.adminListPayouts = onCall(async (request) => {
+  if (!request.auth || request.auth.token.admin !== true) {
+    throw new HttpsError('permission-denied', 'Non sei un amministratore.');
+  }
+
+  const richieste = await db
+    .collection('payoutRequests')
+    .where('status', '==', 'pending')
+    .limit(100)
+    .get();
+
+  const righe = richieste.docs.map((d) => ({
+    id: d.id,
+    userId: d.get('userId'),
+    username: d.get('username') || '',
+    amountCents: d.get('amountCents') || 0,
+    firstName: d.get('firstName') || '',
+    lastName: d.get('lastName') || '',
+    fiscalCode: d.get('fiscalCode') || '',
+    iban: d.get('iban') || '',
+    createdAt: d.get('createdAt') ? d.get('createdAt').toMillis() : null,
+  }));
+
+  // Prima i piu' vecchi: chi aspetta da piu' tempo viene pagato per primo.
+  righe.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+  return { richieste: righe };
+});
+
+/**
+ * **Il bonifico e' partito: si segna, e il conto torna a posto.**
+ *
+ * Si chiama dopo aver mandato i soldi davvero, non prima. E' l'unico passo di
+ * tutto il giro che una macchina non puo' verificare: nessuno qui dentro puo'
+ * sapere se quel bonifico e' stato fatto, quindi lo dice una persona e resta
+ * scritto chi l'ha detto e quando.
+ */
+exports.adminMarkPayoutPaid = onCall(async (request) => {
+  if (!request.auth || request.auth.token.admin !== true) {
+    throw new HttpsError('permission-denied', 'Non sei un amministratore.');
+  }
+
+  const id = String(request.data && request.data.id);
+  const rimborsa = Boolean(request.data && request.data.rimborsa);
+  const richiestaRef = db.collection('payoutRequests').doc(id);
+
+  await db.runTransaction(async (transaction) => {
+    const richiesta = await transaction.get(richiestaRef);
+
+    if (!richiesta.exists || richiesta.get('status') !== 'pending') {
+      throw new HttpsError('failed-precondition', 'Gia\' decisa.');
+    }
+
+    const userRef = db.collection('users').doc(richiesta.get('userId'));
+    const quanto = richiesta.get('amountCents') || 0;
+
+    if (rimborsa) {
+      // **Il bonifico non si e' potuto fare: i soldi tornano disponibili.**
+      // Non spariscono e non restano appesi: chi li ha vinti li rivede nel
+      // portafoglio e puo' richiederli, magari con un IBAN corretto.
+      transaction.update(userRef, {
+        walletCents: admin.firestore.FieldValue.increment(quanto),
+        withdrawingCents: 0,
+      });
+
+      transaction.update(richiestaRef, {
+        status: 'failed',
+        decidedBy: request.auth.uid,
+        decidedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return;
+    }
+
+    transaction.update(userRef, { withdrawingCents: 0 });
+
+    transaction.set(userRef.collection('wallet').doc(), {
+      kind: 'withdrawal',
+      amountCents: -quanto,
+      challengeTitle: '',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    transaction.update(richiestaRef, {
+      status: 'paid',
+      decidedBy: request.auth.uid,
+      decidedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  });
+
+  logger.info(`Prelievo ${id}: ${rimborsa ? 'non riuscito' : 'pagato'}.`);
+
+  return { ok: true };
+});

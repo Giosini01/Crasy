@@ -256,6 +256,9 @@ exports.createChallengePaymentIntent = payments.createChallengePaymentIntent;
 exports.stripeWebhook = payments.stripeWebhook;
 exports.createPayoutOnboarding = payments.createPayoutOnboarding;
 exports.withdrawWallet = payments.withdrawWallet;
+exports.requestPayout = payments.requestPayout;
+exports.adminListPayouts = payments.adminListPayouts;
+exports.adminMarkPayoutPaid = payments.adminMarkPayoutPaid;
 exports.cancelChallenge = payments.cancelChallenge;
 
 // **Sta sotto `setGlobalOptions` per lo stesso motivo dell'amministrazione.**

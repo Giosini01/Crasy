@@ -25,6 +25,13 @@ class WalletRepository {
   DocumentReference<Map<String, dynamic>> _user(String userId) =>
       _firestore.collection('users').doc(userId);
 
+  Stream<int> watchWithdrawing(String userId) {
+    return _user(userId).snapshots().map(
+      (snapshot) =>
+          (snapshot.data()?['withdrawingCents'] as num?)?.toInt() ?? 0,
+    );
+  }
+
   Stream<int> watchBalance(String userId) {
     return _user(userId).snapshots().map(
       (snapshot) => (snapshot.data()?['walletCents'] as num?)?.toInt() ?? 0,
