@@ -181,24 +181,43 @@ diffamatori o che mettano in pericolo chi li realizza.
 Chi lancia la missione mette in palio una somma e la versa a CRASY, che la
 trattiene fino alla chiusura. Alla scadenza il premio va alla partecipazione che
 ha ricevuto piu' fiamme dagli altri utenti; a parita' di fiamme vince chi ha
-inviato per primo. Sul premio CRASY trattiene una percentuale, indicata
-nell'app prima del pagamento. Il resto viene accreditato al vincitore.
-Le somme sono corrispettivi per un'opera: possono avere rilevanza fiscale per
-chi le riceve, ed e' responsabilita' del percettore dichiararle secondo la
-normativa applicabile.
+inviato per primo.
 
-5. LE MISSIONI VIETATE
+CRASY riceve e custodisce il premio **in nome e per conto di chi lo ha messo in
+palio**, al solo scopo di consegnarlo al vincitore. Quelle somme non sono
+ricavi di CRASY e restano di chi le ha versate fino al momento in cui vengono
+accreditate al vincitore. Il corrispettivo di CRASY e' unicamente la
+percentuale trattenuta sul premio, indicata nell'app prima del pagamento; il
+resto viene accreditato al vincitore.
+
+Le somme accreditate al vincitore sono corrispettivi per un'opera: possono
+avere rilevanza fiscale per chi le riceve, ed e' responsabilita' del percettore
+dichiararle secondo la normativa applicabile.
+
+5. QUANDO IL PREMIO TORNA INDIETRO
+Se alla missione non partecipa nessuno, il premio torna per intero a chi lo
+aveva messo, spese comprese.
+
+Se invece e' chi ha lanciato la missione a cancellarla, torna indietro il
+premio: restano fuori le spese del pagamento, gia' sostenute e non
+recuperabili, e la percentuale di CRASY. Una missione non si puo' cancellare
+dal momento in cui qualcuno vi ha partecipato.
+
+I rimborsi vengono disposti subito ma l'accredito sulla carta dipende dalla
+banca di chi lo riceve, e richiede di norma alcuni giorni lavorativi.
+
+6. LE MISSIONI VIETATE
 Non si possono lanciare missioni che chiedano di compiere reati, di mettersi in
 pericolo, di farsi del male, di molestare o riprendere persone che non hanno
 acconsentito, o che abbiano contenuto sessuale. CRASY puo' rimuovere una
 missione e restituire il premio a chi l'ha messo.
 
-6. MODERAZIONE
+7. MODERAZIONE
 CRASY puo' rimuovere contenuti e sospendere account che violano queste regole,
 anche senza preavviso quando il contenuto e' gravemente lesivo. Chi ritiene la
 rimozione sbagliata puo' contestarla scrivendo al contatto indicato.
 
-7. RESPONSABILITA'
+8. RESPONSABILITA'
 CRASY mette a disposizione una piattaforma. Quello che le persone fanno per
 partecipare lo fanno sotto la propria responsabilita': CRASY non e' il datore di
 lavoro di nessuno e non e' presente quando un contenuto viene realizzato.
@@ -207,16 +226,16 @@ partecipa, ne' dei rapporti fra utenti.
 Nulla in queste condizioni esclude o limita la responsabilita' che la legge non
 consente di escludere, in particolare verso i consumatori.
 
-8. CHIUDERE L'ACCOUNT
+9. CHIUDERE L'ACCOUNT
 Si puo' chiudere il proprio account in qualunque momento. Le somme gia'
 maturate restano dovute; i contenuti gia' pubblicati vengono rimossi secondo
 quanto indicato nell'informativa privacy.
 
-9. MODIFICHE
+10. MODIFICHE
 Queste condizioni possono cambiare. Le modifiche rilevanti vengono comunicate e
 richiedono una nuova accettazione prima di continuare a usare l'app.
 
-10. LEGGE E FORO
+11. LEGGE E FORO
 Si applica la legge italiana. Per i consumatori resta ferma la competenza del
 giudice del luogo di residenza o domicilio.
 ''',
