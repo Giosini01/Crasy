@@ -332,6 +332,21 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // **La stanza privata: nome, data di nascita, codice fiscale, IBAN.**
+      //
+      // Si chiedono solo a chi preleva, e stanno qui e non nel profilo per una
+      // ragione sola: il profilo e' fatto per essere letto da chiunque apra la
+      // pagina di una persona, e un codice fiscale in mezzo al nome e alla
+      // foto sarebbe alla portata di tutta l'app per un errore di una riga.
+      // Qui invece la porta si apre a una persona e basta.
+      //
+      // **Nessuno li rilegge da fuori, nemmeno noi da qui.** Il server li usa
+      // con l'SDK di amministrazione, che queste regole non le attraversa: per
+      // tutto il resto del mondo questa cartella non esiste.
+      match /private/{documento} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
       match /notifications/{notificationId} {
         allow read: if signedIn() && request.auth.uid == userId;
 

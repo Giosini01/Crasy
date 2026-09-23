@@ -1,3 +1,4 @@
+import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
@@ -8,9 +9,11 @@ import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 import 'package:crasy/features/payments/domain/entities/wallet.dart';
+import 'package:crasy/features/payments/presentation/pages/payout_details_page.dart';
 import 'package:crasy/features/payments/presentation/providers/payments_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 /// **I soldi vinti, e il modo di portarseli via.**
 ///
@@ -36,6 +39,26 @@ class _WalletPageState extends ConsumerState<WalletPage> {
   String? _message;
 
   Future<void> _withdraw() async {
+    // **Prima i dati, poi i soldi.**
+    //
+    // Chi non li ha ancora messi non si prende un errore: si prende il modulo.
+    // E' l'unico momento in cui ha senso chiederli — ha appena chiesto di
+    // essere pagato — e chiederli prima sarebbe stato un modulo davanti alla
+    // porta a chi voleva solo fare una foto.
+    final dati = ref.read(payoutDetailsProvider).valueOrNull;
+
+    if (dati == null || !dati.isComplete) {
+      final fatto = await Navigator.of(
+        context,
+      ).push<bool>(
+        MaterialPageRoute(builder: (_) => const PayoutDetailsPage()),
+      );
+
+      if (fatto != true || !mounted) {
+        return;
+      }
+    }
+
     setState(() {
       _working = true;
       _message = null;
@@ -80,6 +103,8 @@ class _WalletPageState extends ConsumerState<WalletPage> {
               _message = '$errore'.contains('incasso-non-configurato')
                   ? 'I prelievi non sono ancora aperti. I soldi restano tuoi '
                         'e non si perdono: riprova fra qualche giorno.'
+                  : '$errore'.contains('dati-mancanti')
+                  ? 'Mancano i dati per il bonifico: compilali e riprova.'
                   : 'Non siamo riusciti ad aprire la registrazione. Riprova '
                         'fra poco.';
             });
@@ -123,6 +148,7 @@ class _WalletPageState extends ConsumerState<WalletPage> {
     final palette = context.palette;
     final texts = context.texts;
     final wallet = ref.watch(walletProvider).valueOrNull ?? const Wallet();
+    final dati = ref.watch(payoutDetailsProvider).valueOrNull;
     final balance = ref.watch(walletBalanceProvider);
     final quanto = Wallet.minimumWithdrawalCents - balance;
 
@@ -193,13 +219,28 @@ class _WalletPageState extends ConsumerState<WalletPage> {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  'La prima volta che prelevi servono nome, documento e IBAN: è '
-                  'la legge per chiunque riceva denaro, e si fa una volta sola. '
-                  'I soldi arrivano sul conto in pochi giorni.',
+                  dati != null && dati.isComplete
+                      ? 'Vanno sul conto ${dati.ibanTail}, intestato a '
+                            '${dati.firstName} ${dati.lastName}. Arrivano in '
+                            'pochi giorni.'
+                      : 'La prima volta che prelevi servono nome, data di '
+                            'nascita, codice fiscale e IBAN: è la legge per '
+                            'chiunque riceva denaro, e si fa una volta sola.',
                   style: texts.bodySmall?.copyWith(
                     color: palette.textSecondary,
                   ),
                 ),
+                // **Il conto si puo' cambiare, e si trova.** Un IBAN si sbaglia
+                // o si chiude, e se l'unico modo di correggerlo fosse scrivere
+                // a qualcuno, quei soldi resterebbero fermi per sempre.
+                if (dati != null && dati.isComplete)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      onPressed: () => context.push(AppRoutes.payoutDetails),
+                      child: const Text('Cambia i dati'),
+                    ),
+                  ),
                 if (_message != null) ...[
                   const SizedBox(height: AppSpacing.md),
                   Text(_message!, style: texts.bodyMedium),

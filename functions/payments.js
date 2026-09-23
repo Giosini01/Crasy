@@ -676,6 +676,22 @@ exports.createPayoutOnboarding = onCall(
     const userRef = db.collection('users').doc(userId);
     const user = await userRef.get();
 
+    // **I dati li ha gia' messi l'app, e qui si controlla che ci siano.**
+    //
+    // L'app li chiede prima di arrivare fin qui, con i suoi controlli: la
+    // prova del nove dell'IBAN, la lettera finale del codice fiscale, la
+    // maggiore eta'. Ricontrollare che ci siano non e' sfiducia verso quella
+    // schermata — e' che questa funzione si puo' chiamare anche senza passarci,
+    // e un conto collegato nato senza nome e senza IBAN e' un conto che poi
+    // nessuno riesce piu' a registrare.
+    const dati = (
+      await userRef.collection('private').doc('payout').get()
+    ).data();
+
+    if (!dati || !dati.iban || !dati.firstName || !dati.lastName) {
+      throw new HttpsError('failed-precondition', 'dati-mancanti');
+    }
+
     let accountId = user.get('stripeAccountId');
 
     if (!accountId) {
@@ -715,6 +731,35 @@ exports.createPayoutOnboarding = onCall(
           capabilities: { transfers: { requested: true } },
           business_type: 'individual',
           metadata: { userId },
+          // **Quello che sappiamo gia', Stripe non lo richiede.**
+          //
+          // Sono gli stessi dati che la persona ha appena scritto nell'app:
+          // passarglieli vuol dire trovare quella pagina in buona parte
+          // compilata invece che vuota. Il documento resta a loro — verificarlo
+          // e' un mestiere, e le carte d'identita' non passano da CRASY — ma
+          // tutto il resto e' gia' fatto.
+          individual: {
+            first_name: dati.firstName,
+            last_name: dati.lastName,
+            email: request.auth.token.email,
+            ...(dati.birthDate
+              ? {
+                  dob: {
+                    day: dati.birthDate.toDate().getUTCDate(),
+                    month: dati.birthDate.toDate().getUTCMonth() + 1,
+                    year: dati.birthDate.toDate().getUTCFullYear(),
+                  },
+                }
+              : {}),
+          },
+          external_account: {
+            object: 'bank_account',
+            country: 'IT',
+            currency: 'eur',
+            account_number: dati.iban,
+            account_holder_name: `${dati.firstName} ${dati.lastName}`,
+            account_holder_type: 'individual',
+          },
         })
         .catch((errore) => {
           logger.error('Conto per incassare non creato.', errore);

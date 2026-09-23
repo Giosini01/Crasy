@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crasy/features/payments/domain/entities/payout_details.dart';
 import 'package:crasy/features/payments/domain/entities/wallet.dart';
 
 /// Il portafoglio su Firestore.
@@ -68,5 +69,46 @@ class WalletRepository {
 
       return movements;
     });
+  }
+
+  /// **I dati per il prelievo stanno in un documento a parte.**
+  ///
+  /// Non dentro il profilo, che e' fatto per essere letto: il profilo lo legge
+  /// chiunque apra la pagina di una persona, e un codice fiscale in mezzo al
+  /// nome e alla foto sarebbe leggibile da tutta l'app per un errore di una
+  /// riga nelle regole. Qui invece sono in una stanza che si apre a una sola
+  /// persona, e la regola che lo dice e' una sola riga anche lei — ma sbagliarla
+  /// non basta a far uscire niente, perche' nessuna schermata li chiede.
+  DocumentReference<Map<String, dynamic>> _payout(String userId) =>
+      _user(userId).collection('private').doc('payout');
+
+  Stream<PayoutDetails?> watchPayoutDetails(String userId) {
+    return _payout(userId).snapshots().map((snapshot) {
+      final data = snapshot.data();
+
+      if (data == null) {
+        return null;
+      }
+
+      return PayoutDetails(
+        firstName: data['firstName'] as String? ?? '',
+        lastName: data['lastName'] as String? ?? '',
+        fiscalCode: data['fiscalCode'] as String? ?? '',
+        iban: data['iban'] as String? ?? '',
+        birthDate: (data['birthDate'] as Timestamp?)?.toDate(),
+      );
+    });
+  }
+
+  Future<void> savePayoutDetails(String userId, PayoutDetails details) {
+    return _payout(userId).set({
+      'firstName': details.firstName.trim(),
+      'lastName': details.lastName.trim(),
+      'fiscalCode': PayoutValidators.normalize(details.fiscalCode),
+      'iban': PayoutValidators.normalize(details.iban),
+      if (details.birthDate case final nato?)
+        'birthDate': Timestamp.fromDate(nato),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 }

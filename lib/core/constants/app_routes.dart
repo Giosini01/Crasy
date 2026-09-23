@@ -77,6 +77,14 @@ abstract final class AppRoutes {
   /// aprirsi.
   static const wallet = '/portafoglio';
 
+  /// Nome, data di nascita, codice fiscale e IBAN: quello che serve per
+  /// mandare dei soldi a qualcuno.
+  ///
+  /// **Si arriva qui solo premendo "preleva".** Chiederli alla registrazione
+  /// vorrebbe dire un modulo davanti alla porta a chi si e' iscritto per fare
+  /// una foto assurda; finche' non ha vinto niente non servono a nessuno.
+  static const payoutDetails = '/portafoglio/dati';
+
   /// Le gare appena chiuse, con la foto di chi ha vinto.
   ///
   /// **Una schermata sua, non una striscia in fondo a un'altra.** E' stata

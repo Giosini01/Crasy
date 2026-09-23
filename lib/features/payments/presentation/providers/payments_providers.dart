@@ -2,6 +2,7 @@ import 'package:crasy/core/services/firebase/firebase_providers.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/payments/data/payments_service.dart';
 import 'package:crasy/features/payments/data/wallet_repository.dart';
+import 'package:crasy/features/payments/domain/entities/payout_details.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 import 'package:crasy/features/payments/domain/entities/wallet.dart';
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
@@ -37,6 +38,22 @@ final walletBalanceProvider = Provider<int>((ref) {
   }
 
   return ref.watch(myPrizeCentsProvider);
+});
+
+/// I miei dati per il prelievo, se li ho gia' messi.
+///
+/// Nullo vuol dire "mai compilati": e' la differenza fra chi deve ancora
+/// passare dal modulo e chi lo ha gia' fatto, ed e' quella a decidere dove
+/// porta il tasto "preleva".
+final payoutDetailsProvider = StreamProvider<PayoutDetails?>((ref) {
+  final repository = ref.watch(walletRepositoryProvider);
+  final userId = ref.watch(currentUserIdProvider);
+
+  if (repository == null || userId == null) {
+    return Stream.value(null);
+  }
+
+  return repository.watchPayoutDetails(userId);
 });
 
 /// Il mio portafoglio: quanto c'e' dentro e da dove viene.
