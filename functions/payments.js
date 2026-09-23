@@ -260,7 +260,16 @@ exports.startChallengePayment = onCall(
         // Nel metadato ci va solo l'identificativo. L'importo lo rilegge il
         // webhook dal database: se viaggiasse di qua, chi intercetta la
         // chiamata deciderebbe quanto vale la challenge.
-        metadata: { challengeId, userId },
+        // **Nel metadato anche quanto vale il premio.**
+        //
+        // Non per farlo decidere a chi intercetta la chiamata — a quello serve
+        // il database, ed e' li' che il webhook lo rilegge — ma perche' il
+        // pagamento deve restare leggibile anche quando la gara non c'e' piu'.
+        // Una missione cancellata sparisce, e con lei l'unico modo di sapere
+        // quanta parte di quell'incasso era premio di qualcun altro e quanta
+        // era il compenso di CRASY: senza, mesi dopo, in contabilita' quel
+        // movimento diventa un numero che non si sa piu' dividere.
+        metadata: { challengeId, userId, prizeCents: String(prize) },
         // Pagato o annullato, si torna dove si era prima di aprire il modulo:
         // e' li' che la gara comparira' appena Stripe conferma.
         success_url: ritorno,
@@ -398,7 +407,16 @@ exports.createChallengePaymentIntent = onCall(
         // Come per la pagina: nel metadato solo il nome della gara. L\'importo
         // lo rilegge il webhook dal database, cosi\' non lo decide chi
         // intercetta la chiamata.
-        metadata: { challengeId, userId },
+        // **Nel metadato anche quanto vale il premio.**
+        //
+        // Non per farlo decidere a chi intercetta la chiamata — a quello serve
+        // il database, ed e' li' che il webhook lo rilegge — ma perche' il
+        // pagamento deve restare leggibile anche quando la gara non c'e' piu'.
+        // Una missione cancellata sparisce, e con lei l'unico modo di sapere
+        // quanta parte di quell'incasso era premio di qualcun altro e quanta
+        // era il compenso di CRASY: senza, mesi dopo, in contabilita' quel
+        // movimento diventa un numero che non si sa piu' dividere.
+        metadata: { challengeId, userId, prizeCents: String(prize) },
       },
       { idempotencyKey: `challenge-intent-${challengeId}` }
     );

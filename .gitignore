@@ -116,3 +116,9 @@ service-account*.json
 *KEY*.txt
 *chiave*.txt
 *secret*.txt
+
+# L'estratto per il commercialista: contiene nomi, IBAN e importi di persone
+# vere. Si rigenera quando serve, e non ha nessun motivo di stare in un
+# repository pubblico.
+movimenti.csv
+functions/movimenti.csv
