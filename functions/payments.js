@@ -1075,7 +1075,7 @@ exports.withdrawWallet = onCall(
  * pochi euro e sono la differenza fra "non e' andata" e "mi hanno tenuto dei
  * soldi per niente": la seconda e' la storia che uno racconta agli amici.
  */
-async function refundChallenge(challengeId) {
+async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
   const stripe = stripeClient();
   const ref = db.collection('challenges').doc(challengeId);
   const snapshot = await ref.get();
@@ -1090,14 +1090,40 @@ async function refundChallenge(challengeId) {
     return;
   }
 
+  // **Chi cancella si tiene il costo della sua decisione; chi resta a mani
+  // vuote no.**
+  //
+  // Sono due rimborsi diversi perche' sono due situazioni diverse, e
+  // trattarle uguali sarebbe ingiusto in un verso o nell'altro.
+  //
+  // *Nessuno ha partecipato*: chi ha lanciato non ha fatto niente di male. Ha
+  // messo dei soldi e non si e' presentato nessuno — non e' merito ne' colpa
+  // sua, ed e' proprio il rischio che si prende chi fa giocare gli altri.
+  // Torna tutto, commissioni comprese: trattenergli qualcosa e' il modo piu'
+  // rapido di non fargli lanciare mai piu' una missione.
+  //
+  // *Ha cancellato lui*: torna **il premio**, e restano fuori le spese. Quelle
+  // di Stripe perche' sono uscite davvero e non si recuperano — Stripe non le
+  // restituisce sui rimborsi — e la parte di CRASY perche' il lavoro e' stato
+  // fatto: la gara e' nata, e' stata annunciata, e a chiuderla e' stata una
+  // scelta. Senza questa riga, aprire e cancellare in continuazione svuotava
+  // il conto di CRASY qualche centesimo alla volta.
+  const quanto = soloIlPremio ? snapshot.get('prizeCents') || 0 : undefined;
+
   await stripe.refunds.create(
-    { payment_intent: paymentIntentId },
+    {
+      payment_intent: paymentIntentId,
+      ...(quanto ? { amount: quanto } : {}),
+    },
     { idempotencyKey: `challenge-refund-${challengeId}` }
   );
 
   await ref.update({ prizeStatus: 'refunded' });
 
-  logger.info(`Challenge ${challengeId}: nessun partecipante, premio reso.`);
+  logger.info(
+    `Challenge ${challengeId}: ` +
+      (soloIlPremio ? 'cancellata, premio reso.' : 'nessun partecipante, reso tutto.')
+  );
 }
 
 /**
@@ -1148,7 +1174,7 @@ exports.cancelChallenge = onCall(
     }
 
     if (snapshot.get('prizeStatus') === 'held') {
-      await refundChallenge(challengeId);
+      await refundChallenge(challengeId, { soloIlPremio: true });
     }
 
     await ref.delete();

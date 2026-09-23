@@ -972,10 +972,20 @@ class _DeleteChallengeState extends ConsumerState<_DeleteChallenge> {
       builder: (context) => AlertDialog(
         title: const Text('Cancellare la missione?'),
         content: Text(
+          // **Si dice cosa torna, e in quanto tempo.**
+          //
+          // Le due cose che uno vuole sapere prima di toccare quel tasto, e
+          // tacere la seconda era il modo piu' sicuro di farsi scrivere fra
+          // due giorni "dove sono i miei soldi". Una carta non restituisce
+          // niente in tempo reale: l'ordine parte subito, la banca ci mette
+          // giorni, e chi non lo sa pensa che i soldi siano spariti.
           pagata
-              ? 'Non ha ancora partecipato nessuno, quindi si può. Il premio '
-                    'ti torna indietro intero, commissioni comprese. La '
-                    'missione sparisce e non si recupera.'
+              ? 'Non ha ancora partecipato nessuno, quindi si può. Ti '
+                    'torna il premio di ${widget.challenge.prizeLabel}: '
+                    'restano fuori le spese di pagamento, che sono già state '
+                    'pagate e non si recuperano. Arrivano sulla tua carta in '
+                    '5-10 giorni lavorativi, e li mette la tua banca, non '
+                    'noi. La missione sparisce e non si recupera.'
               : 'Non ha ancora partecipato nessuno, quindi si può. Sparisce '
                     'dalla home e non si recupera.',
         ),

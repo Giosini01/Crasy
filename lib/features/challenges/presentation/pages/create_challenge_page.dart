@@ -437,9 +437,21 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               // mentre ha ancora il dito lontano dal bottone.
               Text(
                 paymentsEnabled
+                    // **Detto prima di pagare, non dopo.**
+                    //
+                    // Sono le due cose che uno scopre nel momento sbagliato se
+                    // non gliele dici adesso: che cancellando **non torna
+                    // tutto** — restano fuori le spese di pagamento, gia'
+                    // uscite — e che i soldi non rientrano in tempo reale.
+                    // Chi lo legge qui non ha sorprese; chi lo scopre dopo
+                    // pensa di essere stato fregato, ed e' la stessa cosa
+                    // vista da due momenti diversi.
                     ? 'Il premio lo trattiene CRASY fino alla fine della '
-                          'challenge, poi lo gira a chi vince. Se non partecipa '
-                          'nessuno, ti torna indietro intero.'
+                          'challenge, poi lo gira a chi vince. Se non '
+                          'partecipa nessuno ti torna indietro intero. Se '
+                          'invece la cancelli tu, ti torna il premio ma non '
+                          'le spese di pagamento — e la banca ci mette 5-10 '
+                          'giorni a rimettertelo sulla carta.'
                     : 'Il premio lo paghi tu. CRASY non fa da garante e non '
                           'trattiene i soldi: mettine uno che puoi davvero '
                           'dare.',
