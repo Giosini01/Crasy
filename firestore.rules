@@ -986,19 +986,32 @@ service cloud.firestore {
                       // "non hai accesso" incomprensibile.
                       && request.resource.data.get('caption', '') is string
                       && request.resource.data.get('caption', '').size() <= 140
-                      // IL GIORNO IN CUI I PAGAMENTI SI ACCENDONO, questa riga
-                      // va tolta dal commento:
+                      // **A una gara con un premio si partecipa solo se quel
+                      // premio e' stato incassato.**
                       //
-                      //   && challenge().get('prizeStatus', 'unpaid') == 'held'
+                      // E' il giorno in cui i pagamenti diventano veri, e
+                      // questa riga era rimasta spenta ad aspettarlo. Finora a
+                      // nascondere le gare non pagate era soltanto l'app, e
+                      // andava bene finche' i soldi erano finti; adesso e' la
+                      // porta piu' grossa che ci sia. Senza, chiunque sappia
+                      // scrivere due righe crea una gara da cinquecento euro,
+                      // non la paga, e fa uscire di casa della gente per un
+                      // premio che non esiste — e la prima volta che succede la
+                      // voce gira e l'app e' finita.
                       //
-                      // Impedisce di partecipare a una challenge il cui premio
-                      // non e' stato incassato. Oggi rifiuterebbe **tutte** le
-                      // partecipazioni — nessuna challenge e' mai stata pagata,
-                      // perche' non esiste ancora niente che possa pagarla — e
-                      // l'app smetterebbe di funzionare in silenzio.
+                      // **Le gare gratis passano lo stesso**, e la lezione l'ha
+                      // gia' insegnata l'app: zero euro in palio vuol dire
+                      // niente da incassare e niente da garantire. Senza questa
+                      // eccezione sparirebbe la sfida del giorno, che e' gratis
+                      // da sempre ed e' la prima cosa che vede chi apre CRASY.
                       //
-                      // Sta scritta qui, e non in un appunto altrove, perche'
-                      // e' qui che qualcuno la cerchera'.
+                      // `paidOut` ci sta dentro perche' una gara si chiude e si
+                      // paga in due momenti diversi: una foto arrivata nello
+                      // stesso istante in cui il server proclama il vincitore
+                      // non va rifiutata per una questione di millisecondi.
+                      && (challenge().get('prizeCents', 0) == 0
+                          || challenge().get('prizeStatus', 'unpaid')
+                             in ['held', 'paidOut'])
                       && challengeIsLive();
 
         // **Una foto sola, e non si cambia.** L'autore non ha nessun permesso
