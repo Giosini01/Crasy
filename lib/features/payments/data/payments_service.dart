@@ -80,6 +80,8 @@ class PaymentsService {
     final dati = result.data;
     final clientSecret = dati['clientSecret'] as String?;
     final publishableKey = dati['publishableKey'] as String?;
+    final customerId = dati['customerId'] as String?;
+    final ephemeralKeySecret = dati['ephemeralKeySecret'] as String?;
 
     if (clientSecret == null || publishableKey == null) {
       return false;
@@ -110,103 +112,26 @@ class PaymentsService {
       );
 
       passo?.call('preparo il foglio');
-      await Stripe.instance
-          .initPaymentSheet(
-            paymentSheetParameters: SetupPaymentSheetParameters(
-              paymentIntentClientSecret: clientSecret,
-              merchantDisplayName: 'CRASY',
-              // **Dove tornare, se qualcosa esce dall'app.**
-              //
-              // Con i soli pagamenti a carta non ci va nessuno, e infatti il
-              // server chiede a Stripe di non proporne altri. Ma il foglio
-              // vuole saperlo lo stesso prima di aprirsi, e senza resta chiuso
-              // senza dire perche'. `crasy://` e' lo schema con cui l'app si fa
-              // gia' riaprire dal browser dopo il recupero della password: era
-              // gia' registrato, non ce n'e' voluto uno nuovo.
-              returnURL: 'crasy://pagamento',
-              // **Niente carte salvate, per ora.**
-              //
-              // Qui passavano l'identificativo del cliente e una chiave
-              // temporanea, che sono le due cose che fanno ritrovare la carta
-              // la volta dopo. Quella chiave pero' nasce legata a una versione
-              // precisa delle interfacce di Stripe, e quando non combacia con
-              // quella che il telefono si aspetta il foglio non si apre — di
-              // nuovo senza dire niente.
-              //
-              // Un tocco risparmiato la seconda volta non vale un pagamento
-              // che non parte la prima. Si rimettono quando il giro base e'
-              // provato: il cliente su Stripe viene creato lo stesso, quindi
-              // non si perde niente per strada.
-              // Chiaro come il resto di CRASY: il foglio segue il tema del telefono
-              // se non gli si dice niente, e un pannello nero che si alza dentro
-              // un'app bianca sembra di un'altra applicazione.
-              style: ThemeMode.light,
-              // **Il tasto dice PAGA, in italiano.**
-              //
-              // Il foglio segue la lingua del telefono, e su un telefono in
-              // inglese diceva "Pay" in mezzo a una schermata scritta in
-              // italiano. La parola sul tasto che tira fuori i soldi e' l'ultima
-              // che uno legge prima di premere: deve essere nella sua lingua.
-              primaryButtonLabel: 'Paga',
-              // **E ha la faccia di CRASY.**
-              //
-              // Il foglio di Stripe nasce blu, e blu e' il colore di Stripe.
-              // Chi lo vede alzarsi si trova davanti un pezzo di un'altra
-              // applicazione proprio nel momento in cui deve fidarsi — che e'
-              // il momento peggiore per sembrare un'altra cosa. Il rosso, il
-              // bianco e gli angoli sono gli stessi del resto dell'app: non
-              // sta cambiando posto, sta pagando dentro CRASY.
-              appearance: const PaymentSheetAppearance(
-                colors: PaymentSheetAppearanceColors(
-                  primary: AppColors.crasyRed,
-                  background: AppColors.paper,
-                  componentBackground: AppColors.paperMuted,
-                  componentBorder: AppColors.line,
-                  componentDivider: AppColors.line,
-                  componentText: AppColors.ink,
-                  primaryText: AppColors.ink,
-                  secondaryText: AppColors.inkSoft,
-                  placeholderText: AppColors.inkFaint,
-                  icon: AppColors.inkSoft,
-                  error: AppColors.crasyRed,
-                ),
-                shapes: PaymentSheetShape(
-                  borderRadius: 12,
-                  borderWidth: 1,
-                ),
-                primaryButton: PaymentSheetPrimaryButtonAppearance(
-                  colors: PaymentSheetPrimaryButtonTheme(
-                    light: PaymentSheetPrimaryButtonThemeColors(
-                      background: AppColors.crasyRed,
-                      text: AppColors.paper,
-                      border: AppColors.crasyRed,
-                    ),
-                    dark: PaymentSheetPrimaryButtonThemeColors(
-                      background: AppColors.crasyRed,
-                      text: AppColors.paper,
-                      border: AppColors.crasyRed,
-                    ),
-                  ),
-                ),
-              ),
-              // **Niente Apple Pay, per adesso.**
-              //
-              // Chiederlo qui non lo fa comparire: serve un identificativo mercante
-              // di Apple, il permesso corrispondente dentro l'app e la stessa cosa
-              // registrata su Stripe. Senza quelle tre, il foglio non si apre e
-              // basta — e fallisce prima ancora di mostrarsi, quindi si vede solo
-              // "non siamo riusciti ad aprire il pagamento" e nessuno capisce
-              // perche'.
-              //
-              // La carta funziona da sola. Apple Pay si aggiunge dopo, quando ci
-              // sara' l'account vero: e' un tocco in meno, non un pagamento in piu'.
-            ),
-          )
-          .timeout(
-            _pazienza,
-            onTimeout: () =>
-                throw Exception('Stripe non risponde (preparazione)'),
-          );
+
+      // **La carta della volta scorsa.** Se il server ha mandato cliente e
+      // chiave temporanea, il foglio si apre con la carta gia' salvata da
+      // Stripe. Se con quei due il foglio non si prepara — una volta era
+      // successo — si riprova senza: meglio rimettere la carta che non pagare.
+      final conCarta = customerId != null && ephemeralKeySecret != null;
+
+      try {
+        await _preparaIlFoglio(
+          clientSecret,
+          customerId: conCarta ? customerId : null,
+          ephemeralKeySecret: conCarta ? ephemeralKeySecret : null,
+        );
+      } on Object {
+        if (!conCarta) {
+          rethrow;
+        }
+
+        await _preparaIlFoglio(clientSecret);
+      }
 
       passo?.call('apro il foglio');
 
@@ -251,6 +176,101 @@ class PaymentsService {
     }
 
     return true;
+  }
+
+  /// Prepara il foglio di Stripe. Con cliente e chiave temporanea mostra le
+  /// carte salvate; senza, chiede la carta da capo.
+  Future<void> _preparaIlFoglio(
+    String clientSecret, {
+    String? customerId,
+    String? ephemeralKeySecret,
+  }) async {
+    await Stripe.instance
+        .initPaymentSheet(
+          paymentSheetParameters: SetupPaymentSheetParameters(
+            paymentIntentClientSecret: clientSecret,
+            customerId: customerId,
+            customerEphemeralKeySecret: ephemeralKeySecret,
+            merchantDisplayName: 'CRASY',
+            // **Dove tornare, se qualcosa esce dall'app.**
+            //
+            // Con i soli pagamenti a carta non ci va nessuno, e infatti il
+            // server chiede a Stripe di non proporne altri. Ma il foglio
+            // vuole saperlo lo stesso prima di aprirsi, e senza resta chiuso
+            // senza dire perche'. `crasy://` e' lo schema con cui l'app si fa
+            // gia' riaprire dal browser dopo il recupero della password: era
+            // gia' registrato, non ce n'e' voluto uno nuovo.
+            returnURL: 'crasy://pagamento',
+            // Chiaro come il resto di CRASY: il foglio segue il tema del telefono
+            // se non gli si dice niente, e un pannello nero che si alza dentro
+            // un'app bianca sembra di un'altra applicazione.
+            style: ThemeMode.light,
+            // **Il tasto dice PAGA, in italiano.**
+            //
+            // Il foglio segue la lingua del telefono, e su un telefono in
+            // inglese diceva "Pay" in mezzo a una schermata scritta in
+            // italiano. La parola sul tasto che tira fuori i soldi e' l'ultima
+            // che uno legge prima di premere: deve essere nella sua lingua.
+            primaryButtonLabel: 'Paga',
+            // **E ha la faccia di CRASY.**
+            //
+            // Il foglio di Stripe nasce blu, e blu e' il colore di Stripe.
+            // Chi lo vede alzarsi si trova davanti un pezzo di un'altra
+            // applicazione proprio nel momento in cui deve fidarsi — che e'
+            // il momento peggiore per sembrare un'altra cosa. Il rosso, il
+            // bianco e gli angoli sono gli stessi del resto dell'app: non
+            // sta cambiando posto, sta pagando dentro CRASY.
+            appearance: const PaymentSheetAppearance(
+              colors: PaymentSheetAppearanceColors(
+                primary: AppColors.crasyRed,
+                background: AppColors.paper,
+                componentBackground: AppColors.paperMuted,
+                componentBorder: AppColors.line,
+                componentDivider: AppColors.line,
+                componentText: AppColors.ink,
+                primaryText: AppColors.ink,
+                secondaryText: AppColors.inkSoft,
+                placeholderText: AppColors.inkFaint,
+                icon: AppColors.inkSoft,
+                error: AppColors.crasyRed,
+              ),
+              shapes: PaymentSheetShape(
+                borderRadius: 12,
+                borderWidth: 1,
+              ),
+              primaryButton: PaymentSheetPrimaryButtonAppearance(
+                colors: PaymentSheetPrimaryButtonTheme(
+                  light: PaymentSheetPrimaryButtonThemeColors(
+                    background: AppColors.crasyRed,
+                    text: AppColors.paper,
+                    border: AppColors.crasyRed,
+                  ),
+                  dark: PaymentSheetPrimaryButtonThemeColors(
+                    background: AppColors.crasyRed,
+                    text: AppColors.paper,
+                    border: AppColors.crasyRed,
+                  ),
+                ),
+              ),
+            ),
+            // **Niente Apple Pay, per adesso.**
+            //
+            // Chiederlo qui non lo fa comparire: serve un identificativo mercante
+            // di Apple, il permesso corrispondente dentro l'app e la stessa cosa
+            // registrata su Stripe. Senza quelle tre, il foglio non si apre e
+            // basta — e fallisce prima ancora di mostrarsi, quindi si vede solo
+            // "non siamo riusciti ad aprire il pagamento" e nessuno capisce
+            // perche'.
+            //
+            // La carta funziona da sola. Apple Pay si aggiunge dopo, quando ci
+            // sara' l'account vero: e' un tocco in meno, non un pagamento in piu'.
+          ),
+        )
+        .timeout(
+          _pazienza,
+          onTimeout: () =>
+              throw Exception('Stripe non risponde (preparazione)'),
+        );
   }
 
   /// Apre la registrazione di chi deve incassare: nome, documento, IBAN.

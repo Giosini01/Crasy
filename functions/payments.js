@@ -413,6 +413,28 @@ exports.createChallengePaymentIntent = onCall(
       { idempotencyKey: `challenge-intent-${challengeId}` }
     );
 
+    // **La chiave temporanea: e' quella che fa ritrovare la carta.**
+    //
+    // Senza, il foglio non sa chi sta pagando e chiede la carta ogni volta.
+    // Con questa, la seconda missione si apre con la carta gia' dentro. Le
+    // carte restano da Stripe, non da noi.
+    //
+    // **Se non nasce, si paga lo stesso.** Una volta questa strada aveva
+    // lasciato il foglio chiuso: per questo un errore qui non ferma niente, e
+    // l'app — se il foglio con la carta salvata non parte — riprova senza.
+    let ephemeralKeySecret = null;
+
+    try {
+      const ephemeralKey = await stripe.ephemeralKeys.create(
+        { customer: customerId },
+        { apiVersion: require('stripe').API_VERSION }
+      );
+
+      ephemeralKeySecret = ephemeralKey.secret;
+    } catch (errore) {
+      logger.warn('Chiave temporanea non creata: si paga senza carte salvate.', errore);
+    }
+
     await ref.update({
       stripePaymentIntentId: intent.id,
       paymentStartedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -421,18 +443,7 @@ exports.createChallengePaymentIntent = onCall(
     return {
       clientSecret: intent.client_secret,
       customerId,
-      // **La chiave temporanea non si fa piu'.**
-      //
-      // Serviva a mostrare le carte salvate dentro il foglio, e il foglio non
-      // le mostra: quella strada si era rivelata fragile — la chiave nasce
-      // legata a una versione precisa delle interfacce di Stripe — e l'abbiamo
-      // tolta. Continuare a fabbricarla voleva dire una chiamata a Stripe in
-      // piu' **a ogni pagamento**, cioe' mezzo secondo di attesa in cambio di
-      // niente, proprio nel punto in cui si sta aspettando col dito a mezz'aria.
-      //
-      // Il cliente invece resta, e costa una chiamata sola la prima volta: e'
-      // il posto in cui le carte si accumulano, ed e' quello che rendera'
-      // veloce il ritorno quando le rimetteremo.
+      ephemeralKeySecret,
       // **La chiave pubblica la manda il server**, invece di stare dentro
       // l\'app. Cosi\' il giorno in cui si passa dalle chiavi di prova a quelle
       // vere non serve ricompilare niente: cambia una riga sul server, e anche
@@ -569,13 +580,19 @@ async function accendiLaGara(challengeId, paymentIntentId) {
     const durationMs =
       startsAt && endsAt ? endsAt.toMillis() - startsAt.toMillis() : 0;
 
+    // **La durata e' quella scelta, anche se e' di un minuto.** Qui c'era un
+    // minimo di un'ora, e le gare da 1 e 5 minuti ripartivano da 59:59. L'ora
+    // resta solo come ripiego per una gara senza date leggibili.
+    const durataScelta =
+      durationMs >= 60 * 1000 ? durationMs : 60 * 60 * 1000;
+
     transaction.update(ref, {
       prizeStatus: 'held',
       stripePaymentIntentId: paymentIntentId || null,
       paidAt: now,
       startsAt: now,
       endsAt: admin.firestore.Timestamp.fromMillis(
-        now.toMillis() + Math.max(durationMs, 60 * 60 * 1000)
+        now.toMillis() + durataScelta
       ),
     });
   });
