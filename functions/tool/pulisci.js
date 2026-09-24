@@ -34,6 +34,9 @@
  *
  *     node tool/pulisci.js --chiave C:/percorso/chiave.json
  *     node tool/pulisci.js --chiave C:/percorso/chiave.json --conferma
+ *
+ * Con `--tutto` se ne vanno anche gli account, le loro foto e i loro accessi:
+ * il database torna come il primo giorno.
  */
 
 'use strict';
@@ -42,6 +45,18 @@ const admin = require('firebase-admin');
 
 const argomenti = process.argv.slice(2);
 const conferma = argomenti.includes('--conferma');
+
+/**
+ * **`--tutto` porta via anche le persone.**
+ *
+ * Senza, resta quello che serve a riprendere da dove si era: gli account, le
+ * amicizie, e le sfide del giorno. Con, il database torna come il primo
+ * giorno — e si ricomincia dalla registrazione.
+ *
+ * Sono due comandi diversi perche' sono due decisioni diverse, e una si
+ * prende molto piu' raramente dell'altra.
+ */
+const tutto = argomenti.includes('--tutto');
 const chiave = argomenti[argomenti.indexOf('--chiave') + 1];
 
 if (!chiave || chiave.startsWith('--')) {
@@ -142,7 +157,55 @@ async function pulisci() {
     }
   }
 
+  // **Le cose che parlano di gare che non esistono piu'.**
+  //
+  // Segnalazioni su foto cancellate, richieste di prelievo di saldi azzerati,
+  // guasti registrati mesi fa: non servono a nessuno e restano a sporcare
+  // ogni conteggio.
+  const altre = ['payoutRequests', 'reports', 'crashes', 'recuperi'];
+  let sparse = 0;
+
+  for (const nome of altre) {
+    const documenti = await db.collection(nome).limit(500).get();
+    sparse += documenti.size;
+
+    if (conferma) {
+      for (const documento of documenti.docs) {
+        await documento.ref.delete();
+      }
+    }
+  }
+
   const utenti = await db.collection('users').get();
+
+  // **Le persone si cancellano da tre posti, non da uno.**
+  //
+  // Il profilo su Firestore, la foto su Storage, e l'accesso — email e
+  // password — che vive da un'altra parte ancora. Dimenticarne uno lascia un
+  // mezzo utente: chi riesce ad entrare e non ha un profilo, o un profilo che
+  // nessuno puo' piu' aprire.
+  if (tutto) {
+    for (const utente of utenti.docs) {
+      for (const sotto of await utente.ref.listCollections()) {
+        const dentro = await sotto.get();
+
+        if (conferma) {
+          for (const documento of dentro.docs) {
+            await documento.ref.delete();
+          }
+        }
+      }
+
+      if (conferma) {
+        await bucket
+          .deleteFiles({ prefix: `profiles/${utente.id}/` })
+          .catch(() => {});
+        await utente.ref.delete();
+        await admin.auth().deleteUser(utente.id).catch(() => {});
+      }
+    }
+  }
+
   const verbo = conferma ? 'Cancellate' : 'Da cancellare:';
 
   console.log(`${verbo} ${daCancellare.length} missioni`);
@@ -152,10 +215,19 @@ async function pulisci() {
   );
   console.log(`${verbo} ${foto} partecipazioni e ${file} file su Storage`);
   console.log(`${verbo} ${notifiche.size} notifiche, ${voti.size} fiamme`);
-  console.log(
-    `Restano ${utenti.size} account e ` +
-      `${challenges.size - daCancellare.length} sfide del giorno.`
-  );
+  console.log(`${verbo} ${sparse} fra segnalazioni, prelievi e guasti`);
+
+  if (tutto) {
+    console.log(`${verbo} ${utenti.size} account, con foto e accessi`);
+    console.log(
+      `Restano ${challenges.size - daCancellare.length} sfide del giorno, e nient'altro.`
+    );
+  } else {
+    console.log(
+      `Restano ${utenti.size} account e ` +
+        `${challenges.size - daCancellare.length} sfide del giorno.`
+    );
+  }
 
   if (!conferma) {
     console.log('\nNiente e\' stato toccato. Per farlo davvero: --conferma');
