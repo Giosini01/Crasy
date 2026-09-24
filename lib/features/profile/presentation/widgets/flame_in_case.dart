@@ -2,19 +2,18 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// **La fiamma del marchio, dentro la teca.**
+/// **La fiamma di CRASY, dentro la teca.**
 ///
-/// Al posto della coppa, che era il trofeo di chiunque. Questa e' la fiamma
-/// del logo di CRASY — quella che brucia dentro la *sy* — ed e' anche il voto:
-/// ogni foto in gara si misura in fiamme. Darla a chi ha messo i soldi chiude
-/// un cerchio: ha pagato perche' altri se le prendessero, e adesso ne tiene una
-/// sua sotto vetro.
+/// Al posto della coppa, che era il trofeo di chiunque. Questa e' la fiamma —
+/// il marchio, e anche il voto: ogni foto in gara si misura in fiamme. Darla a
+/// chi ha messo i soldi chiude un cerchio: ha pagato perche' altri se le
+/// prendessero, e adesso ne tiene una sua sotto vetro.
 ///
-/// **Non e' una goccia arrotondata.** La fiamma del logo e' frastagliata: ha
-/// lingue di altezze diverse che si piegano, si staccano e ricadono. Una goccia
-/// liscia e' l'icona del fuoco di un sistema operativo; queste punte irregolari
-/// sono quelle del marchio, ed e' l'unica ragione per cui vale la pena
-/// disegnarla invece di prenderla da un carattere.
+/// **E' un oggetto, non un'icona.** Ha un corpo grosso e panciuto, una
+/// fiammella gialla che gli brucia dentro, un braccio che si arriccia a
+/// sinistra e qualche schizzo staccato che sale. E' lucida: ha un colpo di luce
+/// dove la superficie si gonfia e un bordo scuro dove rientra — che e' tutto
+/// cio' che serve perche' una cosa piatta sembri tonda.
 class FlamePainter extends CustomPainter {
   const FlamePainter({required this.angolo});
 
@@ -24,117 +23,98 @@ class FlamePainter extends CustomPainter {
   /// si gira anche quello che c'e' dentro: e' una cosa sola, e una fiamma che
   /// restasse ferma mentre la scatola gira sarebbe appesa a niente.
   ///
-  /// Girando, la sagoma resta quella — un fuoco e' tondo, si assomiglia da
-  /// tutti i lati — e a cambiare sono **la luce che scorre sul fianco** e la
-  /// piega delle lingue, che si inclinano dall'altra parte come se la corrente
-  /// d'aria venisse dal lato opposto.
+  /// Una fiamma e' tonda e da tutti i lati si somiglia: a girare non e' la
+  /// sagoma, sono **la luce che scorre sul fianco**, la fiammella interna che
+  /// scivola di lato e gli schizzi, che passano davanti e dietro. E' cosi' che
+  /// si racconta una rotazione senza avere un modello tridimensionale.
   final double angolo;
 
   double get _fronte => math.cos(angolo);
   double get _lato => math.sin(angolo);
 
-  /// I colori del logo: dal rosso cupo del bordo all'arancio acceso del cuore.
-  ///
-  /// **Quattro toni e non uno.** Un fuoco di un colore solo e' una sagoma
-  /// colorata: sono i bordi fra uno strato e l'altro a dargli volume, ed e' lo
-  /// stesso motivo per cui l'oro della cornice non e' senape.
-  static const Color bordo = Color(0xFF9E1006);
-  static const Color _rosso = Color(0xFFE8220A);
-  static const Color _arancio = Color(0xFFFF6B00);
-  static const Color _cuore = Color(0xFFFFC53D);
+  // I colori del fuoco: dal rosso del bordo all'arancio della pancia.
+  static const Color bordo = Color(0xFFC0390F);
+  static const Color _rosso = Color(0xFFE2541F);
+  static const Color _arancio = Color(0xFFF2853C);
+  static const Color _chiaro = Color(0xFFFBA85E);
 
-  /// L'oro della base, lo stesso della cornice delle figurine.
+  // La fiammella interna, piu' calda.
+  static const Color _gialloScuro = Color(0xFFF2A81C);
+  static const Color _giallo = Color(0xFFFFCB45);
+  static const Color _gialloChiaro = Color(0xFFFFE07A);
+
+  // L'oro della base, lo stesso della cornice delle figurine.
   static const Color _oroChiaro = Color(0xFFFFF0B8);
-  static const Color _oroMedio = Color(0xFFE9C468);
-  static const Color _oroScuro = Color(0xFFC09A33);
   static const Color _oroOmbra = Color(0xFF7E5F17);
 
-  /// Una lingua di fuoco: parte larga dal basso, si assottiglia e si piega.
+  /// Una goccia di fuoco: larga e tonda in basso, tirata a punta in alto.
   ///
-  /// [piega] e' quanto la punta scappa di lato. E' la cosa che distingue una
-  /// fiamma da un triangolo: nel logo nessuna punta e' dritta, e nessuna e'
-  /// piegata come le altre.
-  Path _lingua({
+  /// [inclina] sposta la punta di lato. E' la cosa che la rende una fiamma e
+  /// non un uovo: nel fuoco la punta scappa sempre da qualche parte.
+  Path _goccia({
     required double cx,
     required double base,
     required double altezza,
     required double larghezza,
-    required double piega,
+    required double inclina,
   }) {
-    final punta = Offset(cx + piega, base - altezza);
     final mezza = larghezza / 2;
+    final punta = Offset(cx + inclina, base - altezza);
 
     return Path()
-      ..moveTo(cx - mezza, base)
-      // Il fianco sinistro sale gonfiandosi e poi rientra verso la punta.
+      // Si parte dal fondo, al centro della pancia.
+      ..moveTo(cx, base)
+      // Fianco destro: si gonfia largo e poi sale stretto verso la punta.
       ..cubicTo(
-        cx - mezza * 1.05,
-        base - altezza * 0.42,
-        punta.dx - larghezza * 0.34,
-        base - altezza * 0.66,
+        cx + mezza * 1.02,
+        base - altezza * 0.04,
+        cx + mezza * 0.98,
+        base - altezza * 0.46,
+        punta.dx + larghezza * 0.10,
+        base - altezza * 0.80,
+      )
+      ..cubicTo(
+        punta.dx + larghezza * 0.05,
+        base - altezza * 0.93,
+        punta.dx + larghezza * 0.02,
+        punta.dy,
         punta.dx,
         punta.dy,
       )
-      // Il destro ridiscende piu' teso: e' l'asimmetria che la fa sembrare
-      // mossa dall'aria invece che disegnata col compasso.
+      // Fianco sinistro: rientra piu' presto, ed e' l'asimmetria che la fa
+      // sembrare mossa invece che disegnata col compasso.
       ..cubicTo(
-        punta.dx + larghezza * 0.20,
-        base - altezza * 0.60,
-        cx + mezza * 0.92,
-        base - altezza * 0.34,
-        cx + mezza,
+        punta.dx - larghezza * 0.16,
+        base - altezza * 0.82,
+        cx - mezza * 0.96,
+        base - altezza * 0.50,
+        cx - mezza * 1.02,
+        base - altezza * 0.06,
+      )
+      ..cubicTo(
+        cx - mezza * 1.03,
+        base - altezza * 0.01,
+        cx - mezza * 0.5,
+        base,
+        cx,
         base,
       )
       ..close();
   }
 
-  /// Le lingue di uno strato: una centrale alta e quattro laterali piu' corte.
-  ///
-  /// Le altezze e le pieghe sono numeri scelti a mano, non una formula: una
-  /// formula le renderebbe regolari, e una fiamma regolare non esiste.
-  Path _fiamma(double cx, double base, double altezza, double larghezza) {
-    // La corrente d'aria cambia verso girando la teca.
-    final vento = _lato * larghezza * 0.10;
-
-    final lingue = <(double, double, double, double)>[
-      // (spostamento, altezza, larghezza, piega)
-      (-0.34, 0.44, 0.34, -0.10),
-      (0.32, 0.52, 0.32, 0.12),
-      (-0.16, 0.74, 0.44, -0.06),
-      (0.18, 0.82, 0.42, 0.09),
-      (0, 1, 0.62, 0.05),
-    ];
-
-    final tutte = Path();
-
-    for (final (dx, ha, la, pi) in lingue) {
-      tutte.addPath(
-        _lingua(
-          cx: cx + larghezza * dx,
-          base: base,
-          altezza: altezza * ha,
-          larghezza: larghezza * la,
-          piega: larghezza * pi + vento,
-        ),
-        Offset.zero,
-      );
-    }
-
-    return tutte;
-  }
-
-  /// La sfumatura di una cosa tonda, con la luce che segue la rotazione.
-  Shader _volume(Rect area, Color chiaro, Color scuro) {
-    final centro = (0.34 + _fronte * 0.22).clamp(0.10, 0.86);
+  /// La sfumatura di una cosa tonda e lucida, con la luce che segue la
+  /// rotazione: chiara dove la superficie si gonfia verso di noi, scura dove
+  /// rientra.
+  Shader _volume(Rect area, Color chiaro, Color medio, Color scuro) {
+    final centro = (0.32 + _fronte * 0.20).clamp(0.10, 0.82);
 
     return LinearGradient(
-      begin: Alignment.centerLeft,
-      end: Alignment.centerRight,
-      colors: [scuro, chiaro, chiaro, scuro],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [chiaro, medio, scuro],
       stops: [
-        0,
-        (centro - 0.10).clamp(0.02, 0.9),
-        (centro + 0.16).clamp(0.05, 0.95),
+        (centro - 0.18).clamp(0, 0.6),
+        (centro + 0.22).clamp(0.2, 0.9),
         1,
       ],
     ).createShader(area);
@@ -146,38 +126,204 @@ class FlamePainter extends CustomPainter {
     final h = size.height;
     final cx = w / 2;
 
-    // La fiamma sta sopra, la base sotto. Il piede cade al 91% dell'altezza:
-    // e' la misura che la teca si aspetta per appoggiarla sul ripiano.
+    // Il piede cade al 91% dell'altezza: e' la misura che la teca si aspetta
+    // per appoggiare l'oggetto sul ripiano invece di lasciarlo galleggiare.
     final base = h * 0.80;
-    final altezza = h * 0.74;
-    final larghezza = w * 0.86;
 
     _ombraATerra(canvas, w, h);
+    _schizzi(canvas, w, h, dietro: true);
 
-    // **Tre strati, uno dentro l'altro.** Il piu' grande e' il rosso cupo del
-    // contorno; dentro l'arancione; al centro il cuore chiaro. Ognuno e' piu'
-    // corto e piu' stretto del precedente, cosi' i bordi restano tutti
-    // visibili — ed e' quello che da' profondita' a una cosa piatta.
-    final strati = <(double, double, Color, Color)>[
-      (1, 1, _rosso, bordo),
-      (0.76, 0.70, _arancio, _rosso),
-      (0.46, 0.40, _cuore, _arancio),
-    ];
+    // **Il braccio che si arriccia a sinistra.** Sta sotto il corpo, e si
+    // vede solo il pezzo che sporge: e' quello che toglie alla fiamma l'aria
+    // di una goccia sola e le da' l'aria di un fuoco.
+    _braccio(canvas, w, h, base);
 
-    for (final (ha, la, chiaro, scuro) in strati) {
-      final sagoma = _fiamma(cx, base, altezza * ha, larghezza * la);
+    // **Il corpo.**
+    final corpo = _goccia(
+      cx: cx + w * 0.015,
+      base: base,
+      altezza: h * 0.70,
+      larghezza: w * 0.56,
+      inclina: w * 0.07 + _lato * w * 0.03,
+    );
 
-      canvas.drawPath(
-        sagoma,
-        Paint()..shader = _volume(sagoma.getBounds(), chiaro, scuro),
-      );
-    }
+    canvas.drawPath(
+      corpo,
+      Paint()..shader = _volume(corpo.getBounds(), _chiaro, _arancio, bordo),
+    );
 
+    // Il bordo scuro sul lato in ombra: senza, due superfici arancioni che si
+    // toccano diventano una macchia sola.
+    canvas.drawPath(
+      corpo,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.012
+        ..color = bordo.withValues(alpha: 0.35),
+    );
+
+    _lucido(canvas, w, h, base);
+
+    // **La fiammella interna**, piu' calda e piu' bassa: e' il cuore del
+    // fuoco. Scivola di lato girando, ed e' il segno piu' forte che l'oggetto
+    // sta ruotando davvero — una cosa dentro un'altra si sposta prima del
+    // contorno.
+    final dentro = _goccia(
+      cx: cx + _lato * w * 0.10,
+      base: base - h * 0.015,
+      altezza: h * 0.34,
+      larghezza: w * 0.30,
+      inclina: w * 0.03,
+    );
+
+    canvas.drawPath(
+      dentro,
+      Paint()
+        ..shader = _volume(
+          dentro.getBounds(),
+          _gialloChiaro,
+          _giallo,
+          _gialloScuro,
+        ),
+    );
+
+    // Il colpo di luce sulla fiammella: piccolo e altissimo, com'e' su una
+    // cosa di plastica lucida.
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(cx + _lato * w * 0.10 - w * 0.04, base - h * 0.20),
+        width: w * 0.05,
+        height: h * 0.07,
+      ),
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.45)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    );
+
+    _schizzi(canvas, w, h, dietro: false);
     _base(canvas, w, h);
   }
 
-  /// L'ombra sotto, appena accennata: senza, la fiamma galleggia dentro la
-  /// teca invece di appoggiarsi al ripiano.
+  /// Il braccio arricciato a sinistra: una virgola grassa che sale e rientra.
+  void _braccio(Canvas canvas, double w, double h, double base) {
+    final cx = w / 2;
+    final percorso = Path()
+      ..moveTo(cx - w * 0.10, base)
+      ..cubicTo(
+        cx - w * 0.36,
+        base - h * 0.06,
+        cx - w * 0.40,
+        base - h * 0.30,
+        cx - w * 0.26,
+        base - h * 0.46,
+      )
+      ..cubicTo(
+        cx - w * 0.30,
+        base - h * 0.30,
+        cx - w * 0.24,
+        base - h * 0.14,
+        cx - w * 0.04,
+        base - h * 0.02,
+      )
+      ..close();
+
+    canvas.drawPath(
+      percorso,
+      Paint()
+        ..shader = _volume(percorso.getBounds(), _chiaro, _rosso, bordo),
+    );
+  }
+
+  /// **Il colpo di luce sul corpo.** E' la riga che fa la differenza fra una
+  /// sagoma arancione e un oggetto lucido: una macchia chiara e sfocata dove
+  /// la pancia si gonfia verso la luce, che si sposta girando.
+  void _lucido(Canvas canvas, double w, double h, double base) {
+    final cx = w / 2;
+    final dx = cx - w * 0.14 + _fronte * w * 0.06;
+
+    final riflesso = Path()
+      ..moveTo(dx, base - h * 0.60)
+      ..cubicTo(
+        dx - w * 0.10,
+        base - h * 0.48,
+        dx - w * 0.09,
+        base - h * 0.30,
+        dx - w * 0.02,
+        base - h * 0.20,
+      )
+      ..cubicTo(
+        dx - w * 0.12,
+        base - h * 0.30,
+        dx - w * 0.13,
+        base - h * 0.50,
+        dx,
+        base - h * 0.60,
+      )
+      ..close();
+
+    canvas.drawPath(
+      riflesso,
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.38)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+    );
+  }
+
+  /// **Gli schizzi staccati.** Piccoli archi che salgono attorno alla fiamma,
+  /// come scintille che si sono staccate un attimo prima.
+  ///
+  /// Girando, alcuni passano **davanti** al corpo e altri **dietro**: e' il
+  /// trucco piu' economico per raccontare che c'e' uno spazio, e non un
+  /// disegno piatto. Quelli dietro si disegnano prima del corpo, quelli davanti
+  /// dopo.
+  void _schizzi(Canvas canvas, double w, double h, {required bool dietro}) {
+    final cx = w / 2;
+
+    // (x, y, lunghezza, curva, spessore, quando sta dietro)
+    final archi = <(double, double, double, double, double, bool)>[
+      (-0.30, 0.16, 0.20, -0.06, 0.028, true),
+      (0.12, 0.05, 0.16, 0.05, 0.026, false),
+      (0.30, 0.10, 0.10, 0.04, 0.022, true),
+      (0.26, 0.30, 0.16, 0.06, 0.024, false),
+      (-0.34, 0.34, 0.09, -0.04, 0.020, true),
+    ];
+
+    for (final (x, y, lung, curva, spessore, sta) in archi) {
+      if (sta != dietro) {
+        continue;
+      }
+
+      // Girando, gli schizzi si spostano di lato: sono attorno alla fiamma,
+      // non incollati sopra.
+      final px = cx + w * x + _lato * w * 0.05;
+      final py = h * y;
+
+      final arco = Path()
+        ..moveTo(px, py)
+        ..quadraticBezierTo(
+          px + w * curva * 2,
+          py + h * lung * 0.5,
+          px + w * curva,
+          py + h * lung,
+        );
+
+      canvas.drawPath(
+        arco,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = w * spessore
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: const [_chiaro, _rosso],
+          ).createShader(arco.getBounds().inflate(w * spessore)),
+      );
+    }
+  }
+
+  /// L'ombra sotto: senza, la fiamma galleggia dentro la teca invece di
+  /// appoggiarsi al ripiano.
   void _ombraATerra(Canvas canvas, double w, double h) {
     canvas.drawOval(
       Rect.fromCenter(
@@ -211,9 +357,7 @@ class FlamePainter extends CustomPainter {
 
       canvas.drawRRect(
         RRect.fromRectAndRadius(area, const Radius.circular(4)),
-        Paint()
-          ..shader = _volume(area, _oroChiaro, _oroOmbra)
-          ..blendMode = BlendMode.srcOver,
+        Paint()..shader = _volume(area, _oroChiaro, _oroChiaro, _oroOmbra),
       );
 
       // Il filo di luce sullo spigolo di sopra: un metallo senza spigolo
@@ -222,19 +366,10 @@ class FlamePainter extends CustomPainter {
         area.topLeft + const Offset(2, 0.6),
         area.topRight - const Offset(2, -0.6),
         Paint()
-          ..color = _oroMedio.withValues(alpha: 0.9)
+          ..color = Colors.white.withValues(alpha: 0.5)
           ..strokeWidth = 1.1,
       );
     }
-
-    // Una riga scura sotto lo zoccolo: e' il suo spessore visto di taglio.
-    canvas.drawLine(
-      Offset(cx - w * 0.27, h * 0.918),
-      Offset(cx + w * 0.27, h * 0.918),
-      Paint()
-        ..color = _oroScuro
-        ..strokeWidth = 1.2,
-    );
   }
 
   @override
