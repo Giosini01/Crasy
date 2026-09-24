@@ -11,7 +11,6 @@ import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
-import 'package:crasy/features/profile/presentation/widgets/flame_in_case.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
@@ -1092,7 +1091,7 @@ class CommissionedTrophy extends StatelessWidget {
               child: Text(
                 AppMoney.format(challenge.prizeCents),
                 style: texts.headlineSmall?.copyWith(
-                  color: FlamePainter.bordo,
+                  color: _CupPainter._scuro,
                   fontSize: 15 * _scala,
                   height: 1,
                 ),
@@ -1155,6 +1154,409 @@ class CommissionedTrophy extends StatelessWidget {
       challenge.hasEndedAt(DateTime.now()) ? 'NESSUN VINCITORE' : 'IN CORSO',
     );
   }
+}
+
+
+/// **La coppa, disegnata.**
+///
+/// Non e' un'immagine e non e' un'emoji: e' una forma costruita a mano. Un'
+/// emoji porta con se' il disegno del sistema operativo — diverso su ogni
+/// telefono, e uguale a quello di qualunque altra app.
+///
+/// ## Perche' e' di plastica e non di metallo
+///
+/// La prima versione era oro lucido, con l'orizzonte riflesso e il puntino duro
+/// della sorgente. Era corretta e sbagliata insieme: un metallo lucido **mostra
+/// quello che ha intorno**, quindi ha bisogno di un intorno — in una griglia su
+/// fondo bianco riflette il nulla, e resta una macchia gialla complicata.
+///
+/// Questa e' resa morbida: un oggetto **opaco**, arancione, con la luce che ci
+/// scivola sopra invece di specchiarcisi. Ha tre sole regole, ed e' il motivo
+/// per cui si legge anche grande come un francobollo:
+///
+/// - **niente spigoli**: ogni pezzo e' tondo o raccordato, e dove due pezzi si
+///   toccano c'e' un'ombra morbida invece di una linea;
+/// - **una luce sola, da sopra a sinistra**: tutti i chiari stanno da quella
+///   parte, tutte le ombre dall'altra. Una seconda sorgente e' quello che fa
+///   sembrare un disegno "sporco" senza che si capisca perche';
+/// - **il colore cambia di tinta, non solo di quantita'**: le ombre vanno verso
+///   il rosso e le luci verso il giallo, come fa la plastica vera. Schiarire e
+///   scurire lo stesso arancione da' un oggetto di cartone.
+class _CupPainter extends CustomPainter {
+  const _CupPainter({required this.angolo});
+
+  /// Di quanto e' girata, in radianti.
+  ///
+  /// **La coppa e' dentro la teca, quindi gira con lei.** Girando la vetrina si
+  /// gira anche quello che c'e' dentro — e' una cosa sola, e una coppa che
+  /// restasse ferma mentre la scatola gira sarebbe appesa a niente.
+  ///
+  /// Una coppa girata resta identica di sagoma, ed e' quello che la rende una
+  /// cosa tonda: a cambiare sono la luce che scorre sul fianco e i manici, che
+  /// si scambiano di posto e di taglio si assottigliano.
+  final double angolo;
+
+  double get _fronte => math.cos(angolo);
+
+  // L'oro, dalla luce quasi bianca all'ombra bruna.
+  static const Color _chiaro = Color(0xFFFFF0B8);
+  static const Color _medio = Color(0xFFE9C468);
+  static const Color _scuro = Color(0xFFC09A33);
+  static const Color _ombra = Color(0xFF7E5F17);
+
+  /// La sfumatura di un pezzo tondo, con la luce che segue la rotazione.
+  Shader _plastica(Rect area) {
+    final centro = (0.36 + _fronte * 0.20).clamp(0.10, 0.86);
+
+    return LinearGradient(
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+      colors: const [_scuro, _chiaro, _medio, _scuro, _ombra],
+      stops: [
+        0,
+        (centro - 0.06).clamp(0.02, 0.9),
+        (centro + 0.20).clamp(0.05, 0.94),
+        0.88,
+        1,
+      ],
+    ).createShader(area);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    _ombraATerra(canvas, w, h);
+    _manici(canvas, w, h);
+    _vaso(canvas, w, h);
+    _bordo(canvas, w, h);
+    _stelo(canvas, w, h);
+    _base(canvas, w, h);
+  }
+
+  /// L'ombra sul ripiano: la prima cosa da disegnare e l'ultima che si nota.
+  /// E' quella che appoggia la coppa invece di lasciarla a mezz'aria.
+  void _ombraATerra(Canvas canvas, double w, double h) {
+    // **Due ombre, non una.** Quella larga e sfumata e' l'aria attorno; quella
+    // stretta e scura, appiccicata sotto il bordo, e' il **contatto** — il
+    // punto in cui l'oggetto tocca. Senza la seconda ogni cosa galleggia di un
+    // paio di millimetri, e si vede anche senza saperlo dire.
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(w * 0.53, h * 0.925),
+        width: w * 0.74,
+        height: h * 0.055,
+      ),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.16)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
+    );
+
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(w * 0.5, h * 0.905),
+        width: w * 0.50,
+        height: h * 0.022,
+      ),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.38)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    );
+  }
+
+  /// I due manici: anelli spessi e arrotondati, attaccati ai fianchi.
+  ///
+  /// **Si disegnano prima del vaso, ed e' tutto il trucco**: cosi' il vaso ci
+  /// passa sopra e li taglia dove si attaccano, che e' come si vedono davvero.
+  /// Fatti dopo, resterebbero due anelli appoggiati sopra.
+  ///
+  /// E girano con la coppa: stanno ai due lati opposti, quindi uno viene avanti
+  /// e l'altro va dietro, a meta' giro si scambiano di posto, e di taglio si
+  /// assottigliano fino quasi a sparire — l'istante in cui si vede che
+  /// l'oggetto ha uno spessore.
+  void _manici(Canvas canvas, double w, double h) {
+    for (final verso in const [-1.0, 1.0]) {
+      final apertura = verso * _fronte;
+      final spessore = w * 0.085 * (0.3 + apertura.abs() * 0.7);
+      final attacco = w * (0.5 + apertura * 0.22);
+      final fuori = w * (0.5 + apertura * 0.47);
+
+      final path = Path()
+        ..moveTo(attacco, h * 0.27)
+        ..cubicTo(fuori, h * 0.28, fuori, h * 0.50, attacco, h * 0.49);
+
+      final area = Rect.fromLTRB(
+        math.min(attacco, fuori) - spessore,
+        h * 0.26,
+        math.max(attacco, fuori) + spessore,
+        h * 0.50,
+      );
+
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = spessore
+          ..strokeCap = StrokeCap.round
+          ..shader = _plastica(area),
+      );
+
+      // **L'ombra dove il manico entra nel vaso.** Due pezzi che si toccano
+      // senza un buio in mezzo stanno sullo stesso piano: sono due colori
+      // affiancati, non un oggetto con delle parti. Sono due macchioline, e
+      // sono quello che attacca i manici invece di appoggiarli.
+      for (final alto in const [0.28, 0.48]) {
+        canvas.drawOval(
+          Rect.fromCenter(
+            center: Offset(attacco, h * alto),
+            width: spessore * 1.5,
+            height: spessore * 1.1,
+          ),
+          Paint()
+            ..color = _ombra.withValues(alpha: 0.35 * apertura.abs())
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+        );
+      }
+    }
+  }
+
+  /// Il vaso: la coppa vera e propria.
+  void _vaso(Canvas canvas, double w, double h) {
+    final area = Rect.fromLTWH(w * 0.22, h * 0.20, w * 0.56, h * 0.42);
+
+    // Fianchi che rientrano dolcemente e fondo tondo: e' la pancia della coppa,
+    // e un fondo piatto la farebbe sembrare un bicchiere.
+    final path = Path()
+      ..moveTo(w * 0.22, h * 0.20)
+      ..cubicTo(w * 0.235, h * 0.44, w * 0.32, h * 0.58, w * 0.42, h * 0.605)
+      ..cubicTo(w * 0.47, h * 0.615, w * 0.53, h * 0.615, w * 0.58, h * 0.605)
+      ..cubicTo(w * 0.68, h * 0.58, w * 0.765, h * 0.44, w * 0.78, h * 0.20)
+      ..close();
+
+    canvas.drawPath(path, Paint()..shader = _plastica(area));
+
+    canvas.save();
+    canvas.clipPath(path);
+
+    // **La luce morbida in alto.** Su un oggetto opaco non c'e' un puntino
+    // duro: c'e' una zona chiara larga, con i bordi sfumati. E' la differenza
+    // fra plastica e vetro.
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(w * (0.42 + _fronte * 0.10), h * 0.30),
+        width: w * 0.30,
+        height: h * 0.22,
+      ),
+      Paint()
+        ..color = _chiaro.withValues(
+          alpha: (0.5 * (0.35 + _fronte.abs() * 0.65)).clamp(0.0, 1.0),
+        )
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
+    );
+
+    // E il buio che rientra sul fianco che gira via: e' la brusca con cui una
+    // superficie dice che sta curvando, non finendo.
+    canvas.drawRect(
+      area,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [Color(0x40B04A00), Colors.transparent, Color(0x73B04A00)],
+          stops: [0, 0.3, 1],
+        ).createShader(area),
+    );
+
+    // **La cucitura dello stampo.**
+    //
+    // Serve a far **vedere** che la coppa gira. Il resto e' simmetrico: girando
+    // cambia solo dove batte la luce, e senza un segno da seguire l'occhio
+    // legge un tremolio invece di una rotazione. Questa e' una riga sola, la
+    // giunzione dei due mezzi stampi — una cosa che un pezzo fuso ce l'ha
+    // davvero — e si vede scorrere lungo il fianco, stringersi e sparire dietro
+    // il bordo.
+    final cucitura = 0.5 + math.sin(angolo) * 0.26;
+
+    if (cucitura > 0.26 && cucitura < 0.74) {
+      canvas.drawPath(
+        Path()
+          ..moveTo(w * cucitura, h * 0.21)
+          ..cubicTo(
+            w * (cucitura + 0.005),
+            h * 0.36,
+            w * (cucitura + 0.008),
+            h * 0.48,
+            w * (cucitura + 0.004),
+            h * 0.60,
+          ),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = w * 0.010
+          ..color = _chiaro.withValues(alpha: 0.30),
+      );
+    }
+
+    // **La luce di rimbalzo.** Sul lato in ombra, proprio sul bordo, torna un
+    // filo di chiaro: e' la luce che rimbalza da quello che sta intorno. E'
+    // debole e sottile, ma senza di lei il lato scuro sembra tagliato via
+    // invece che girato — e' il dettaglio che piu' di tutti separa un disegno
+    // da un oggetto.
+    canvas.drawRect(
+      area,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [Colors.transparent, Colors.transparent, Color(0x59FFB259)],
+          stops: [0, 0.9, 1],
+        ).createShader(area),
+    );
+
+    // L'occlusione in fondo alla pancia: dove la curva si chiude, la luce non
+    // arriva piu'. E' lo stesso motivo per cui l'incavo di un cucchiaio e'
+    // scuro anche sotto una lampada.
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(w * 0.5, h * 0.625),
+        width: w * 0.42,
+        height: h * 0.09,
+      ),
+      Paint()
+        ..color = _ombra.withValues(alpha: 0.55)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+    );
+
+    canvas.restore();
+  }
+
+  /// Il bordo in cima: una fascia tonda, un pezzo a se'.
+  ///
+  /// Non e' un dettaglio decorativo — e' l'unica cosa che dice che la coppa e'
+  /// **aperta**. Senza, la sagoma e' un vaso pieno.
+  void _bordo(Canvas canvas, double w, double h) {
+    final fascia = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.185, h * 0.145, w * 0.63, h * 0.075),
+      Radius.circular(h * 0.04),
+    );
+
+    canvas.drawRRect(fascia, Paint()..shader = _plastica(fascia.outerRect));
+
+    // L'imboccatura: un'ellisse scura appena sopra la fascia. Poca, perche' su
+    // un oggetto di plastica anche il buio e' morbido.
+    final bocca = Rect.fromCenter(
+      center: Offset(w * 0.5, h * 0.152),
+      width: w * 0.58,
+      height: h * 0.055,
+    );
+
+    canvas.drawOval(bocca, Paint()..color = _ombra);
+    canvas.drawOval(
+      bocca.deflate(w * 0.018),
+      Paint()..color = const Color(0xFF8A3800),
+    );
+
+    // Il filo di luce sul labbro, solo dalla parte illuminata: tutto intorno
+    // sarebbe una collana.
+    canvas.save();
+    canvas.clipRect(
+      Rect.fromLTWH(bocca.left, bocca.top - h * 0.02, bocca.width, h * 0.03),
+    );
+    canvas.drawOval(
+      bocca,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.012
+        ..color = _chiaro.withValues(alpha: 0.85),
+    );
+    canvas.restore();
+  }
+
+  /// Lo stelo e il piede che reggono il vaso.
+  void _stelo(Canvas canvas, double w, double h) {
+    final gambo = Rect.fromLTWH(w * 0.42, h * 0.60, w * 0.16, h * 0.12);
+
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * 0.425, h * 0.60)
+        ..cubicTo(w * 0.435, h * 0.66, w * 0.435, h * 0.70, w * 0.415, h * 0.745)
+        ..lineTo(w * 0.585, h * 0.745)
+        ..cubicTo(w * 0.565, h * 0.70, w * 0.565, h * 0.66, w * 0.575, h * 0.60)
+        ..close(),
+      Paint()..shader = _plastica(gambo),
+    );
+
+    // L'ombra che il vaso getta sullo stelo: e' quella a dire che il vaso sta
+    // **sopra** e non davanti.
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(w * 0.5, h * 0.615),
+        width: w * 0.17,
+        height: h * 0.035,
+      ),
+      Paint()
+        ..color = _ombra.withValues(alpha: 0.6)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+    );
+
+    // Il piede: una fascia tonda schiacciata, come il bordo in cima. I due
+    // pezzi si somigliano apposta — su un oggetto solo, le forme si ripetono.
+    final nodo = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.325, h * 0.735, w * 0.35, h * 0.048),
+      Radius.circular(h * 0.024),
+    );
+
+    canvas.drawRRect(nodo, Paint()..shader = _plastica(nodo.outerRect));
+  }
+
+  /// La base: il cilindro bianco su cui la coppa sta in piedi.
+  ///
+  /// **Bianca e non arancione**, e non e' un vezzo: un oggetto di un colore
+  /// solo non ha peso. Il bianco freddo sotto l'arancione caldo separa la cosa
+  /// dal suo sostegno, e da' alla coppa qualcosa su cui appoggiare.
+  void _base(Canvas canvas, double w, double h) {
+    // **Niente basamento.** Il cilindro sotto era un secondo oggetto, di un
+    // altro materiale e di un altro colore, e una coppa poggiata su un
+    // sottobicchiere non e' una coppa: e' una coppa con un sottobicchiere. Qui
+    // il piede si allarga e tocca terra da solo — un pezzo solo, dall'orlo al
+    // pavimento.
+    final zoccolo = Rect.fromLTWH(w * 0.28, h * 0.78, w * 0.44, h * 0.10);
+
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * 0.355, h * 0.78)
+        ..cubicTo(w * 0.34, h * 0.83, w * 0.315, h * 0.855, w * 0.28, h * 0.875)
+        ..lineTo(w * 0.72, h * 0.875)
+        ..cubicTo(w * 0.685, h * 0.855, w * 0.66, h * 0.83, w * 0.645, h * 0.78)
+        ..close(),
+      Paint()..shader = _plastica(zoccolo),
+    );
+
+    // L'orlo del piede: una fascia tonda schiacciata, come quella in cima. Su
+    // un oggetto solo le forme si ripetono, ed e' quello che lo tiene insieme.
+    final orlo = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.255, h * 0.868, w * 0.49, h * 0.045),
+      Radius.circular(h * 0.023),
+    );
+
+    canvas.drawRRect(orlo, Paint()..shader = _plastica(orlo.outerRect));
+
+    // Il buio sotto l'orlo, dove la luce non gira: e' l'ultimo pezzo che
+    // appoggia la coppa invece di lasciarla galleggiare.
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(w * 0.5, h * 0.905),
+        width: w * 0.44,
+        height: h * 0.028,
+      ),
+      Paint()
+        ..color = _ombra.withValues(alpha: 0.7)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_CupPainter oldDelegate) => oldDelegate.angolo != angolo;
 }
 
 /// **La coppa che gira, a trecentosessanta gradi.**
@@ -1777,7 +2179,7 @@ class _Showcase extends StatelessWidget {
               top: h * (0.88 - 0.913 * 0.60),
               width: w * 0.60,
               height: h * 0.60,
-              child: CustomPaint(painter: FlamePainter(angolo: angolo)),
+              child: CustomPaint(painter: _CupPainter(angolo: angolo)),
             ),
             Positioned.fill(
               child: CustomPaint(
