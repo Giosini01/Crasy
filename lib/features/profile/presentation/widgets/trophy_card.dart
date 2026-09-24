@@ -11,8 +11,9 @@ import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
-import 'package:crasy/features/profile/presentation/widgets/flame_trophy.dart';
+import 'package:crasy/features/profile/presentation/widgets/flame_in_case.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
 
 /// Da che parte del tavolo si guarda un trofeo.
@@ -962,12 +963,11 @@ class _Line extends StatelessWidget {
 /// prendersi il merito del lavoro di un altro, e per giunta mettere la stessa
 /// immagine su due profili diversi.
 ///
-/// Qui c'e' l'oggetto che si da' a chi organizza, non a chi corre: **una
-/// fiamma**, con sotto cosa ha fatto fare e quanto ci ha messo. Era una coppa,
-/// e la coppa e' il trofeo di chiunque; la fiamma invece e' di CRASY — e' il
-/// marchio ed e' il voto, quindi darla a chi ha messo i soldi chiude un
-/// cerchio: ha pagato perche' altri se le prendessero, e adesso ne tiene una
-/// sua. Vedi `FlamePainter`.
+/// Qui c'e' l'oggetto che si da' a chi organizza, non a chi corre: una coppa,
+/// con sotto cosa ha fatto fare e quanto ci ha messo. La coppa e' **disegnata**
+/// e non e' un'emoji — vedi `_CupPainter`: deve essere d'oro come il resto
+/// della bacheca, e l'oro di un'emoji e' quello del sistema operativo, diverso
+/// su ogni telefono e uguale a quello di qualunque altra app.
 ///
 /// La cifra ha il corpo con cui una figurina scrive quanto si e' incassato,
 /// perche' e' lo stesso numero visto dalle due parti: quello che uno ha preso,
@@ -1007,6 +1007,8 @@ class CommissionedTrophy extends StatelessWidget {
   /// aspetta toccandola.
   double get _scala => grande ? 1.45 : 1;
 
+  /// Quando e' finita, per il retro della teca.
+  String get _quando => AppDateUtils.formatItalianDate(challenge.endsAt);
 
   /// L'occhiello in cima: dice di che specie e' la prova.
   String get _intestazione {
@@ -1046,7 +1048,9 @@ class CommissionedTrophy extends StatelessWidget {
               child: Center(
                 child: AspectRatio(
                   aspectRatio: cupRatio,
-                  child: const FlameTrophy(),
+                  child: grande
+                      ? _SpinningCase(data: _quando)
+                      : _Showcase(angolo: 0, data: _quando),
                 ),
               ),
             ),
@@ -1088,7 +1092,7 @@ class CommissionedTrophy extends StatelessWidget {
               child: Text(
                 AppMoney.format(challenge.prizeCents),
                 style: texts.headlineSmall?.copyWith(
-                  color: FlamePainter.rosso,
+                  color: FlamePainter.bordo,
                   fontSize: 15 * _scala,
                   height: 1,
                 ),
@@ -1149,6 +1153,643 @@ class CommissionedTrophy extends StatelessWidget {
     return (
       challenge.title,
       challenge.hasEndedAt(DateTime.now()) ? 'NESSUN VINCITORE' : 'IN CORSO',
+    );
+  }
+}
+
+/// **La coppa che gira, a trecentosessanta gradi.**
+///
+/// Si trascina con il dito e continua per inerzia, come una cosa appoggiata su
+/// un piatto girevole; un tocco le da' mezzo giro. Da ferma gira piano da sola:
+/// e' il modo in cui un oggetto in vetrina dice che e' un oggetto, e non un
+/// disegno.
+///
+/// **Non e' una carta che si ribalta.** Una carta ha un davanti e un dietro, e
+/// a meta' giro mostra lo spessore di un foglio. Una coppa e' tonda: girandola
+/// la sagoma resta la stessa, e a cambiare sono la luce che scorre sul fianco e
+/// i manici che si chiudono di taglio e riaprono dall'altra parte — vedi
+/// `_CupPainter.angolo`.
+class _SpinningCase extends StatefulWidget {
+  const _SpinningCase({this.data});
+
+  /// Quando la sfida e' finita: si legge sul retro della teca.
+  final String? data;
+
+  @override
+  State<_SpinningCase> createState() => _SpinningCaseState();
+}
+
+class _SpinningCaseState extends State<_SpinningCase>
+    with SingleTickerProviderStateMixin {
+  /// L'angolo, senza limiti: si gira all'infinito nella stessa direzione.
+  double _angolo = 0;
+
+  /// La velocita' con cui sta girando, in radianti al secondo.
+  double _velocita = 0.6;
+
+  /// Se c'e' un dito sopra: mentre la si tiene, l'inerzia non conta.
+  bool _presa = false;
+
+  late final Ticker _ticker = createTicker(_passo);
+  Duration _ultimo = Duration.zero;
+
+  /// La rotazione lenta che la coppa fa da sola, quando nessuno la tocca.
+  static const double _dolce = 0.6;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker.start();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  void _passo(Duration adesso) {
+    final dt = (adesso - _ultimo).inMicroseconds / 1e6;
+    _ultimo = adesso;
+
+    if (_presa || dt <= 0 || dt > 0.1) {
+      return;
+    }
+
+    setState(() {
+      _angolo += _velocita * dt;
+      // L'inerzia si spegne piano e torna alla rotazione lenta: una spinta
+      // forte fa fare tre giri e poi la coppa riprende a girare da sola,
+      // invece di fermarsi di colpo.
+      _velocita += (_dolce - _velocita) * (1 - math.exp(-dt * 1.6));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => setState(() => _velocita += math.pi * 1.6),
+      onHorizontalDragStart: (_) => _presa = true,
+      onHorizontalDragUpdate: (dettagli) =>
+          setState(() => _angolo += dettagli.delta.dx * 0.018),
+      onHorizontalDragEnd: (dettagli) {
+        _presa = false;
+        _velocita = (dettagli.primaryVelocity ?? 0) * 0.012;
+      },
+      child: _Showcase(angolo: _angolo, data: widget.data),
+    );
+  }
+}
+
+/// Una faccia della teca, gia' proiettata sullo schermo.
+class _Faccia {
+  const _Faccia({
+    required this.indice,
+    required this.path,
+    required this.area,
+    required this.profondita,
+  });
+
+  /// Quale delle quattro: `0` e' il fondo nero, le altre tre sono di vetro.
+  final int indice;
+
+  final Path path;
+  final Rect area;
+
+  /// Quanto e' lontana: piu' alto, piu' indietro. Decide **l'ordine in cui si
+  /// dipinge**, ed e' l'unica cosa che tiene insieme tutta la scatola.
+  final double profondita;
+
+  bool get eIlFondo => indice == 0;
+}
+
+/// **La teca: una scatola con quattro pareti, non due.**
+///
+/// La prima versione ne disegnava due — quella dietro e quella davanti — e
+/// girando le altre due non c'erano: le pareti comparivano e sparivano di
+/// colpo, e il vetro si staccava dal nero. Non era un difetto di disegno, era
+/// che meta' della scatola non esisteva.
+///
+/// Qui ci sono tutte e quattro, e ognuna sa quanto e' lontana. Si dipingono
+/// **dalla piu' lontana alla piu' vicina**, con la coppa infilata in mezzo: le
+/// pareti dietro finiscono sotto la coppa, quelle davanti sopra. E' la regola
+/// piu' vecchia che ci sia per disegnare una cosa solida, e basta da sola —
+/// nessuna faccia compare o sparisce, ognuna arriva al suo turno.
+///
+/// Le facce sono tre di vetro e una nera, e la nera e' **sempre la stessa**:
+/// gira insieme alla scatola come su una teca vera. Girandola fino in fondo la
+/// si vede da dietro, ed e' giusto cosi' — e' quello che succede se si cammina
+/// intorno a una vetrina.
+class _CasePainter extends CustomPainter {
+  const _CasePainter({required this.angolo, required this.davanti});
+
+  final double angolo;
+
+  /// Se dipingere quello che sta **davanti** alla coppa invece che dietro. Il
+  /// pittore e' lo stesso e viene chiamato due volte, con la coppa in mezzo: e'
+  /// cosi' che un oggetto finisce *dentro* una scatola invece che sopra.
+  final bool davanti;
+
+  static const Color _telaio = Color(0xFF0A0A0B);
+  static const Color _telaioLuce = Color(0xFF4A4A50);
+  static const Color _fondoAlto = Color(0xFF1B1B1E);
+  static const Color _fondoBasso = Color(0xFF0B0B0C);
+
+  /// Quanto e' profonda la teca rispetto a quanto e' larga.
+  static const double _profondita = 0.58;
+
+  /// Di quanto salgono i punti lontani: e' l'occhio messo appena sopra.
+  static const double _cameraAlta = 0.055;
+
+  /// I quattro montanti, proiettati: `x` sullo schermo, `z` la lontananza,
+  /// `su` e `giu` le due altezze.
+  (List<double>, List<double>, List<double>, List<double>) _montanti(
+    double w,
+    double h,
+  ) {
+    final cx = w * 0.5;
+    final a = w * 0.36;
+    final b = w * 0.36 * _profondita;
+    final cielo = h * 0.16;
+    final terra = h * 0.88;
+
+    final x = <double>[];
+    final z = <double>[];
+    final su = <double>[];
+    final giu = <double>[];
+
+    // In pianta, in giro: i primi due dietro, gli altri due davanti.
+    for (final punto in const [
+      (-1.0, 1.0),
+      (1.0, 1.0),
+      (1.0, -1.0),
+      (-1.0, -1.0),
+    ]) {
+      final px = punto.$1 * a;
+      final pz = punto.$2 * b;
+
+      x.add(cx + px * math.cos(angolo) + pz * math.sin(angolo));
+
+      final lontano = -px * math.sin(angolo) + pz * math.cos(angolo);
+
+      z.add(lontano);
+      su.add(cielo - lontano * _cameraAlta);
+      giu.add(terra - lontano * _cameraAlta);
+    }
+
+    return (x, z, su, giu);
+  }
+
+  List<_Faccia> _facce(double w, double h) {
+    final (x, z, su, giu) = _montanti(w, h);
+    final facce = <_Faccia>[];
+
+    for (var i = 0; i < 4; i++) {
+      final j = (i + 1) % 4;
+
+      final path = Path()
+        ..moveTo(x[i], su[i])
+        ..lineTo(x[j], su[j])
+        ..lineTo(x[j], giu[j])
+        ..lineTo(x[i], giu[i])
+        ..close();
+
+      facce.add(
+        _Faccia(
+          indice: i,
+          path: path,
+          area: Rect.fromLTRB(
+            math.min(x[i], x[j]),
+            math.min(su[i], su[j]),
+            math.max(x[i], x[j]),
+            math.max(giu[i], giu[j]),
+          ),
+          profondita: (z[i] + z[j]) / 2,
+        ),
+      );
+    }
+
+    return facce..sort((a, b) => b.profondita.compareTo(a.profondita));
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final facce = _facce(w, h);
+    final (x, z, su, giu) = _montanti(w, h);
+
+    if (!davanti) {
+      _ombraSotto(canvas, w, h);
+
+      // Le pareti che stanno dietro la coppa.
+      for (final faccia in facce.where((f) => f.profondita > 0)) {
+        _parete(canvas, faccia);
+      }
+
+      _pavimento(canvas, x, giu, z);
+
+      return;
+    }
+
+    // Le pareti davanti alla coppa: sono vetro, quindi la coppa si vede
+    // attraverso.
+    for (final faccia in facce.where((f) => f.profondita <= 0)) {
+      _parete(canvas, faccia);
+    }
+
+    _montantiEFasce(canvas, x, su, giu, z, w);
+  }
+
+  void _ombraSotto(Canvas canvas, double w, double h) {
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(w * 0.5, h * 0.90),
+        width: w * 0.88,
+        height: h * 0.06,
+      ),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.22)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 11),
+    );
+  }
+
+  /// Una parete: nera se e' il fondo, altrimenti vetro.
+  ///
+  /// **Il vetro dietro e il vetro davanti non sono la stessa cosa.** Quello
+  /// davanti lo si guarda: mostra i riflessi. Quello dietro lo si **attraversa
+  /// con lo sguardo**, e quello che c'e' dall'altra parte e' l'interno della
+  /// teca — buio. Dipingerlo chiaro come quello davanti era il motivo per cui,
+  /// girando di lato, la coppa restava senza sfondo e si perdeva sulla pagina:
+  /// fumé dietro, la coppa ha sempre qualcosa di scuro alle spalle, da
+  /// qualunque parte la si guardi.
+  void _parete(Canvas canvas, _Faccia faccia) {
+    if (faccia.area.width < 0.5) {
+      // Di taglio non c'e' niente da dipingere: la parete e' una riga, e a
+      // disegnarla si ottiene solo una striscia scura che balla.
+      return;
+    }
+
+    if (!faccia.eIlFondo && faccia.profondita > 0) {
+      canvas.drawPath(
+        faccia.path,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              const Color(0xFF17171A).withValues(alpha: 0.92),
+              const Color(0xFF0B0B0D).withValues(alpha: 0.96),
+            ],
+          ).createShader(faccia.area),
+      );
+
+      // Anche il vetro scuro riflette, ma appena: un filo sul bordo di sopra e
+      // basta. Di piu' e non si capirebbe piu' che si sta guardando dentro.
+      canvas.drawRect(
+        Rect.fromLTWH(
+          faccia.area.left,
+          faccia.area.top,
+          faccia.area.width,
+          math.max(1, faccia.area.height * 0.008),
+        ),
+        Paint()..color = Colors.white.withValues(alpha: 0.14),
+      );
+
+      return;
+    }
+
+    if (faccia.eIlFondo) {
+      canvas.drawPath(
+        faccia.path,
+        Paint()
+          ..shader = const LinearGradient(
+            // In diagonale e a quattro toni, non due: una parete nera con una
+            // sfumatura dall'alto in basso si legge ancora come una superficie
+            // piatta. Presa di sbieco, con un chiaro che passa e si spegne, si
+            // legge come una parete **illuminata da qualcosa**.
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF26262A), _fondoAlto, Color(0xFF111113), _fondoBasso],
+            stops: [0, 0.35, 0.72, 1],
+          ).createShader(faccia.area),
+      );
+
+      // **La luce dentro la teca.** Un fondo nero uniforme si legge come un
+      // blocco pieno: e' il buio, non una parete. Un alone chiaro dietro il
+      // punto dove sta la coppa dice che li' dentro c'e' dello spazio, e che
+      // qualcuno l'ha acceso — che e' cio' che distingue una vetrina da una
+      // scatola chiusa.
+      canvas.save();
+      canvas.clipPath(faccia.path);
+      canvas.drawRect(
+        faccia.area,
+        Paint()
+          ..shader = RadialGradient(
+            center: const Alignment(0, -0.15),
+            radius: 0.85,
+            colors: [
+              Colors.white.withValues(alpha: 0.13),
+              Colors.white.withValues(alpha: 0.03),
+              Colors.transparent,
+            ],
+            stops: const [0, 0.55, 1],
+          ).createShader(faccia.area),
+      );
+      canvas.restore();
+
+      return;
+    }
+
+    // **Il vetro non si dipinge: si dipingono i suoi riflessi.** Una lastra
+    // pulita e' invisibile, e una lastra senza riflessi e' un buco — era il
+    // motivo per cui la teca sembrava vuota da tre lati e piena da uno.
+    //
+    // Tre cose, e servono tutte e tre:
+    canvas.save();
+    canvas.clipPath(faccia.path);
+
+    // **Uno.** Il velo azzurrino su tutta la lastra: pochissimo, ma e' quello
+    // che dice che fra l'occhio e la coppa c'e' qualcosa.
+    canvas.drawRect(
+      faccia.area,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFFBFD4E8).withValues(alpha: 0.16),
+            const Color(0xFF8FA8C0).withValues(alpha: 0.05),
+          ],
+        ).createShader(faccia.area),
+    );
+
+    // **Due.** Le due bande diagonali: il riflesso di una finestra. Sono la
+    // firma del vetro — strette, nette, in diagonale, e sempre nella stessa
+    // direzione su tutte le lastre, perche' la finestra e' una sola.
+    final larghezza = faccia.area.width;
+
+    for (final banda in const [(0.10, 0.16, 0.30), (0.52, 0.07, 0.16)]) {
+      final path = Path()
+        ..moveTo(faccia.area.left + larghezza * banda.$1, faccia.area.top)
+        ..lineTo(
+          faccia.area.left + larghezza * (banda.$1 + banda.$2),
+          faccia.area.top,
+        )
+        ..lineTo(
+          faccia.area.left + larghezza * (banda.$1 + banda.$2 - 0.22),
+          faccia.area.bottom,
+        )
+        ..lineTo(
+          faccia.area.left + larghezza * (banda.$1 - 0.22),
+          faccia.area.bottom,
+        )
+        ..close();
+
+      canvas.drawPath(
+        path,
+        Paint()..color = Colors.white.withValues(alpha: banda.$3),
+      );
+    }
+
+    // **Tre.** Il filo acceso sul bordo di sopra: lo spessore della lastra
+    // visto di taglio, ed e' la cosa che si vede per prima su un vetro vero.
+    canvas.drawRect(
+      Rect.fromLTWH(
+        faccia.area.left,
+        faccia.area.top,
+        faccia.area.width,
+        math.max(1.5, faccia.area.height * 0.012),
+      ),
+      Paint()..color = Colors.white.withValues(alpha: 0.32),
+    );
+
+    canvas.restore();
+  }
+
+  /// Il ripiano su cui la coppa e' posata.
+  void _pavimento(
+    Canvas canvas,
+    List<double> x,
+    List<double> giu,
+    List<double> z,
+  ) {
+    final path = Path()..moveTo(x[0], giu[0]);
+
+    for (var i = 1; i < 4; i++) {
+      path.lineTo(x[i], giu[i]);
+    }
+
+    path.close();
+
+    canvas.drawPath(path, Paint()..color = const Color(0xFF141416));
+
+    // Il filo di luce sullo spigolo davanti del ripiano: dice dove finisce il
+    // pavimento e comincia il vetro.
+    var vicino = 0;
+
+    for (var i = 1; i < 4; i++) {
+      if (z[i] < z[vicino]) {
+        vicino = i;
+      }
+    }
+
+    final altro = z[(vicino + 1) % 4] < z[(vicino + 3) % 4]
+        ? (vicino + 1) % 4
+        : (vicino + 3) % 4;
+
+    canvas.drawLine(
+      Offset(x[vicino], giu[vicino]),
+      Offset(x[altro], giu[altro]),
+      Paint()
+        ..color = _telaioLuce.withValues(alpha: 0.55)
+        ..strokeWidth = 1.2,
+    );
+  }
+
+  /// I quattro montanti e le due fasce che chiudono la scatola.
+  ///
+  /// Si dipingono per ultimi e tutti insieme: stanno agli angoli, dove la coppa
+  /// non arriva mai, e una cornice continua e' quello che fa leggere le quattro
+  /// pareti come **una cosa sola** invece che come quattro lastre vicine.
+  void _montantiEFasce(
+    Canvas canvas,
+    List<double> x,
+    List<double> su,
+    List<double> giu,
+    List<double> z,
+    double w,
+  ) {
+    for (var i = 0; i < 4; i++) {
+      final vicino = z[i] < 0;
+      final spessore = w * (vicino ? 0.028 : 0.020);
+
+      canvas.drawLine(
+        Offset(x[i], su[i]),
+        Offset(x[i], giu[i]),
+        Paint()
+          ..color = _telaio
+          ..strokeWidth = spessore
+          ..strokeCap = StrokeCap.round,
+      );
+
+      // Il filo di luce sullo spigolo, dalla parte da cui arriva la luce.
+      canvas.drawLine(
+        Offset(x[i] - spessore * 0.30, su[i]),
+        Offset(x[i] - spessore * 0.30, giu[i]),
+        Paint()
+          ..color = _telaioLuce.withValues(alpha: vicino ? 0.8 : 0.4)
+          ..strokeWidth = spessore * 0.20,
+      );
+    }
+
+    for (final quota in [su, giu]) {
+      final path = Path()..moveTo(x[0], quota[0]);
+
+      for (var i = 1; i < 4; i++) {
+        path.lineTo(x[i], quota[i]);
+      }
+
+      path.close();
+
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = w * 0.022
+          ..strokeJoin = StrokeJoin.round
+          ..color = _telaio,
+      );
+
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color = _telaioLuce.withValues(alpha: 0.45),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_CasePainter oldDelegate) => oldDelegate.angolo != angolo;
+}
+
+/// La teca con dentro la coppa: fondo, marchio, coppa, vetri.
+///
+/// **L'ordine e' tutto.** La parete di fondo, poi il marchio che ci sta sopra,
+/// poi la coppa, poi i vetri: e' quello a mettere la coppa *dentro* la scatola
+/// invece che sopra. Disegnando i vetri per primi la coppa ci passerebbe
+/// davanti, e la teca diventerebbe una cornice.
+class _Showcase extends StatelessWidget {
+  const _Showcase({required this.angolo, this.data});
+
+  final double angolo;
+
+  /// Quando la sfida e' finita, incisa sul retro della teca.
+  final String? data;
+
+  @override
+  Widget build(BuildContext context) {
+    final fronte = math.cos(angolo);
+
+    return LayoutBuilder(
+      builder: (context, vincoli) {
+        final w = vincoli.maxWidth;
+        final h = vincoli.maxHeight;
+
+        // Ci siamo girati dietro: la parete nera e' fra noi e la coppa.
+        final dietro = fronte < 0;
+
+        // **Il marchio sta sulla parete nera, da tutte e due i lati.**
+        //
+        // Dentro e' la targa della vetrina, quella che dice chi assegna il
+        // premio. Girando fino in fondo si arriva **dietro**, e li' la teca
+        // diventava un rettangolo nero e basta: una faccia cieca, l'unico punto
+        // del giro in cui non c'era niente da guardare. Adesso anche il dietro
+        // e' una faccia — marchio e data, come il retro di una targa vera.
+        //
+        // Di taglio non si scrive niente: la parete e' una riga, e una scritta
+        // su una riga e' una macchia.
+        final targa = fronte.abs() <= 0.14
+            ? null
+            : Positioned(
+                left: w * 0.5 - w * 0.19,
+                top: h * (dietro ? 0.34 : 0.225),
+                width: w * 0.38,
+                child: Transform(
+                  alignment: Alignment.center,
+                  transform: Matrix4.identity()
+                    ..scaleByDouble(fronte.abs(), 1, 1, 1),
+                  child: Opacity(
+                    opacity: (0.15 + fronte.abs() * 0.5).clamp(0.0, 1.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CrasyWordmark(
+                          size: 30,
+                          alignment: Alignment.center,
+                          onDark: true,
+                          beta: false,
+                        ),
+                        // La data solo da dietro: davanti la coppa e' la cosa
+                        // da guardare, e una scritta in piu' le toglierebbe
+                        // spazio. Dietro non c'e' altro, ed e' il posto in cui
+                        // su una targa vera sta inciso quando.
+                        if (dietro && data != null) ...[
+                          SizedBox(height: h * 0.022),
+                          Text(
+                            data!.toUpperCase(),
+                            textAlign: TextAlign.center,
+                            style: context.texts.labelSmall?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.65),
+                              fontSize: w * 0.05,
+                              letterSpacing: 1.4,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              );
+
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _CasePainter(angolo: angolo, davanti: false),
+              ),
+            ),
+            // Con la parete in fondo, il marchio le sta sopra e la coppa lo
+            // copre in parte: e' dentro la teca.
+            if (!dietro && targa != null) targa,
+            // **Appoggiata sul ripiano, non a mezz'aria.**
+            //
+            // Il disegno della coppa tiene il piede al 91% della sua altezza —
+            // sotto c'e' solo l'ombra a terra — quindi il riquadro va messo in
+            // modo che **quel 91% cada esattamente sul pavimento della teca**.
+            // Prima era centrato a occhio, e la coppa galleggiava qualche punto
+            // sopra il ripiano: il genere di cosa che si vede subito e non si
+            // sa dire.
+            Positioned(
+              left: w * 0.20,
+              top: h * (0.88 - 0.913 * 0.60),
+              width: w * 0.60,
+              height: h * 0.60,
+              child: CustomPaint(painter: FlamePainter(angolo: angolo)),
+            ),
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _CasePainter(angolo: angolo, davanti: true),
+              ),
+            ),
+            // Da dietro invece la parete e' **fra noi e la coppa**: il marchio
+            // ci va sopra, o resterebbe nascosto dalla parete stessa.
+            if (dietro && targa != null) targa,
+          ],
+        );
+      },
     );
   }
 }
