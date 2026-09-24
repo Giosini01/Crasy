@@ -46,6 +46,21 @@ const db = admin.firestore();
 //     firebase functions:secrets:set STRIPE_SECRET_KEY
 //     firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
 const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
+
+/**
+ * **La chiave che paga i vincitori, separata da quella che incassa.**
+ *
+ * Sono due poteri molto diversi. Incassare vuol dire far entrare soldi: se
+ * qualcuno rubasse quella chiave, il peggio che puo' fare e' creare dei
+ * pagamenti che nessuno conferma. Pagare vuol dire **far uscire** soldi dal
+ * conto, ed e' il danno vero.
+ *
+ * Tenerle separate non impedisce il furto, ma dimezza cio' che si perde: la
+ * chiave dei pagamenti — quella che gira a ogni missione, in tutte le
+ * funzioni — non sa mandare via un centesimo, e quella che lo sa fare la
+ * leggono due funzioni sole.
+ */
+const STRIPE_PAYOUT_KEY = defineSecret('STRIPE_PAYOUT_KEY');
 const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
 
 /** Dove torna la gente dopo aver pagato.
@@ -174,6 +189,23 @@ function stripeClient() {
   // installato. Un numero scritto qui e non aggiornato insieme al pacchetto e'
   // il modo piu' silenzioso di rompere i pagamenti dopo un aggiornamento.
   return new Stripe(STRIPE_SECRET_KEY.value());
+}
+
+/**
+ * Il cliente di Stripe per i soldi che escono.
+ *
+ * Se la chiave dei prelievi non c'e', si ripiega su quella normale: cosi' il
+ * giorno in cui esiste basta metterla, senza toccare il codice, e fino a
+ * quel giorno il comportamento e' quello di prima.
+ */
+function stripePayoutClient() {
+  const chiave = STRIPE_PAYOUT_KEY.value();
+
+  // Il segnaposto vale come "non c'e' ancora": un segreto su Secret Manager
+  // non puo' essere vuoto, quindi l'assenza si scrive cosi'.
+  return chiave && chiave !== 'da-sostituire'
+    ? new Stripe(chiave)
+    : stripeClient();
 }
 
 // ---------------------------------------------------------------------------
@@ -758,7 +790,7 @@ async function onAccountUpdated(account) {
  * compare un modulo di documenti senza spiegazioni se ne va.
  */
 exports.createPayoutOnboarding = onCall(
-  { secrets: [STRIPE_SECRET_KEY] },
+  { secrets: [STRIPE_SECRET_KEY, STRIPE_PAYOUT_KEY] },
   async (request) => {
     const userId = request.auth && request.auth.uid;
 
@@ -766,7 +798,7 @@ exports.createPayoutOnboarding = onCall(
       throw new HttpsError('unauthenticated', 'Serve un account.');
     }
 
-    const stripe = stripeClient();
+    const stripe = stripePayoutClient();
     const userRef = db.collection('users').doc(userId);
     const user = await userRef.get();
 
@@ -981,7 +1013,7 @@ const MIN_WITHDRAWAL_CENTS = 1000;
  * spariscano dei soldi.
  */
 exports.withdrawWallet = onCall(
-  { secrets: [STRIPE_SECRET_KEY] },
+  { secrets: [STRIPE_SECRET_KEY, STRIPE_PAYOUT_KEY] },
   async (request) => {
     const userId = request.auth && request.auth.uid;
 
@@ -989,7 +1021,7 @@ exports.withdrawWallet = onCall(
       throw new HttpsError('unauthenticated', 'Serve un account.');
     }
 
-    const stripe = stripeClient();
+    const stripe = stripePayoutClient();
     const userRef = db.collection('users').doc(userId);
     const user = await userRef.get();
     const balance = user.get('walletCents') || 0;
