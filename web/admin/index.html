@@ -89,15 +89,12 @@
   button.togli { background: var(--rosso); color: #fff; border-color: var(--rosso); }
   button.tieni { background: var(--verde); color: #fff; border-color: var(--verde); }
 
-  h3.gruppo {
-    font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
-    color: var(--rosso); font-weight: 800; margin: 22px 0 10px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  h3.gruppo:first-child { margin-top: 2px; }
-  h3.gruppo .quanti {
+  /* Il pallino col numero accanto al titolo del riquadro: dice quanto lavoro
+     c'e' dentro senza doverlo aprire. */
+  h2 .quanti {
+    display: inline-block; vertical-align: 1px; margin-left: 6px;
     background: var(--rosso); color: #fff; border-radius: 999px;
-    font-size: 11px; letter-spacing: 0; padding: 1px 8px;
+    font-size: 11px; font-weight: 800; padding: 1px 8px;
   }
   .filtri { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
   .filtri button.scelto { background: var(--rosso); color: #fff; border-color: var(--rosso); }
@@ -212,9 +209,29 @@
       <div id="presenze" class="nota">Carico…</div>
     </div>
 
+    <!-- **Tre riquadri, non un elenco solo.**
+
+         Una foto segnalata si decide guardandola: un secondo, e si sa. Una
+         missione si decide leggendone il testo, e nel frattempo si pensa. Sono
+         due gesti diversi, e alternarli a ogni riga costa piu' di quanto
+         sembri. Separati si smaltiscono a blocchi.
+
+         I riquadri restano anche quando sono vuoti: cosi' si vede a colpo
+         d'occhio che non c'e' niente da fare, invece di dover indovinare se la
+         pagina sta ancora caricando. -->
     <div class="scatola">
-      <h2 id="titolo">Segnalazioni</h2>
-      <div id="elenco"></div>
+      <h2>Foto e video in gara <span class="quanti" id="quantiFoto">0</span></h2>
+      <div id="elencoFoto"></div>
+    </div>
+
+    <div class="scatola">
+      <h2>Missioni segnalate <span class="quanti" id="quantiMissioni">0</span></h2>
+      <div id="elencoMissioni"></div>
+    </div>
+
+    <div class="scatola">
+      <h2>Persone segnalate <span class="quanti" id="quantiPersone">0</span></h2>
+      <div id="elencoPersone"></div>
     </div>
 
     <!-- **I bonifici da fare a mano.**
@@ -282,7 +299,6 @@ const segnaPagato = httpsCallable(functions, 'adminMarkPayoutPaid');
 const $ = (id) => document.getElementById(id);
 const accesso = $('accesso');
 const tavolo = $('tavolo');
-const elenco = $('elenco');
 const prelievi = $('prelievi');
 const presenze = $('presenze');
 const avviso = $('avviso');
@@ -325,13 +341,29 @@ const COSA = {
 // che non doveva esserci resta visibile a tutti finche' non la si toglie, una
 // missione sbagliata anche, ma una persona segnalata puo' aspettare il tempo
 // di leggere.
+//
+// L'ultimo gruppo prende **tutto quello che non e' ne' una foto ne' una
+// missione**, non solo le persone. Se un domani nascesse un altro tipo di
+// segnalazione, finirebbe li' dentro invece di sparire senza che nessuno se ne
+// accorga: e' l'unico modo perche' una segnalazione non resti invisibile.
 const GRUPPI = [
-  { titolo: 'Foto e video in gara', suo: (r) => r.kind === 'entry' },
-  { titolo: 'Missioni', suo: (r) => r.kind === 'challenge' },
-  { titolo: 'Persone', suo: (r) => r.kind === 'user' },
   {
-    titolo: 'Altro',
-    suo: (r) => !['entry', 'challenge', 'user'].includes(r.kind),
+    suo: (r) => r.kind === 'entry',
+    dove: () => $('elencoFoto'),
+    conta: () => $('quantiFoto'),
+    vuoto: 'Nessuna foto segnalata.',
+  },
+  {
+    suo: (r) => r.kind === 'challenge',
+    dove: () => $('elencoMissioni'),
+    conta: () => $('quantiMissioni'),
+    vuoto: 'Nessuna missione segnalata.',
+  },
+  {
+    suo: (r) => r.kind !== 'entry' && r.kind !== 'challenge',
+    dove: () => $('elencoPersone'),
+    conta: () => $('quantiPersone'),
+    vuoto: 'Nessuna persona segnalata.',
   },
 ];
 
@@ -437,47 +469,48 @@ function riga(report) {
   return nodo;
 }
 
+/** Dice a tutti e tre i riquadri la stessa cosa. */
+function ovunque(html, azzeraIConti) {
+  for (const gruppo of GRUPPI) {
+    gruppo.dove().innerHTML = html;
+
+    if (azzeraIConti) {
+      gruppo.conta().textContent = '0';
+    }
+  }
+}
+
 async function carica() {
   dillo('');
-  elenco.innerHTML = '<p class="nota">Carico…</p>';
+  ovunque('<p class="nota">Carico…</p>', true);
 
   try {
     const esito = await chiediElenco({ status: filtro });
     const reports = esito.data.reports || [];
 
-    elenco.innerHTML = '';
-
-    if (reports.length === 0) {
-      elenco.innerHTML = '<p class="nota">Niente da guardare qui.</p>';
-
-      return;
-    }
-
-    // **Divise per tipo, non tutte in fila.**
-    //
-    // Una foto segnalata si decide guardandola: un secondo, e si sa. Una
-    // missione segnalata si decide leggendone il testo, e nel frattempo si
-    // pensa. Sono due gesti diversi, e mescolarli costringe a cambiare modo di
-    // guardare a ogni riga. Separati, si smaltiscono a blocchi.
+    // Ogni riquadro si riempie da se' con le sue, e se non ne ha lo dice al
+    // posto di sparire: un riquadro vuoto e' un'informazione — oggi non c'e'
+    // niente da decidere — mentre un riquadro assente si confonde con una
+    // pagina che non ha ancora finito di caricare.
     for (const gruppo of GRUPPI) {
+      const dove = gruppo.dove();
       const suoi = reports.filter(gruppo.suo);
 
+      gruppo.conta().textContent = String(suoi.length);
+      dove.innerHTML = '';
+
       if (suoi.length === 0) {
+        dove.innerHTML = '<p class="nota">' + gruppo.vuoto + '</p>';
+
         continue;
       }
 
-      const testa = document.createElement('h3');
-      testa.className = 'gruppo';
-      testa.innerHTML =
-        testo(gruppo.titolo) + ' <span class="quanti">' + suoi.length + '</span>';
-      elenco.appendChild(testa);
-
       for (const report of suoi) {
-        elenco.appendChild(riga(report));
+        dove.appendChild(riga(report));
       }
     }
   } catch (errore) {
-    elenco.innerHTML = '';
+    ovunque('', true);
     dillo(errore.message || 'Non riusciamo a leggere le segnalazioni.');
   }
 }
