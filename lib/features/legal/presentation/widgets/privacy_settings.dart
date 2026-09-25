@@ -83,6 +83,27 @@ class _PrivacySettings extends ConsumerWidget {
           enabled: !saving,
           onChanged: (value) => cambia(profiling: value),
         ),
+        // **Farsi trovare dai contatti e' una scelta, e sta fra le altre
+        // scelte.** Non e' un consenso obbligatorio — l'app funziona uguale —
+        // ma decide se il proprio numero sta o non sta nell'indice con cui gli
+        // altri cercano. Chi lo spegne ne esce, e non compare piu' a nessuno.
+        _RigaInterruttore(
+          titolo: 'Fatti trovare dai contatti',
+          spiegazione: 'Chi ha il tuo numero in rubrica ti vede fra i '
+              'suggeriti. Il numero non lo mostriamo mai a nessuno.',
+          valore: profile.findableByPhone,
+          attivo: !saving,
+          cambia: (value) {
+            final repository = ref.read(userProfileRepositoryProvider);
+            final userId = profile.id;
+
+            if (userId.isEmpty) {
+              return;
+            }
+
+            repository.saveFindableByPhone(userId: userId, findable: value);
+          },
+        ),
 
         const SizedBox(height: AppSpacing.lg),
         // **La prova di cosa e' stato accettato, e quando.** Non e' un dettaglio
@@ -182,6 +203,59 @@ class _Switch extends StatelessWidget {
             value: value,
             activeThumbColor: palette.accent,
             onChanged: enabled ? onChanged : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Come `_Switch`, ma per una scelta che non e' un consenso legale: stesso
+/// aspetto, testi liberi.
+class _RigaInterruttore extends StatelessWidget {
+  const _RigaInterruttore({
+    required this.titolo,
+    required this.spiegazione,
+    required this.valore,
+    required this.attivo,
+    required this.cambia,
+  });
+
+  final String titolo;
+  final String spiegazione;
+  final bool valore;
+  final bool attivo;
+  final ValueChanged<bool> cambia;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(titolo, style: context.texts.bodyMedium),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  spiegazione,
+                  style: context.texts.bodySmall?.copyWith(
+                    color: palette.textFaint,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Switch.adaptive(
+            value: valore,
+            activeThumbColor: palette.accent,
+            onChanged: attivo ? cambia : null,
           ),
         ],
       ),

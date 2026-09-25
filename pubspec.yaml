@@ -37,6 +37,7 @@ dependencies:
   # Il foglio di pagamento nativo: si alza dentro CRASY invece di aprire il
   # browser. Le carte le prende il codice di Stripe, non il nostro.
   flutter_stripe: ^11.4.0
+  flutter_contacts: ^2.5.0
 
 dev_dependencies:
   flutter_test:

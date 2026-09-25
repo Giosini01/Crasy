@@ -3,8 +3,10 @@ import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/friends/data/repositories/contacts_repository.dart';
 import 'package:crasy/features/friends/data/repositories/firestore_friends_repository.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
+import 'package:crasy/features/friends/domain/entities/suggested_friend.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
@@ -566,4 +568,59 @@ int _leDaFarePrima(Challenge a, Challenge b) {
   }
 
   return a.endsAt.compareTo(b.endsAt);
+}
+
+/// Chi legge la rubrica e chiede al server chi di quei numeri e' su CRASY.
+final contactsRepositoryProvider = Provider<ContactsRepository?>((ref) {
+  if (!ref.watch(firebaseBootstrapResultProvider).isConfigured) {
+    return null;
+  }
+
+  return ContactsRepository(ref.watch(firebaseFunctionsProvider));
+});
+
+/// **I suggeriti. Si caricano solo quando qualcuno li chiede.**
+///
+/// Non e' un provider che si accende da solo aprendo la schermata, e non per
+/// prudenza tecnica: leggere la rubrica fa comparire la richiesta di permesso
+/// del telefono, e una richiesta del genere che salta fuori da sola, senza che
+/// l'utente abbia chiesto niente, e' il modo piu' rapido di prendersi un "no"
+/// che poi resta per sempre. Prima si spiega, poi si chiede.
+final suggestedFriendsProvider =
+    AsyncNotifierProvider.autoDispose<SuggestedFriendsNotifier,
+        List<SuggestedFriend>?>(SuggestedFriendsNotifier.new);
+
+class SuggestedFriendsNotifier
+    extends AutoDisposeAsyncNotifier<List<SuggestedFriend>?> {
+  /// Null vuol dire "non li abbiamo ancora cercati", che e' diverso da una
+  /// lista vuota — quella vuol dire "cercati, e non c'e' nessuno".
+  @override
+  Future<List<SuggestedFriend>?> build() async => null;
+
+  Future<void> cerca() async {
+    final repository = ref.read(contactsRepositoryProvider);
+
+    if (repository == null) {
+      return;
+    }
+
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(repository.suggeriti);
+  }
+
+  /// Toglie dall'elenco chi hai appena invitato, senza rifare il giro della
+  /// rubrica: la riga sparisce e chi guarda vede che il tasto ha fatto
+  /// qualcosa.
+  void togli(String userId) {
+    final ora = state.valueOrNull;
+
+    if (ora == null) {
+      return;
+    }
+
+    state = AsyncValue.data([
+      for (final chi in ora)
+        if (chi.userId != userId) chi,
+    ]);
+  }
 }

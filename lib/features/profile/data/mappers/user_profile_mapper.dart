@@ -20,6 +20,7 @@ abstract final class UserProfileMapper {
       profilingConsent: data['profilingConsent'] as bool? ?? false,
       tutorialSeen: data['tutorialSeen'] as bool? ?? false,
       phone: data['phone'] as String? ?? '',
+      findableByPhone: data['findableByPhone'] as bool? ?? true,
     );
   }
 

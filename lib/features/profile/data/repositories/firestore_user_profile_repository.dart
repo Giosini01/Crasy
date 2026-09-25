@@ -96,6 +96,20 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
   }
 
   @override
+  Future<void> saveFindableByPhone({
+    required String userId,
+    required bool findable,
+  }) {
+    // Cambiare questo campo fa scattare `aggiornaIndiceRubrica` sul server, ed
+    // e' li' che il numero entra nell'indice o ne esce. Da qui si scrive una
+    // preferenza; l'indice non lo tocca nessun telefono.
+    return _users.doc(userId).update({
+      'findableByPhone': findable,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
   Future<void> saveConsent({
     required String userId,
     required String version,

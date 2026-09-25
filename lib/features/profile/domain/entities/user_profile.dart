@@ -26,6 +26,7 @@ class UserProfile {
     this.profilingConsent = false,
     this.tutorialSeen = false,
     this.phone = '',
+    this.findableByPhone = true,
   });
 
   /// **Il profilo ufficiale di CRASY.**
@@ -115,6 +116,16 @@ class UserProfile {
   /// da nessuna parte.
   final String phone;
 
+  /// **Se ti si puo' trovare cercando il tuo numero in rubrica.**
+  ///
+  /// Parte acceso, ed e' una scelta che va detta invece che nascosta: spento
+  /// di default, la sezione dei suggeriti non troverebbe quasi nessuno e non
+  /// servirebbe a niente per nessuno. Chi non lo vuole lo spegne dalle
+  /// impostazioni, e da quel momento esce dall'indice dei numeri — non viene
+  /// solo escluso dai risultati: il suo numero, li' dentro, non c'e' proprio
+  /// piu'.
+  final bool findableByPhone;
+
   /// Ha verificato il numero.
   bool get phoneVerified => phone.isNotEmpty;
 
@@ -167,6 +178,7 @@ class UserProfile {
     bool? profilingConsent,
     bool? tutorialSeen,
     String? phone,
+    bool? findableByPhone,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? onboardingCompleted,
@@ -185,6 +197,7 @@ class UserProfile {
       profilingConsent: profilingConsent ?? this.profilingConsent,
       tutorialSeen: tutorialSeen ?? this.tutorialSeen,
       phone: phone ?? this.phone,
+      findableByPhone: findableByPhone ?? this.findableByPhone,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
@@ -208,7 +221,8 @@ class UserProfile {
         other.createdAt == createdAt &&
         other.updatedAt == updatedAt &&
         other.onboardingCompleted == onboardingCompleted &&
-        other.phone == phone;
+        other.phone == phone &&
+        other.findableByPhone == findableByPhone;
   }
 
   @override
@@ -224,5 +238,6 @@ class UserProfile {
     updatedAt,
     onboardingCompleted,
     phone,
+    findableByPhone,
   );
 }

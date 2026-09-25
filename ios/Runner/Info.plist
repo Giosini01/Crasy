@@ -18,6 +18,15 @@
 	<string>Serve il microfono per registrare l'audio del video con cui partecipi a una challenge.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Serve la fotocamera per scattare al volo la foto con cui partecipi a una challenge.</string>
+	<!-- **La rubrica serve a una cosa sola, e il testo lo dice.**
+
+	     Apple legge questa frase e la mostra dentro la richiesta di permesso:
+	     e' l'unica spiegazione che la maggior parte delle persone leggera' mai.
+	     Scriverci "per migliorare l'esperienza" e' il modo migliore di
+	     prendersi un rifiuto — e, in revisione, una richiesta di chiarimenti.
+	     Dal telefono escono solo i numeri, e i nomi non li tocchiamo. -->
+	<key>NSContactsUsageDescription</key>
+	<string>Serve per dirti quali dei tuoi contatti sono gia' su CRASY. Usiamo solo i numeri, mai i nomi, e di chi non e' iscritto non conserviamo niente.</string>
 	<!-- **Lo schema con cui Firebase rientra nell'app.**
 
 	     Serve alla verifica del numero di telefono. Su iPhone Firebase prova

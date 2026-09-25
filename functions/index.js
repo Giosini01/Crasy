@@ -2229,3 +2229,9 @@ exports.countParticipant = onDocumentCreated(
     }
   }
 );
+
+// **Gli amici che hai gia' in rubrica.** Vedi rubrica.js: l'indice dei numeri
+// vive solo sul server, e i numeri che arrivano dalla rubrica non si scrivono
+// da nessuna parte.
+exports.aggiornaIndiceRubrica = require('./rubrica').aggiornaIndiceRubrica;
+exports.trovaDallaRubrica = require('./rubrica').trovaDallaRubrica;

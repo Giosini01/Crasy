@@ -57,6 +57,12 @@ abstract class UserProfileRepository {
   /// se il passaggio e' gia' stato fatto.
   Future<void> savePhone({required String userId, required String phone});
 
+  /// Accende o spegne la reperibilita' per numero di telefono.
+  Future<void> saveFindableByPhone({
+    required String userId,
+    required bool findable,
+  });
+
   Future<void> saveConsent({
     required String userId,
     required String version,

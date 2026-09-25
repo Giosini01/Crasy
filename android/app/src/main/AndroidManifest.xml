@@ -4,6 +4,10 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
+    <!-- Per trovare fra i propri contatti chi ha gia' CRASY. Si legge e basta:
+         l'app non scrive niente nella rubrica di nessuno. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+
     <application
         android:label="CRASY"
         android:name="${applicationName}"

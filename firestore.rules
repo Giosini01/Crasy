@@ -1129,5 +1129,21 @@ service cloud.firestore {
                     && request.resource.data.guasto.size() <= 500;
     }
 
+    // **L'indice dei numeri di telefono. Nessun telefono lo tocca.**
+    //
+    // Dentro ci sono le impronte dei numeri di chi si e' iscritto, e a ognuna
+    // corrisponde una persona. Chi potesse leggerlo non ricaverebbe i numeri —
+    // l'impronta non si rovescia — ma potrebbe provarli: dieci cifre sono
+    // poche, e con l'elenco davanti si scoprirebbe chi c'e' su CRASY provando
+    // tutta l'Italia. Per questo lo scrive solo il server, che usa l'SDK di
+    // amministrazione e queste regole non le attraversa nemmeno, e per questo
+    // qui sotto non c'e' nessun permesso.
+    //
+    // La ricerca passa da `trovaDallaRubrica`, che risponde solo con i profili
+    // e mai con l'indice.
+    match /phoneIndex/{impronta} {
+      allow read, write: if false;
+    }
+
   }
 }
