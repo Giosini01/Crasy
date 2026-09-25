@@ -74,15 +74,18 @@ function impronta(numero, pepe) {
 }
 
 /**
- * **L'indice si aggiorna da solo quando cambia un profilo.**
+ * **L'indice si aggiorna da solo quando cambia il numero.**
+ *
+ * Guarda `users/{id}/private/contatto`, non il profilo: il numero sta li'
+ * dentro perche' il profilo lo legge chiunque abbia fatto l'accesso, e un
+ * numero di telefono in un documento pubblico e' un numero di telefono
+ * pubblico.
  *
  * Non lo scrive l'app: se lo scrivesse, il segreto dovrebbe stare dentro ogni
- * telefono, e un segreto che sta in centomila telefoni non e' un segreto. Qui
- * il numero passa dal profilo all'indice senza che nessuno fuori veda mai
- * l'impronta.
+ * telefono, e un segreto che sta in centomila telefoni non e' un segreto.
  */
 exports.aggiornaIndiceRubrica = onDocumentWritten(
-  { document: 'users/{userId}', secrets: [PEPE_RUBRICA] },
+  { document: 'users/{userId}/private/contatto', secrets: [PEPE_RUBRICA] },
   async (evento) => {
     const prima = evento.data?.before?.data() || {};
     const dopo = evento.data?.after?.data() || {};
@@ -92,10 +95,6 @@ exports.aggiornaIndiceRubrica = onDocumentWritten(
     const trovabilePrima = prima.findableByPhone !== false;
     const trovabileDopo = dopo.findableByPhone !== false;
 
-    // Niente e' cambiato di quello che riguarda l'indice: non si tocca. Questa
-    // funzione scatta a ogni salvataggio di profilo — anche solo una foto
-    // nuova — e senza questa riga riscriverebbe lo stesso documento migliaia
-    // di volte al giorno.
     if (numeroPrima === numeroDopo && trovabilePrima === trovabileDopo) {
       return;
     }
@@ -123,6 +122,15 @@ exports.aggiornaIndiceRubrica = onDocumentWritten(
     await Promise.all(lavori);
   },
 );
+
+/**
+ * **Chi cancella l'account esce dall'indice.**
+ *
+ * Il documento privato sparisce con il resto dei suoi dati, e il trigger qui
+ * sopra lo vede: `dopo` e' vuoto, il numero nuovo non c'e', e il vecchio viene
+ * tolto. Vale la pena dirlo perche' non si vede leggendo — sembra che manchi
+ * una funzione apposta, e invece manca perche' non serve.
+ */
 
 /**
  * **La ricerca vera e propria.**

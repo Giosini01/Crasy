@@ -19,8 +19,16 @@ abstract final class UserProfileMapper {
       marketingConsent: data['marketingConsent'] as bool? ?? false,
       profilingConsent: data['profilingConsent'] as bool? ?? false,
       tutorialSeen: data['tutorialSeen'] as bool? ?? false,
-      phone: data['phone'] as String? ?? '',
-      findableByPhone: data['findableByPhone'] as bool? ?? true,
+      // **Si guarda anche il campo vecchio, e non e' pigrizia.**
+      //
+      // I profili scritti prima di questo cambiamento hanno il numero qui
+      // dentro e nessun `phoneVerified`. Leggendo solo il campo nuovo si
+      // direbbe a tutti loro che il telefono non l'hanno mai verificato, e
+      // l'app li rimanderebbe a verificarlo: una schermata in faccia a chi
+      // aveva gia' fatto tutto. La riga si toglie quando la migrazione ha
+      // girato su tutti.
+      phoneVerified: data['phoneVerified'] as bool? ??
+          (data['phone'] as String? ?? '').isNotEmpty,
     );
   }
 

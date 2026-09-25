@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// muro non si apriva e la schermata tornava — senza nessun errore, perche' dal
 /// punto di vista del codice era andato tutto bene.
 void main() {
-  UserProfile profilo({String phone = ''}) {
+  UserProfile profilo({bool verificato = false}) {
     return UserProfile(
       id: 'io',
       username: 'martina',
@@ -17,7 +17,7 @@ void main() {
       createdAt: null,
       updatedAt: null,
       onboardingCompleted: true,
-      phone: phone,
+      phoneVerified: verificato,
     );
   }
 
@@ -25,14 +25,15 @@ void main() {
     expect(profilo().phoneVerified, isFalse);
   });
 
-  test('con il numero il muro si apre', () {
-    expect(profilo(phone: '+393330000000').phoneVerified, isTrue);
+  test('con il numero verificato il muro si apre', () {
+    expect(profilo(verificato: true).phoneVerified, isTrue);
   });
 
-  test('una stringa vuota non e\' un numero verificato', () {
-    // E' esattamente cio' che finiva nel profilo quando Firebase non
-    // restituiva il numero: sembrava un salvataggio riuscito e non lo era.
-    expect(profilo(phone: '').phoneVerified, isFalse);
+  test('un profilo appena fatto non ha il numero verificato', () {
+    // Il difetto di una volta era una stringa vuota scambiata per un numero.
+    // Adesso il campo e' un si' o no, e il ripiego deve essere il no: un
+    // ripiego al contrario aprirebbe il muro a chi non l'ha mai passato.
+    expect(profilo().phoneVerified, isFalse);
   });
 
   test('il muro ha una rotta sua', () {

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:crasy/features/profile/domain/entities/contact_settings.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 
 abstract class UserProfileRepository {
@@ -62,6 +63,14 @@ abstract class UserProfileRepository {
     required String userId,
     required bool findable,
   });
+
+  /// Il numero e la preferenza su chi puo' trovarlo.
+  ///
+  /// E' uno stream a parte e non un pezzo del profilo: sta in un documento che
+  /// solo il proprietario puo' leggere, e mescolarlo al profilo vorrebbe dire
+  /// che ogni schermata che mostra qualcun altro proverebbe a leggere una cosa
+  /// che le regole le negano.
+  Stream<ContactSettings> watchContactSettings(String userId);
 
   Future<void> saveConsent({
     required String userId,

@@ -91,7 +91,9 @@ class _PrivacySettings extends ConsumerWidget {
           titolo: 'Fatti trovare dai contatti',
           spiegazione: 'Chi ha il tuo numero in rubrica ti vede fra i '
               'suggeriti. Il numero non lo mostriamo mai a nessuno.',
-          valore: profile.findableByPhone,
+          valore: ref.watch(contactSettingsProvider).valueOrNull
+                  ?.findableByPhone ??
+              true,
           attivo: !saving,
           cambia: (value) {
             final repository = ref.read(userProfileRepositoryProvider);

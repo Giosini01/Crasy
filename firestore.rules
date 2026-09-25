@@ -196,14 +196,32 @@ service cloud.firestore {
                && !('payoutReady' in request.resource.data.diff(resource.data).affectedKeys());
       }
 
+      // **Il numero di telefono nel profilo non ci torna.**
+      //
+      // Questo documento lo legge chiunque abbia fatto l'accesso: deve, e'
+      // fatto per essere guardato. Il numero ci stava dentro, e voleva dire
+      // che chiunque avesse l'app poteva scaricarsi i numeri di tutti gli
+      // iscritti — non un attacco: una lettura.
+      //
+      // Ora vive in `private/contatto`, dove entrano solo il proprietario e il
+      // server. Questa riga e' quella che impedisce che ci ritorni: senza,
+      // basterebbe una versione vecchia dell'app, o una riga scritta per
+      // distrazione fra un anno, e il buco si riaprirebbe senza che nessuno se
+      // ne accorga.
+      function noPhoneInPublicProfile() {
+        return !('phone' in request.resource.data);
+      }
+
       allow create: if signedIn()
                     && request.auth.uid == userId
                     && isAdultProfile()
+                    && noPhoneInPublicProfile()
                     && !('walletCents' in request.resource.data);
 
       allow update: if signedIn()
                     && request.auth.uid == userId
                     && isAdultProfile()
+                    && noPhoneInPublicProfile()
                     && doesNotTouchTheWallet();
       allow read: if signedIn();
 

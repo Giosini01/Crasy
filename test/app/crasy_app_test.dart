@@ -39,7 +39,7 @@ void main() {
     legalAcceptedAt: DateTime(2026),
     tutorialSeen: true,
     // La porta del numero: senza, si resta fermi alla verifica del telefono.
-    phone: '+393330000000',
+    phoneVerified: true,
   );
 
   /// Le schermate con il countdown tengono un timer che batte ogni secondo.

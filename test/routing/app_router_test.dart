@@ -76,7 +76,7 @@ void main() {
               onboardingCompleted: true,
               // Il muro del telefono viene prima: senza questo, la prova si
               // fermerebbe li' e non verificherebbe piu' i consensi.
-              phone: '+393330000000',
+              phoneVerified: true,
             ),
           ),
         ),
@@ -144,7 +144,7 @@ void main() {
               legalVersion: LegalTexts.version,
               legalAcceptedAt: DateTime(2026),
               tutorialSeen: true,
-              phone: '+393330000000',
+              phoneVerified: true,
             ),
           ),
         ),
@@ -216,7 +216,7 @@ void main() {
               onboardingCompleted: true,
               // Il muro del telefono viene prima: senza questo, la prova si
               // fermerebbe li' e non verificherebbe piu' i consensi.
-              phone: '+393330000000',
+              phoneVerified: true,
             ),
           ),
         ),
@@ -247,7 +247,7 @@ void main() {
               onboardingCompleted: true,
               legalVersion: 'una-versione-di-due-anni-fa',
               legalAcceptedAt: DateTime(2024),
-              phone: '+393330000000',
+              phoneVerified: true,
             ),
           ),
         ),
@@ -279,7 +279,7 @@ void main() {
               onboardingCompleted: true,
               legalVersion: LegalTexts.version,
               legalAcceptedAt: DateTime(2026),
-              phone: '+393330000000',
+              phoneVerified: true,
             ),
           ),
         ),

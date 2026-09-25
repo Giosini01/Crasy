@@ -25,8 +25,7 @@ class UserProfile {
     this.marketingConsent = false,
     this.profilingConsent = false,
     this.tutorialSeen = false,
-    this.phone = '',
-    this.findableByPhone = true,
+    this.phoneVerified = false,
   });
 
   /// **Il profilo ufficiale di CRASY.**
@@ -114,21 +113,17 @@ class UserProfile {
   /// Non e' visibile a nessun altro utente: le regole del database lo lasciano
   /// leggere e scrivere soltanto al diretto interessato, e nell'app non compare
   /// da nessuna parte.
-  final String phone;
-
-  /// **Se ti si puo' trovare cercando il tuo numero in rubrica.**
+  /// **Se il numero e' stato verificato. Il numero, qui, non c'e'.**
   ///
-  /// Parte acceso, ed e' una scelta che va detta invece che nascosta: spento
-  /// di default, la sezione dei suggeriti non troverebbe quasi nessuno e non
-  /// servirebbe a niente per nessuno. Chi non lo vuole lo spegne dalle
-  /// impostazioni, e da quel momento esce dall'indice dei numeri — non viene
-  /// solo escluso dai risultati: il suo numero, li' dentro, non c'e' proprio
-  /// piu'.
-  final bool findableByPhone;
+  /// Il profilo lo legge chiunque abbia fatto l'accesso: e' fatto per essere
+  /// guardato. Tenerci dentro il telefono voleva dire che chiunque avesse
+  /// l'app poteva scaricarsi i numeri di tutti gli iscritti — bastava
+  /// chiederli. Il numero vive in `users/{id}/private/contatto`, dove entra
+  /// solo il proprietario; qui resta il si' o no che serve alle schermate per
+  /// sapere se lasciar passare.
+  final bool phoneVerified;
 
   /// Ha verificato il numero.
-  bool get phoneVerified => phone.isNotEmpty;
-
   /// Se ha accettato **la versione che gira adesso**.
   ///
   /// Cambiando i testi cambia la versione, e da quel momento questo torna falso
@@ -177,8 +172,7 @@ class UserProfile {
     bool? marketingConsent,
     bool? profilingConsent,
     bool? tutorialSeen,
-    String? phone,
-    bool? findableByPhone,
+    bool? phoneVerified,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? onboardingCompleted,
@@ -196,8 +190,7 @@ class UserProfile {
       marketingConsent: marketingConsent ?? this.marketingConsent,
       profilingConsent: profilingConsent ?? this.profilingConsent,
       tutorialSeen: tutorialSeen ?? this.tutorialSeen,
-      phone: phone ?? this.phone,
-      findableByPhone: findableByPhone ?? this.findableByPhone,
+      phoneVerified: phoneVerified ?? this.phoneVerified,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
@@ -221,8 +214,7 @@ class UserProfile {
         other.createdAt == createdAt &&
         other.updatedAt == updatedAt &&
         other.onboardingCompleted == onboardingCompleted &&
-        other.phone == phone &&
-        other.findableByPhone == findableByPhone;
+        other.phoneVerified == phoneVerified;
   }
 
   @override
@@ -237,7 +229,6 @@ class UserProfile {
     createdAt,
     updatedAt,
     onboardingCompleted,
-    phone,
-    findableByPhone,
+    phoneVerified,
   );
 }

@@ -1,25 +1,37 @@
 /**
- * **Mette nell'indice i numeri di chi era gia' iscritto.**
+ * **Sposta i numeri di telefono al riparo, e riempie l'indice.**
  *
- * L'indice si riempie da solo quando un profilo cambia: chi si iscrive da
- * adesso ci entra senza che nessuno faccia niente. Ma chi c'era prima ha il
- * numero nel profilo e nessuna impronta nell'indice, e finche' resta cosi'
- * **non lo trova nessuno** — la sezione dei suggeriti direbbe a tutti che non
- * conoscono nessuno.
+ * Fa due cose che vanno fatte insieme, una volta sola, dopo aver pubblicato le
+ * funzioni e le regole.
  *
- * Si lancia una volta sola, dopo aver pubblicato le funzioni.
+ * ## 1. Toglie i numeri dal profilo
+ *
+ * Il profilo lo legge chiunque abbia fatto l'accesso — deve, e' fatto per
+ * essere guardato — e dentro c'era anche `phone`. Questo voleva dire che
+ * chiunque avesse l'app poteva scaricarsi i numeri di tutti gli iscritti:
+ * niente di ingegnoso, una lettura.
+ *
+ * Qui il numero passa in `users/{id}/private/contatto`, dove arrivano solo il
+ * proprietario e il server, e nel profilo resta `phoneVerified: true` — il si'
+ * o no che serve alle schermate per sapere se lasciar passare. Il campo
+ * vecchio viene cancellato: finche' resta li', tutto il resto non serve a
+ * niente.
+ *
+ * ## 2. Mette le impronte nell'indice
+ *
+ * L'indice si riempie da solo quando qualcuno cambia il proprio numero, ma chi
+ * era gia' iscritto non cambia niente e resterebbe fuori per sempre: la
+ * sezione dei suggeriti direbbe a tutti che non conoscono nessuno.
  *
  *     node tool/indice_rubrica.js --chiave C:/percorso/chiave.json --pepe <segreto>
  *     node tool/indice_rubrica.js --chiave ... --pepe ... --scrivi
  *
- * Senza `--scrivi` non tocca niente e dice solo quanti ne metterebbe: e' il
- * modo di accorgersi di aver sbagliato il segreto **prima** di riempire
- * l'indice di impronte che non corrisponderanno mai a niente.
- *
- * Il segreto e' lo stesso che sta in Secret Manager sotto `PEPE_RUBRICA`. Se
- * qui se ne usa un altro, le impronte scritte ora e quelle cercate dal server
- * non si incontreranno mai, e non se ne accorgera' nessuno: non esce nessun
- * errore, semplicemente non si trova piu' nessuno.
+ * Senza `--scrivi` non tocca niente e dice solo cosa farebbe. E' il modo di
+ * accorgersi di aver sbagliato il segreto **prima** di riempire l'indice di
+ * impronte che non corrisponderanno mai a niente: il segreto e' lo stesso che
+ * sta in Secret Manager sotto `PEPE_RUBRICA`, e se qui se ne usa un altro le
+ * impronte scritte ora e quelle cercate dal server non si incontreranno mai.
+ * Non esce nessun errore. Semplicemente, non si trova piu' nessuno.
  */
 
 'use strict';
@@ -63,36 +75,86 @@ function impronta(numero) {
   return crypto.createHmac('sha256', pepe).update(numero).digest('hex');
 }
 
-async function riempi() {
+async function sistema() {
   const utenti = await db.collection('users').get();
 
-  let conNumero = 0;
-  let saltati = 0;
-  let spenti = 0;
-  let scritti = 0;
+  const conto = {
+    guardati: utenti.size,
+    spostati: 0,
+    giaAlSicuro: 0,
+    senzaNumero: 0,
+    spenti: 0,
+    nellIndice: 0,
+  };
 
-  // Si scrive a blocchi da 400: un batch di Firestore ne regge 500, e andare
-  // al limite significa che il giorno in cui qualcuno aggiunge un'altra
-  // scrittura per utente tutto smette di funzionare.
+  // Si scrive a blocchi da 150: ogni utente costa fino a tre scritture, e un
+  // batch di Firestore ne regge cinquecento. Andare al limite significa che il
+  // giorno in cui qualcuno aggiunge un'altra scrittura per utente tutto smette
+  // di funzionare, senza che nessuno colleghi le due cose.
   let lotto = db.batch();
   let nelLotto = 0;
 
+  async function forse() {
+    if (nelLotto >= 150) {
+      await lotto.commit();
+      lotto = db.batch();
+      nelLotto = 0;
+    }
+  }
+
   for (const utente of utenti.docs) {
-    const numero = pulisci(utente.get('phone'));
+    const contatto = db
+      .collection('users')
+      .doc(utente.id)
+      .collection('private')
+      .doc('contatto');
+
+    const gia = await contatto.get();
+    const nelProfilo = pulisci(utente.get('phone'));
+    const nelPrivato = pulisci(gia.get('phone'));
+    const numero = nelPrivato || nelProfilo;
 
     if (!numero) {
-      saltati += 1;
+      conto.senzaNumero += 1;
 
       continue;
     }
 
-    conNumero += 1;
+    if (nelPrivato && !utente.get('phone')) {
+      conto.giaAlSicuro += 1;
+    } else {
+      conto.spostati += 1;
 
-    if (utente.get('findableByPhone') === false) {
-      spenti += 1;
+      if (scrivi) {
+        lotto.set(contatto, {
+          phone: numero,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+
+        lotto.update(utente.ref, {
+          phoneVerified: true,
+          phone: admin.firestore.FieldValue.delete(),
+        });
+
+        nelLotto += 2;
+        await forse();
+      }
+    }
+
+    // La preferenza puo' stare ancora sul profilo, dove l'aveva scritta la
+    // prima versione dell'interruttore: si guardano tutti e due i posti, o
+    // qualcuno che aveva detto di no si ritroverebbe di nuovo trovabile.
+    const trovabile =
+      gia.get('findableByPhone') !== false &&
+      utente.get('findableByPhone') !== false;
+
+    if (!trovabile) {
+      conto.spenti += 1;
 
       continue;
     }
+
+    conto.nellIndice += 1;
 
     if (scrivi) {
       lotto.set(db.collection('phoneIndex').doc(impronta(numero)), {
@@ -101,15 +163,8 @@ async function riempi() {
       });
 
       nelLotto += 1;
-
-      if (nelLotto >= 400) {
-        await lotto.commit();
-        lotto = db.batch();
-        nelLotto = 0;
-      }
+      await forse();
     }
-
-    scritti += 1;
   }
 
   if (scrivi && nelLotto > 0) {
@@ -117,12 +172,19 @@ async function riempi() {
   }
 
   console.log('');
-  console.log('  Profili guardati      ', utenti.size);
-  console.log('   con un numero buono  ', conNumero);
-  console.log('   senza numero         ', saltati);
-  console.log('   che non vogliono     ', spenti);
-  console.log('  ' + '-'.repeat(34));
-  console.log(scrivi ? '  Scritti nell\'indice  ' : '  Da scrivere          ', scritti);
+  console.log('  Profili guardati        ', conto.guardati);
+  console.log('   senza numero           ', conto.senzaNumero);
+  console.log('   gia\' al sicuro         ', conto.giaAlSicuro);
+  console.log('  ' + '-'.repeat(36));
+  console.log(
+    scrivi ? '  Numeri spostati         ' : '  Numeri da spostare      ',
+    conto.spostati,
+  );
+  console.log(
+    scrivi ? '  Messi nell\'indice       ' : '  Da mettere nell\'indice  ',
+    conto.nellIndice,
+  );
+  console.log('   non vogliono farsi trovare', conto.spenti);
 
   if (!scrivi) {
     console.log('');
@@ -132,7 +194,7 @@ async function riempi() {
   console.log('');
 }
 
-riempi().catch((errore) => {
+sistema().catch((errore) => {
   console.error(errore.message);
   process.exit(1);
 });
