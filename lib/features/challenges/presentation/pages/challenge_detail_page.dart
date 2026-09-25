@@ -27,6 +27,8 @@ import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:crasy/features/challenges/presentation/widgets/winner_reveal.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
+import 'package:crasy/features/moderation/domain/report_reason.dart';
+import 'package:crasy/features/moderation/presentation/widgets/report_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -62,6 +64,32 @@ class ChallengeDetailPage extends ConsumerWidget {
           // repository.
           if (challengeState.valueOrNull != null)
             _ShareButton(challenge: challengeState.value!),
+          // **Si segnala anche la missione, non solo le foto.**
+          //
+          // Una consegna puo' essere il problema: chiedere di fare una cosa
+          // pericolosa, o molestare qualcuno, o peggio. Finora si poteva
+          // segnalare solo chi aveva obbedito — cioe' la vittima della
+          // richiesta — e non chi l'aveva scritta.
+          //
+          // Non compare sulla propria: segnalare se stessi non vuol dire
+          // niente. E nemmeno sulle sfide del giorno, che le scrive CRASY.
+          if (challengeState.valueOrNull case final gara?
+              when gara.createdByUserId.isNotEmpty &&
+                  gara.createdByUserId != ref.watch(currentUserIdProvider) &&
+                  !gara.isDaily)
+            IconButton(
+              onPressed: () => showReportSheet(
+                context,
+                ref,
+                kind: ReportTargetKind.challenge,
+                reportedUserId: gara.createdByUserId,
+                reportedUsername: gara.createdByUsername,
+                challengeId: gara.id,
+                challengeTitle: gara.title,
+              ),
+              icon: const Icon(Icons.flag_outlined, size: 20),
+              tooltip: 'Segnala la missione',
+            ),
         ],
       ),
       body: AppBackground(

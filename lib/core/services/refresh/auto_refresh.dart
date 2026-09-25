@@ -93,6 +93,22 @@ class _AutoRefreshState extends ConsumerState<AutoRefresh>
 
       if (registro != null) {
         unawaited(registro.retryIfNeeded());
+
+        // **E si segna il passaggio anche riaprendo, non solo avviando.**
+        //
+        // `lastSeenAt` serviva a una cosa sola — non mandare un richiamo a chi
+        // e' passato ieri — e per quella bastava scriverlo all'avvio. Adesso
+        // serve anche a dire quanta gente c'e' adesso, e all'avvio soltanto
+        // non lo direbbe: chi tiene l'app aperta mezz'ora risulterebbe visto
+        // mezz'ora fa, e chi la riapre venti volte al giorno una volta sola.
+        //
+        // E' una scrittura per riapertura, ed e' il prezzo giusto: senza, il
+        // numero degli attivi sarebbe un numero inventato.
+        final io = ref.read(currentUserIdProvider);
+
+        if (io != null && io.isNotEmpty) {
+          unawaited(registro.segnaPassaggio(io));
+        }
       }
     }
   }

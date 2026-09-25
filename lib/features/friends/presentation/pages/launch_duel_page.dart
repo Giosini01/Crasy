@@ -15,6 +15,8 @@ import 'package:crasy/features/challenges/presentation/controllers/duel_controll
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
+import 'package:crasy/features/payments/domain/entities/prize_status.dart';
+import 'package:crasy/features/payments/presentation/providers/payments_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -247,6 +249,22 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
     );
   }
 
+  /// Fa pagare il premio della sfida appena creata.
+  ///
+  /// E' lo stesso giro di una missione: il foglio di Stripe dentro l'app sul
+  /// telefono, la sua pagina sul sito. Torna `false` se il pagamento non e'
+  /// andato — annullato, rifiutato, o mai aperto — e in quel caso la sfida
+  /// resta scritta ma spenta, esattamente come una missione non pagata.
+  Future<bool> _paga(String challengeId) async {
+    try {
+      return await ref
+          .read(paymentsServiceProvider)
+          .payChallenge(challengeId, returnRoute: AppRoutes.friendsActivity);
+    } on Object {
+      return false;
+    }
+  }
+
   Future<void> _launch() async {
     setState(() => _error = null);
 
@@ -262,6 +280,8 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
       return;
     }
 
+    final premio = _gratis ? 0 : AppMoney.centsFrom(_prize.text) ?? 0;
+
     final id = await ref
         .read(duelControllerProvider.notifier)
         .challenge(
@@ -271,7 +291,7 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
           brief: _brief.text,
           // Scelto GRATIS il campo non e' nemmeno a schermo: si manda zero
           // senza guardare cosa c'era scritto dentro prima di cambiare idea.
-          prizeCents: _gratis ? 0 : AppMoney.centsFrom(_prize.text) ?? 0,
+          prizeCents: premio,
           mediaKind: _mediaKind,
           // Una sfida fra amici si fa sul momento: e' il senso di sfidare
           // qualcuno. Pescare dall'archivio sarebbe rispondere con una cosa
@@ -293,6 +313,35 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
       );
 
       return;
+    }
+
+    // **Una sfida con dei soldi in palio si paga, come una missione.**
+    //
+    // Non si pagava: la sfida nasceva con il premio dichiarato e mai
+    // incassato. Sembrava funzionare — la sfida compariva, l'amico la
+    // riceveva — e non funzionava affatto: quei soldi non esistevano da
+    // nessuna parte, e il giorno in cui il vincitore fosse andato a
+    // prenderseli non ci sarebbe stato niente da dargli.
+    //
+    // Da quando il database pretende che il premio sia incassato prima di
+    // lasciar partecipare, il guasto si e' fatto visibile: l'amico sfidato non
+    // riusciva nemmeno a mandare la foto. Era il sintomo, non la causa.
+    if (paymentsEnabled && premio > 0) {
+      final pagato = await _paga(id);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (!pagato) {
+        setState(
+          () => _error =
+              'La sfida è salvata ma non è ancora partita: il premio non '
+              'è stato pagato. Riprova dal tuo profilo.',
+        );
+
+        return;
+      }
     }
 
     // Si torna indietro e si apre la sfida appena nata: chi l'ha lanciata

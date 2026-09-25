@@ -194,6 +194,14 @@
       <button data-stato="all">Tutte</button>
       <button id="ricarica">Ricarica</button>
     </div>
+    <!-- **Quanta gente c'e'.** Non e' un vezzo da cruscotto: e' l'unica riga
+         che dice se l'app e' viva, e sta in cima perche' e' la prima cosa che
+         si vuole sapere aprendo questa pagina. -->
+    <div class="scatola">
+      <h2>Chi c'è</h2>
+      <div id="presenze" class="nota">Carico…</div>
+    </div>
+
     <div class="scatola">
       <h2 id="titolo">Segnalazioni</h2>
       <div id="elenco"></div>
@@ -258,6 +266,7 @@ const chiediChiSono = httpsCallable(functions, 'adminWhoAmI');
 const chiediElenco = httpsCallable(functions, 'adminListReports');
 const decidi = httpsCallable(functions, 'adminResolveReport');
 const chiediPrelievi = httpsCallable(functions, 'adminListPayouts');
+const chiediPresenze = httpsCallable(functions, 'adminOnline');
 const segnaPagato = httpsCallable(functions, 'adminMarkPayoutPaid');
 
 const $ = (id) => document.getElementById(id);
@@ -265,6 +274,7 @@ const accesso = $('accesso');
 const tavolo = $('tavolo');
 const elenco = $('elenco');
 const prelievi = $('prelievi');
+const presenze = $('presenze');
 const avviso = $('avviso');
 
 let filtro = 'new';
@@ -321,7 +331,16 @@ function riga(report) {
   const nodo = document.createElement('div');
   nodo.className = 'riga';
 
-  const media = report.mediaUrl
+  // **Una missione segnalata non ha una foto da guardare: ha un testo.**
+  // Mostrare il riquadro grigio "foto non piu' disponibile" direbbe che
+  // qualcosa si e' perso, quando invece non c'e' mai stato niente da vedere.
+  const eLaMissione = report.kind === 'challenge';
+
+  const media = eLaMissione
+    ? '<div class="foto vuota">Missione<br><strong>' +
+      testo(report.challengeTitle || report.challengeId || '—') +
+      '</strong></div>'
+    : report.mediaUrl
     ? report.mediaKind === 'video'
       ? '<video class="foto" src="' + testo(report.mediaUrl) + '" controls muted></video>'
       : '<img class="foto" src="' + testo(report.mediaUrl) + '" alt="foto segnalata">'
@@ -339,18 +358,22 @@ function riga(report) {
       ' <span class="nota">' + testo(report.reportedUserId) + '</span></dd>' +
     '<dt>Missione</dt><dd>' + testo(report.challengeTitle || report.challengeId || '—') + '</dd>' +
     '<dt>Segnalata il</dt><dd>' + quando(report.createdAt) + '</dd>' +
-    '<dt>Segnalazioni sulla foto</dt><dd>' + report.reportsOnTarget + '</dd>' +
-    '<dt>Stato della foto</dt><dd>' +
-      (report.entryExists
-        ? testo(report.entryModeration === 'rejected' ? 'fuori dalla gara' : report.entryModeration)
-        : 'partecipazione non più presente') +
-      '</dd>' +
+    '<dt>Segnalazioni</dt><dd>' + report.reportsOnTarget + '</dd>' +
+    (eLaMissione
+      ? ''
+      : '<dt>Stato della foto</dt><dd>' +
+        (report.entryExists
+          ? testo(report.entryModeration === 'rejected' ? 'fuori dalla gara' : report.entryModeration)
+          : 'partecipazione non più presente') +
+        '</dd>') +
     (report.note ? '<dt>Nota</dt><dd>' + testo(report.note) + '</dd>' : '') +
     (report.resolvedAt ? '<dt>Decisa il</dt><dd>' + quando(report.resolvedAt) + '</dd>' : '') +
     '</dl></div>' +
     '<div class="comandi">' +
     '<button class="tieni" data-fai="fake">✓ Fake segnalazione</button>' +
-    '<button class="togli" data-fai="remove">✕ Rimuovi foto</button>' +
+    '<button class="togli" data-fai="remove">✕ ' +
+      (eLaMissione ? 'Rimuovi la missione' : 'Rimuovi foto') +
+      '</button>' +
     '<button data-fai="reviewing">In revisione</button>' +
     '</div>';
 
@@ -358,7 +381,15 @@ function riga(report) {
     tasto.addEventListener('click', async () => {
       const decisione = tasto.dataset.fai;
 
-      if (decisione === 'remove' && !confirm('Togliere la foto dalla gara?')) {
+      // **La conferma dice cosa succede davvero.** Togliere una missione non
+      // toglie una foto: cancella la gara, le partecipazioni che erano state
+      // mandate per farla, e restituisce il premio a chi l'aveva messo.
+      const domanda = eLaMissione
+        ? 'Cancellare la missione con tutte le sue foto? Il premio torna a chi '
+          + "l'ha messo."
+        : 'Togliere la foto dalla gara?';
+
+      if (decisione === 'remove' && !confirm(domanda)) {
         return;
       }
 
@@ -471,6 +502,27 @@ function rigaPrelievo(richiesta) {
   return nodo;
 }
 
+async function caricaPresenze() {
+  try {
+    const esito = await chiediPresenze();
+    const d = esito.data;
+
+    // **Tre finestre e non un numero solo.** Un "online adesso" vero non
+    // esiste senza tenere una connessione aperta con ogni telefono: quello che
+    // c'e' e' l'ultima volta che qualcuno ha aperto l'app. Un quarto d'ora
+    // dice chi c'e' ora, la giornata dice come sta andando, la settimana dice
+    // se l'app e' viva — e un numero solo si legge male in tutti e due i versi.
+    presenze.innerHTML =
+      '<p><strong style="font-size:28px">' + d.adesso + '</strong> ' +
+      'negli ultimi 15 minuti</p>' +
+      '<p>' + d.oggi + ' nelle ultime 24 ore · ' +
+      d.settimana + ' in 7 giorni · ' +
+      d.iscritti + ' iscritti in tutto</p>';
+  } catch (errore) {
+    presenze.textContent = 'Non riusciamo a contare chi c'è.';
+  }
+}
+
 async function caricaPrelievi() {
   prelievi.innerHTML = '<p class="nota">Carico…</p>';
 
@@ -577,6 +629,7 @@ onAuthStateChanged(auth, async (utente) => {
   mostra(tavolo, true);
   carica();
   caricaPrelievi();
+  caricaPresenze();
 });
 </script>
 </body>

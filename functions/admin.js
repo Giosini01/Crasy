@@ -37,11 +37,16 @@
  */
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
 const { avvisaChiLHaMandata } = require('./avvisi');
 
 const db = admin.firestore();
+
+// Serve a una cosa sola: restituire il premio quando si toglie di mezzo una
+// missione segnalata. Vedi `adminResolveReport`.
+const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
 
 /** Quante segnalazioni si mandano alla dashboard in un colpo solo. */
 const PAGINA = 50;
@@ -262,7 +267,9 @@ exports.adminListReports = onCall(async (request) => {
  * stesso caso, e lasciarne nove aperte dopo aver deciso la decima vorrebbe
  * dire rivedere nove volte una cosa gia' vista.
  */
-exports.adminResolveReport = onCall(async (request) => {
+exports.adminResolveReport = onCall(
+  { secrets: [STRIPE_SECRET_KEY] },
+  async (request) => {
   const chi = soloAdmin(request);
 
   const reportId = String((request.data && request.data.reportId) || '');
@@ -286,6 +293,21 @@ exports.adminResolveReport = onCall(async (request) => {
   const dati = segnalazione.data() || {};
   const nuovo = decisione === 'remove' ? 'removed' : decisione;
   const foto = fotoDi(dati);
+
+  // **Una missione segnalata si toglie tutta, non foto per foto.**
+  //
+  // Finora si poteva segnalare solo chi aveva partecipato, cioe' chi aveva
+  // obbedito alla richiesta — la vittima, non chi l'aveva scritta. Adesso si
+  // segnala anche la consegna, e toglierla vuol dire toglierla davvero: la
+  // missione sparisce, e con lei le foto che erano state mandate per
+  // eseguirla.
+  //
+  // **E il premio torna a chi l'aveva messo.** Anche quando la missione era
+  // sua ed era sbagliata: la si toglie perche' non deve esistere, non per
+  // tenerne i soldi. E' scritto anche nelle condizioni d'uso.
+  if (!foto && dati.kind === 'challenge' && decisione === 'remove') {
+    await rimuoviLaMissione(String(dati.challengeId || ''), chi);
+  }
 
   if (foto) {
     const adesso = await foto.get();
@@ -391,4 +413,100 @@ exports.adminResolveReport = onCall(async (request) => {
   });
 
   return { status: nuovo, insieme: sorelle ? sorelle.size : 1 };
+  }
+);
+
+/**
+ * Toglie di mezzo una missione, le sue foto e i suoi file.
+ *
+ * **Il premio prima di tutto.** Si restituisce finche' la missione c'e'
+ * ancora: cancellandola per prima, su Stripe resterebbero dei soldi senza piu'
+ * niente che dica a chi tornano — lo stesso ordine che vale quando una
+ * missione la cancella chi l'ha lanciata.
+ */
+async function rimuoviLaMissione(challengeId, chi) {
+  if (!challengeId) {
+    return;
+  }
+
+  const riferimento = db.collection('challenges').doc(challengeId);
+  const gara = await riferimento.get();
+
+  if (!gara.exists) {
+    return;
+  }
+
+  if (gara.get('prizeStatus') === 'held') {
+    // Intero: la missione non doveva esistere, e trattenere qualcosa a chi la
+    // subisce e' il contrario di quello che sta succedendo qui.
+    await require('./payments')
+      .refundChallenge(challengeId)
+      .catch((errore) => logger.error('Premio non reso.', errore));
+  }
+
+  const bucket = admin.storage().bucket();
+  const partecipazioni = await riferimento.collection('entries').get();
+
+  for (const entry of partecipazioni.docs) {
+    const percorso = entry.get('storagePath');
+
+    if (percorso) {
+      await bucket
+        .file(percorso)
+        .delete({ ignoreNotFound: true })
+        .catch(() => {});
+    }
+
+    await entry.ref.delete();
+  }
+
+  await riferimento.delete();
+
+  logger.info(`Missione ${challengeId} rimossa da ${chi}.`);
+}
+
+/**
+ * **Quanta gente c'e', per la dashboard.**
+ *
+ * Non esiste un "online adesso" vero: per averlo servirebbe una connessione
+ * aperta con ogni telefono, che costa e serve a poco. Quello che c'e' e'
+ * `lastSeenAt`, scritto quando qualcuno apre o riapre l'app — ed e' abbastanza
+ * per rispondere alla domanda vera, che non e' *chi sta guardando lo schermo in
+ * questo istante* ma **quanta gente sta usando CRASY**.
+ *
+ * Per questo si contano tre finestre invece di un numero solo: un quarto d'ora
+ * dice chi c'e' adesso, oggi dice se la giornata sta andando, la settimana dice
+ * se l'app e' viva. Un numero solo si presta a leggerlo male in tutti e due i
+ * versi.
+ */
+exports.adminOnline = onCall(async (request) => {
+  soloAdmin(request);
+
+  const adesso = Date.now();
+
+  async function quanti(minuti) {
+    const soglia = admin.firestore.Timestamp.fromMillis(
+      adesso - minuti * 60000
+    );
+
+    // `count()` non porta indietro i documenti: e' una lettura sola qualunque
+    // sia il numero, e su una dashboard che si ricarica spesso e' la
+    // differenza fra un conto e una bolletta.
+    const esito = await db
+      .collection('users')
+      .where('lastSeenAt', '>', soglia)
+      .count()
+      .get();
+
+    return esito.data().count;
+  }
+
+  const tutti = await db.collection('users').count().get();
+
+  return {
+    adesso: await quanti(15),
+    oggi: await quanti(60 * 24),
+    settimana: await quanti(60 * 24 * 7),
+    iscritti: tutti.data().count,
+  };
 });

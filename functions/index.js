@@ -284,6 +284,7 @@ const amministrazione = require('./admin');
 exports.adminWhoAmI = amministrazione.adminWhoAmI;
 exports.adminListReports = amministrazione.adminListReports;
 exports.adminResolveReport = amministrazione.adminResolveReport;
+exports.adminOnline = amministrazione.adminOnline;
 
 /**
  * Manda una notifica ai telefoni di una persona sola.
