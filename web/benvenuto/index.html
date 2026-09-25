@@ -162,27 +162,99 @@ h1 {
 .store__nome { display: block; font-size: 16px; font-weight: 800; letter-spacing: -.01em; }
 .sottotasti { font-size: 14px; color: var(--fioco); margin: 0; }
 
-/* --- come si gioca: una spina, non tre riquadri --- */
-.passi { list-style: none; margin: 0; padding: 0; }
-.passo {
-  display: grid; grid-template-columns: 62px 1fr; gap: 6px;
-  padding: 22px 0; border-top: 1px solid var(--riga); position: relative;
+/* --- come si gioca: un percorso, non un elenco ---------------------------
+   I numeri 01..04 dicevano solo "sono quattro". Al loro posto c'e' una
+   traccia tratteggiata che scende di tappa in tappa, con una freccia fra una
+   e l'altra: si legge come una mappa, e una mappa si guarda per capire dove
+   si va, non per contare le fermate. */
+.percorso { list-style: none; margin: 0; padding: 0; position: relative; }
+.tappa {
+  display: grid; grid-template-columns: 56px 1fr; gap: 16px;
+  padding: 0 0 34px; position: relative;
 }
-.passo:first-child { border-top: 0; }
-.passo__numero {
-  font-size: 15px; font-weight: 800; letter-spacing: .04em; color: var(--rosso);
-  padding-top: 3px;
+.tappa:last-child { padding-bottom: 0; }
+
+/* **La traccia.** Parte da sotto il bollo e arriva al bollo successivo: se
+   partisse dall'alto passerebbe dietro l'icona e la taglierebbe a meta'. */
+.tappa::before {
+  content: ''; position: absolute; left: 22px; top: 52px; bottom: 6px;
+  border-left: 2px dashed #D9D9DE;
 }
-.passo__titolo {
+.tappa:last-child::before { display: none; }
+
+.tappa__bollo {
+  width: 46px; height: 46px; border-radius: 50%;
+  border: 2px solid var(--rosso); background: #FFF;
+  display: flex; align-items: center; justify-content: center;
+  position: relative; z-index: 1;
+}
+.tappa__bollo svg { width: 22px; height: 22px; color: var(--rosso); }
+
+/* La freccina sulla traccia: e' il verso, e senza di lei il tratteggio
+   potrebbe andare in entrambe le direzioni. */
+.tappa__verso {
+  position: absolute; left: 16px; top: 96px;
+  width: 14px; height: 14px; color: var(--rosso); opacity: .85;
+}
+.tappa:last-child .tappa__verso { display: none; }
+
+.tappa__titolo {
   font-size: clamp(21px, 3.4vw, 27px); font-weight: 800; letter-spacing: -.025em;
-  line-height: 1.1;
+  line-height: 1.1; padding-top: 9px;
 }
-.passo p { color: var(--tenue); margin: 7px 0 0; font-size: 16px; max-width: 52ch; }
-/* **Il filo che univa i passi e' stato tolto.** Passava sotto la colonna dei
-   numeri e li attraversava: da lontano sembrava che 01 e 02 fossero barrati.
-   Un filetto che unisce non vale il prezzo di far sembrare cancellato quello
-   che unisce — e le righe di separazione qui sopra dividono i passi gia'
-   benissimo. */
+.tappa p { color: var(--tenue); margin: 7px 0 0; font-size: 16px; max-width: 52ch; }
+
+/* L'arrivo: la traccia finisce da qualche parte, e quel posto e' il premio. */
+.traguardo {
+  display: inline-flex; align-items: center; gap: 9px; margin-top: 26px;
+  border: 2px solid var(--inchiostro); border-radius: 999px;
+  padding: 9px 18px; font-weight: 800; font-size: 14px; letter-spacing: -.01em;
+}
+.traguardo svg { width: 16px; height: 16px; color: var(--rosso); }
+
+@media (max-width: 480px) {
+  .tappa { grid-template-columns: 44px 1fr; gap: 12px; }
+  .tappa::before { left: 17px; top: 46px; }
+  .tappa__bollo { width: 36px; height: 36px; }
+  .tappa__bollo svg { width: 18px; height: 18px; }
+  .tappa__verso { left: 12px; top: 82px; }
+  .tappa__titolo { padding-top: 4px; }
+}
+
+
+/* --- l'avviso in basso -----------------------------------------------------
+   **Non e' un muro del consenso, ed e' una scelta, non una dimenticanza.**
+   Il consenso si chiede per i cookie che seguono le persone: qui non ce ne
+   sono — niente Analytics, niente pixel, niente terze parti. Mettere due
+   tasti "accetta" e "rifiuta" davanti a una pagina che non traccia nessuno
+   vorrebbe dire chiedere il permesso per qualcosa che non si fa, e abituare
+   chi legge a cliccare senza guardare. Si dice cosa succede, e si va avanti.
+   L'unica cosa che il sito ricorda e' che questo avviso l'hai gia' letto. */
+.avviso-cookie {
+  position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 60;
+  max-width: 420px; background: #FFF; color: var(--inchiostro);
+  border: 1px solid var(--riga); border-radius: 18px; padding: 18px 20px;
+  box-shadow: 0 18px 50px rgba(10,10,11,.16);
+  transform: translateY(140%); transition: transform .5s cubic-bezier(.2,.8,.2,1);
+}
+.avviso-cookie.su { transform: none; }
+.avviso-cookie__titolo {
+  font-weight: 800; font-size: 15px; letter-spacing: -.01em; margin: 0 0 6px;
+  display: flex; align-items: center; gap: 8px;
+}
+.avviso-cookie__titolo svg { width: 17px; height: 17px; color: var(--rosso); flex: none; }
+.avviso-cookie p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--tenue); }
+.avviso-cookie__tasti { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+.avviso-cookie button {
+  font: inherit; font-weight: 800; font-size: 14px; cursor: pointer;
+  background: var(--inchiostro); color: #FFF; border: 0;
+  border-radius: 999px; padding: 10px 20px;
+}
+.avviso-cookie a { font-size: 13px; font-weight: 700; text-decoration: none; }
+.avviso-cookie a:hover { text-decoration: underline; }
+@media (prefers-reduced-motion: reduce) {
+  .avviso-cookie { transition: none; }
+}
 
 /* --- la fascia nera --- */
 .fascia { background: var(--inchiostro); color: #FFF; padding: 64px 0; margin: 74px 0; position: relative; overflow: hidden; }
@@ -305,7 +377,7 @@ footer a { margin-right: 18px; text-decoration: none; }
 <main>
   <section class="dentro">
     <h2 class="sezione appare">Come si gioca</h2>
-    <ol class="passi"><li class="passo appare"><span class="passo__numero">01</span><div><div class="passo__titolo">Qualcuno mette i soldi.</div><p>Il premio si versa <strong class="rosso">prima</strong> che la gara cominci, e resta fermo fino alla fine. Non è una promessa: è già li&#39;.</p></div></li><li class="passo appare"><span class="passo__numero">02</span><div><div class="passo__titolo">Tu scatti.</div><p>Sul momento, non dalla galleria. <strong class="rosso">Cinque volte al giorno</strong>, non una di più: quando finiscono, finiscono.</p></div></li><li class="passo appare"><span class="passo__numero">03</span><div><div class="passo__titolo">Gli altri votano.</div><p>Una fiamma alla foto che ti piace, e basta. Ma <strong class="rosso">nessuno vede quante ne hai prese</strong>, nemmeno tu.</p></div></li><li class="passo appare"><span class="passo__numero">04</span><div><div class="passo__titolo">Allo scadere si scopre.</div><p>Le fiamme si contano tutte insieme, e chi ne ha di più prende i soldi, <strong class="rosso">nello stesso istante per tutti</strong>. Su quella somma CRASY trattiene una percentuale, scritta prima che i soldi si mettano.</p></div></li></ol>
+    <ol class="percorso"><li class="tappa appare"><span class="tappa__bollo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 6.5c0-2-2.2-3-5-3s-5 1-5 3.2S9 10 12 10.5s5 1.3 5 3.5-2.2 3.5-5 3.5-5-1.2-5-3"/></svg></span><svg class="tappa__verso" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v14M6 13l6 6 6-6"/></svg><div><div class="tappa__titolo">Qualcuno mette i soldi.</div><p>Il premio si versa <strong class="rosso">prima</strong> che la gara cominci, e resta fermo fino alla fine. Non è una promessa: è già lì.</p></div></li><li class="tappa appare"><span class="tappa__bollo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13" r="3.4"/></svg></span><svg class="tappa__verso" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v14M6 13l6 6 6-6"/></svg><div><div class="tappa__titolo">Tu scatti.</div><p>Sul momento, non dalla galleria. <strong class="rosso">Cinque volte al giorno</strong>, non una di più: quando finiscono, finiscono.</p></div></li><li class="tappa appare"><span class="tappa__bollo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c3 4 6 6 6 10a6 6 0 0 1-12 0c0-2 1-3.2 2.2-4.4C9.6 6.2 11 4.4 12 2z"/></svg></span><svg class="tappa__verso" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v14M6 13l6 6 6-6"/></svg><div><div class="tappa__titolo">Gli altri votano.</div><p>Una fiamma alla foto che ti piace, e basta. Ma <strong class="rosso">nessuno vede quante ne hai prese</strong>, nemmeno tu.</p></div></li><li class="tappa appare"><span class="tappa__bollo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.4l3.4 2"/></svg></span><svg class="tappa__verso" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v14M6 13l6 6 6-6"/></svg><div><div class="tappa__titolo">Allo scadere si scopre.</div><p>Le fiamme si contano tutte insieme, e chi ne ha di più prende i soldi, <strong class="rosso">nello stesso istante per tutti</strong>. Su quella somma CRASY trattiene una percentuale, scritta prima che i soldi si mettano.</p></div></li></ol><div class="traguardo appare"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M18 5h3v2a4 4 0 0 1-4 4M6 5H3v2a4 4 0 0 0 4 4"/><path d="M6 3h12v8a6 6 0 0 1-12 0z"/></svg>I soldi arrivano sul tuo conto</div>
   </section>
 
   <section class="fascia">
@@ -543,6 +615,64 @@ footer a { margin-right: 18px; text-decoration: none; }
       }
     }, 3200);
   }
+})();
+</script>
+
+
+<!-- **Sta fuori da <main> apposta**: non e' contenuto della pagina, e' una
+     cosa che la pagina dice di se stessa. -->
+<aside class="avviso-cookie" id="avvisoCookie" hidden>
+  <p class="avviso-cookie__titolo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/>
+    </svg>
+    Questo sito non ti segue.
+  </p>
+  <p>Niente cookie di profilazione, niente statistiche, nessuna terza parte.
+  L&rsquo;unica cosa che ricordiamo &egrave; che hai gi&agrave; letto questo
+  avviso, cos&igrave; non te lo rimettiamo davanti ogni volta.</p>
+  <div class="avviso-cookie__tasti">
+    <button type="button" id="avvisoOk">Ho capito</button>
+    <a href="/privacy/">Come trattiamo i dati</a>
+  </div>
+</aside>
+
+<script>
+(function () {
+  var avviso = document.getElementById('avvisoCookie');
+  var tasto = document.getElementById('avvisoOk');
+  var CHIAVE = 'crasy.avviso.letto';
+
+  // **Se la memoria del browser e' chiusa, l'avviso si mostra lo stesso.**
+  // Meglio rivederlo una volta di troppo che non vederlo mai: in navigazione
+  // privata `localStorage` puo' sollevare un errore al solo tocco, e un
+  // errore qui spegnerebbe tutto il resto di questo script.
+  function ricordato() {
+    try { return localStorage.getItem(CHIAVE) === '1'; } catch (e) { return false; }
+  }
+
+  function ricorda() {
+    try { localStorage.setItem(CHIAVE, '1'); } catch (e) { /* pazienza */ }
+  }
+
+  if (ricordato()) {
+    return;
+  }
+
+  avviso.hidden = false;
+
+  // Un istante prima di farlo salire: senza, il browser disegna la posizione
+  // finale tutta insieme e l'animazione non si vede.
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () { avviso.classList.add('su'); });
+  });
+
+  tasto.addEventListener('click', function () {
+    ricorda();
+    avviso.classList.remove('su');
+    setTimeout(function () { avviso.hidden = true; }, 500);
+  });
 })();
 </script>
 

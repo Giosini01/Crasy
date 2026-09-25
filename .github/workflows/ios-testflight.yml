@@ -212,25 +212,24 @@ jobs:
           keychain add-certificates
 
       - name: Numero di build
-        # **Il momento in cui e' stata fatta, non "l'ultimo piu' uno".**
+        # **Il contatore delle esecuzioni, non l'orologio.**
         #
-        # Prima si chiedeva ad Apple qual era l'ultimo numero e si aggiungeva
-        # uno. Sembra la cosa giusta e ha un buco: Apple risponde con l'ultimo
-        # **gia' elaborato**, e una build caricata pochi minuti prima sta
-        # ancora in lavorazione. Due tentativi ravvicinati — cioe' la norma
-        # quando si sta inseguendo un errore — chiedono lo stesso numero, e il
-        # secondo si prende un 409 dopo aver compilato e firmato tutto: dieci
-        # minuti di macchina buttati sull'ultimo passo.
+        # Prima c'era la data compressa: 2626819 01 — saliva sempre, non si
+        # ripeteva mai, e non voleva dire niente per chi la leggeva. Nove cifre
+        # sotto il nome dell'app, e per sapere quale build stessero provando i
+        # tester bisognava decifrare un giorno dell'anno.
         #
-        # L'orologio quel problema non ce l'ha. Anno, giorno dell'anno, ora e
-        # minuto: sale sempre, non si ripete, e si legge — 262641901 e' il
-        # giorno 264 del 2026 alle 19:01. Sta sotto il limite di Apple e ci
-        # resta per i prossimi settant'anni.
+        # GitHub numera le esecuzioni da se': 1, 2, 3. Sale a ogni build e non
+        # torna mai indietro, che e' tutto quello che Apple chiede. Il 150 di
+        # scarto serve solo a partire da un numero credibile invece che da 1.
         #
-        # L'unica collisione possibile e' fra due build dello stesso minuto, e
-        # non e' un caso che valga la pena coprire.
+        # Il caso che rompeva il vecchio metodo — due tentativi ravvicinati che
+        # chiedono lo stesso numero — qui non si presenta: ogni lancio ha il suo
+        # contatore. Se si rilancia la **stessa** esecuzione il numero si
+        # ripete, ma si rilancia solo quando il caricamento non era riuscito, e
+        # allora quel numero ad Apple non e' mai arrivato.
         run: |
-          NUMERO=$(date -u +%y%j%H%M)
+          NUMERO=$(( 150 + GITHUB_RUN_NUMBER ))
 
           echo "Build numero $NUMERO"
           echo "NUMERO=$NUMERO" >> "$GITHUB_ENV"

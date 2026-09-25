@@ -89,6 +89,16 @@
   button.togli { background: var(--rosso); color: #fff; border-color: var(--rosso); }
   button.tieni { background: var(--verde); color: #fff; border-color: var(--verde); }
 
+  h3.gruppo {
+    font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--rosso); font-weight: 800; margin: 22px 0 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  h3.gruppo:first-child { margin-top: 2px; }
+  h3.gruppo .quanti {
+    background: var(--rosso); color: #fff; border-radius: 999px;
+    font-size: 11px; letter-spacing: 0; padding: 1px 8px;
+  }
   .filtri { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
   .filtri button.scelto { background: var(--rosso); color: #fff; border-color: var(--rosso); }
 
@@ -311,6 +321,20 @@ const COSA = {
   challenge: 'Missione',
 };
 
+// **I sottogruppi della pagina.** L'ordine e' quello dell'urgenza: una foto
+// che non doveva esserci resta visibile a tutti finche' non la si toglie, una
+// missione sbagliata anche, ma una persona segnalata puo' aspettare il tempo
+// di leggere.
+const GRUPPI = [
+  { titolo: 'Foto e video in gara', suo: (r) => r.kind === 'entry' },
+  { titolo: 'Missioni', suo: (r) => r.kind === 'challenge' },
+  { titolo: 'Persone', suo: (r) => r.kind === 'user' },
+  {
+    titolo: 'Altro',
+    suo: (r) => !['entry', 'challenge', 'user'].includes(r.kind),
+  },
+];
+
 function quando(millis) {
   if (!millis) {
     return '—';
@@ -429,8 +453,28 @@ async function carica() {
       return;
     }
 
-    for (const report of reports) {
-      elenco.appendChild(riga(report));
+    // **Divise per tipo, non tutte in fila.**
+    //
+    // Una foto segnalata si decide guardandola: un secondo, e si sa. Una
+    // missione segnalata si decide leggendone il testo, e nel frattempo si
+    // pensa. Sono due gesti diversi, e mescolarli costringe a cambiare modo di
+    // guardare a ogni riga. Separati, si smaltiscono a blocchi.
+    for (const gruppo of GRUPPI) {
+      const suoi = reports.filter(gruppo.suo);
+
+      if (suoi.length === 0) {
+        continue;
+      }
+
+      const testa = document.createElement('h3');
+      testa.className = 'gruppo';
+      testa.innerHTML =
+        testo(gruppo.titolo) + ' <span class="quanti">' + suoi.length + '</span>';
+      elenco.appendChild(testa);
+
+      for (const report of suoi) {
+        elenco.appendChild(riga(report));
+      }
     }
   } catch (errore) {
     elenco.innerHTML = '';
