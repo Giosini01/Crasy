@@ -133,6 +133,10 @@ class FirestoreNotificationsRepository {
     required String actorUsername,
     String challengeId = '',
     String challengeTitle = '',
+
+    /// La riga che chi lancia una sfida scrive all'amico. Vuota per tutto il
+    /// resto: nessun'altra notifica porta parole scritte da qualcuno.
+    String message = '',
   }) async {
     if (toUserId.isEmpty || toUserId == actorId) {
       return;
@@ -145,6 +149,7 @@ class FirestoreNotificationsRepository {
         'actorUsername': actorUsername,
         'challengeId': challengeId,
         'challengeTitle': challengeTitle,
+        if (message.isNotEmpty) 'message': message,
         'createdAt': FieldValue.serverTimestamp(),
       });
     } on FirebaseException catch (_) {

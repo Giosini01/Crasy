@@ -251,6 +251,15 @@ class _Body extends ConsumerWidget {
         ],
         const SizedBox(height: AppSpacing.lg),
         Text(challenge.brief, style: texts.bodyLarge),
+        // **La riga che ti ha scritto chi ti sfida.**
+        //
+        // Sta sotto la consegna e non sopra: prima cosa devi fare, poi cosa ti
+        // ha detto. Invertirli farebbe leggere la battuta senza sapere a cosa
+        // si riferisce.
+        if (challenge.duelMessage.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.md),
+          _DuelMessage(challenge: challenge),
+        ],
         if (challenge.hasCreator) ...[
           const SizedBox(height: AppSpacing.md),
           ChallengeAuthor(challenge: challenge),
@@ -1970,4 +1979,47 @@ class _SchizziPainter extends CustomPainter {
       vecchio.tempo != tempo ||
       vecchio.centro != centro ||
       vecchio.visibile != visibile;
+}
+
+/// La riga scritta a mano da chi ha lanciato la sfida.
+///
+/// **Si vede che e' di una persona, non dell'app.** Il filetto rosso a
+/// sinistra e il nome sotto fanno la differenza fra "vediamo se ce la fai"
+/// detto da un amico e la stessa frase che sembrerebbe una consegna scritta da
+/// CRASY — e quella differenza e' tutto il senso di questa riga.
+class _DuelMessage extends StatelessWidget {
+  const _DuelMessage({required this.challenge});
+
+  final Challenge challenge;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return Container(
+      padding: const EdgeInsets.only(left: AppSpacing.md),
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: palette.accent, width: 3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            challenge.duelMessage,
+            style: context.texts.bodyLarge?.copyWith(
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            '@${challenge.createdByUsername}',
+            style: context.texts.labelSmall?.copyWith(
+              color: palette.textFaint,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

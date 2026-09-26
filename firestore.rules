@@ -750,6 +750,20 @@ service cloud.firestore {
                               && request.resource.data.get('duelStatus', '')
                                  == 'pending'
                             )
+                       )
+                    // **La riga per l'amico: corta, e solo sulle sfide.**
+                    //
+                    // E' l'unico posto in tutta l'app in cui qualcuno scrive
+                    // parole che un'altra persona legge in privato, e il
+                    // limite di lunghezza e' quello che la tiene una battuta
+                    // invece di farla diventare una casella di posta. Su una
+                    // gara aperta non ha senso e non si puo' scrivere: li'
+                    // leggerebbero tutti, ed e' un'altra cosa.
+                    && request.resource.data.get('duelMessage', '') is string
+                    && request.resource.data.get('duelMessage', '').size() <= 140
+                    && (
+                         request.resource.data.get('duelMessage', '') == ''
+                         || request.resource.data.get('targetUserId', '') != ''
                        );
 
       // **Si cancella finche' e' vuota, e solo da chi l'ha lanciata.**

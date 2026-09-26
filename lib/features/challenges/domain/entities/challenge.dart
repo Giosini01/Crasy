@@ -41,6 +41,7 @@ class Challenge {
     this.maxParticipants = 0,
     this.targetUserId = '',
     this.targetUsername = '',
+    this.duelMessage = '',
     this.duelStatus = DuelStatus.pending,
     this.duelVerdict = DuelVerdict.none,
     this.respondedAt,
@@ -292,6 +293,21 @@ class Challenge {
   /// "hai sfidato @mario" senza leggere un profilo per ogni riga di un elenco.
   final String targetUsername;
 
+  /// **La riga che chi sfida scrive all'amico.**
+  ///
+  /// Una sola, breve, facoltativa. Non e' una chat e non deve diventarlo: non
+  /// si risponde, non resta da nessuna parte dopo la sfida, e non c'e' nessuna
+  /// cartella dei messaggi da aprire. E' la provocazione che si fa a voce
+  /// lanciando una scommessa — "vediamo se ce la fai" — attaccata alla cosa a
+  /// cui si riferisce, con un inizio e una fine.
+  ///
+  /// **Perche' non una chat.** Una chat privata porta con se' la moderazione
+  /// di conversazioni che non si possono leggere, il blocco per messaggio, e
+  /// una casella che su un'app aperta una volta al giorno resta vuota — e una
+  /// casella vuota fa sembrare morto tutto il resto. Questa riga da' la stessa
+  /// battuta fra amici a un decimo del prezzo.
+  final String duelMessage;
+
   /// Vero se questa missione e' una sfida lanciata a una persona sola.
   bool get isDuel => targetUserId.isNotEmpty;
 
@@ -529,6 +545,7 @@ class Challenge {
     int? maxParticipants,
     String? targetUserId,
     String? targetUsername,
+    String? duelMessage,
     DuelStatus? duelStatus,
     DuelVerdict? duelVerdict,
     DateTime? respondedAt,
@@ -560,6 +577,7 @@ class Challenge {
       maxParticipants: maxParticipants ?? this.maxParticipants,
       targetUserId: targetUserId ?? this.targetUserId,
       targetUsername: targetUsername ?? this.targetUsername,
+      duelMessage: duelMessage ?? this.duelMessage,
       duelStatus: duelStatus ?? this.duelStatus,
       duelVerdict: duelVerdict ?? this.duelVerdict,
       respondedAt: respondedAt ?? this.respondedAt,

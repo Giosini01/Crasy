@@ -51,6 +51,7 @@ class LaunchDuelPage extends ConsumerStatefulWidget {
 class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
   final _formKey = GlobalKey<FormState>();
   final _title = TextEditingController();
+  final _messaggio = TextEditingController();
   final _brief = TextEditingController();
 
   final _prize = TextEditingController();
@@ -76,6 +77,7 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
   @override
   void dispose() {
     _title.dispose();
+    _messaggio.dispose();
     _brief.dispose();
     _prize.dispose();
     super.dispose();
@@ -164,6 +166,22 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
                       maxLines: 3,
                       maxLength: ChallengeDraftValidators.briefMaxLength,
                       validator: ChallengeDraftValidators.validateBrief,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    // **Una riga per l'amico, e una sola.**
+                    //
+                    // Non e' una chat: non si risponde, non resta niente dopo
+                    // la sfida, non c'e' nessuna casella da aprire. E' la
+                    // battuta che si fa a voce lanciando una scommessa,
+                    // attaccata alla cosa a cui si riferisce.
+                    TextFormField(
+                      controller: _messaggio,
+                      decoration: const InputDecoration(
+                        labelText: 'Scrivigli qualcosa (se vuoi)',
+                        hintText: 'Vediamo se ce la fai.',
+                      ),
+                      maxLength: 140,
+                      textCapitalization: TextCapitalization.sentences,
                     ),
                     const SizedBox(height: AppSpacing.md),
                     _MediaKindPicker(
@@ -289,6 +307,7 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
           targetUsername: _targetName,
           title: _title.text,
           brief: _brief.text,
+          message: _messaggio.text,
           // Scelto GRATIS il campo non e' nemmeno a schermo: si manda zero
           // senza guardare cosa c'era scritto dentro prima di cambiare idea.
           prizeCents: premio,

@@ -49,6 +49,7 @@ class DuelController extends AsyncNotifier<void> {
     required String targetUsername,
     required String title,
     required String brief,
+    String message = '',
     int prizeCents = 0,
     MediaKind mediaKind = MediaKind.photo,
     ChallengeSource source = ChallengeSource.instant,
@@ -113,6 +114,11 @@ class DuelController extends AsyncNotifier<void> {
       createdByUserId: meId,
       targetUserId: targetUserId,
       targetUsername: targetUsername,
+      // La riga per l'amico: facoltativa, e tagliata a lunghezza prima di
+      // partire. Il limite lo impongono anche le regole del database — qui si
+      // taglia perche' una riga rifiutata dal server farebbe fallire tutta la
+      // sfida per una parola di troppo.
+      duelMessage: message.trim(),
       duelStatus: DuelStatus.pending,
       startsAt: now,
       endsAt: now.add(duration),
@@ -143,6 +149,10 @@ class DuelController extends AsyncNotifier<void> {
       kind: NotificationKind.duel,
       challengeId: nata.id,
       challengeTitle: nata.title,
+      // **La riga viaggia con l'avviso.** Se restasse solo sulla sfida, chi la
+      // riceve la leggerebbe solo entrando: una provocazione letta il giorno
+      // dopo non e' piu' una provocazione.
+      message: nata.duelMessage,
     );
 
     return nata.id;
@@ -313,6 +323,7 @@ class DuelController extends AsyncNotifier<void> {
     required NotificationKind kind,
     required String challengeId,
     required String challengeTitle,
+    String message = '',
   }) async {
     final repository = ref.read(notificationsRepositoryProvider);
     final meId = ref.read(currentUserIdProvider);
@@ -334,6 +345,7 @@ class DuelController extends AsyncNotifier<void> {
           'qualcuno',
       challengeId: challengeId,
       challengeTitle: challengeTitle,
+      message: message,
     );
   }
 }

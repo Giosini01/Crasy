@@ -1496,7 +1496,20 @@ exports.sendPushOnNotification = onDocumentCreated(
         : `@${chi} ha lanciato una missione per il party`,
     };
 
-    const corpo = testi[dati.kind] || 'Qualcosa di nuovo ti aspetta';
+    let corpo = testi[dati.kind] || 'Qualcosa di nuovo ti aspetta';
+
+    // **La riga che ha scritto chi sfida, se c'e'.**
+    //
+    // Una provocazione letta il giorno dopo non e' piu' una provocazione: se
+    // resta dentro l'app, chi la riceve la trova solo entrando. Qui va dove
+    // viene letta davvero. Si taglia a cento caratteri perche' oltre quelli
+    // nessuna schermata bloccata la mostra intera, e mezza frase troncata a
+    // caso legge peggio di una frase finita con i puntini.
+    const riga = String(dati.message || '').trim();
+
+    if (riga && dati.kind === 'duel') {
+      corpo += `: "${riga.length > 100 ? `${riga.slice(0, 99)}…` : riga}"`;
+    }
 
     await mandaAUnaPersona(userId, corpo, {
       kind: String(dati.kind || ''),

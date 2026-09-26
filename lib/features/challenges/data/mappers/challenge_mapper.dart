@@ -50,6 +50,7 @@ abstract final class ChallengeMapper {
       // "nessun destinatario" invece che come dati rotti.
       targetUserId: data['targetUserId'] as String? ?? '',
       targetUsername: data['targetUsername'] as String? ?? '',
+      duelMessage: data['duelMessage'] as String? ?? '',
       duelStatus: DuelStatus.fromName(data['duelStatus'] as String?),
       duelVerdict: DuelVerdict.fromName(data['duelVerdict'] as String?),
       respondedAt: (data['respondedAt'] as Timestamp?)?.toDate(),
@@ -89,6 +90,7 @@ abstract final class ChallengeMapper {
       // anche le regole di Firestore.
       'targetUserId': challenge.targetUserId,
       'targetUsername': challenge.targetUsername,
+      'duelMessage': challenge.duelMessage,
       'duelStatus': DuelStatus.pending.name,
       // Il verdetto non si scrive alla nascita: non c'e' niente da
       // giudicare finche' non c'e' una foto, e un campo vuoto e' piu'
