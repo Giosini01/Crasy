@@ -12,6 +12,7 @@ import 'package:crasy/features/challenges/presentation/pages/participate_page.da
 import 'package:crasy/features/challenges/presentation/pages/recently_ended_page.dart';
 import 'package:crasy/features/friends/presentation/pages/friends_page.dart';
 import 'package:crasy/features/friends/presentation/pages/launch_duel_page.dart';
+import 'package:crasy/features/friends/presentation/pages/who_you_know_page.dart';
 import 'package:crasy/features/home/presentation/pages/home_page.dart';
 import 'package:crasy/features/home/presentation/pages/splash_page.dart';
 import 'package:crasy/features/legal/presentation/pages/consent_page.dart';
@@ -23,6 +24,7 @@ import 'package:crasy/features/profile/presentation/pages/public_profile_page.da
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:crasy/features/tutorial/presentation/pages/tutorial_page.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -98,6 +100,20 @@ final sessionLandingRouteProvider = Provider<String>((ref) {
       // dire bruciare una partecipazione che non torna fino a domani.
       if (!profile.tutorialSeen) {
         return AppRoutes.tutorial;
+      }
+
+      // **Chi conosci gia' qui, una volta sola.**
+      //
+      // Arriva subito dopo le regole, che e' il momento in cui uno ha appena
+      // finito di iscriversi e non ha ancora niente davanti: un'app di sfide
+      // fra amici, senza un amico, e' un elenco di sconosciuti. Non e' un muro
+      // — si salta con un tocco — ma si passa di qui, perche' chi dovesse
+      // cercarsela da solo non la troverebbe mai.
+      // Dal browser si tira dritto **senza segnare niente**: la schermata non
+      // avrebbe nessuna rubrica da leggere, e segnarla come vista vorrebbe
+      // dire non mostrarla mai piu' nemmeno sul telefono, dove serve.
+      if (!kIsWeb && !profile.contactsPromptSeen) {
+        return AppRoutes.whoYouKnow;
       }
 
       return AppRoutes.challenges;
@@ -259,6 +275,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       _tabRoute(AppRoutes.verifyPhone, const VerifyPhonePage()),
       _tabRoute(AppRoutes.consents, const ConsentPage()),
       _tabRoute(AppRoutes.tutorial, const TutorialPage()),
+      _tabRoute(AppRoutes.whoYouKnow, const WhoYouKnowPage()),
       for (final tab in AppRoutes.tabs)
         _tabRoute(tab, HomePage(location: tab), key: _homeShellKey),
       _pushedRoute(

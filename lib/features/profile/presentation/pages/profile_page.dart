@@ -15,6 +15,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
+import 'package:crasy/features/friends/presentation/widgets/suggested_drawer.dart';
 import 'package:crasy/features/onboarding/presentation/utils/onboarding_validators.dart';
 import 'package:crasy/features/payments/presentation/widgets/wallet_card.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
@@ -170,6 +171,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                   ?.length ??
                               0,
                         ),
+                        // **Il cassetto di chi conosci.** Si apre da qui e non
+                        // porta da nessuna parte: chiudere l'app per trovare
+                        // un amico e poi doverla riaprire e' il modo migliore
+                        // di non farlo mai.
+                        const SuggestedDrawer(),
                         const SizedBox(height: AppSpacing.xl),
                         ProfileShelfTabs(
                           selected: _shelf,

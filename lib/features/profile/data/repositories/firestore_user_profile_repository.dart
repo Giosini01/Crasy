@@ -89,6 +89,14 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
   }
 
   @override
+  Future<void> markContactsPromptSeen(String userId) {
+    return _users.doc(userId).update({
+      'contactsPromptSeen': true,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
   Future<void> savePhone({required String userId, required String phone}) async {
     // **Il numero non sta nel profilo, e questa e' la riga che lo decide.**
     //

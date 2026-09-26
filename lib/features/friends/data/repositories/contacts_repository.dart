@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:crasy/features/friends/domain/entities/suggested_friend.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 
 /// **La rubrica del telefono, e chi di quei numeri sta su CRASY.**
@@ -124,6 +125,16 @@ class ContactsRepository {
   /// lista vuota non distinguerebbe "nessuno dei tuoi amici e' qui" da "non ci
   /// hai fatto guardare", e sono due cose che vanno dette in modo diverso.
   Future<List<SuggestedFriend>> suggeriti() async {
+    // **Dal browser non si puo', e va detto invece che fallire.**
+    //
+    // Una pagina web non ha una rubrica da leggere: il pacchetto non risponde
+    // proprio, e la chiamata moriva prima di partire lasciando a schermo
+    // "qualcosa non ha funzionato" — che fa sembrare rotta una cosa che sul
+    // telefono funziona benissimo.
+    if (kIsWeb) {
+      throw const SoloDalTelefono();
+    }
+
     final numeri = await _numeriInRubrica();
 
     if (numeri.isEmpty) {
@@ -151,4 +162,9 @@ class ContactsRepository {
 /// Non ci ha fatto guardare la rubrica — o l'ha svuotata.
 class ContattiNegati implements Exception {
   const ContattiNegati();
+}
+
+/// Ci si prova dal browser, dove una rubrica non esiste.
+class SoloDalTelefono implements Exception {
+  const SoloDalTelefono();
 }

@@ -19,6 +19,7 @@ abstract final class UserProfileMapper {
       marketingConsent: data['marketingConsent'] as bool? ?? false,
       profilingConsent: data['profilingConsent'] as bool? ?? false,
       tutorialSeen: data['tutorialSeen'] as bool? ?? false,
+      contactsPromptSeen: data['contactsPromptSeen'] as bool? ?? false,
       // **Si guarda anche il campo vecchio, e non e' pigrizia.**
       //
       // I profili scritti prima di questo cambiamento hanno il numero qui

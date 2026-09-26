@@ -51,6 +51,9 @@ abstract class UserProfileRepository {
   /// finito il tutorial.
   Future<void> markTutorialSeen(String userId);
 
+  /// Segna che la schermata di chi conosci e' gia' stata mostrata.
+  Future<void> markContactsPromptSeen(String userId);
+
   /// Salva il numero di telefono verificato.
   ///
   /// Il numero arriva da Firebase, che l'ha appena legato all'account: qui si

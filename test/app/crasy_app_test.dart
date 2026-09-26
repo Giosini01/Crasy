@@ -40,6 +40,7 @@ void main() {
     tutorialSeen: true,
     // La porta del numero: senza, si resta fermi alla verifica del telefono.
     phoneVerified: true,
+    contactsPromptSeen: true,
   );
 
   /// Le schermate con il countdown tengono un timer che batte ogni secondo.

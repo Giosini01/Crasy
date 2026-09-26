@@ -26,6 +26,7 @@ class UserProfile {
     this.profilingConsent = false,
     this.tutorialSeen = false,
     this.phoneVerified = false,
+    this.contactsPromptSeen = false,
   });
 
   /// **Il profilo ufficiale di CRASY.**
@@ -123,6 +124,14 @@ class UserProfile {
   /// sapere se lasciar passare.
   final bool phoneVerified;
 
+  /// **Se gli e' gia' stato chiesto una volta chi conosce qui.**
+  ///
+  /// Si chiede una volta e non si ripete, che abbia detto si' o che abbia
+  /// saltato. Ripresentare la stessa schermata a ogni avvio trasformerebbe una
+  /// proposta in un pedaggio, e chi la salta due volte la salta per sempre —
+  /// smette di leggerla.
+  final bool contactsPromptSeen;
+
   /// Ha verificato il numero.
   /// Se ha accettato **la versione che gira adesso**.
   ///
@@ -173,6 +182,7 @@ class UserProfile {
     bool? profilingConsent,
     bool? tutorialSeen,
     bool? phoneVerified,
+    bool? contactsPromptSeen,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? onboardingCompleted,
@@ -191,6 +201,7 @@ class UserProfile {
       profilingConsent: profilingConsent ?? this.profilingConsent,
       tutorialSeen: tutorialSeen ?? this.tutorialSeen,
       phoneVerified: phoneVerified ?? this.phoneVerified,
+      contactsPromptSeen: contactsPromptSeen ?? this.contactsPromptSeen,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
@@ -214,7 +225,8 @@ class UserProfile {
         other.createdAt == createdAt &&
         other.updatedAt == updatedAt &&
         other.onboardingCompleted == onboardingCompleted &&
-        other.phoneVerified == phoneVerified;
+        other.phoneVerified == phoneVerified &&
+        other.contactsPromptSeen == contactsPromptSeen;
   }
 
   @override
@@ -230,5 +242,6 @@ class UserProfile {
     updatedAt,
     onboardingCompleted,
     phoneVerified,
+    contactsPromptSeen,
   );
 }
