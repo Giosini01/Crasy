@@ -315,7 +315,7 @@ void main() {
               id: 'user-1',
               username: 'martina',
               birthDate: DateTime(2000, 1, 1),
-              createdAt: null,
+              createdAt: DateTime.utc(2026, 10, 1),
               updatedAt: null,
               onboardingCompleted: true,
               legalVersion: LegalTexts.version,
@@ -332,5 +332,40 @@ void main() {
     await container.pump();
 
     expect(container.read(sessionLandingRouteProvider), AppRoutes.whoYouKnow);
+  });
+
+  test('chi era gia dentro non se la vede comparire un mattino', () async {
+    // **La schermata e' un pezzo dell'iscrizione, non un annuncio.**
+    //
+    // A chi usa CRASY da settimane arriverebbe dal nulla, come una richiesta
+    // di permessi comparsa per conto suo: la risposta naturale e' no, e quel
+    // no non si ripete mai piu'. Chi c'era gia' la trova quando la cerca, dal
+    // cassetto sul profilo.
+    final container = containerWith(
+      FakeAuthRepository(currentUser: user),
+      overrides: [
+        currentUserProfileProvider.overrideWith(
+          (ref) => Stream.value(
+            UserProfile(
+              id: 'user-1',
+              username: 'martina',
+              birthDate: DateTime(2000, 1, 1),
+              createdAt: DateTime.utc(2026, 8, 20),
+              updatedAt: null,
+              onboardingCompleted: true,
+              legalVersion: LegalTexts.version,
+              legalAcceptedAt: DateTime(2026),
+              phoneVerified: true,
+              tutorialSeen: true,
+            ),
+          ),
+        ),
+      ],
+    );
+
+    await container.read(currentUserProfileProvider.future);
+    await container.pump();
+
+    expect(container.read(sessionLandingRouteProvider), AppRoutes.challenges);
   });
 }

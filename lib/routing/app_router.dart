@@ -20,6 +20,7 @@ import 'package:crasy/features/notifications/presentation/pages/notifications_pa
 import 'package:crasy/features/onboarding/presentation/pages/onboarding_page.dart';
 import 'package:crasy/features/payments/presentation/pages/payout_details_page.dart';
 import 'package:crasy/features/payments/presentation/pages/wallet_page.dart';
+import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/pages/public_profile_page.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:crasy/features/tutorial/presentation/pages/tutorial_page.dart';
@@ -112,7 +113,7 @@ final sessionLandingRouteProvider = Provider<String>((ref) {
       // Dal browser si tira dritto **senza segnare niente**: la schermata non
       // avrebbe nessuna rubrica da leggere, e segnarla come vista vorrebbe
       // dire non mostrarla mai piu' nemmeno sul telefono, dove serve.
-      if (!kIsWeb && !profile.contactsPromptSeen) {
+      if (!kIsWeb && !profile.contactsPromptSeen && _appenaIscritto(profile)) {
         return AppRoutes.whoYouKnow;
       }
 
@@ -120,6 +121,28 @@ final sessionLandingRouteProvider = Provider<String>((ref) {
     },
   );
 });
+
+/// **Il giorno in cui la schermata di chi conosci e' comparsa nell'app.**
+///
+/// Serve a non metterla davanti a chi c'era gia'. Quella schermata e' un pezzo
+/// dell'iscrizione — "hai appena finito, ecco chi conosci" — e chi usa CRASY da
+/// settimane se la vedrebbe arrivare un mattino dal nulla, come una richiesta
+/// di permessi comparsa per conto suo: la risposta naturale e' no, e quel no
+/// non si ripete mai piu'.
+///
+/// Chi c'era gia' la trova comunque, dal cassetto sul profilo, quando la cerca.
+final _quandoEComparsa = DateTime.utc(2026, 9, 26);
+
+/// Chi si e' iscritto dopo che la schermata esiste.
+///
+/// Senza data di iscrizione si dice di no: sono i profili piu' vecchi, scritti
+/// quando quel campo non c'era, e mostrare la schermata a loro e' esattamente
+/// cio' che si sta evitando.
+bool _appenaIscritto(UserProfile profile) {
+  final quando = profile.createdAt;
+
+  return quando != null && quando.isAfter(_quandoEComparsa);
+}
 
 /// Rotta senza animazione di ingresso.
 ///
