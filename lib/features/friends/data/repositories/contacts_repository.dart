@@ -154,6 +154,7 @@ class ContactsRepository {
           username: trovato['username'] as String? ?? '',
           displayName: trovato['displayName'] as String? ?? '',
           photoUrl: trovato['photoUrl'] as String? ?? '',
+          stato: SuggestedStato.leggi(trovato['stato'] as String?),
         ),
     ]..removeWhere((chi) => chi.userId.isEmpty);
   }

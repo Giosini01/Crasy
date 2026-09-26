@@ -206,34 +206,72 @@ exports.trovaDallaRubrica = onCall(
       return { trovati: [] };
     }
 
-    // **Chi e' gia' amico non si suggerisce.** Vedersi proporre come "forse
-    // conosci" qualcuno con cui si gioca da un mese fa sembrare che l'app non
-    // sappia niente di te.
+    // **Chi e' gia' amico si mostra lo stesso, scritto com'e'.**
+    //
+    // Prima venivano tolti, ed era sbagliato in un modo che non si vedeva: con
+    // due contatti su CRASY e uno gia' amico, la schermata diceva "nessuno" e
+    // sembrava che la ricerca non avesse funzionato. Meglio mostrarli tutti e
+    // dire che rapporto c'e' — il risultato e' che la funzione si vede
+    // lavorare, invece di rispondere il vuoto.
     const amici = await db
       .collection('users')
       .doc(mio)
       .collection('friends')
       .get();
 
-    for (const amico of amici.docs) {
-      trovatiId.delete(amico.id);
-    }
+    const gaAmici = new Set(amici.docs.map((documento) => documento.id));
 
-    // Nemmeno chi ti ha gia' chiesto l'amicizia: quella richiesta e' in cima
-    // alla stessa schermata, con i suoi due tasti. Vederlo anche fra i
-    // suggeriti vorrebbe dire due modi di rispondere alla stessa persona.
-    const richieste = await db
+    // Chi ha chiesto l'amicizia a me.
+    const ricevute = await db
       .collection('users')
       .doc(mio)
       .collection('friendRequests')
       .get();
 
-    for (const richiesta of richieste.docs) {
-      trovatiId.delete(richiesta.id);
+    const miHannoChiesto = new Set(
+      ricevute.docs.map((documento) => documento.id),
+    );
+
+    // Chi ho gia' chiesto io: sta nella cartella dell'altro, quindi si va a
+    // guardare li' una per una. Sono letture per identificativo esatto —
+    // costano quanto una riga — e senza si rischierebbe di offrire di nuovo
+    // "invia richiesta" a chi sta gia' aspettando una risposta.
+    const candidati = [...trovatiId].slice(0, 200);
+    const hoChiesto = new Set();
+
+    for (let i = 0; i < candidati.length; i += 300) {
+      const blocco = candidati
+        .slice(i, i + 300)
+        .map((id) =>
+          db.collection('users').doc(id).collection('friendRequests').doc(mio),
+        );
+      const documenti = await db.getAll(...blocco);
+
+      for (const documento of documenti) {
+        if (documento.exists) {
+          hoChiesto.add(documento.ref.parent.parent.id);
+        }
+      }
+    }
+
+    function comeSiamo(chi) {
+      if (gaAmici.has(chi)) {
+        return 'amico';
+      }
+
+      if (miHannoChiesto.has(chi)) {
+        return 'ti-ha-chiesto';
+      }
+
+      if (hoChiesto.has(chi)) {
+        return 'inviata';
+      }
+
+      return 'nuovo';
     }
 
     const profili = [];
-    const daLeggere = [...trovatiId].slice(0, 200);
+    const daLeggere = candidati;
 
     for (let i = 0; i < daLeggere.length; i += 300) {
       const blocco = daLeggere
@@ -255,6 +293,10 @@ exports.trovaDallaRubrica = onCall(
           username: documento.get('username') || '',
           displayName: documento.get('displayName') || '',
           photoUrl: documento.get('photoUrl') || '',
+          // Che rapporto c'e' gia', perche' il telefono sappia cosa scrivere
+          // sul tasto: chiedere l'amicizia a chi ce l'hai gia' non e' un
+          // errore da far scoprire premendo.
+          stato: comeSiamo(documento.id),
         });
       }
     }

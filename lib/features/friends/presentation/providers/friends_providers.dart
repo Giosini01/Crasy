@@ -607,20 +607,4 @@ class SuggestedFriendsNotifier
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(repository.suggeriti);
   }
-
-  /// Toglie dall'elenco chi hai appena invitato, senza rifare il giro della
-  /// rubrica: la riga sparisce e chi guarda vede che il tasto ha fatto
-  /// qualcosa.
-  void togli(String userId) {
-    final ora = state.valueOrNull;
-
-    if (ora == null) {
-      return;
-    }
-
-    state = AsyncValue.data([
-      for (final chi in ora)
-        if (chi.userId != userId) chi,
-    ]);
-  }
 }
