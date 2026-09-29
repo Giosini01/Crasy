@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:crasy/core/services/media/disk_upload_stub.dart'
     if (dart.library.io) 'package:crasy/core/services/media/disk_upload_io.dart';
 import 'package:crasy/core/services/media/photo_compressor.dart';
@@ -649,40 +650,15 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     required bool approved,
     ChallengeEntry? entry,
   }) async {
-    final vince = approved && entry != null;
-    final batch = _firestore.batch()
-      ..update(_challenges.doc(challengeId), {
-        'duelVerdict': approved
-            ? DuelVerdict.approved.wire
-            : DuelVerdict.rejected.wire,
-        // **Il verdetto ferma anche l'orologio.**
-        //
-        // Senza questa riga la sfida restava fra quelle aperte fino alla sua
-        // scadenza naturale: giudicata, decisa, finita — e ancora in cima alle
-        // ricevute come se ci fosse qualcosa da fare. Le schede del party
-        // guardano `endsAt` per sapere cosa e' ancora in corso, quindi dirgli
-        // che e' finita vuol dire scriverlo li'. Da qui esce dalle ricevute e
-        // dalle lanciate, ed entra fra le chiuse.
-        'endsAt': Timestamp.now(),
-        // `winnerEntryId` e' il segno che una gara e' chiusa. Vuoto vuol dire
-        // chiusa senza vincitore, ed e' esattamente cosa succede a una foto
-        // bocciata: non vince nessuno, e nessuno la guarda piu'.
-        'winnerEntryId': vince ? entry.id : '',
-        'winnerUserId': vince ? entry.userId : '',
-        'winnerUsername': vince ? entry.authorName : '',
-        // La foto si ricopia dentro la gara come per ogni altro trofeo:
-        // quarantotto ore dopo le partecipazioni spariscono, e senza questa
-        // copia la figurina resterebbe una cornice vuota.
-        'winnerMediaUrl': vince ? entry.mediaUrl : '',
-        'winnerMediaKind': (entry?.mediaKind ?? MediaKind.photo).name,
-        'winnerVotes': vince ? entry.votes : 0,
-      });
-
-    if (vince) {
-      batch.update(_entries(challengeId).doc(entry.id), {'isWinner': true});
-    }
-
-    await batch.commit();
+    // **Il giudizio lo scrive il server.** Lo scriveva l'app, e con dei soldi
+    // in palio non poteva funzionare: le regole non lasciano a un telefono
+    // segnare un vincitore di una sfida pagata, e anche quando passava
+    // nessuno pagava chi aveva vinto ne' rimborsava chi aveva lanciato.
+    // `giudicaSfidaMirata` scrive verdetto e vincitore e sistema i soldi nello
+    // stesso momento.
+    await FirebaseFunctions.instanceFor(region: 'europe-west8')
+        .httpsCallable('giudicaSfidaMirata')
+        .call<Object?>({'challengeId': challengeId, 'vale': approved});
   }
 
   /// L'estensione che corrisponde a un tipo di file.

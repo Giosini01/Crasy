@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/services/refresh/auto_refresh.dart';
 import 'package:crasy/core/theme/app_theme.dart';
+import 'package:crasy/core/widgets/keyboard_closer.dart';
 import 'package:crasy/core/widgets/opening_curtain.dart';
 import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:crasy/routing/app_router.dart';
@@ -160,7 +161,9 @@ class _CrasyAppState extends ConsumerState<CrasyApp> {
       // Sta qui e non dentro una schermata perche' vale per tutte, e perche'
       // deve continuare a girare anche mentre si cambia scheda.
       builder: (context, child) => AutoRefresh(
-        child: OpeningCurtain(child: child ?? const SizedBox.shrink()),
+        child: KeyboardCloser(
+          child: OpeningCurtain(child: child ?? const SizedBox.shrink()),
+        ),
       ),
     );
   }

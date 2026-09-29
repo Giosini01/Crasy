@@ -122,3 +122,8 @@ service-account*.json
 # repository pubblico.
 movimenti.csv
 functions/movimenti.csv
+
+# Codici e credenziali: mai nel repository, che e' pubblico.
+*RECUPERO*
+*recupero*
+*.secret*

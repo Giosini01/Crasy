@@ -209,12 +209,21 @@ class ChallengeShowcase extends StatelessWidget {
           // Finita la gara si torna a dire tutto: chi ha vinto, con quante.
           Row(
             children: [
-              Text(
-                challenge.isOver ? 'HA VINTO' : 'ULTIMA ARRIVATA',
-                style: texts.labelSmall?.copyWith(
-                  color: challenge.isOver ? palette.accent : palette.textFaint,
+              if (challenge.isOver)
+                Text(
+                  'HA VINTO',
+                  style: texts.labelSmall?.copyWith(color: palette.accent),
+                )
+              else
+                // **Lampeggia, piano.** Scritta ferma e grigia sembrava una
+                // didascalia qualunque; accesa e spenta con calma dice che e'
+                // appena arrivata, e che la gara e' viva.
+                _Lampeggio(
+                  child: Text(
+                    'ULTIMA ARRIVATA',
+                    style: texts.labelSmall?.copyWith(color: palette.accent),
+                  ),
                 ),
-              ),
               const Spacer(),
               if (challenge.isOver) ...[
                 Icon(
@@ -511,5 +520,39 @@ class ChallengeMetaRow extends StatelessWidget {
         ],
       ],
     );
+  }
+}
+
+/// Accende e spegne piano quello che contiene: un respiro di poco piu' di un
+/// secondo, mai del tutto spento, perche' deve attirare l'occhio senza dare
+/// fastidio a chi sta leggendo il resto.
+class _Lampeggio extends StatefulWidget {
+  const _Lampeggio({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_Lampeggio> createState() => _LampeggioState();
+}
+
+class _LampeggioState extends State<_Lampeggio>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _respiro = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  )..repeat(reverse: true);
+
+  late final Animation<double> _luce = Tween<double>(begin: 1, end: 0.25)
+      .animate(CurvedAnimation(parent: _respiro, curve: Curves.easeInOut));
+
+  @override
+  void dispose() {
+    _respiro.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(opacity: _luce, child: widget.child);
   }
 }

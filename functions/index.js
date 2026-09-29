@@ -898,7 +898,14 @@ async function chiudiLaSfidaMirata(challenge) {
   // vuol dire che il verdetto c'e' ma la chiusura non e' arrivata — si chiude,
   // senza toccare il verdetto di nessuno.
   if (verdetto) {
-    await challenge.ref.update({ winnerEntryId: '' });
+    // Il vincitore, se c'e', l'ha gia' scritto chi ha giudicato: qui non si
+    // cancella. Si chiude e basta — e si sistemano i soldi, se nessuno l'ha
+    // ancora fatto (sfide giudicate dall'app prima che il giudizio passasse
+    // di qui).
+    if (challenge.get('winnerEntryId') === null || challenge.get('winnerEntryId') === undefined) {
+      await challenge.ref.update({ winnerEntryId: '' });
+    }
+    await sistemaISoldiDellaSfida(challenge.id);
 
     return true;
   }
@@ -913,6 +920,18 @@ async function chiudiLaSfidaMirata(challenge) {
       return false;
     }
 
+    // **Con dei soldi in palio, il silenzio non puo' costare a chi ha fatto
+    // il lavoro.** Se chi ha lanciato la sfida non la guarda entro un giorno,
+    // il premio va a chi l'ha fatta: altrimenti bastava sparire per riavere
+    // indietro i soldi. Senza premio resta com'era: chiusa senza vincitore.
+    if (challenge.get('prizeStatus') === 'held') {
+      await scriviIlVincitoreDelDuello(challenge, 'expired');
+      await sistemaISoldiDellaSfida(challenge.id);
+      logger.info(`Sfida ${challenge.id}: nessun giudizio, premio a chi l'ha fatta.`);
+
+      return true;
+    }
+
     await challenge.ref.update({
       duelVerdict: 'expired',
       winnerEntryId: '',
@@ -925,12 +944,146 @@ async function chiudiLaSfidaMirata(challenge) {
   }
 
   // Rifiutata, o mai fatta: non c'e' nessuna foto e non c'e' niente da
-  // giudicare. Si segna chiusa per non ricontrollarla ogni cinque minuti.
+  // giudicare. Si segna chiusa per non ricontrollarla ogni cinque minuti. I
+  // soldi tornano a chi li aveva messi, tutti: non e' colpa sua se l'amico
+  // ha detto di no o non ha fatto in tempo.
   await challenge.ref.update({ winnerEntryId: '' });
+  await sistemaISoldiDellaSfida(challenge.id);
   logger.info(`Sfida ${challenge.id} chiusa senza partecipazione (${stato}).`);
 
   return true;
 }
+
+/**
+ * Scrive chi ha vinto una sfida mirata: l'unico che poteva, cioe' l'amico
+ * sfidato, con la sua foto. Le stesse righe di ogni altra gara chiusa, piu'
+ * il verdetto.
+ */
+async function scriviIlVincitoreDelDuello(challenge, verdetto) {
+  const bersaglio = challenge.get('targetUserId');
+  const entry = await challenge.ref.collection('entries').doc(bersaglio).get();
+
+  if (!entry.exists) {
+    await challenge.ref.update({ duelVerdict: verdetto, winnerEntryId: '' });
+
+    return false;
+  }
+
+  const batch = db.batch();
+  batch.update(challenge.ref, {
+    duelVerdict: verdetto,
+    endsAt: admin.firestore.Timestamp.now(),
+    winnerEntryId: entry.id,
+    winnerUserId: entry.get('userId') || bersaglio,
+    winnerUsername: entry.get('authorName') || '',
+    winnerMediaUrl: entry.get('mediaUrl') || '',
+    winnerMediaKind: entry.get('mediaKind') || 'photo',
+    winnerVotes: entry.get('votes') || 0,
+  });
+  batch.update(entry.ref, { isWinner: true });
+  await batch.commit();
+
+  return true;
+}
+
+/**
+ * **I soldi di una sfida mirata chiusa.** C'e' un vincitore: gli va il
+ * premio. Non c'e': tornano a chi li aveva messi — tutto, commissioni
+ * comprese, tranne quando a bocciare la foto e' stato proprio lui. In quel
+ * caso torna il premio e restano le spese: bocciare per riavere i soldi
+ * gratis sarebbe troppo comodo.
+ *
+ * Ripetibile senza danni: `payWinner` e `refundChallenge` non fanno niente
+ * se il premio non e' piu' `held`.
+ */
+async function sistemaISoldiDellaSfida(challengeId) {
+  if (!payments) {
+    return;
+  }
+
+  const snapshot = await db.collection('challenges').doc(challengeId).get();
+
+  if (!snapshot.exists || snapshot.get('prizeStatus') !== 'held') {
+    return;
+  }
+
+  try {
+    if (snapshot.get('winnerUserId')) {
+      await payments.payWinner(challengeId);
+    } else {
+      await payments.refundChallenge(challengeId, {
+        soloIlPremio: snapshot.get('duelVerdict') === 'rejected',
+      });
+    }
+  } catch (error) {
+    logger.error(`Sfida ${challengeId}: soldi non sistemati.`, error);
+  }
+}
+
+/**
+ * **Chi ha lanciato una sfida mirata dice se la foto vale.**
+ *
+ * Lo faceva l'app, scrivendo da sola vincitore e verdetto. Andava bene
+ * finche' le sfide erano gratis: con dei soldi in palio le regole del
+ * database — giustamente — non lasciano a un telefono segnare un vincitore,
+ * e il giudizio falliva. E anche quando passava, nessuno pagava ne'
+ * rimborsava: i soldi restavano fermi per sempre.
+ *
+ * Adesso il giudizio lo scrive il server, e nello stesso momento paga chi ha
+ * vinto o rimborsa chi ha lanciato.
+ */
+exports.giudicaSfidaMirata = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', "Serve aver fatto l'accesso.");
+  }
+
+  const challengeId = String(request.data?.challengeId || '');
+  const vale = request.data?.vale === true;
+
+  if (!challengeId) {
+    throw new HttpsError('invalid-argument', 'Manca la sfida.');
+  }
+
+  const challenge = await db.collection('challenges').doc(challengeId).get();
+
+  if (!challenge.exists) {
+    throw new HttpsError('not-found', "Questa sfida non c'e'.");
+  }
+
+  if (challenge.get('createdByUserId') !== request.auth.uid) {
+    throw new HttpsError('permission-denied', 'Giudica solo chi ha lanciato la sfida.');
+  }
+
+  if (!challenge.get('targetUserId')) {
+    throw new HttpsError('failed-precondition', "Non e' una sfida a un amico.");
+  }
+
+  if (challenge.get('duelVerdict')) {
+    return { giudicata: false, motivo: 'gia-giudicata' };
+  }
+
+  if (vale) {
+    const scritto = await scriviIlVincitoreDelDuello(challenge, 'approved');
+
+    if (!scritto) {
+      throw new HttpsError('failed-precondition', "Non c'e' ancora niente da giudicare.");
+    }
+  } else {
+    await challenge.ref.update({
+      duelVerdict: 'rejected',
+      endsAt: admin.firestore.Timestamp.now(),
+      winnerEntryId: '',
+      winnerUserId: '',
+      winnerUsername: '',
+      winnerMediaUrl: '',
+      winnerVotes: 0,
+    });
+  }
+
+  await sistemaISoldiDellaSfida(challengeId);
+
+  return { giudicata: true };
+});
 
 /**
  * Dice a chi ha fatto la sfida che nessuno l'ha guardata.

@@ -235,6 +235,11 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
                           FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
                         ],
                         validator: ChallengeDraftValidators.validatePrize,
+                        // Su Android il tasto in basso a destra dice "fatto" e
+                        // chiude; sull'iPhone c'e' la barra con "Fine".
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) =>
+                            FocusScope.of(context).unfocus(),
                       ),
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
@@ -256,7 +261,7 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     CrasyButton(
-                      label: 'Lancia la sfida',
+                      label: _daPagare == null ? 'Lancia la sfida' : 'Paga il premio',
                       loading: busy,
                       onPressed: busy ? null : _launch,
                     ),
@@ -283,8 +288,23 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
     }
   }
 
+  /// La sfida gia' creata ma non ancora pagata. Se c'e', il tasto non ne crea
+  /// un'altra: riapre il pagamento di questa.
+  String? _daPagare;
+
   Future<void> _launch() async {
     setState(() => _error = null);
+
+    // **Il pagamento non riuscito si riprova da qui.** Prima il messaggio
+    // diceva "riprova dal tuo profilo", ma dal profilo non c'era nessun modo
+    // di farlo: la sfida restava spenta per sempre.
+    final gia = _daPagare;
+
+    if (gia != null) {
+      await _pagaEApri(gia);
+
+      return;
+    }
 
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
@@ -346,25 +366,37 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
     // lasciar partecipare, il guasto si e' fatto visibile: l'amico sfidato non
     // riusciva nemmeno a mandare la foto. Era il sintomo, non la causa.
     if (paymentsEnabled && premio > 0) {
-      final pagato = await _paga(id);
+      await _pagaEApri(id);
 
-      if (!mounted) {
-        return;
-      }
-
-      if (!pagato) {
-        setState(
-          () => _error =
-              'La sfida è salvata ma non è ancora partita: il premio non '
-              'è stato pagato. Riprova dal tuo profilo.',
-        );
-
-        return;
-      }
+      return;
     }
 
     // Si torna indietro e si apre la sfida appena nata: chi l'ha lanciata
     // vuole vederla dov'e' finita, non ritrovarsi sul modulo vuoto.
+    context.pop();
+    context.push(AppRoutes.challengeDetailOf(id));
+  }
+
+  Future<void> _pagaEApri(String id) async {
+    setState(() => _daPagare = id);
+
+    final pagato = await _paga(id);
+
+    if (!mounted) {
+      return;
+    }
+
+    if (!pagato) {
+      setState(
+        () => _error =
+            'La sfida è salvata ma non è ancora partita: il premio non è '
+            'stato pagato. Tocca “Paga il premio” per riprovare.',
+      );
+
+      return;
+    }
+
+    _daPagare = null;
     context.pop();
     context.push(AppRoutes.challengeDetailOf(id));
   }
@@ -513,8 +545,8 @@ class _Rules extends StatelessWidget {
     if (gratis)
       'Non c’è premio in denaro: in palio c’è la parola data.'
     else
-      'Il premio lo paghi tu a chi vince: CRASY non lo trattiene e non fa da '
-          'garante.',
+      'Il premio lo paghi adesso e lo custodisce CRASY: va a chi vince, meno '
+          'il 10%. Se l’amico non la fa, rifiuta o non vale, ti torna indietro.',
     // **Questa riga vale il doppio da quando c’è il giudizio.** Chi
     // riceve la sfida deve sapere prima che a dire se vale sarà chi
     // gliel’ha lanciata: scoprirlo il giorno del “non vale”
