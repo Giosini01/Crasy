@@ -297,9 +297,16 @@ exports.trovaDallaRubrica = onCall(
           // sul tasto: chiedere l'amicizia a chi ce l'hai gia' non e' un
           // errore da far scoprire premendo.
           stato: comeSiamo(documento.id),
+          verificato: documento.get('verificato') === true,
         });
       }
     }
+
+    // **I verificati per primi**, poi chi non e' ancora amico: e' l'ordine in
+    // cui uno vuole scorrerli.
+    profili.sort((a, b) =>
+      (b.verificato ? 1 : 0) - (a.verificato ? 1 : 0) ||
+      (a.stato === 'amico' ? 1 : 0) - (b.stato === 'amico' ? 1 : 0));
 
     logger.info('rubrica: cercati %d numeri, trovati %d profili', impronte.size,
       profili.length);

@@ -193,7 +193,9 @@ service cloud.firestore {
         return !('walletCents' in request.resource.data.diff(resource.data).affectedKeys())
                && !('withdrawingCents' in request.resource.data.diff(resource.data).affectedKeys())
                && !('stripeAccountId' in request.resource.data.diff(resource.data).affectedKeys())
-               && !('payoutReady' in request.resource.data.diff(resource.data).affectedKeys());
+               && !('payoutReady' in request.resource.data.diff(resource.data).affectedKeys())
+               && !('verificato' in request.resource.data.diff(resource.data).affectedKeys())
+               && !('verificatoDa' in request.resource.data.diff(resource.data).affectedKeys());
       }
 
       // **Il numero di telefono nel profilo non ci torna.**
@@ -216,7 +218,11 @@ service cloud.firestore {
                     && request.auth.uid == userId
                     && isAdultProfile()
                     && noPhoneInPublicProfile()
-                    && !('walletCents' in request.resource.data);
+                    && !('walletCents' in request.resource.data)
+                    // Il verificato lo da' solo il server: chi si iscrive
+                    // non puo' nascere con la spunta.
+                    && !('verificato' in request.resource.data)
+                    && !('verificatoDa' in request.resource.data);
 
       allow update: if signedIn()
                     && request.auth.uid == userId

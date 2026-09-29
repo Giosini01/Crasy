@@ -150,8 +150,13 @@ final peopleResultsProvider = FutureProvider.autoDispose<List<UserProfile>>((
 
   // Se stessi no: il proprio profilo si apre dalla scheda in fondo, e trovarsi
   // fra i risultati di una ricerca e' solo una riga da saltare.
+  // **I verificati per primi.** A parita' di nome cercato, chi ha la spunta
+  // e' quello che uno sta cercando quasi sempre.
+  final ordinati = [...results]
+    ..sort((a, b) => (b.conSpunta ? 1 : 0) - (a.conSpunta ? 1 : 0));
+
   return [
-    for (final profile in results)
+    for (final profile in ordinati)
       if (profile.id != me) profile,
   ];
 });

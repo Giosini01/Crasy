@@ -12,6 +12,7 @@ import 'package:crasy/features/challenges/presentation/providers/challenge_provi
 import 'package:crasy/features/challenges/presentation/widgets/archive_badge.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
+import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -396,6 +397,13 @@ class ChallengeAuthor extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ),
+        // **Le missioni dei verificati si riconoscono.** La spunta accanto a
+        // chi l'ha lanciata: e' la cosa che fa scegliere questa gara fra
+        // dieci.
+        if (!challenge.byCrasy) ...[
+          const SizedBox(width: 4),
+          VerifiedTick(userId: challenge.createdByUserId, size: 14),
+        ],
         // **La fiamma accanto al nome, anche qui.**
         //
         // E' il posto in cui serve di piu': su una gara, chi l'ha lanciata e'

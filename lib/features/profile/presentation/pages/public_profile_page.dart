@@ -16,6 +16,7 @@ import 'package:crasy/features/challenges/presentation/providers/challenge_provi
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
+import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/moderation/domain/report_reason.dart';
 import 'package:crasy/features/moderation/presentation/widgets/report_sheet.dart';
 import 'package:crasy/features/payments/presentation/widgets/wallet_card.dart';
@@ -169,6 +170,9 @@ class _BodyState extends ConsumerState<_Body> {
                   if (profile.isOfficial) ...[
                     const SizedBox(width: AppSpacing.xs),
                     const OfficialFlame(size: 22),
+                  ] else if (profile.verificato) ...[
+                    const SizedBox(width: AppSpacing.xs),
+                    const VerifiedBadge(size: 22),
                   ],
                 ],
               ),

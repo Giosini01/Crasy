@@ -2,6 +2,7 @@ import 'package:crasy/core/theme/app_colors.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
+import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -77,7 +78,7 @@ class FriendAvatar extends ConsumerWidget {
       );
     }
 
-    return ClipRRect(
+    final foto = ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.pill),
       child: SizedBox(
         width: size,
@@ -90,6 +91,30 @@ class FriendAvatar extends ConsumerWidget {
                 errorBuilder: (context, error, stackTrace) =>
                     _Initials(username: username, size: size),
               ),
+      ),
+    );
+
+    // **La spunta sta sulla foto**, in basso a destra: cosi' c'e' in ogni
+    // elenco, riga e scheda che mostra una faccia, senza doverla ricordare
+    // accanto a ogni nome. Sotto i ventiquattro punti non ci sta: li' la
+    // mette chi scrive il nome.
+    if (profilo?.verificato != true || size < 24) {
+      return foto;
+    }
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          foto,
+          Positioned(
+            right: -1,
+            bottom: -1,
+            child: VerifiedBadge(size: (size * 0.36).clamp(12, 22)),
+          ),
+        ],
       ),
     );
   }

@@ -21,6 +21,7 @@ abstract final class UserProfileMapper {
       tutorialSeen: data['tutorialSeen'] as bool? ?? false,
       contactsPromptSeen: data['contactsPromptSeen'] as bool? ?? false,
       permissionsSeen: data['permissionsSeen'] as bool? ?? false,
+      verificato: data['verificato'] as bool? ?? false,
       // **Si guarda anche il campo vecchio, e non e' pigrizia.**
       //
       // I profili scritti prima di questo cambiamento hanno il numero qui

@@ -245,6 +245,18 @@
       <h2>Prelievi da pagare</h2>
       <div id="prelievi"></div>
     </div>
+
+    <!-- **Il verificato si da' da qui.** Si cerca la persona per nome, e un
+         tasto accende o spegne la spunta. La scrive il server: da nessun
+         telefono si puo'. -->
+    <div class="scatola">
+      <h2>Verificati</h2>
+      <form id="cercaUtente" style="display:flex;gap:8px;margin-bottom:12px">
+        <input id="nomeUtente" placeholder="Nome utente (almeno 2 lettere)" autocomplete="off" style="flex:1">
+        <button class="primario" type="submit">Cerca</button>
+      </form>
+      <div id="utenti" class="nota">Scrivi un nome e premi Cerca.</div>
+    </div>
   </section>
 </main>
 
@@ -295,6 +307,8 @@ const decidi = httpsCallable(functions, 'adminResolveReport');
 const chiediPrelievi = httpsCallable(functions, 'adminListPayouts');
 const chiediPresenze = httpsCallable(functions, 'adminOnline');
 const segnaPagato = httpsCallable(functions, 'adminMarkPayoutPaid');
+const cercaUtenti = httpsCallable(functions, 'adminCercaUtenti');
+const impostaVerificato = httpsCallable(functions, 'adminImpostaVerificato');
 
 const $ = (id) => document.getElementById(id);
 const accesso = $('accesso');
@@ -623,6 +637,67 @@ async function caricaPrelievi() {
     dillo(errore.message || 'Non riusciamo a leggere i prelievi.');
   }
 }
+
+function rigaUtente(u) {
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #eee';
+  const foto = u.photoUrl
+    ? '<img src="' + testo(u.photoUrl) + '" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover">'
+    : '<div style="width:36px;height:36px;border-radius:50%;background:#eee"></div>';
+  div.innerHTML =
+    foto +
+    '<div style="flex:1"><strong>@' + testo(u.username) + '</strong>' +
+    (u.verificato ? ' <span title="verificato" style="color:#fa0000">✔ verificato</span>' +
+      (u.verificatoDa ? ' <span class="nota">(' + testo(u.verificatoDa) + ')</span>' : '') : '') +
+    (u.displayName ? '<br><span class="nota">' + testo(u.displayName) + '</span>' : '') +
+    '</div>' +
+    '<button class="' + (u.verificato ? 'togli' : 'tieni') + '">' +
+    (u.verificato ? '✕ Togli verificato' : '✔ Dai verificato') + '</button>';
+
+  div.querySelector('button').addEventListener('click', async (evento) => {
+    const tasto = evento.currentTarget;
+    tasto.disabled = true;
+    try {
+      await impostaVerificato({ userId: u.userId, verificato: !u.verificato });
+      u.verificato = !u.verificato;
+      u.verificatoDa = u.verificato ? 'admin' : '';
+      div.replaceWith(rigaUtente(u));
+    } catch (errore) {
+      tasto.disabled = false;
+      dillo(errore.message || 'Non riusciamo a cambiarlo.');
+    }
+  });
+
+  return div;
+}
+
+$('cercaUtente').addEventListener('submit', async (evento) => {
+  evento.preventDefault();
+  const dove = $('utenti');
+  const q = $('nomeUtente').value.trim();
+
+  if (q.replace(/^@/, '').length < 2) {
+    dove.innerHTML = 'Scrivi almeno due lettere.';
+
+    return;
+  }
+
+  dove.innerHTML = 'Cerco…';
+
+  try {
+    const esito = await cercaUtenti({ q });
+    const utenti = esito.data.utenti || [];
+
+    dove.innerHTML = utenti.length ? '' : 'Nessuno con questo nome.';
+
+    for (const u of utenti) {
+      dove.appendChild(rigaUtente(u));
+    }
+  } catch (errore) {
+    dove.innerHTML = '';
+    dillo(errore.message || 'Non riusciamo a cercare.');
+  }
+});
 
 for (const tasto of document.querySelectorAll('.filtri [data-stato]')) {
   tasto.addEventListener('click', () => {

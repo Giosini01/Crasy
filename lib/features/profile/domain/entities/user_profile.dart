@@ -28,6 +28,7 @@ class UserProfile {
     this.phoneVerified = false,
     this.contactsPromptSeen = false,
     this.permissionsSeen = false,
+    this.verificato = false,
   });
 
   /// **Il profilo ufficiale di CRASY.**
@@ -46,8 +47,21 @@ class UserProfile {
   /// senza trofei, senza amici, perche' nessuna di quelle cose lo riguarda.
   static const String officialUsername = 'crasy';
 
+  /// **Si guarda anche l'identificativo.** Il nome da solo si poteva prendere:
+  /// l'unicita' dei nomi la controllava solo l'app, e bastava scrivere "crasy"
+  /// nel proprio profilo per avere la fiamma. L'account vero ha come
+  /// identificativo `crasy`, e quello non si sceglie.
   bool get isOfficial =>
+      id == officialUsername &&
       username.trim().toLowerCase() == officialUsername;
+
+  /// **Verificato.** Lo mette solo il server: l'amministrazione dal pannello,
+  /// o una mancia da dieci euro in su. Le regole del database non lasciano
+  /// che un telefono lo scriva. L'account ufficiale lo e' sempre.
+  final bool verificato;
+
+  /// Da mostrare: verificato, o l'account ufficiale.
+  bool get conSpunta => verificato || isOfficial;
 
   final String id;
 
@@ -188,6 +202,7 @@ class UserProfile {
     bool? phoneVerified,
     bool? contactsPromptSeen,
     bool? permissionsSeen,
+    bool? verificato,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? onboardingCompleted,
@@ -208,6 +223,7 @@ class UserProfile {
       phoneVerified: phoneVerified ?? this.phoneVerified,
       contactsPromptSeen: contactsPromptSeen ?? this.contactsPromptSeen,
       permissionsSeen: permissionsSeen ?? this.permissionsSeen,
+      verificato: verificato ?? this.verificato,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
@@ -233,7 +249,8 @@ class UserProfile {
         other.onboardingCompleted == onboardingCompleted &&
         other.phoneVerified == phoneVerified &&
         other.contactsPromptSeen == contactsPromptSeen &&
-        other.permissionsSeen == permissionsSeen;
+        other.permissionsSeen == permissionsSeen &&
+        other.verificato == verificato;
   }
 
   @override
@@ -251,5 +268,6 @@ class UserProfile {
     phoneVerified,
     contactsPromptSeen,
     permissionsSeen,
+    verificato,
   );
 }

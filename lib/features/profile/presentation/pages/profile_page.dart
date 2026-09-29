@@ -16,7 +16,9 @@ import 'package:crasy/features/challenges/presentation/providers/challenge_provi
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/suggested_drawer.dart';
+import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/onboarding/presentation/utils/onboarding_validators.dart';
+import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 import 'package:crasy/features/payments/presentation/widgets/wallet_card.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/controllers/profile_edit_controller.dart';
@@ -153,6 +155,22 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           ),
                           child: WalletCard(),
                         ),
+                        // **La mancia**, sotto il portafoglio: e' l'altro
+                        // posto dove si parla di soldi. Da dieci euro da' la
+                        // spunta, ed e' il modo piu' semplice di averla.
+                        if (paymentsEnabled)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.page,
+                            ),
+                            child: TextButton.icon(
+                              onPressed: () => context.push(AppRoutes.tip),
+                              icon: const VerifiedBadge(size: 16),
+                              label: const Text(
+                                'Sostieni CRASY · da 10 € la spunta verificata',
+                              ),
+                            ),
+                          ),
                         const SizedBox(height: AppSpacing.xs),
                         _Stats(
                           entries: entries.length,
@@ -274,7 +292,22 @@ class _Identity extends ConsumerWidget {
           children: [_Avatar(profile: profile, onTap: () => _changePhoto(ref))],
         ),
         const SizedBox(height: AppSpacing.md),
-        Text('@${profile.username}', style: texts.displaySmall),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                '@${profile.username}',
+                style: texts.displaySmall,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (profile.conSpunta) ...[
+              const SizedBox(width: AppSpacing.xs),
+              VerifiedTick(userId: profile.id, size: 22),
+            ],
+          ],
+        ),
         if (profile.hasBio) ...[
           const SizedBox(height: AppSpacing.xxs),
           Text(profile.bio, style: texts.bodyMedium),

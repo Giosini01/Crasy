@@ -77,7 +77,16 @@ class PaymentsService {
         .call<Map<Object?, Object?>>({'challengeId': challengeId})
         .timeout(_pazienza, onTimeout: () => throw Exception('server lento'));
 
-    final dati = result.data;
+    return _foglio(result.data, passo: passo);
+  }
+
+  /// **Il foglio di pagamento di Stripe, dentro l'app.** Lo stesso giro per
+  /// il premio di una missione e per la mancia: prepara, apre, e racconta
+  /// com'e' andata. Torna `false` se chi paga lo chiude.
+  Future<bool> _foglio(
+    Map<Object?, Object?> dati, {
+    void Function(String passo)? passo,
+  }) async {
     final clientSecret = dati['clientSecret'] as String?;
     final publishableKey = dati['publishableKey'] as String?;
     final customerId = dati['customerId'] as String?;
@@ -176,6 +185,39 @@ class PaymentsService {
     }
 
     return true;
+  }
+
+  /// **La mancia a CRASY.** Sul sito la pagina di Stripe, sul telefono il
+  /// foglio dentro l'app. Da dieci euro in su [username] diventa verificato
+  /// per sempre: lo decide il server quando Stripe conferma il pagamento.
+  Future<bool> payTip({
+    required int amountCents,
+    required String username,
+    String? returnRoute,
+  }) async {
+    if (kIsWeb) {
+      final base = Uri.base;
+      final result = await _functions
+          .httpsCallable('startTipPayment')
+          .call<Map<Object?, Object?>>({
+            'amountCents': amountCents,
+            'username': username,
+            'appUrl': '${base.origin}${base.path}',
+            'returnRoute': ?returnRoute,
+          });
+
+      return _open(result.data['url']);
+    }
+
+    final result = await _functions
+        .httpsCallable('createTipPaymentIntent')
+        .call<Map<Object?, Object?>>({
+          'amountCents': amountCents,
+          'username': username,
+        })
+        .timeout(_pazienza, onTimeout: () => throw Exception('server lento'));
+
+    return _foglio(result.data);
   }
 
   /// Prepara il foglio di Stripe. Con cliente e chiave temporanea mostra le

@@ -260,6 +260,8 @@ exports.requestPayout = payments.requestPayout;
 exports.adminListPayouts = payments.adminListPayouts;
 exports.adminMarkPayoutPaid = payments.adminMarkPayoutPaid;
 exports.cancelChallenge = payments.cancelChallenge;
+exports.startTipPayment = payments.startTipPayment;
+exports.createTipPaymentIntent = payments.createTipPaymentIntent;
 
 // **Sta sotto `setGlobalOptions` per lo stesso motivo dell'amministrazione.**
 // Messo in cima al file, le quattro funzioni dei soldi nascevano prima che la
@@ -285,6 +287,8 @@ exports.adminWhoAmI = amministrazione.adminWhoAmI;
 exports.adminListReports = amministrazione.adminListReports;
 exports.adminResolveReport = amministrazione.adminResolveReport;
 exports.adminOnline = amministrazione.adminOnline;
+exports.adminCercaUtenti = amministrazione.adminCercaUtenti;
+exports.adminImpostaVerificato = amministrazione.adminImpostaVerificato;
 
 /**
  * Manda una notifica ai telefoni di una persona sola.

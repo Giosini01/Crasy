@@ -510,3 +510,81 @@ exports.adminOnline = onCall(async (request) => {
     iscritti: tutti.data().count,
   };
 });
+
+/**
+ * **Cerca una persona per nome, dal pannello.**
+ *
+ * Per dare o togliere il verificato bisogna prima trovarla. Cerca per inizio
+ * del nome (come la ricerca dell'app) e torna anche chi e' gia' verificato,
+ * cosi' dal pannello si vede a colpo d'occhio.
+ */
+exports.adminCercaUtenti = onCall(async (request) => {
+  soloAdmin(request);
+
+  const q = String(request.data?.q || '').trim().toLowerCase().replace(/^@/, '');
+
+  if (q.length < 2) {
+    return { utenti: [] };
+  }
+
+  const snapshot = await db
+    .collection('users')
+    .orderBy('username')
+    .startAt(q)
+    .endAt(q + '\uf8ff')
+    .limit(20)
+    .get();
+
+  return {
+    utenti: snapshot.docs.map((doc) => ({
+      userId: doc.id,
+      username: doc.get('username') || '',
+      displayName: doc.get('displayName') || '',
+      photoUrl: doc.get('photoUrl') || '',
+      verificato: doc.get('verificato') === true,
+      verificatoDa: doc.get('verificatoDa') || '',
+    })),
+  };
+});
+
+/**
+ * **Da' o toglie il verificato.** Solo il server lo puo' scrivere: le regole
+ * del database lo vietano a qualunque telefono.
+ */
+exports.adminImpostaVerificato = onCall(async (request) => {
+  const chi = soloAdmin(request);
+  const userId = String(request.data?.userId || '');
+  const verificato = request.data?.verificato === true;
+
+  if (!userId) {
+    throw new HttpsError('invalid-argument', 'Manca la persona.');
+  }
+
+  const ref = db.collection('users').doc(userId);
+  const snapshot = await ref.get();
+
+  if (!snapshot.exists) {
+    throw new HttpsError('not-found', "Questa persona non c'e'.");
+  }
+
+  await ref.update(
+    verificato
+      ? {
+          verificato: true,
+          verificatoDa: 'admin',
+          verificatoIl: admin.firestore.FieldValue.serverTimestamp(),
+          verificatoDaChi: chi,
+        }
+      : {
+          verificato: false,
+          verificatoDa: '',
+          verificatoIl: admin.firestore.FieldValue.delete(),
+          verificatoDaChi: chi,
+        }
+  );
+
+  logger.info('verificato cambiato', { userId, verificato, da: chi });
+
+  return { ok: true, verificato };
+});
+

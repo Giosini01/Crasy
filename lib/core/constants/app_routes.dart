@@ -81,6 +81,9 @@ abstract final class AppRoutes {
   /// aprirsi.
   static const wallet = '/portafoglio';
 
+  /// La mancia: sostiene CRASY e, da dieci euro, da' il verificato.
+  static const tip = '/mancia';
+
   /// Nome, data di nascita, codice fiscale e IBAN: quello che serve per
   /// mandare dei soldi a qualcuno.
   ///

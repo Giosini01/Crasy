@@ -203,9 +203,16 @@ function stripePayoutClient() {
 
   // Il segnaposto vale come "non c'e' ancora": un segreto su Secret Manager
   // non puo' essere vuoto, quindi l'assenza si scrive cosi'.
-  return chiave && chiave !== 'da-sostituire'
-    ? new Stripe(chiave)
-    : stripeClient();
+  // `Stripe` va caricato anche qui: era definito solo dentro `stripeClient`,
+  // e il giorno in cui la chiave dei prelievi fosse arrivata questa riga
+  // sarebbe esplosa al primo prelievo.
+  if (chiave && chiave !== 'da-sostituire') {
+    const Stripe = require('stripe');
+
+    return new Stripe(chiave);
+  }
+
+  return stripeClient();
 }
 
 // ---------------------------------------------------------------------------
@@ -623,6 +630,11 @@ exports.stripeWebhook = onRequest(
         // Il pagamento fatto dentro l'app: non c'e' nessuna pagina e nessuna
         // sessione, solo il pagamento.
         case 'payment_intent.succeeded':
+          if (event.data.object.metadata && event.data.object.metadata.kind === 'mancia') {
+            await registraMancia(event.data.object.metadata, event.data.object.id);
+            break;
+          }
+
           await accendiLaGara(
             event.data.object.metadata &&
               event.data.object.metadata.challengeId,
@@ -664,6 +676,12 @@ exports.stripeWebhook = onRequest(
  * quella che ha scelto, e comincia quando la challenge diventa visibile.
  */
 async function onCheckoutCompleted(session) {
+  if (session.metadata && session.metadata.kind === 'mancia') {
+    await registraMancia(session.metadata, session.payment_intent);
+
+    return;
+  }
+
   await accendiLaGara(
     session.metadata && session.metadata.challengeId,
     session.payment_intent
@@ -1427,3 +1445,205 @@ exports.adminMarkPayoutPaid = onCall(async (request) => {
 
   return { ok: true };
 });
+
+// ---------------------------------------------------------------------------
+// La mancia
+// ---------------------------------------------------------------------------
+
+/** Da questa cifra in su, la mancia porta il verificato a vita. */
+const MANCIA_PER_IL_VERIFICATO = 1000;
+
+/** Quanto puo' valere una mancia: da un euro a cinquecento. */
+const MANCIA_MINIMA = 100;
+const MANCIA_MASSIMA = 50000;
+
+/**
+ * Chi riceve il verificato: l'username scritto da chi dona, anche il suo.
+ * Torna `{ id, username }` o lancia se non c'e'.
+ */
+async function beneficiarioDi(username) {
+  const nome = String(username || '').trim().toLowerCase().replace(/^@/, '');
+
+  if (!nome) {
+    throw new HttpsError('invalid-argument', 'Scrivi un nome utente.');
+  }
+
+  const trovati = await db.collection('users').where('username', '==', nome).limit(1).get();
+
+  if (trovati.empty) {
+    throw new HttpsError('not-found', `Non c'e' nessuno che si chiama @${nome}.`);
+  }
+
+  return { id: trovati.docs[0].id, username: nome };
+}
+
+function importoDellaMancia(valore) {
+  const cents = Number(valore);
+
+  if (!Number.isInteger(cents) || cents < MANCIA_MINIMA || cents > MANCIA_MASSIMA) {
+    throw new HttpsError('invalid-argument', 'La mancia va da 1 a 500 euro.');
+  }
+
+  return cents;
+}
+
+/**
+ * **La mancia dal sito**: la pagina di Stripe, come per i premi.
+ */
+exports.startTipPayment = onCall(
+  { secrets: [STRIPE_SECRET_KEY] },
+  async (request) => {
+    const userId = request.auth && request.auth.uid;
+
+    if (!userId) {
+      throw new HttpsError('unauthenticated', 'Serve un account.');
+    }
+
+    const cents = importoDellaMancia(request.data && request.data.amountCents);
+    const chi = await beneficiarioDi(request.data && request.data.username);
+    const stripe = stripeClient();
+    const ritorno = indirizzoDiRitorno(
+      request.data && request.data.appUrl,
+      request.data && request.data.returnRoute
+    );
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: 'eur',
+            unit_amount: cents,
+            product_data: {
+              name: 'Mancia a CRASY',
+              description: cents >= MANCIA_PER_IL_VERIFICATO
+                ? `Grazie! @${chi.username} diventa verificato per sempre.`
+                : 'Grazie per sostenere CRASY.',
+            },
+          },
+        },
+      ],
+      metadata: {
+        kind: 'mancia',
+        userId,
+        beneficiarioId: chi.id,
+        beneficiarioUsername: chi.username,
+        amountCents: String(cents),
+      },
+      success_url: ritorno,
+      cancel_url: ritorno,
+    });
+
+    return { url: session.url };
+  }
+);
+
+/**
+ * **La mancia dal telefono**: il foglio di Stripe dentro l'app, come per i
+ * premi, con la carta gia' salvata se c'e'.
+ */
+exports.createTipPaymentIntent = onCall(
+  { secrets: [STRIPE_SECRET_KEY], memory: '512MiB' },
+  async (request) => {
+    const userId = request.auth && request.auth.uid;
+
+    if (!userId) {
+      throw new HttpsError('unauthenticated', 'Serve un account.');
+    }
+
+    if (!PUBLISHABLE_KEY) {
+      throw new HttpsError('failed-precondition', 'Pagamenti non configurati.');
+    }
+
+    const cents = importoDellaMancia(request.data && request.data.amountCents);
+    const chi = await beneficiarioDi(request.data && request.data.username);
+    const stripe = stripeClient();
+    const userRef = db.collection('users').doc(userId);
+    const user = await userRef.get();
+    const customerId = await clienteDi(stripe, userId, userRef, user);
+
+    const intent = await stripe.paymentIntents.create({
+      amount: cents,
+      currency: 'eur',
+      customer: customerId,
+      setup_future_usage: 'off_session',
+      automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
+      description: 'Mancia a CRASY',
+      metadata: {
+        kind: 'mancia',
+        userId,
+        beneficiarioId: chi.id,
+        beneficiarioUsername: chi.username,
+        amountCents: String(cents),
+      },
+    });
+
+    let ephemeralKeySecret = null;
+
+    try {
+      const ephemeralKey = await stripe.ephemeralKeys.create(
+        { customer: customerId },
+        { apiVersion: require('stripe').API_VERSION }
+      );
+
+      ephemeralKeySecret = ephemeralKey.secret;
+    } catch (errore) {
+      logger.warn('Chiave temporanea non creata: si paga senza carte salvate.', errore);
+    }
+
+    return {
+      clientSecret: intent.client_secret,
+      customerId,
+      ephemeralKeySecret,
+      publishableKey: PUBLISHABLE_KEY,
+    };
+  }
+);
+
+/**
+ * **La mancia e' arrivata.** Si scrive una volta sola (Stripe puo' mandare lo
+ * stesso evento piu' volte), e da dieci euro in su il beneficiario diventa
+ * verificato per sempre.
+ */
+async function registraMancia(metadata, paymentIntentId) {
+  if (!paymentIntentId) {
+    return;
+  }
+
+  const cents = Number(metadata.amountCents) || 0;
+  const beneficiario = metadata.beneficiarioId || '';
+  const ref = db.collection('mance').doc(String(paymentIntentId));
+
+  const nuova = await db.runTransaction(async (transaction) => {
+    const gia = await transaction.get(ref);
+
+    if (gia.exists) {
+      return false;
+    }
+
+    transaction.set(ref, {
+      userId: metadata.userId || '',
+      beneficiarioId: beneficiario,
+      beneficiarioUsername: metadata.beneficiarioUsername || '',
+      amountCents: cents,
+      verificato: cents >= MANCIA_PER_IL_VERIFICATO,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    if (beneficiario && cents >= MANCIA_PER_IL_VERIFICATO) {
+      transaction.update(db.collection('users').doc(beneficiario), {
+        verificato: true,
+        verificatoDa: 'mancia',
+        verificatoIl: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    return true;
+  });
+
+  if (nuova) {
+    logger.info(`Mancia di ${cents} centesimi per @${metadata.beneficiarioUsername}.`);
+  }
+}
+
