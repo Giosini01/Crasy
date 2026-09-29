@@ -13,8 +13,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// non vedere piu' quella persona. Dargliene una sola lo lascia con la
 /// sensazione di non aver risolto niente, e la seconda volta non segnala piu'.
 ///
-/// Si apre da ogni foto e da ogni profilo. E' sempre lo stesso foglio: chi
-/// impara a segnalare una foto sa gia' segnalare una persona.
+/// Si apre da ogni foto, da ogni commento e da ogni profilo. E' sempre lo stesso
+/// foglio: chi impara a segnalare una foto sa gia' segnalare un commento.
 Future<void> showReportSheet(
   BuildContext context,
   WidgetRef ref, {
@@ -23,6 +23,7 @@ Future<void> showReportSheet(
   required String reportedUsername,
   String challengeId = '',
   String entryId = '',
+  String commentId = '',
   /// La foto segnalata e il titolo della gara, quando ci sono.
   ///
   /// Viaggiano dentro la segnalazione perche' la dashboard deve poter mostrare
@@ -80,6 +81,7 @@ Future<void> showReportSheet(
     reason: motivo,
     challengeId: challengeId,
     entryId: entryId,
+    commentId: commentId,
     reportedUsername: reportedUsername,
     mediaUrl: mediaUrl,
     challengeTitle: challengeTitle,
@@ -126,6 +128,7 @@ class _ReportBody extends StatelessWidget {
 
     final cosa = switch (kind) {
       ReportTargetKind.entry => 'questa foto',
+      ReportTargetKind.comment => 'questo commento',
       ReportTargetKind.challenge => 'questa missione',
       ReportTargetKind.user => 'questa persona',
     };
@@ -157,7 +160,7 @@ class _ReportBody extends StatelessWidget {
           _Row(
             label: 'Blocca @$username',
             detail:
-                'Non vedi più le sue foto, e lui non vede '
+                'Non vedi più le sue foto e i suoi commenti, e lui non vede '
                 'i tuoi. Si toglie dalle impostazioni.',
             accent: true,
             onTap: () => onPick(const _Choice.block()),

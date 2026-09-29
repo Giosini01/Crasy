@@ -70,7 +70,8 @@ class ChallengeEntry {
   /// ha niente da aggiungere, e un campo obbligatorio qui costringerebbe a
   /// scrivere qualcosa pur di mandare.
   ///
-  /// Sopravvive alla gara: e' parte della foto, non del momento.
+  /// Sopravvive alla gara. I commenti no — quelli spariscono alla chiusura —
+  /// perche' sono una conversazione, e questa e' parte della foto.
   final String caption;
 
   /// Se questa foto e' la risposta a una **sfida mirata**.

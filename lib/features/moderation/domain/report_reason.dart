@@ -48,6 +48,9 @@ enum ReportTargetKind {
   /// Una foto o un video in gara.
   entry,
 
+  /// Un commento sotto una foto.
+  comment,
+
   /// Una persona.
   user,
 
