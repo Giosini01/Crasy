@@ -89,6 +89,14 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
   }
 
   @override
+  Future<void> markPermissionsSeen(String userId) {
+    return _users.doc(userId).update({
+      'permissionsSeen': true,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
   Future<void> markContactsPromptSeen(String userId) {
     return _users.doc(userId).update({
       'contactsPromptSeen': true,

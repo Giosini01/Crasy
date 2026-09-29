@@ -47,6 +47,9 @@ enum NotificationKind {
   /// se la sia mangiata.
   duelNoVerdict,
 
+  /// Un solo partecipante alla tua missione: decidi tu se ha vinto.
+  soloJudge,
+
   /// **Un amico ha lanciato una missione per il gruppo.**
   ///
   /// E' l'unica notizia "c'e' una missione nuova" che resta, e la differenza
@@ -203,6 +206,8 @@ class AppNotification {
       '@$actorUsername non ha giudicato valida la tua sfida',
     NotificationKind.duelNoVerdict =>
       'Nessuno ha giudicato la tua sfida in tempo',
+    NotificationKind.soloJudge =>
+      'Solo @$actorUsername ha partecipato alla tua missione: decidi se ha vinto',
     NotificationKind.partyMission =>
       '@$actorUsername ha lanciato una missione per il party',
     NotificationKind.win => 'Hai vinto',
@@ -237,6 +242,7 @@ class AppNotification {
     NotificationKind.duelNoVerdict ||
     NotificationKind.partyMission => NotificationGroup.duels,
     NotificationKind.win ||
+    NotificationKind.soloJudge ||
     NotificationKind.ended ||
     NotificationKind.comeback => NotificationGroup.wins,
     NotificationKind.participation ||

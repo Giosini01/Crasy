@@ -741,6 +741,11 @@ class _Face extends StatelessWidget {
         Icons.hourglass_disabled_rounded,
         palette.textPrimary,
       ),
+      // Il martelletto: tocca a te decidere.
+      NotificationKind.soloJudge => (
+        Icons.gavel_rounded,
+        palette.accent,
+      ),
       // La bandierina: una missione nuova aperta dentro il gruppo.
       NotificationKind.partyMission => (
         Icons.celebration_rounded,

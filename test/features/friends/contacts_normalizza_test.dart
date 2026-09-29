@@ -62,10 +62,27 @@ void main() {
       expect(pulito('+391234567890123456'), isNull);
     });
 
-    test('lo zero del fisso non resta davanti al prefisso', () {
-      // 081 e' Napoli: scritto cosi' in rubrica, con il +39 davanti lo zero
-      // non ci va, o il numero non esiste.
-      expect(pulito('0811234567'), '+39811234567');
+    test('in Italia lo zero del fisso resta dopo il prefisso', () {
+      // 081 e' Napoli. In Italia, diversamente dagli altri paesi, lo zero fa
+      // parte del numero anche dall'estero: +39 081…, non +39 81…. Il test
+      // di prima diceva il contrario, ed era il numero che non esiste.
+      expect(pulito('0811234567'), '+390811234567');
+    });
+
+    test("fuori dall'Italia lo zero iniziale cade", () {
+      expect(
+        ContactsRepository.normalizza('030 1234567', prefisso: '+49'),
+        '+49301234567',
+      );
+    });
+
+    test('il 39 davanti a dieci cifre e il paese scritto senza il piu', () {
+      expect(pulito('39 347 123 4567'), '+393471234567');
+    });
+
+    test('un cellulare che comincia per 39 resta un cellulare', () {
+      // 393 e' un prefisso di cellulare italiano: dieci cifre, niente paese.
+      expect(pulito('393 123 4567'), '+393931234567');
     });
   });
 }

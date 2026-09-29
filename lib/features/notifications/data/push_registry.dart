@@ -56,7 +56,7 @@ class PushRegistry {
   ///
   /// Non lancia mai: senza notifiche l'app funziona, e un errore qui non deve
   /// fermare nessuno.
-  Future<void> register(String userId) async {
+  Future<void> register(String userId, {bool chiedi = false}) async {
     if (userId.isEmpty) {
       return;
     }
@@ -79,6 +79,18 @@ class PushRegistry {
     _ultimoUtente = userId;
 
     try {
+      // **La domanda la fa la schermata dei permessi, non il login.** Prima il
+      // riquadro del sistema compariva appena entrati, prima ancora di sapere
+      // cos'e' CRASY: il no era la risposta naturale, e non si ripete piu'.
+      // Qui, se nessuno ha ancora risposto, si aspetta la spiegazione.
+      if (!chiedi) {
+        final adesso = await _messaging.getNotificationSettings();
+
+        if (adesso.authorizationStatus == AuthorizationStatus.notDetermined) {
+          return;
+        }
+      }
+
       final permesso = await _messaging.requestPermission();
 
       if (permesso.authorizationStatus == AuthorizationStatus.denied) {

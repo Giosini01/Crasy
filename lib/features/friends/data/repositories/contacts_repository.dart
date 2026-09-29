@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:crasy/features/friends/domain/entities/suggested_friend.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 
@@ -27,13 +28,23 @@ class ContactsRepository {
   /// novanta per cento dei contatti non verrebbe riconosciuto — e la sezione
   /// sembrerebbe rotta a chi ha decine di amici sull'app.
   ///
-  /// Si prende dal paese del telefono. Se non si capisce, l'Italia: e' dove
-  /// sono tutti quelli che usano CRASY oggi, e tirare a indovinare qui e'
-  /// meglio che rinunciare.
+  /// **Si prende dal proprio numero verificato**, non dalla lingua del
+  /// telefono. Prima era la lingua: un italiano con il telefono in inglese si
+  /// vedeva attaccare `+1` a tutta la rubrica, e non trovava nessuno. Solo se
+  /// il numero non c'e' si guarda il paese del telefono, e poi l'Italia.
   static String get _prefisso {
-    final paese = Platform.localeName.split('_').length > 1
-        ? Platform.localeName.split('_')[1].toUpperCase()
-        : 'IT';
+    final mio = FirebaseAuth.instance.currentUser?.phoneNumber ?? '';
+
+    if (mio.startsWith('+')) {
+      for (final codice in _codiciPaese) {
+        if (mio.startsWith(codice)) {
+          return codice;
+        }
+      }
+    }
+
+    final parti = Platform.localeName.split(RegExp('[_-]'));
+    final paese = parti.length > 1 ? parti.last.toUpperCase() : 'IT';
 
     return const {
           'IT': '+39',
@@ -42,10 +53,24 @@ class ContactsRepository {
           'ES': '+34',
           'GB': '+44',
           'CH': '+41',
+          'AT': '+43',
+          'BE': '+32',
+          'NL': '+31',
+          'PT': '+351',
+          'SM': '+378',
           'US': '+1',
         }[paese] ??
         '+39';
   }
+
+  /// I prefissi riconosciuti nel proprio numero, dai piu' lunghi ai piu'
+  /// corti: `+378` (San Marino) va provato prima di `+37`.
+  static const _codiciPaese = [
+    '+378', '+351', '+352', '+353', '+355', '+356', '+385', '+386', '+387',
+    '+30', '+31', '+32', '+33', '+34', '+36', '+39',
+    '+40', '+41', '+43', '+44', '+45', '+46', '+47', '+48', '+49',
+    '+7', '+1',
+  ];
 
   /// Il numero come lo si manda al server: solo cifre, con il paese davanti.
   ///
@@ -65,11 +90,22 @@ class ContactsRepository {
     }
 
     if (!testo.startsWith('+')) {
-      // Lo zero iniziale e' quello dei fissi scritti alla vecchia maniera:
-      // davanti al prefisso internazionale non ci va.
-      final senzaZero = testo.startsWith('0') ? testo.substring(1) : testo;
+      final paese = prefisso ?? _prefisso;
 
-      testo = '${prefisso ?? _prefisso}$senzaZero';
+      if (testo.length > 10 && testo.startsWith(paese.substring(1))) {
+        // **Prefisso scritto senza il piu'**: `39 347 1234567`. Un numero
+        // italiano ha dieci cifre, quindi un "39" davanti a dieci cifre e' il
+        // paese, non l'inizio del numero.
+        testo = '+$testo';
+      } else {
+        // Lo zero iniziale dei fissi: in Italia **resta** (+39 06…, +39
+        // 081…), negli altri paesi davanti al prefisso internazionale cade.
+        final senzaZero = paese != '+39' && testo.startsWith('0')
+            ? testo.substring(1)
+            : testo;
+
+        testo = '$paese$senzaZero';
+      }
     }
 
     final cifre = testo.substring(1);
@@ -95,7 +131,11 @@ class ContactsRepository {
     // la schermata sbagliata dopo che ha appena acconsentito.
     if (permesso != PermissionStatus.granted &&
         permesso != PermissionStatus.limited) {
-      return const [];
+      throw ContattiNegati(
+        perSempre:
+            permesso == PermissionStatus.permanentlyDenied ||
+            permesso == PermissionStatus.restricted,
+      );
     }
 
     // Si chiedono **solo i numeri**: e' il permesso che serve alla funzione, e
@@ -116,8 +156,21 @@ class ContactsRepository {
       }
     }
 
+    // Permesso dato, ma niente da confrontare: rubrica vuota, o su iPhone
+    // "solo alcuni contatti" con zero scelti. Dirgli "attiva il permesso"
+    // quando il permesso e' gia' attivo lo manda a cercare un interruttore
+    // che non c'e'.
+    if (numeri.isEmpty) {
+      throw const RubricaVuota();
+    }
+
     return numeri.toList();
   }
+
+  /// Apre le impostazioni dell'app: dopo un "no" definitivo il telefono non
+  /// ripropone piu' la domanda, e l'unica strada e' l'interruttore li'.
+  static Future<void> apriImpostazioni() =>
+      FlutterContacts.permissions.openSettings();
 
   /// I profili CRASY che corrispondono a un numero in rubrica.
   ///
@@ -137,32 +190,50 @@ class ContactsRepository {
 
     final numeri = await _numeriInRubrica();
 
-    if (numeri.isEmpty) {
-      throw const ContattiNegati();
-    }
+    // **A pezzi da duemila.** Il server ne accetta al massimo tanti per volta,
+    // e una rubrica piu' grande faceva fallire tutta la ricerca con un errore
+    // generico: proprio chi ha piu' contatti non trovava nessuno.
+    final perId = <String, SuggestedFriend>{};
 
-    final risposta = await _functions
-        .httpsCallable('trovaDallaRubrica')
-        .call<Map<String, dynamic>>({'numeri': numeri});
+    for (var da = 0; da < numeri.length; da += 2000) {
+      final fino = da + 2000 < numeri.length ? da + 2000 : numeri.length;
+      final risposta = await _functions
+          .httpsCallable('trovaDallaRubrica')
+          .call<Map<String, dynamic>>({'numeri': numeri.sublist(da, fino)});
 
-    final trovati = risposta.data['trovati'] as List<dynamic>? ?? const [];
+      final trovati = risposta.data['trovati'] as List<dynamic>? ?? const [];
 
-    return <SuggestedFriend>[
-      for (final trovato in trovati.whereType<Map<Object?, Object?>>())
-        SuggestedFriend(
+      for (final trovato in trovati.whereType<Map<Object?, Object?>>()) {
+        final chi = SuggestedFriend(
           userId: trovato['userId'] as String? ?? '',
           username: trovato['username'] as String? ?? '',
           displayName: trovato['displayName'] as String? ?? '',
           photoUrl: trovato['photoUrl'] as String? ?? '',
           stato: SuggestedStato.leggi(trovato['stato'] as String?),
-        ),
-    ]..removeWhere((chi) => chi.userId.isEmpty);
+        );
+
+        if (chi.userId.isNotEmpty) {
+          perId[chi.userId] = chi;
+        }
+      }
+    }
+
+    return perId.values.toList();
   }
 }
 
-/// Non ci ha fatto guardare la rubrica — o l'ha svuotata.
+/// Non ci ha fatto guardare la rubrica.
 class ContattiNegati implements Exception {
-  const ContattiNegati();
+  const ContattiNegati({this.perSempre = false});
+
+  /// Il telefono non fara' piu' la domanda: serve l'interruttore nelle
+  /// impostazioni.
+  final bool perSempre;
+}
+
+/// Ci ha fatto guardare, ma in rubrica non c'e' nessun numero da confrontare.
+class RubricaVuota implements Exception {
+  const RubricaVuota();
 }
 
 /// Ci si prova dal browser, dove una rubrica non esiste.

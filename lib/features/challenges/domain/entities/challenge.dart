@@ -45,6 +45,8 @@ class Challenge {
     this.duelStatus = DuelStatus.pending,
     this.duelVerdict = DuelVerdict.none,
     this.respondedAt,
+    this.attesaGiudizio = false,
+    this.giudizioEntro,
   });
 
   /// L'identificativo dell'account di CRASY.
@@ -329,6 +331,14 @@ class Challenge {
   /// Quando ha risposto. Nullo finche' non risponde.
   final DateTime? respondedAt;
 
+  /// **Un solo partecipante: la missione aspetta il giudizio di chi l'ha
+  /// lanciata.** Con una foto sola in gara le fiamme non decidono niente: e'
+  /// il creatore a dire se ha vinto. Lo scrive il server alla scadenza.
+  final bool attesaGiudizio;
+
+  /// Fin quando il creatore puo' decidere. Dopo, vince il partecipante.
+  final DateTime? giudizioEntro;
+
   /// Lo stato da mostrare, orologio compreso.
   ///
   /// Scaduta non sta sul database: dipende da che ora e', e nessuno andrebbe a
@@ -549,6 +559,8 @@ class Challenge {
     DuelStatus? duelStatus,
     DuelVerdict? duelVerdict,
     DateTime? respondedAt,
+    bool? attesaGiudizio,
+    DateTime? giudizioEntro,
   }) {
     return Challenge(
       id: id ?? this.id,
@@ -581,6 +593,8 @@ class Challenge {
       duelStatus: duelStatus ?? this.duelStatus,
       duelVerdict: duelVerdict ?? this.duelVerdict,
       respondedAt: respondedAt ?? this.respondedAt,
+      attesaGiudizio: attesaGiudizio ?? this.attesaGiudizio,
+      giudizioEntro: giudizioEntro ?? this.giudizioEntro,
     );
   }
 
@@ -608,7 +622,8 @@ class Challenge {
         other.prizeStatus == prizeStatus &&
         other.targetUserId == targetUserId &&
         other.duelStatus == duelStatus &&
-        other.duelVerdict == duelVerdict;
+        other.duelVerdict == duelVerdict &&
+        other.attesaGiudizio == attesaGiudizio;
   }
 
   @override
@@ -631,5 +646,6 @@ class Challenge {
     targetUserId,
     duelStatus,
     duelVerdict,
+    attesaGiudizio,
   );
 }

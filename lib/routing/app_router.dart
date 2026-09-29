@@ -18,6 +18,7 @@ import 'package:crasy/features/home/presentation/pages/splash_page.dart';
 import 'package:crasy/features/legal/presentation/pages/consent_page.dart';
 import 'package:crasy/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:crasy/features/onboarding/presentation/pages/onboarding_page.dart';
+import 'package:crasy/features/onboarding/presentation/pages/permissions_page.dart';
 import 'package:crasy/features/payments/presentation/pages/payout_details_page.dart';
 import 'package:crasy/features/payments/presentation/pages/wallet_page.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
@@ -113,6 +114,14 @@ final sessionLandingRouteProvider = Provider<String>((ref) {
       // Dal browser si tira dritto **senza segnare niente**: la schermata non
       // avrebbe nessuna rubrica da leggere, e segnarla come vista vorrebbe
       // dire non mostrarla mai piu' nemmeno sul telefono, dove serve.
+      // **I permessi, spiegati, prima di "chi conosci".** La schermata dei
+      // contatti ha bisogno del permesso sui contatti: chiederlo qui, con le
+      // altre due righe e il loro perche', vuol dire arrivarci con la
+      // risposta gia' data. Solo al primo ingresso, come chi conosci.
+      if (!kIsWeb && !profile.permissionsSeen && _appenaIscritto(profile)) {
+        return AppRoutes.permissions;
+      }
+
       if (!kIsWeb && !profile.contactsPromptSeen && _appenaIscritto(profile)) {
         return AppRoutes.whoYouKnow;
       }
@@ -298,6 +307,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       _tabRoute(AppRoutes.verifyPhone, const VerifyPhonePage()),
       _tabRoute(AppRoutes.consents, const ConsentPage()),
       _tabRoute(AppRoutes.tutorial, const TutorialPage()),
+      _tabRoute(AppRoutes.permissions, const PermissionsPage()),
       _tabRoute(AppRoutes.whoYouKnow, const WhoYouKnowPage()),
       for (final tab in AppRoutes.tabs)
         _tabRoute(tab, HomePage(location: tab), key: _homeShellKey),

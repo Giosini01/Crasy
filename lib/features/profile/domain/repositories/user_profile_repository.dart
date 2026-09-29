@@ -54,6 +54,9 @@ abstract class UserProfileRepository {
   /// Segna che la schermata di chi conosci e' gia' stata mostrata.
   Future<void> markContactsPromptSeen(String userId);
 
+  /// Segna che la schermata dei permessi e' gia' stata mostrata.
+  Future<void> markPermissionsSeen(String userId);
+
   /// Salva il numero di telefono verificato.
   ///
   /// Il numero arriva da Firebase, che l'ha appena legato all'account: qui si

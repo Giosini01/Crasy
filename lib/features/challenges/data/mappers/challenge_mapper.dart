@@ -54,6 +54,8 @@ abstract final class ChallengeMapper {
       duelStatus: DuelStatus.fromName(data['duelStatus'] as String?),
       duelVerdict: DuelVerdict.fromName(data['duelVerdict'] as String?),
       respondedAt: (data['respondedAt'] as Timestamp?)?.toDate(),
+      attesaGiudizio: data['attesaGiudizio'] as bool? ?? false,
+      giudizioEntro: (data['giudizioEntro'] as Timestamp?)?.toDate(),
     );
   }
 

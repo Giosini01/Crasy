@@ -867,6 +867,69 @@ exports.purgeOldChallenges = onSchedule('every 60 minutes', async () => {
  */
 const ORE_PER_GIUDICARE = 24 * 60 * 60 * 1000;
 
+/** Quanto aspetta una missione con un solo partecipante il giudizio del creatore. */
+const ORE_PER_IL_SOLO = 48 * 60 * 60 * 1000;
+
+/** Dice a chi ha lanciato la missione che tocca a lui decidere. */
+async function avvisaIlCreatoreDelSolo(challenge, entry) {
+  const creatore = challenge.get('createdByUserId');
+
+  if (!creatore) {
+    return;
+  }
+
+  try {
+    await db
+      .collection('users')
+      .doc(creatore)
+      .collection('notifications')
+      .doc('solo_' + challenge.id)
+      .set({
+        kind: 'soloJudge',
+        actorId: entry.get('userId') || '',
+        actorUsername: entry.get('authorName') || '',
+        challengeId: challenge.id,
+        challengeTitle: challenge.get('title') || '',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+  } catch (error) {
+    logger.error('avviso al creatore del solo non partito', { challenge: challenge.id, error });
+  }
+}
+
+/**
+ * **Il creatore dice se l'unico partecipante ha vinto.**
+ *
+ * Solo lui, solo mentre la missione aspetta il suo giudizio, una volta.
+ */
+exports.giudicaIlSolo = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', "Serve aver fatto l'accesso.");
+  }
+
+  const challengeId = String(request.data?.challengeId || '');
+  const vale = request.data?.vale === true;
+  const challenge = await db.collection('challenges').doc(challengeId).get();
+
+  if (!challengeId || !challenge.exists) {
+    throw new HttpsError('not-found', "Questa missione non c'e'.");
+  }
+
+  if (challenge.get('createdByUserId') !== request.auth.uid) {
+    throw new HttpsError('permission-denied', 'Decide solo chi ha lanciato la missione.');
+  }
+
+  const chiusa = challenge.get('winnerEntryId');
+
+  if (!challenge.get('attesaGiudizio') || (chiusa !== null && chiusa !== undefined)) {
+    return { giudicata: false, motivo: 'non-in-attesa' };
+  }
+
+  await closeChallenge(challenge, { giudizio: vale ? 'vale' : 'nonvale' });
+
+  return { giudicata: true };
+});
+
 /**
  * Chiude una sfida mirata, che **non si chiude come le altre gare**.
  *
@@ -1124,7 +1187,7 @@ async function avvisaSfidaSenzaGiudizio(challenge) {
 /**
  * Chiude una singola challenge e proclama chi ha vinto.
  */
-async function closeChallenge(challenge) {
+async function closeChallenge(challenge, { giudizio } = {}) {
   // **Una sfida mirata prende un'altra strada, e non torna qui.**
   //
   // Tutto quello che viene dopo — la classifica delle fiamme, il vincitore, il
@@ -1183,6 +1246,57 @@ async function closeChallenge(challenge) {
     return;
   }
 
+  // **Un partecipante solo: decide chi ha lanciato la missione.**
+  //
+  // Con una foto sola in gara la regola delle fiamme proclama vincitore
+  // chiunque abbia mandato qualcosa, anche zero fiamme, anche una foto che
+  // con la missione non c'entra niente. Qui la gara si ferma e chiede a chi
+  // l'ha lanciata: ha vinto o no? Ha quarantotto ore. Se non risponde, vince
+  // il partecipante: sparire non deve bastare per riavere i soldi.
+  if (eligible.length === 1 && giudizio === undefined) {
+    const entro = challenge.get('giudizioEntro');
+
+    if (!entro) {
+      await challenge.ref.update({
+        attesaGiudizio: true,
+        giudizioEntro: admin.firestore.Timestamp.fromMillis(Date.now() + ORE_PER_IL_SOLO),
+      });
+      await avvisaIlCreatoreDelSolo(challenge, eligible[0]);
+      logger.info(`Challenge ${challenge.id}: un solo partecipante, decide il creatore.`);
+
+      return;
+    }
+
+    if (entro.toMillis() > Date.now()) {
+      return;
+    }
+
+    logger.info(`Challenge ${challenge.id}: nessun giudizio in tempo, vince il partecipante.`);
+  }
+
+  if (giudizio === 'nonvale') {
+    await challenge.ref.update({
+      winnerEntryId: '',
+      attesaGiudizio: false,
+      giudizioSolo: 'nonvale',
+    });
+
+    // Torna il premio; le spese restano, come quando si boccia una sfida a
+    // un amico: dire "non vale" per riavere tutto gratis sarebbe troppo comodo.
+    if (payments) {
+      try {
+        await payments.refundChallenge(challenge.id, { soloIlPremio: true });
+      } catch (error) {
+        logger.error(`Challenge ${challenge.id}: rimborso non partito.`, error);
+      }
+    }
+
+    await avvisaCheEFinita(challenge, entries.docs);
+    logger.info(`Challenge ${challenge.id}: il creatore dice che non ha vinto nessuno.`);
+
+    return;
+  }
+
   const ranked = eligible.slice().sort((a, b) => {
     const byVotes = (b.get('votes') || 0) - (a.get('votes') || 0);
 
@@ -1225,6 +1339,9 @@ async function closeChallenge(challenge) {
   // quando la partecipazione non c'e' piu'.
   const batch = db.batch();
   batch.update(challenge.ref, {
+    ...(challenge.get('attesaGiudizio')
+      ? { attesaGiudizio: false, giudizioSolo: giudizio === 'vale' ? 'vale' : 'scaduto' }
+      : {}),
     winnerEntryId: winner.id,
     winnerUserId: winner.get('userId') || null,
     winnerUsername: winner.get('authorName') || '',
@@ -1644,6 +1761,7 @@ exports.sendPushOnNotification = onDocumentCreated(
       duelApproved: `@${chi} dice che ce l'hai fatta: sfida vinta`,
       duelRejected: `@${chi} non ha giudicato valida la tua sfida`,
       duelNoVerdict: 'Nessuno ha giudicato la tua sfida in tempo',
+      soloJudge: `Solo @${chi} ha partecipato alla tua missione: decidi se ha vinto`,
       partyMission: gara
         ? `@${chi} ha lanciato una missione: ${gara}`
         : `@${chi} ha lanciato una missione per il party`,

@@ -297,6 +297,43 @@ void main() {
     expect(container.read(sessionLandingRouteProvider), AppRoutes.tutorial);
   });
 
+  test('i permessi si spiegano una volta, dopo il giro di presentazione', () async {
+    // **Sta dopo il tutorial e prima delle gare**, ed e' l'unico punto in cui
+    // ha senso: uno ha appena finito di iscriversi, ha letto le regole, e la
+    // schermata successiva sarebbe un elenco di sfide fra sconosciuti.
+    //
+    // Il muro cade da solo appena la schermata e' stata vista — che si sia
+    // detto di si' o che si sia saltata. Se questo test sparisse, il modo in
+    // cui ce ne accorgeremmo sarebbe qualcuno bloccato su quella schermata a
+    // ogni avvio.
+    final container = containerWith(
+      FakeAuthRepository(currentUser: user),
+      overrides: [
+        currentUserProfileProvider.overrideWith(
+          (ref) => Stream.value(
+            UserProfile(
+              id: 'user-1',
+              username: 'martina',
+              birthDate: DateTime(2000, 1, 1),
+              createdAt: DateTime.utc(2026, 10, 1),
+              updatedAt: null,
+              onboardingCompleted: true,
+              legalVersion: LegalTexts.version,
+              legalAcceptedAt: DateTime(2026),
+              phoneVerified: true,
+              tutorialSeen: true,
+            ),
+          ),
+        ),
+      ],
+    );
+
+    await container.read(currentUserProfileProvider.future);
+    await container.pump();
+
+    expect(container.read(sessionLandingRouteProvider), AppRoutes.permissions);
+  });
+
   test('chi conosci qui si vede una volta, dopo il giro di presentazione', () async {
     // **Sta dopo il tutorial e prima delle gare**, ed e' l'unico punto in cui
     // ha senso: uno ha appena finito di iscriversi, ha letto le regole, e la
@@ -322,6 +359,7 @@ void main() {
               legalAcceptedAt: DateTime(2026),
               phoneVerified: true,
               tutorialSeen: true,
+              permissionsSeen: true,
             ),
           ),
         ),

@@ -1,8 +1,8 @@
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
-import 'package:crasy/features/friends/data/repositories/contacts_repository.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/suggested_friend_row.dart';
+import 'package:crasy/features/friends/presentation/widgets/suggested_problem.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -112,16 +112,11 @@ class _Pannello extends ConsumerWidget {
           child: CircularProgressIndicator(strokeWidth: 2, color: palette.accent),
         ),
       );
-    } else if (stato.hasError && stato.error is ContattiNegati) {
-      dentro = Text(
-        'Per vedere chi conosci serve il permesso sui contatti: si accende '
-        'dalle impostazioni del telefono, alla voce CRASY.',
-        style: context.texts.bodySmall?.copyWith(color: palette.textFaint),
-      );
     } else if (stato.hasError) {
-      dentro = Text(
-        'Qualcosa non ha funzionato. Riprova fra poco.',
-        style: context.texts.bodySmall?.copyWith(color: palette.textFaint),
+      dentro = SuggestedProblem(
+        errore: stato.error,
+        piccolo: true,
+        onRiprova: () => ref.read(suggestedFriendsProvider.notifier).cerca(),
       );
     } else {
       final trovati = stato.valueOrNull ?? const [];

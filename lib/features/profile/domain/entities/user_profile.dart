@@ -27,6 +27,7 @@ class UserProfile {
     this.tutorialSeen = false,
     this.phoneVerified = false,
     this.contactsPromptSeen = false,
+    this.permissionsSeen = false,
   });
 
   /// **Il profilo ufficiale di CRASY.**
@@ -132,6 +133,9 @@ class UserProfile {
   /// smette di leggerla.
   final bool contactsPromptSeen;
 
+  /// Ha gia' visto la schermata che spiega i permessi, al primo ingresso.
+  final bool permissionsSeen;
+
   /// Ha verificato il numero.
   /// Se ha accettato **la versione che gira adesso**.
   ///
@@ -183,6 +187,7 @@ class UserProfile {
     bool? tutorialSeen,
     bool? phoneVerified,
     bool? contactsPromptSeen,
+    bool? permissionsSeen,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? onboardingCompleted,
@@ -202,6 +207,7 @@ class UserProfile {
       tutorialSeen: tutorialSeen ?? this.tutorialSeen,
       phoneVerified: phoneVerified ?? this.phoneVerified,
       contactsPromptSeen: contactsPromptSeen ?? this.contactsPromptSeen,
+      permissionsSeen: permissionsSeen ?? this.permissionsSeen,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
@@ -226,7 +232,8 @@ class UserProfile {
         other.updatedAt == updatedAt &&
         other.onboardingCompleted == onboardingCompleted &&
         other.phoneVerified == phoneVerified &&
-        other.contactsPromptSeen == contactsPromptSeen;
+        other.contactsPromptSeen == contactsPromptSeen &&
+        other.permissionsSeen == permissionsSeen;
   }
 
   @override
@@ -243,5 +250,6 @@ class UserProfile {
     onboardingCompleted,
     phoneVerified,
     contactsPromptSeen,
+    permissionsSeen,
   );
 }

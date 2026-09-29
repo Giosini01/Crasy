@@ -38,23 +38,46 @@ class _SuggestedFriendRowState extends ConsumerState<SuggestedFriendRow> {
 
   SuggestedStato get _stato => _adesso ?? widget.suggested.stato;
 
-  Future<void> _chiedi() async {
-    setState(() => _adesso = SuggestedStato.inviata);
+  Future<void> _chiedi() =>
+      _prova(SuggestedStato.inviata, () {
+        return ref.read(friendActionsProvider).send(widget.suggested.userId);
+      });
 
-    await ref.read(friendActionsProvider).send(widget.suggested.userId);
-  }
+  Future<void> _accetta() =>
+      _prova(SuggestedStato.amico, () {
+        return ref
+            .read(friendActionsProvider)
+            .accept(
+              FriendRequest(
+                fromUserId: widget.suggested.userId,
+                fromUsername: widget.suggested.username,
+              ),
+            );
+      });
 
-  Future<void> _accetta() async {
-    setState(() => _adesso = SuggestedStato.amico);
+  /// Il tasto cambia subito, e **torna com'era se non e' andata**. Prima
+  /// restava su INVIATA anche quando la richiesta non era partita: uno
+  /// aspettava una risposta che l'altro non avrebbe mai visto.
+  Future<void> _prova(
+    SuggestedStato dopo,
+    Future<void> Function() azione,
+  ) async {
+    final prima = _adesso;
 
-    await ref
-        .read(friendActionsProvider)
-        .accept(
-          FriendRequest(
-            fromUserId: widget.suggested.userId,
-            fromUsername: widget.suggested.username,
-          ),
-        );
+    setState(() => _adesso = dopo);
+
+    try {
+      await azione();
+    } on Object {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() => _adesso = prima);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Non è partita. Riprova.')),
+      );
+    }
   }
 
   @override

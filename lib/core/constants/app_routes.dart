@@ -38,6 +38,9 @@ abstract final class AppRoutes {
   static const tutorial = '/come-funziona';
   static const whoYouKnow = '/chi-conosci';
 
+  /// I permessi spiegati prima di chiederli, al primo ingresso.
+  static const permissions = '/permessi';
+
   // --- Le tre schede ---------------------------------------------------------
 
   /// La home: le challenge aperte.

@@ -614,6 +614,11 @@ class _EntriesState extends ConsumerState<_Entries> {
       return _DuelJudgement(challenge: challenge, entry: entries.first);
     }
 
+    // **Un partecipante solo: aspetta il giudizio di chi l'ha lanciata.**
+    if (challenge.attesaGiudizio && challenge.winnerEntryId == null) {
+      return _SoloJudgement(challenge: challenge, entry: entries.first);
+    }
+
     // A challenge chiusa vince una foto sola, e va vista grande: mostrarla
     // nella stessa griglia da due colonne delle altre significherebbe non
     // proclamare nessuno.
@@ -1461,6 +1466,113 @@ class _DuelJudgement extends ConsumerWidget {
                       ),
                 child: Text(
                   'NON VALE',
+                  style: texts.labelSmall?.copyWith(color: palette.textFaint),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// **Una missione con un solo partecipante, finita: ha vinto o no?**
+///
+/// Con una foto sola in gara le fiamme non decidono niente — vincerebbe
+/// chiunque abbia mandato qualcosa. Decide chi ha lanciato la missione, entro
+/// quarantotto ore; se non decide, vince il partecipante. Agli altri si dice
+/// solo che si aspetta.
+class _SoloJudgement extends ConsumerStatefulWidget {
+  const _SoloJudgement({required this.challenge, required this.entry});
+
+  final Challenge challenge;
+  final ChallengeEntry entry;
+
+  @override
+  ConsumerState<_SoloJudgement> createState() => _SoloJudgementState();
+}
+
+class _SoloJudgementState extends ConsumerState<_SoloJudgement> {
+  bool _busy = false;
+
+  Future<void> _decidi({required bool vale}) async {
+    setState(() => _busy = true);
+
+    try {
+      await ref
+          .read(firebaseFunctionsProvider)
+          .httpsCallable('giudicaIlSolo')
+          .call<Object?>({'challengeId': widget.challenge.id, 'vale': vale});
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Non siamo riusciti a salvarlo. Riprova.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+    final meId = ref.watch(currentUserIdProvider);
+    final mio = meId != null && meId == widget.challenge.createdByUserId;
+    final entro = widget.challenge.giudizioEntro;
+    final ore = entro?.difference(DateTime.now()).inHours.clamp(0, 48);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.gavel_rounded, size: 16, color: palette.accent),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                mio
+                    ? 'Ha partecipato solo @${widget.entry.authorName}: decidi tu '
+                        'se ha vinto${ore == null ? '' : ' (hai ancora $ore ore)'}.'
+                    : 'Un solo partecipante: decide chi ha lanciato la missione.',
+                style: texts.bodySmall?.copyWith(color: palette.accent),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        EntryTile(entry: widget.entry, showChallenge: false),
+        if (mio) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            'TOCCA A TE',
+            style: texts.labelSmall?.copyWith(color: palette.textFaint),
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            'Se ha vinto, il premio va a lui. Se non ha vinto, ti torna il '
+            'premio. Se non decidi entro il tempo, vince lui.',
+            style: texts.bodySmall?.copyWith(color: palette.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: _busy ? null : () => _decidi(vale: true),
+                  child: const Text('HA VINTO'),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              TextButton(
+                onPressed: _busy ? null : () => _decidi(vale: false),
+                child: Text(
+                  'NON HA VINTO',
                   style: texts.labelSmall?.copyWith(color: palette.textFaint),
                 ),
               ),

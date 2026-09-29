@@ -2,9 +2,9 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
-import 'package:crasy/features/friends/data/repositories/contacts_repository.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/suggested_friend_row.dart';
+import 'package:crasy/features/friends/presentation/widgets/suggested_problem.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -63,7 +63,9 @@ class _WhoYouKnowPageState extends ConsumerState<WhoYouKnowPage> {
     final texts = context.texts;
     final stato = ref.watch(suggestedFriendsProvider);
     final trovati = stato.valueOrNull;
-    final negato = stato.hasError && stato.error is ContattiNegati;
+    // Qualunque problema, non solo il permesso negato: prima un errore di rete
+    // lasciava la schermata muta, con il tasto che tornava a "guarda chi c'e'".
+    final negato = stato.hasError;
 
     return Scaffold(
       body: AppBackground(
@@ -187,14 +189,7 @@ class _Corpo extends StatelessWidget {
     if (negato) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-        child: Text(
-          'Va bene lo stesso. Se cambi idea, il permesso si accende dalle '
-          'impostazioni del telefono alla voce CRASY, e li ritrovi nella '
-          'pagina degli amici.',
-          style: context.texts.bodyMedium?.copyWith(
-            color: palette.textFaint,
-          ),
-        ),
+        child: SuggestedProblem(errore: stato.error, onRiprova: onCerca),
       );
     }
 
