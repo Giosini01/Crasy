@@ -1888,6 +1888,12 @@ exports.sendPushOnNotification = onDocumentCreated(
 exports.sendPushOnFriendRequest = onDocumentCreated(
   'users/{userId}/friendRequests/{fromId}',
   async (event) => {
+    // Chi torna fra i follower dopo un'amicizia finita non ha appena
+    // iniziato a seguire: seguiva gia'. Nessun avviso.
+    if (event.data?.get('tornato') === true) {
+      return;
+    }
+
     // Chi l'ha mandata non si dice: uno schermo bloccato lo leggono anche gli
     // altri, ed e' la stessa regola che vale per le fiamme e i commenti. Il
     // nome sta in campanella, che e' anche il posto dove si accetta.
@@ -1955,8 +1961,57 @@ exports.contaFollowerAmici = onDocumentWritten(
   async (event) => {
     const quanto = nataOMorta(event);
 
-    if (quanto !== 0) {
-      await sposta(event.params.userId, 'followersCount', quanto);
+    if (quanto === 0) {
+      return;
+    }
+
+    const { userId, friendId } = event.params;
+
+    await sposta(userId, 'followersCount', quanto);
+
+    if (quanto > 0) {
+      return;
+    }
+
+    // **Un'amicizia finita non vuol dire che nessuno segue piu' nessuno.** Chi
+    // smette di seguire un amico toglie la propria riga in `following`; chi
+    // non l'ha tolta segue ancora, e torna fra i follower dell'altro — da
+    // ricambiare, se cambia idea. Senza, sparirebbe dall'elenco pur seguendo.
+    try {
+      const segueAncora = await db
+        .collection('users')
+        .doc(friendId)
+        .collection('following')
+        .doc(userId)
+        .get();
+
+      if (!segueAncora.exists) {
+        return;
+      }
+
+      const richiesta = db
+        .collection('users')
+        .doc(userId)
+        .collection('friendRequests')
+        .doc(friendId);
+
+      // `create` e non `set`: se la riga c'e' gia' non la si tocca, e non
+      // riparte una seconda notifica.
+      const chiSegue = await db.collection('users').doc(friendId).get();
+
+      await richiesta.create({
+        fromUsername: String(chiSegue.get('username') || ''),
+        // La data dell'amicizia, non adesso: e' un follower di prima, e non
+        // deve riaccendere il pallino dei follower nuovi.
+        createdAt:
+          event.data?.before?.get('since') ||
+          admin.firestore.FieldValue.serverTimestamp(),
+        tornato: true,
+      });
+    } catch (error) {
+      if (error.code !== 6) {
+        logger.error('follower non rimesso', { userId, friendId, error });
+      }
     }
   }
 );

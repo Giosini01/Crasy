@@ -376,9 +376,16 @@ class FriendActions {
     );
   }
 
-  /// **Non siete piu' amici**, e nessuno dei due segue piu' l'altro: togliere
-  /// un amico e restare a guardarlo da fuori sarebbe una cosa a meta'.
-  Future<void> remove(String otherId) async {
+  /// **Smetti di seguire un amico.** Non siete piu' amici; lui pero'
+  /// continua a seguire te, come quando si smette di seguire qualcuno su
+  /// qualunque social — l'amicizia era il seguirsi a vicenda, e adesso lo fa
+  /// uno solo.
+  ///
+  /// **L'ordine conta.** Prima sparisce la mia riga in `following`, poi
+  /// l'amicizia: e' guardando quella riga che il server capisce chi dei due
+  /// segue ancora l'altro, e rimette l'altro fra i miei follower. Al
+  /// contrario, per un istante sembrerebbe che io lo segua ancora.
+  Future<void> unfollowFriend(String otherId) async {
     final meId = _meId;
     final repository = _repository;
 
@@ -386,10 +393,9 @@ class FriendActions {
       return;
     }
 
-    await repository.removeFriend(meId: meId, otherId: otherId);
     await repository.unmarkFollowing(followerId: meId, otherId: otherId);
     await repository.removeSeguito(meId: meId, otherId: otherId);
-    await repository.unmarkFollowing(followerId: otherId, otherId: meId);
+    await repository.removeFriend(meId: meId, otherId: otherId);
   }
 }
 

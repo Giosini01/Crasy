@@ -6,6 +6,7 @@ import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
+import 'package:crasy/features/friends/presentation/widgets/unfollow_dialog.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -114,12 +115,23 @@ class _FollowingRow extends ConsumerWidget {
               ),
             ),
           ),
-          // Smettere si fa da qui solo con chi non ti segue: togliere un amico
-          // e' una cosa piu' grossa, e si fa dal suo profilo.
-          if (stato != FriendshipStatus.friends)
-            TextButton(
-              onPressed: () => ref.read(friendActionsProvider).cancel(userId),
-              child: Text(
+          // Si smette anche con gli amici: li' si chiede prima conferma, perche'
+          // si perde l'amicizia. Con chi non ti segue e' un tocco e basta.
+          TextButton(
+            onPressed: () async {
+              final azioni = ref.read(friendActionsProvider);
+
+              if (stato != FriendshipStatus.friends) {
+                await azioni.cancel(userId);
+
+                return;
+              }
+
+              if (await confermaSmettiDiSeguire(context, username: nome)) {
+                await azioni.unfollowFriend(userId);
+              }
+            },
+            child: Text(
                 'Smetti',
                 style: texts.titleMedium?.copyWith(color: palette.textFaint),
               ),

@@ -15,6 +15,7 @@ import 'package:crasy/features/challenges/presentation/providers/challenge_provi
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
+import 'package:crasy/features/friends/presentation/widgets/unfollow_dialog.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/moderation/domain/report_reason.dart';
 import 'package:crasy/features/moderation/presentation/widgets/report_sheet.dart';
@@ -391,7 +392,14 @@ class _FriendshipAction extends ConsumerWidget {
                 ),
                 const Spacer(),
                 TextButton(
-                  onPressed: () => actions.remove(profile.id),
+                  onPressed: () async {
+                    if (await confermaSmettiDiSeguire(
+                      context,
+                      username: profile.username,
+                    )) {
+                      await actions.unfollowFriend(profile.id);
+                    }
+                  },
                   child: Text(
                     'Smetti',
                     style: context.texts.titleMedium?.copyWith(
