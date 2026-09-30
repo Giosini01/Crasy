@@ -7,6 +7,8 @@ import 'package:crasy/features/notifications/data/icon_badge.dart';
 import 'package:crasy/features/notifications/data/push_registry.dart';
 import 'package:crasy/features/notifications/data/repositories/firestore_notifications_repository.dart';
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
+import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
+import 'package:crasy/routing/app_router.dart' show mostraIPermessi;
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -132,7 +134,16 @@ final notificationsProvider = Provider<List<AppNotification>>((ref) {
 /// preciso non aiuta a decidere niente e un pallino largo mezza icona da'
 /// fastidio.
 final unreadNotificationsProvider = Provider<int>((ref) {
-  final seenAt = ref.watch(notificationsSeenAtProvider).valueOrNull;
+  final letteFinoA = ref.watch(notificationsSeenAtProvider);
+
+  // **Finche' non si sa quando si e' guardato l'ultima volta, zero.** Senza
+  // quella data ogni notifica conta come nuova: all'avvio il numero rosso si
+  // accendeva su tutto per un attimo, e poi calava da solo.
+  if (!letteFinoA.hasValue) {
+    return 0;
+  }
+
+  final seenAt = letteFinoA.valueOrNull;
 
   return ref
       .watch(notificationsProvider)
@@ -206,7 +217,28 @@ final pushRegistrationProvider = Provider<void>((ref) {
     return;
   }
 
-  unawaited(registro.register(userId));
+  // **Il permesso si chiede qui a chi non passera' dalla schermata dei
+  // permessi.** Quella schermata la vede solo chi si e' iscritto dopo che
+  // esisteva; tutti gli altri, su un iPhone dove la domanda non era mai stata
+  // fatta — app reinstallata, telefono nuovo — restavano con il permesso "non
+  // deciso" per sempre: nessun indirizzo, nessuna notifica, e nessun modo di
+  // accorgersene. Chi invece ci passera' aspetta la spiegazione, come prima.
+  unawaited(() async {
+    var chiedi = false;
+
+    try {
+      // Con un limite: senza rete il profilo puo' non arrivare mai, e la
+      // registrazione non deve restare appesa ad aspettarlo.
+      final profilo = await ref
+          .read(currentUserProfileProvider.future)
+          .timeout(const Duration(seconds: 10));
+      chiedi = profilo != null && !mostraIPermessi(profilo);
+    } on Object catch (_) {
+      // Senza profilo non si chiede: al peggio ci pensa la schermata.
+    }
+
+    await registro.register(userId, chiedi: chiedi);
+  }());
 });
 
 /// Un tocco su una notifica arrivata sullo schermo bloccato.
@@ -268,88 +300,11 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
     return;
   }
 
-  PushTap dove(RemoteMessage messaggio, {required bool daFermo}) {
-    final kind = messaggio.data['kind'] ?? '';
-
-    // Una missione nuova o la sfida del giorno riguardano **una gara**: si va
-    // dove stanno le gare, e non c'e' niente da aprire sopra.
-    if (kind == 'newChallenge' || kind == 'daily') {
-      return (
-        scheda: AppRoutes.challenges,
-        apri: null,
-        evidenzia: null,
-        notificationId: null,
-        daFermo: daFermo,
-        quando: DateTime.now().microsecondsSinceEpoch,
-      );
-    }
-
-    // **Una gara finita porta alla gara, non in campanella.**
-    //
-    // E' l'unica notifica che non racconta un fatto ma ne annuncia uno: dice
-    // che il tempo e' scaduto e **non dice chi ha vinto**. Il finale sta nella
-    // missione, dove si apre con il rullo di tamburi — portare chi tocca in
-    // campanella vorrebbe dire fargli leggere "la missione e' finita" e poi
-    // cercarsi da solo dove si guarda com'e' andata.
-    // **Una sfida porta alla sfida.** Le quattro notizie delle sfide mirate
-    // riguardano una missione precisa, e quella missione e' il posto dove si
-    // accetta, si rifiuta o si va a vedere com'e' andata. Mandare in campanella
-    // chi ha toccato "@mario ti ha sfidato" vorrebbe dire fargli cercare da
-    // solo dove si risponde.
-    if (kind == 'partyMission' ||
-        kind == 'duel' ||
-        kind == 'duelAccepted' ||
-        kind == 'duelDeclined' ||
-        kind == 'duelCompleted' ||
-        kind == 'duelApproved' ||
-        kind == 'duelRejected' ||
-        kind == 'duelNoVerdict' ||
-        kind == 'soloJudge' ||
-        kind == 'ended') {
-      final gara = messaggio.data['challengeId'] ?? '';
-
-      if (gara.isNotEmpty) {
-        return (
-          // Sotto la sfida si posa il party e non la home: e' la scheda da cui
-          // quella missione viene, ed e' dove si torna chiudendola.
-          scheda: kind == 'ended'
-              ? AppRoutes.challenges
-              : AppRoutes.friendsActivity,
-          apri: AppRoutes.challengeDetailOf(gara),
-          evidenzia: null,
-          notificationId: messaggio.data['notificationId'],
-          daFermo: daFermo,
-          quando: DateTime.now().microsecondsSinceEpoch,
-        );
-      }
-    }
-
-    // **Una richiesta di amicizia non finisce in campanella.** Non c'e' una
-    // riga da accendere: c'e' una scheda con i tasti per accettare o rifiutare,
-    // ed e' li' che serve arrivare. Portare in campanella chi ha toccato quella
-    // notifica vorrebbe dire fargli cercare da solo dove si risponde.
-    if (kind == 'friendRequest') {
-      return (
-        scheda: AppRoutes.profile,
-        apri: AppRoutes.friends,
-        evidenzia: null,
-        notificationId: null,
-        daFermo: daFermo,
-        quando: DateTime.now().microsecondsSinceEpoch,
-      );
-    }
-
-    // Tutto il resto — fiamme, commenti, nomine, vittorie — riguarda **te**: si
-    // va in campanella, sulla riga precisa da cui si e' arrivati.
-    return (
-      scheda: AppRoutes.challenges,
-      apri: AppRoutes.notifications,
-      evidenzia: messaggio.data['notificationId'],
-      notificationId: messaggio.data['notificationId'],
-      daFermo: daFermo,
-      quando: DateTime.now().microsecondsSinceEpoch,
-    );
-  }
+  PushTap dove(RemoteMessage messaggio, {required bool daFermo}) => pushTapOf(
+    messaggio.data,
+    daFermo: daFermo,
+    io: ref.read(currentUserIdProvider),
+  );
 
   // **Chi arriva da un'app chiusa passa di qui.** Toccando una notifica con
   // CRASY spenta, l'app parte da zero e il tocco non lo racconta nessuno: resta
@@ -378,6 +333,160 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
   yield* FirebaseMessaging.onMessageOpenedApp
       .where(nuovo)
       .map((messaggio) => dove(messaggio, daFermo: false));
+});
+
+/// Dove porta una notifica, dai dati che viaggiano con lei.
+///
+/// Fuori dal provider perche' serve a due: al tocco sulla notifica di sistema, e
+/// al tocco sull'avviso che l'app mostra da se' quando la notifica arriva ad app
+/// aperta. Due copie della stessa regola si direbbero cose diverse al primo
+/// cambiamento.
+///
+/// `io` serve alle notizie di commento vecchie, che non portano la foto: la
+/// foto commentata e' di chi riceve la notizia.
+PushTap pushTapOf(
+  Map<String, dynamic> dati, {
+  required bool daFermo,
+  String? io,
+}) {
+  final kind = dati['kind'] ?? '';
+
+  // Una missione nuova o la sfida del giorno riguardano **una gara**: si va
+  // dove stanno le gare, e non c'e' niente da aprire sopra.
+  if (kind == 'newChallenge' || kind == 'daily') {
+    return (
+      scheda: AppRoutes.challenges,
+      apri: null,
+      evidenzia: null,
+      notificationId: null,
+      daFermo: daFermo,
+      quando: DateTime.now().microsecondsSinceEpoch,
+    );
+  }
+
+  // **Una gara finita porta alla gara, non in campanella.**
+  //
+  // E' l'unica notifica che non racconta un fatto ma ne annuncia uno: dice
+  // che il tempo e' scaduto e **non dice chi ha vinto**. Il finale sta nella
+  // missione, dove si apre con il rullo di tamburi — portare chi tocca in
+  // campanella vorrebbe dire fargli leggere "la missione e' finita" e poi
+  // cercarsi da solo dove si guarda com'e' andata.
+  // **Una sfida porta alla sfida.** Le quattro notizie delle sfide mirate
+  // riguardano una missione precisa, e quella missione e' il posto dove si
+  // accetta, si rifiuta o si va a vedere com'e' andata. Mandare in campanella
+  // chi ha toccato "@mario ti ha sfidato" vorrebbe dire fargli cercare da
+  // solo dove si risponde.
+  if (kind == 'partyMission' ||
+      kind == 'duel' ||
+      kind == 'duelAccepted' ||
+      kind == 'duelDeclined' ||
+      kind == 'duelCompleted' ||
+      kind == 'duelApproved' ||
+      kind == 'duelRejected' ||
+      kind == 'duelNoVerdict' ||
+      kind == 'soloJudge' ||
+      kind == 'ended') {
+    final gara = dati['challengeId'] ?? '';
+
+    if (gara.isNotEmpty) {
+      return (
+        // Sotto la sfida si posa il party e non la home: e' la scheda da cui
+        // quella missione viene, ed e' dove si torna chiudendola.
+        scheda: kind == 'ended'
+            ? AppRoutes.challenges
+            : AppRoutes.friendsActivity,
+        apri: AppRoutes.challengeDetailOf(gara),
+        evidenzia: null,
+        notificationId: dati['notificationId'],
+        daFermo: daFermo,
+        quando: DateTime.now().microsecondsSinceEpoch,
+      );
+    }
+  }
+
+  // **Un commento o una nomina portano al commento.** "Ti hanno taggato" in
+  // campanella era un passaggio in piu': si toccava la riga, si apriva la
+  // gara, e il commento andava cercato foto per foto. Qui si apre la foto
+  // grande con i commenti sopra. Le notizie di commento vecchie, senza la
+  // foto dentro, la ritrovano lo stesso: la foto commentata e' di chi riceve
+  // la notizia, e il suo nome e' il suo identificativo.
+  if (kind == 'mention' || kind == 'comment') {
+    final gara = dati['challengeId'] ?? '';
+    var foto = dati['entryId'] as String? ?? '';
+
+    if (foto.isEmpty && kind == 'comment') {
+      foto = io ?? '';
+    }
+
+    if (gara.isNotEmpty) {
+      return (
+        scheda: AppRoutes.challenges,
+        apri: foto.isEmpty
+            ? AppRoutes.challengeDetailOf(gara)
+            : AppRoutes.entryCommentsOf(gara, foto),
+        evidenzia: null,
+        notificationId: dati['notificationId'],
+        daFermo: daFermo,
+        quando: DateTime.now().microsecondsSinceEpoch,
+      );
+    }
+  }
+
+  // **Una richiesta di amicizia non finisce in campanella.** Non c'e' una
+  // riga da accendere: c'e' una scheda con i tasti per accettare o rifiutare,
+  // ed e' li' che serve arrivare. Portare in campanella chi ha toccato quella
+  // notifica vorrebbe dire fargli cercare da solo dove si risponde.
+  if (kind == 'friendRequest') {
+    return (
+      scheda: AppRoutes.profile,
+      apri: AppRoutes.friends,
+      evidenzia: null,
+      notificationId: null,
+      daFermo: daFermo,
+      quando: DateTime.now().microsecondsSinceEpoch,
+    );
+  }
+
+  // Tutto il resto — fiamme, commenti, nomine, vittorie — riguarda **te**: si
+  // va in campanella, sulla riga precisa da cui si e' arrivati.
+  return (
+    scheda: AppRoutes.challenges,
+    apri: AppRoutes.notifications,
+    evidenzia: dati['notificationId'],
+    notificationId: dati['notificationId'],
+    daFermo: daFermo,
+    quando: DateTime.now().microsecondsSinceEpoch,
+  );
+}
+
+/// Una notifica arrivata **mentre l'app e' aperta**, su Android.
+///
+/// **Android non la mostra.** Su iPhone il sistema la fa comparire lo stesso
+/// (lo chiede il registro), su Android no: una notifica che arriva ad app aperta
+/// viene consegnata in silenzio all'app, e se l'app non dice niente per chi la
+/// riceve non e' mai arrivata. E' uno dei motivi per cui "le notifiche non
+/// arrivano": arrivavano, ma solo in campanella, e solo a chi la apriva.
+typedef ForegroundPush = ({String testo, PushTap dove});
+
+final foregroundPushProvider = StreamProvider<ForegroundPush>((ref) {
+  if (kIsWeb ||
+      defaultTargetPlatform != TargetPlatform.android ||
+      !ref.watch(firebaseBootstrapResultProvider).isConfigured) {
+    return const Stream.empty();
+  }
+
+  return FirebaseMessaging.onMessage
+      .where((messaggio) => (messaggio.notification?.body ?? '').isNotEmpty)
+      .map(
+        (messaggio) => (
+          testo: messaggio.notification!.body!,
+          dove: pushTapOf(
+            messaggio.data,
+            daFermo: false,
+            io: ref.read(currentUserIdProvider),
+          ),
+        ),
+      );
 });
 
 /// Tiene spento il numero rosso sull'icona.

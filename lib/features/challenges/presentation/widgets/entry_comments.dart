@@ -223,115 +223,125 @@ class _CommentsSheetState extends ConsumerState<_CommentsSheet> {
       // La tastiera spinge il foglio invece di coprirlo: senza, si scrive alla
       // cieca sotto i tasti.
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: palette.background,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: AppSpacing.sm),
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: palette.line,
-                borderRadius: BorderRadius.circular(2),
+      // **Il foglio e' alto, sempre.** Con pochi commenti era una striscia in
+      // fondo allo schermo, e la riga dove si scrive stava attaccata alla
+      // tastiera. Tre quarti dello spazio libero: la riga resta in fondo al
+      // foglio, sopra la tastiera, e i commenti hanno posto per respirare.
+      // Mentre si scrive lo spazio sopra la tastiera e' poco, e il foglio se
+      // lo prende quasi tutto.
+      child: FractionallySizedBox(
+        heightFactor: MediaQuery.viewInsetsOf(context).bottom > 0 ? 0.95 : 0.75,
+        alignment: Alignment.bottomCenter,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: palette.background,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: AppSpacing.sm),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: palette.line,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-              child: Row(
-                children: [
-                  Text(
-                    'COMMENTI',
-                    style: texts.labelSmall?.copyWith(color: palette.textFaint),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${commenti.length}',
-                    style: texts.labelSmall?.copyWith(color: palette.textFaint),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Flexible(
-              child: commenti.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.all(AppSpacing.xl),
-                      child: Text(
-                        'Ancora nessuno. Comincia tu: con la chiocciola nomini '
-                        'chi vuoi, e gli arriva la notizia.',
-                        textAlign: TextAlign.center,
-                        style: texts.bodyMedium?.copyWith(
-                          color: palette.textSecondary,
-                        ),
-                      ),
-                    )
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.page,
-                      ),
-                      itemCount: commenti.length,
-                      itemBuilder: (context, index) =>
-                          _CommentRow(comment: commenti[index]),
-                    ),
-            ),
-            if (tag != null) _Suggerimenti(prefisso: tag, onPick: _scegli),
-            if (_errore != null)
+              const SizedBox(height: AppSpacing.md),
               Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.page,
-                  0,
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+                child: Row(
+                  children: [
+                    Text(
+                      'COMMENTI',
+                      style: texts.labelSmall?.copyWith(color: palette.textFaint),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${commenti.length}',
+                      style: texts.labelSmall?.copyWith(color: palette.textFaint),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Expanded(
+                child: commenti.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(AppSpacing.xl),
+                        child: Text(
+                          'Ancora nessuno. Comincia tu: con la chiocciola nomini '
+                          'chi vuoi, e gli arriva la notizia.',
+                          textAlign: TextAlign.center,
+                          style: texts.bodyMedium?.copyWith(
+                            color: palette.textSecondary,
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.page,
+                        ),
+                        itemCount: commenti.length,
+                        itemBuilder: (context, index) =>
+                            _CommentRow(comment: commenti[index]),
+                      ),
+              ),
+              if (tag != null) _Suggerimenti(prefisso: tag, onPick: _scegli),
+              if (_errore != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.page,
+                    0,
+                    AppSpacing.page,
+                    AppSpacing.xs,
+                  ),
+                  child: Text(
+                    _errore!,
+                    style: texts.bodySmall?.copyWith(color: palette.accent),
+                  ),
+                ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
                   AppSpacing.page,
                   AppSpacing.xs,
+                  AppSpacing.page,
+                  // Lo spazio della lineetta di casa, a tastiera chiusa: senza,
+                  // la riga dove si scrive ci finiva sotto.
+                  AppSpacing.md + MediaQuery.paddingOf(context).bottom,
                 ),
-                child: Text(
-                  _errore!,
-                  style: texts.bodySmall?.copyWith(color: palette.accent),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.page,
-                AppSpacing.xs,
-                AppSpacing.page,
-                AppSpacing.md,
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _testo,
-                      focusNode: _fuoco,
-                      maxLength: EntryComment.maxLength,
-                      maxLines: 3,
-                      minLines: 1,
-                      textInputAction: TextInputAction.done,
-                      // Ogni tasto ridisegna: e' quello che fa comparire e
-                      // sparire i suggerimenti mentre si scrive un nome.
-                      onChanged: (_) => setState(() {}),
-                      decoration: const InputDecoration(
-                        hintText: 'Scrivi un commento, @ per nominare',
-                        counterText: '',
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _testo,
+                        focusNode: _fuoco,
+                        maxLength: EntryComment.maxLength,
+                        maxLines: 3,
+                        minLines: 1,
+                        textInputAction: TextInputAction.done,
+                        // Ogni tasto ridisegna: e' quello che fa comparire e
+                        // sparire i suggerimenti mentre si scrive un nome.
+                        onChanged: (_) => setState(() {}),
+                        decoration: const InputDecoration(
+                          hintText: 'Scrivi un commento, @ per nominare',
+                          counterText: '',
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  IconButton(
-                    onPressed: _mandando ? null : _manda,
-                    icon: Icon(Icons.send_rounded, color: palette.accent),
-                    tooltip: 'Manda',
-                  ),
-                ],
+                    const SizedBox(width: AppSpacing.xs),
+                    IconButton(
+                      onPressed: _mandando ? null : _manda,
+                      icon: Icon(Icons.send_rounded, color: palette.accent),
+                      tooltip: 'Manda',
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

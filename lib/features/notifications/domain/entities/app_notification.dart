@@ -174,6 +174,7 @@ class AppNotification {
     this.actorUsername = '',
     this.challengeId = '',
     this.challengeTitle = '',
+    this.entryId = '',
     this.createdAt,
   });
 
@@ -187,6 +188,10 @@ class AppNotification {
   /// La gara di cui si parla, per sapere dove portare chi tocca la riga.
   final String challengeId;
   final String challengeTitle;
+
+  /// La foto di cui si parla, per commenti e nomine. Vuota per le notizie
+  /// vecchie, scritte prima che ci fosse.
+  final String entryId;
 
   final DateTime? createdAt;
 

@@ -119,7 +119,7 @@ final sessionLandingRouteProvider = Provider<String>((ref) {
       // contatti ha bisogno del permesso sui contatti: chiederlo qui, con le
       // altre due righe e il loro perche', vuol dire arrivarci con la
       // risposta gia' data. Solo al primo ingresso, come chi conosci.
-      if (!kIsWeb && !profile.permissionsSeen && _appenaIscritto(profile)) {
+      if (mostraIPermessi(profile)) {
         return AppRoutes.permissions;
       }
 
@@ -142,6 +142,14 @@ final sessionLandingRouteProvider = Provider<String>((ref) {
 ///
 /// Chi c'era gia' la trova comunque, dal cassetto sul profilo, quando la cerca.
 final _quandoEComparsa = DateTime.utc(2026, 9, 26);
+
+/// Se questa persona passera' dalla schermata dei permessi.
+///
+/// Serve anche fuori dal router: chi **non** ci passera' — tutti gli iscritti
+/// prima che esistesse — il permesso delle notifiche se lo deve vedere chiedere
+/// altrove, o non glielo chiede nessuno e le notifiche non arrivano mai.
+bool mostraIPermessi(UserProfile profile) =>
+    !kIsWeb && !profile.permissionsSeen && _appenaIscritto(profile);
 
 /// Chi si e' iscritto dopo che la schermata esiste.
 ///

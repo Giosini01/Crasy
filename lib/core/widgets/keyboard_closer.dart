@@ -23,10 +23,15 @@ class KeyboardCloser extends StatelessWidget {
 
   static void chiudi() => FocusManager.instance.primaryFocus?.unfocus();
 
+  /// Quanto e' alta la barra con "Fine".
+  static const double altezzaBarra = 44;
+
   @override
   Widget build(BuildContext context) {
-    final tastiera = MediaQuery.viewInsetsOf(context).bottom;
+    final mediaQuery = MediaQuery.of(context);
+    final tastiera = mediaQuery.viewInsets.bottom;
     final iPhone = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    final conBarra = iPhone && tastiera > 0;
 
     return GestureDetector(
       // Translucent: il tocco arriva anche ai tasti sotto. Un campo di testo
@@ -36,8 +41,27 @@ class KeyboardCloser extends StatelessWidget {
       onTap: chiudi,
       child: Stack(
         children: [
-          child,
-          if (iPhone && tastiera > 0)
+          // **Per il resto dell'app la tastiera e' alta quanto tastiera piu'
+          // barra.** La barra sta sopra tutto, e senza questo copriva proprio
+          // la riga dove si scrive: il campo dei commenti, e il fondo di ogni
+          // foglio e schermata con un campo in basso, salivano fino alla
+          // tastiera e finivano sotto il "Fine".
+          //
+          // Il `MediaQuery` c'e' sempre, anche a tastiera chiusa: metterlo e
+          // toglierlo cambierebbe la forma dell'albero, e tutta l'app si
+          // rismonterebbe — campo attivo compreso — nell'istante in cui la
+          // tastiera si apre.
+          MediaQuery(
+            data: conBarra
+                ? mediaQuery.copyWith(
+                    viewInsets: mediaQuery.viewInsets.copyWith(
+                      bottom: tastiera + altezzaBarra,
+                    ),
+                  )
+                : mediaQuery,
+            child: child,
+          ),
+          if (conBarra)
             Positioned(
               left: 0,
               right: 0,
@@ -58,7 +82,7 @@ class _BarraFine extends StatelessWidget {
     return Material(
       color: AppColors.paperMuted,
       child: Container(
-        height: 44,
+        height: KeyboardCloser.altezzaBarra,
         decoration: const BoxDecoration(
           border: Border(top: BorderSide(color: AppColors.line)),
         ),
