@@ -139,6 +139,23 @@ enum CommissionedFilter {
 ///
 /// L'ordine dentro ogni scheda lo ha gia' deciso `commissionedOrder`: qui si
 /// smista soltanto.
+/// Le gare lanciate da mostrare: tutte, tranne quelle **gratis e gia' finite**.
+///
+/// Una gara gratis finita non lascia la figurina (vedi `soloAPagamento`), e
+/// senza figurina non ha niente da mostrare. Si tolgono **prima** di decidere se
+/// la mensola e' vuota: altrimenti chi ha lanciato solo gare gratis vedeva uno
+/// spazio bianco invece della scritta che spiega cosa ci andra'.
+List<Challenge> visibleCommissions(List<Challenge> challenges, {DateTime? now}) {
+  final adesso = now ?? DateTime.now();
+
+  return [
+    for (final challenge in challenges)
+      if (challenge.prizeCents > 0 ||
+          (challenge.winnerEntryId == null && !challenge.hasEndedAt(adesso)))
+        challenge,
+  ];
+}
+
 class CommissionedShelf extends StatefulWidget {
   const CommissionedShelf({required this.challenges, super.key});
 

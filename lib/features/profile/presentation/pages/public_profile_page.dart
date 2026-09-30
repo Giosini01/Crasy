@@ -142,8 +142,9 @@ class _BodyState extends ConsumerState<_Body> {
     );
     final trophies =
         ref.watch(trophiesOfProvider(profile.id)).valueOrNull ?? const [];
-    final commissions =
-        ref.watch(commissionsOfProvider(profile.id)).valueOrNull ?? const [];
+    final commissions = visibleCommissions(
+      ref.watch(commissionsOfProvider(profile.id)).valueOrNull ?? const [],
+    );
 
     return ListView(
       padding: const EdgeInsets.only(bottom: AppSpacing.xxl),

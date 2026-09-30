@@ -60,8 +60,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final live = liveChallenges.map((challenge) => challenge.id).toSet();
     final shown = liveEntries(entries, live);
     final trophies = ref.watch(myTrophiesProvider).valueOrNull ?? const [];
-    final commissions =
-        ref.watch(myCommissionsProvider).valueOrNull ?? const [];
+    final commissions = visibleCommissions(
+      ref.watch(myCommissionsProvider).valueOrNull ?? const [],
+    );
 
     return Scaffold(
       body: AppBackground(
@@ -579,13 +580,12 @@ class _Stat extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.xxs),
+            // **Tutte le etichette uguali.** Prima quelle che si toccano erano
+            // piu' scure delle altre, e i quattro numeri sembravano scritti con
+            // due caratteri diversi.
             Text(
               label,
-              style: texts.labelSmall?.copyWith(
-                color: onTap == null
-                    ? palette.textFaint
-                    : palette.textSecondary,
-              ),
+              style: texts.labelSmall?.copyWith(color: palette.textSecondary),
             ),
           ],
         ),
