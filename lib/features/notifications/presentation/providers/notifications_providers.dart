@@ -385,6 +385,7 @@ PushTap pushTapOf(
       kind == 'duelRejected' ||
       kind == 'duelNoVerdict' ||
       kind == 'soloJudge' ||
+      kind == 'pickWinner' ||
       kind == 'ended') {
     final gara = dati['challengeId'] ?? '';
 

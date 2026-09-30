@@ -502,7 +502,7 @@ List<Challenge> _tutteLeChiuse(Ref ref, DateTime now) {
   final aperte =
       ref.watch(reservedChallengesProvider).valueOrNull ?? const <Challenge>[];
 
-  final ieri = now.subtract(const Duration(hours: 24));
+  final ieri = now.subtract(const Duration(hours: 48));
   final tutte = <String, Challenge>{};
 
   for (final challenge in [...chiuse, ...aperte]) {

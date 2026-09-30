@@ -215,9 +215,10 @@ class _CommissionedShelfState extends State<CommissionedShelf> {
         if (!_chiusa(challenge, now)) challenge,
     ];
 
+    // Le gare gratis finite non lasciano la figurina: vedi `soloAPagamento`.
     final targhe = [
       for (final challenge in elenco)
-        if (_chiusa(challenge, now)) challenge,
+        if (_chiusa(challenge, now) && challenge.prizeCents > 0) challenge,
     ];
 
     return Column(

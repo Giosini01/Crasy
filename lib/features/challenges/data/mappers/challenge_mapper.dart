@@ -57,6 +57,7 @@ abstract final class ChallengeMapper {
       respondedAt: (data['respondedAt'] as Timestamp?)?.toDate(),
       attesaGiudizio: data['attesaGiudizio'] as bool? ?? false,
       giudizioEntro: (data['giudizioEntro'] as Timestamp?)?.toDate(),
+      giudizioSolo: data['giudizioSolo'] as String? ?? '',
     );
   }
 

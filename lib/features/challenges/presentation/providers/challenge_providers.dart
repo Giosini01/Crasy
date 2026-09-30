@@ -437,12 +437,25 @@ final trophiesOfProvider = StreamProvider.family<List<Challenge>, String>((
   final io = ref.watch(currentUserIdProvider);
   final amici = ref.watch(myFriendsProvider).valueOrNull ?? const <Friend>[];
 
-  return ref.watch(challengeRepositoryProvider).watchTrophiesOf(
+  return ref
+      .watch(challengeRepositoryProvider)
+      .watchTrophiesOf(
         userId,
         viewerId: io,
         friend: userId == io || amici.any((amico) => amico.userId == userId),
-      );
+      )
+      .map(soloAPagamento);
 });
+
+/// **Niente trofei per le gare gratis**, nemmeno fra amici.
+///
+/// Il trofeo dice quanto si e' vinto: nasce dal fatto che qualcuno ci ha messo
+/// dei soldi e qualcun altro se li e' presi. Una gara gratis si fa per giocare,
+/// e una bacheca piena di figurine da zero euro toglie valore a quelle vere.
+List<Challenge> soloAPagamento(List<Challenge> challenges) => [
+  for (final challenge in challenges)
+    if (challenge.prizeCents > 0) challenge,
+];
 
 final myTrophiesProvider = StreamProvider<List<Challenge>>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -458,7 +471,8 @@ final myTrophiesProvider = StreamProvider<List<Challenge>>((ref) {
         viewerId: authState.user.id,
         // Le proprie sfide superate si vedono sempre: amico di se' stessi.
         friend: true,
-      );
+      )
+      .map(soloAPagamento);
 });
 
 /// **Quante sfide d'onore ho portato a termine.**

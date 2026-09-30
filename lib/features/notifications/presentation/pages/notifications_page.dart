@@ -731,6 +731,7 @@ class _Face extends StatelessWidget {
         NotificationKind.ended => Icons.flag_rounded,
         NotificationKind.removed => Icons.visibility_off_rounded,
         NotificationKind.duelNoVerdict => Icons.hourglass_disabled_rounded,
+        NotificationKind.pickWinner => Icons.gavel_rounded,
         _ => Icons.notifications_rounded,
       };
 
@@ -815,6 +816,7 @@ class _Face extends StatelessWidget {
         palette.textPrimary,
       ),
       // Il martelletto: tocca a te decidere.
+      NotificationKind.pickWinner => (Icons.gavel_rounded, palette.accent),
       NotificationKind.soloJudge => (
         Icons.gavel_rounded,
         palette.accent,

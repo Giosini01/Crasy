@@ -39,11 +39,19 @@ import 'package:go_router/go_router.dart';
 /// cima alla home, sotto SEGUITI: sono la prima cosa che si guarda aprendo
 /// l'app, non una scheda da andare a cercare. Le sfide e le missioni gia'
 /// partite stanno in APERTE, dopo quelle che aspettano te.
+///
+/// **Adesso sono tre, divise per chi c'e' dentro.** Le sfide personali — io
+/// contro uno — hanno una scheda loro: sono una parola data fra due persone, e
+/// in mezzo alle missioni del gruppo si perdevano. APERTE sono le missioni fra
+/// amici, FINITE com'e' andata nelle ultime quarantotto ore.
 enum FriendActivityView {
-  /// Tutto quello che e' aperto: prima quello che aspetta me — le sfide
-  /// ricevute, le missioni a cui non ho ancora mandato niente — poi quello gia'
-  /// partito.
-  todo('APERTE'),
+  /// Le sfide uno contro uno: quelle ricevute (prima quelle a cui rispondere)
+  /// e quelle lanciate.
+  personal('SFIDE PERSONALI'),
+
+  /// Le missioni fra amici ancora aperte, e quelle in cui tocca a me scegliere
+  /// chi ha vinto.
+  open('APERTE'),
 
   /// Com'e' finita.
   done('FINITE');
@@ -58,7 +66,7 @@ enum FriendActivityView {
 /// Si apre su **da fare**: e' l'unica scheda in cui c'e' qualcuno che aspetta,
 /// e le cose da fare stanno prima di quelle da guardare.
 final friendActivityViewProvider = StateProvider<FriendActivityView>(
-  (ref) => FriendActivityView.todo,
+  (ref) => FriendActivityView.personal,
 );
 
 /// **Party**: le sfide fra amici, le missioni del gruppo, le loro foto in gara.
@@ -135,22 +143,40 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
     bool daFare(Challenge challenge) => !fatte.contains(challenge.id);
 
     final aperte = [...party, ...missions];
+    final meId = ref.watch(currentUserIdProvider);
 
-    final todo = <Challenge>[
+    // **Io contro uno.** Prima quelle a cui devo rispondere, poi quelle a cui
+    // ho gia' risposto, poi quelle che ho lanciato io e aspettano l'altro.
+    final personali = <Challenge>[
       for (final challenge in received)
         if (daFare(challenge)) challenge,
-      for (final challenge in aperte)
-        if (daFare(challenge)) challenge,
+      for (final challenge in received)
+        if (!daFare(challenge)) challenge,
+      ...sent,
     ];
 
-    final running = <Challenge>[
-      // Le sfide che ho lanciato io stanno sempre qui: non c'e' niente che
-      // aspetti me, aspettano l'altro.
-      ...sent,
-      for (final challenge in received)
-        if (!daFare(challenge)) challenge,
+    // **Le mie missioni finite che aspettano la mia scelta.** Fra amici il
+    // vincitore lo sceglie chi ha lanciato: finche' non sceglie, la missione
+    // non e' finita davvero e sta in cima ad APERTE, non fra le finite.
+    final daScegliere = <Challenge>[
+      for (final challenge in chiuse)
+        if (challenge.attesaGiudizio &&
+            challenge.winnerEntryId == null &&
+            challenge.createdByUserId == meId)
+          challenge,
+    ];
+
+    final gruppo = <Challenge>[
+      ...daScegliere,
+      for (final challenge in aperte)
+        if (daFare(challenge)) challenge,
       for (final challenge in aperte)
         if (!daFare(challenge)) challenge,
+    ];
+
+    final finite = <Challenge>[
+      for (final challenge in chiuse)
+        if (!daScegliere.contains(challenge)) challenge,
     ];
 
     return Scaffold(
@@ -186,8 +212,9 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                     const _LaunchDuel(),
                     const SizedBox(height: AppSpacing.md),
                     _Switch(
-                      todo: todo.length + running.length,
-                      done: chiuse.length + bocciate.length,
+                      personal: personali.length,
+                      open: gruppo.length,
+                      done: finite.length + bocciate.length,
                       daRispondere: ref.watch(pendingDuelsCountProvider),
                     ),
                     const SizedBox(height: AppSpacing.lg),
@@ -202,12 +229,12 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                     ],
                     ..._sezione(
                       view: view,
-                      todo: todo,
-                      running: running,
+                      personali: personali,
+                      gruppo: gruppo,
                       sent: sent,
-                      closed: chiuse,
+                      closed: finite,
                       rejected: bocciate,
-                      meId: ref.watch(currentUserIdProvider),
+                      meId: meId,
                     ),
                   ],
                 ),
@@ -228,8 +255,8 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
   /// sei.
   List<Widget> _sezione({
     required FriendActivityView view,
-    required List<Challenge> todo,
-    required List<Challenge> running,
+    required List<Challenge> personali,
+    required List<Challenge> gruppo,
     required List<Challenge> sent,
     required List<Challenge> closed,
     required List<Challenge> rejected,
@@ -250,23 +277,33 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
     }
 
     switch (view) {
-      case FriendActivityView.todo:
-        if (todo.isEmpty && running.isEmpty) {
+      case FriendActivityView.personal:
+        if (personali.isEmpty) {
           return const [
             EmptyState(
-              title: 'Niente di aperto',
+              title: 'Nessuna sfida personale',
               message:
-                  'Quando un amico ti sfida o lancia una missione, la trovi '
-                  'qui. Accettare una sfida è una parola data.',
+                  'Sfida un amico, tu contro lui: chi accetta ci mette la '
+                  'parola, e sei tu a dire se ce l\'ha fatta.',
             ),
           ];
         }
 
-        // Prima quello che aspetta te, poi quello che aspetta gli altri.
-        return [
-          for (final challenge in todo) riga(challenge),
-          for (final challenge in running) riga(challenge),
-        ];
+        return [for (final challenge in personali) riga(challenge)];
+
+      case FriendActivityView.open:
+        if (gruppo.isEmpty) {
+          return const [
+            EmptyState(
+              title: 'Nessuna missione aperta',
+              message:
+                  'Lancia una missione ai tuoi amici: quando finisce, sei tu '
+                  'a scegliere chi ha vinto.',
+            ),
+          ];
+        }
+
+        return [for (final challenge in gruppo) riga(challenge)];
 
       case FriendActivityView.done:
         if (closed.isEmpty && rejected.isEmpty) {
@@ -292,8 +329,8 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.md),
             child: Text(
-              'Finite nelle ultime 24 ore. La figurina di chi ha vinto resta '
-              'sul suo profilo.',
+              'Finite nelle ultime 48 ore. Se c\'erano soldi in palio, la '
+              'figurina di chi ha vinto resta sul suo profilo.',
               style: context.texts.bodySmall?.copyWith(
                 color: context.palette.textFaint,
               ),
@@ -316,12 +353,14 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
 /// seconda e' una promessa in sospeso, la prima e' un elenco.
 class _Switch extends ConsumerWidget {
   const _Switch({
-    required this.todo,
+    required this.personal,
+    required this.open,
     required this.done,
     required this.daRispondere,
   });
 
-  final int todo;
+  final int personal;
+  final int open;
   final int done;
 
   /// Quante sfide ricevute aspettano ancora una risposta.
@@ -334,7 +373,8 @@ class _Switch extends ConsumerWidget {
     final selected = ref.watch(friendActivityViewProvider);
 
     int quante(FriendActivityView view) => switch (view) {
-      FriendActivityView.todo => todo,
+      FriendActivityView.personal => personal,
+      FriendActivityView.open => open,
       FriendActivityView.done => done,
     };
 
@@ -388,7 +428,7 @@ class _Switch extends ConsumerWidget {
                         ),
                       ),
                     ],
-                    if (view == FriendActivityView.todo && daRispondere > 0) ...[
+                    if (view == FriendActivityView.personal && daRispondere > 0) ...[
                       const SizedBox(width: 5),
                       Container(
                         width: 6,

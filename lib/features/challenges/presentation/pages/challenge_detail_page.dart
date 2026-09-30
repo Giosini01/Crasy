@@ -639,8 +639,13 @@ class _EntriesState extends ConsumerState<_Entries> {
       return _DuelJudgement(challenge: challenge, entry: entries.first);
     }
 
-    // **Un partecipante solo: aspetta il giudizio di chi l'ha lanciata.**
+    // **Aspetta il giudizio di chi l'ha lanciata.** Con un partecipante solo
+    // dice si' o no; in una missione fra amici con piu' foto sceglie quale.
     if (challenge.attesaGiudizio && challenge.winnerEntryId == null) {
+      if (entries.length > 1) {
+        return _PickWinner(challenge: challenge, entries: entries);
+      }
+
       return _SoloJudgement(challenge: challenge, entry: entries.first);
     }
 
@@ -982,6 +987,11 @@ class _Verdict extends StatelessWidget {
               challenge.isDuel
                   ? '@${challenge.createdByUsername} ha detto che ce l\'ha '
                         'fatta: sfida vinta.'
+                  // Fra amici sceglie chi l'ha lanciata: le fiamme decidono
+                  // solo se non ha scelto in tempo.
+                  : challenge.sceltoDalCreatore
+                  ? 'L\'ha scelta @${challenge.createdByUsername}, che ha '
+                        'lanciato la missione.'
                   : 'Ha vinto la foto con più fiamme alla chiusura.',
               style: context.texts.bodySmall?.copyWith(
                 color: palette.textSecondary,
@@ -1159,6 +1169,18 @@ class _GameRules extends StatelessWidget {
             style: texts.labelSmall?.copyWith(color: palette.accent),
           ),
           const SizedBox(height: AppSpacing.sm),
+          // **Fra amici non decidono le fiamme**: sceglie chi ha lanciato la
+          // missione, ed e' la prima cosa da sapere prima di entrare.
+          if (challenge.isForFriends && !challenge.isDuel)
+            _Rule(
+              icon: Icons.gavel_rounded,
+              text: 'Sceglie @${challenge.createdByUsername}.',
+              detail:
+                  'Quando finisce, chi ha lanciato la missione sceglie la foto '
+                  'che vince. Le fiamme sono tifo, e decidono solo se non '
+                  'sceglie entro 48 ore.',
+              accent: true,
+            ),
           _Rule(
             icon: Icons.visibility_off_outlined,
             text: 'Le fiamme sono nascoste.',
@@ -1604,6 +1626,107 @@ class _SoloJudgementState extends ConsumerState<_SoloJudgement> {
             ],
           ),
         ],
+      ],
+    );
+  }
+}
+
+/// **Una missione fra amici, finita: chi ha lanciato sceglie chi ha vinto.**
+///
+/// Fra amici le fiamme sono tifo, non un giudizio. Il creatore vede tutte le
+/// foto e ne tocca una; oppure dice che non ha vinto nessuno, e gli torna il
+/// premio. Ha quarantotto ore: se non sceglie, decidono le fiamme. Agli altri
+/// si dice solo che si aspetta.
+class _PickWinner extends ConsumerStatefulWidget {
+  const _PickWinner({required this.challenge, required this.entries});
+
+  final Challenge challenge;
+  final List<ChallengeEntry> entries;
+
+  @override
+  ConsumerState<_PickWinner> createState() => _PickWinnerState();
+}
+
+class _PickWinnerState extends ConsumerState<_PickWinner> {
+  bool _busy = false;
+
+  Future<void> _scegli(ChallengeEntry? entry) async {
+    setState(() => _busy = true);
+
+    try {
+      await ref
+          .read(firebaseFunctionsProvider)
+          .httpsCallable('giudicaIlSolo')
+          .call<Object?>({
+            'challengeId': widget.challenge.id,
+            'vale': entry != null,
+            if (entry != null) 'entryId': entry.id,
+          });
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Non siamo riusciti a salvarlo. Riprova.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+    final meId = ref.watch(currentUserIdProvider);
+    final mio = meId != null && meId == widget.challenge.createdByUserId;
+    final entro = widget.challenge.giudizioEntro;
+    final ore = entro?.difference(DateTime.now()).inHours.clamp(0, 48);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.gavel_rounded, size: 16, color: palette.accent),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                mio
+                    ? 'È finita: scegli tu chi ha vinto'
+                          '${ore == null ? '' : ' (hai ancora $ore ore)'}. '
+                          'Se non scegli, decidono le fiamme.'
+                    : 'È finita: sceglie chi ha vinto '
+                          '@${widget.challenge.createdByUsername}.',
+                style: texts.bodySmall?.copyWith(color: palette.accent),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        for (final entry in widget.entries) ...[
+          EntryTile(entry: entry, showChallenge: false),
+          if (mio) ...[
+            const SizedBox(height: AppSpacing.xs),
+            FilledButton(
+              onPressed: _busy ? null : () => _scegli(entry),
+              child: Text('HA VINTO @${entry.authorName.toUpperCase()}'),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.lg),
+        ],
+        if (mio)
+          Center(
+            child: TextButton(
+              onPressed: _busy ? null : () => _scegli(null),
+              child: Text(
+                'NESSUNA HA VINTO',
+                style: texts.labelSmall?.copyWith(color: palette.textFaint),
+              ),
+            ),
+          ),
       ],
     );
   }

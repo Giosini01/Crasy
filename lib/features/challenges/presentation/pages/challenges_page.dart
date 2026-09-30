@@ -294,7 +294,7 @@ class _Seguiti extends ConsumerWidget {
         ),
         itemCount: foto.length,
         itemBuilder: (context, index) => Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+          padding: const EdgeInsets.only(bottom: AppSpacing.md),
           child: FollowedEntry(entry: foto[index]),
         ),
       );

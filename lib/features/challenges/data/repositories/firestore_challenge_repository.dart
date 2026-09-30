@@ -195,7 +195,9 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     // che cresce all'infinito smette di dire "guarda com'e' finita" e comincia
     // a dire "ecco l'archivio".
     final ieri = Timestamp.fromDate(
-      DateTime.now().subtract(const Duration(hours: 24)),
+      // Le finite restano quarantotto ore: il tempo che ha chi ha lanciato
+      // per scegliere il vincitore, e quello per andare a vedere com'e' andata.
+      DateTime.now().subtract(const Duration(hours: 48)),
     );
 
     return _challenges

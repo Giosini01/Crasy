@@ -55,7 +55,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final palette = context.palette;
     final profileState = ref.watch(currentUserProfileProvider);
     final entries = ref.watch(myEntriesProvider).valueOrNull ?? const [];
-    final wins = ref.watch(myWinsProvider);
     final liveChallenges =
         ref.watch(liveChallengesProvider).valueOrNull ?? const <Challenge>[];
     final live = liveChallenges.map((challenge) => challenge.id).toSet();
@@ -173,15 +172,20 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         _Stats(
-                          entries: entries.length,
-                          wins: wins.length,
-                          duels: ref.watch(myDuelWinsProvider),
-                          friends:
-                              ref
-                                  .watch(myFriendsProvider)
-                                  .valueOrNull
-                                  ?.length ??
-                              0,
+                          wins: trophies.length,
+                          launched: commissions.length,
+                          followers:
+                              (ref
+                                      .watch(myFriendsProvider)
+                                      .valueOrNull
+                                      ?.length ??
+                                  0) +
+                              (ref
+                                      .watch(incomingRequestsProvider)
+                                      .valueOrNull
+                                      ?.length ??
+                                  0),
+                          following: ref.watch(followedIdsProvider).length,
                           pending:
                               ref
                                   .watch(incomingRequestsProvider)
@@ -435,25 +439,32 @@ class _Initials extends StatelessWidget {
 /// portafoglio, in cima e in grande, e una in questa riga come "VINTI". Lo
 /// stesso numero scritto due volte nella stessa schermata non e' un rinforzo,
 /// e' il dubbio che siano due numeri diversi.
+/// I quattro numeri: cosa hai vinto, cosa hai lanciato, chi ti segue, chi
+/// segui.
+///
+/// **Vinte conta tutte le gare in cui il vincitore sei tu**, sfide agli amici
+/// comprese: prima erano due numeri — VINTE e SFIDE — e dicevano la stessa
+/// cosa in due posti. Follower e seguiti si toccano e portano all'elenco,
+/// dove si ricambia o si smette.
 class _Stats extends StatelessWidget {
   const _Stats({
-    required this.entries,
     required this.wins,
-    required this.duels,
-    required this.friends,
+    required this.launched,
+    required this.followers,
+    required this.following,
     this.pending = 0,
   });
 
-  final int entries;
   final int wins;
+  final int launched;
 
-  /// Le sfide d'onore portate a termine: l'unico riconoscimento che lasciano,
-  /// visto che non pagano niente.
-  final int duels;
+  /// Chi mi segue: gli amici, e chi mi segue senza che io lo segua.
+  final int followers;
 
-  final int friends;
+  /// Chi seguo: gli amici, e chi seguo senza che mi segua.
+  final int following;
 
-  /// Le richieste di amicizia che aspettano una risposta.
+  /// Chi mi segue e aspetta che io ricambi.
   final int pending;
 
   @override
@@ -471,21 +482,23 @@ class _Stats extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Stat(label: 'SCATTI', value: '$entries'),
-              _Divider(color: palette.line),
               _Stat(label: 'VINTE', value: '$wins'),
               _Divider(color: palette.line),
-              _Stat(label: 'SFIDE', value: '$duels'),
+              _Stat(label: 'LANCIATE', value: '$launched'),
               _Divider(color: palette.line),
-              // **Da qui si entra.** Il conto degli amici era gia' li' e
-              // adesso e' anche la porta: si tocca il numero e si apre
-              // l'elenco. E' il posto in cui uno li cerca — quello in cui sono
-              // contati — e non ne serviva un altro.
+              // **Da qui si entra.** Il pallino dice quanti ti seguono e
+              // aspettano che ricambi.
               _Stat(
-                label: 'AMICI',
-                value: '$friends',
+                label: 'FOLLOWER',
+                value: '$followers',
                 onTap: () => context.push(AppRoutes.friends),
                 waiting: pending,
+              ),
+              _Divider(color: palette.line),
+              _Stat(
+                label: 'SEGUITI',
+                value: '$following',
+                onTap: () => context.push(AppRoutes.friends),
               ),
             ],
           ),

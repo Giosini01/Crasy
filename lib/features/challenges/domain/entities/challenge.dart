@@ -47,6 +47,7 @@ class Challenge {
     this.respondedAt,
     this.attesaGiudizio = false,
     this.giudizioEntro,
+    this.giudizioSolo = '',
   });
 
   /// L'identificativo dell'account di CRASY.
@@ -339,6 +340,14 @@ class Challenge {
   /// Fin quando il creatore puo' decidere. Dopo, vince il partecipante.
   final DateTime? giudizioEntro;
 
+  /// Com'e' andato il giudizio del creatore: `vale` (ha scelto lui),
+  /// `nonvale` (nessuno), `scaduto` (non ha scelto in tempo), vuoto se non
+  /// c'e' stato. Lo scrive il server.
+  final String giudizioSolo;
+
+  /// Se il vincitore l'ha scelto chi ha lanciato la missione.
+  bool get sceltoDalCreatore => giudizioSolo == 'vale';
+
   /// Lo stato da mostrare, orologio compreso.
   ///
   /// Scaduta non sta sul database: dipende da che ora e', e nessuno andrebbe a
@@ -595,6 +604,7 @@ class Challenge {
       respondedAt: respondedAt ?? this.respondedAt,
       attesaGiudizio: attesaGiudizio ?? this.attesaGiudizio,
       giudizioEntro: giudizioEntro ?? this.giudizioEntro,
+      giudizioSolo: giudizioSolo,
     );
   }
 
