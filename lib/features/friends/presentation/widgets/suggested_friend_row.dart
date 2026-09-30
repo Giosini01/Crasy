@@ -40,7 +40,12 @@ class _SuggestedFriendRowState extends ConsumerState<SuggestedFriendRow> {
 
   Future<void> _chiedi() =>
       _prova(SuggestedStato.inviata, () {
-        return ref.read(friendActionsProvider).send(widget.suggested.userId);
+        return ref
+            .read(friendActionsProvider)
+            .send(
+              widget.suggested.userId,
+              toUsername: widget.suggested.username,
+            );
       });
 
   Future<void> _accetta() =>
@@ -157,7 +162,7 @@ class _Azione extends StatelessWidget {
             Icon(Icons.check_rounded, size: 14, color: palette.textFaint),
             const SizedBox(width: 3),
             Text(
-              'TUO AMICO',
+              'AMICI',
               style: context.texts.labelSmall?.copyWith(
                 color: palette.textFaint,
               ),
@@ -171,7 +176,7 @@ class _Azione extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
         child: Text(
-          'INVIATA',
+          'SEGUI GIÀ',
           style: context.texts.labelSmall?.copyWith(color: palette.textFaint),
         ),
       );
@@ -194,7 +199,7 @@ class _Azione extends StatelessWidget {
       // un gesto piu' breve. Offrirgli "invia richiesta" vorrebbe dire far
       // partire una seconda richiesta al contrario e lasciare la sua senza
       // risposta.
-      child: Text(tiHaChiesto ? 'Accetta' : 'Invia richiesta'),
+      child: Text(tiHaChiesto ? 'Ricambia' : 'Segui'),
     );
   }
 }

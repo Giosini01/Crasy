@@ -13,7 +13,6 @@ import 'package:crasy/features/challenges/presentation/controllers/duel_controll
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
 import 'package:crasy/features/challenges/presentation/widgets/duel_badge.dart';
-import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:flutter/material.dart';
@@ -35,14 +34,16 @@ import 'package:go_router/go_router.dart';
 /// cose che aspettano me — anche se dentro il programma sono due oggetti
 /// diversi. E una volta mandata la foto, tutte e due diventano la stessa altra
 /// cosa: roba che sta andando avanti senza di me.
+///
+/// **IN CORSO non c'e' piu'.** Le foto con cui gli amici sono in gara stanno in
+/// cima alla home, sotto SEGUITI: sono la prima cosa che si guarda aprendo
+/// l'app, non una scheda da andare a cercare. Le sfide e le missioni gia'
+/// partite stanno in APERTE, dopo quelle che aspettano te.
 enum FriendActivityView {
-  /// Quello che aspetta me: le sfide ricevute e le missioni a cui non ho
-  /// ancora mandato niente.
-  todo('DA FARE'),
-
-  /// Quello che e' gia' partito: le sfide che ho lanciato io, le missioni in
-  /// cui sono gia' dentro, e le foto con cui gli amici sono in gara adesso.
-  running('IN CORSO'),
+  /// Tutto quello che e' aperto: prima quello che aspetta me — le sfide
+  /// ricevute, le missioni a cui non ho ancora mandato niente — poi quello gia'
+  /// partito.
+  todo('APERTE'),
 
   /// Com'e' finita.
   done('FINITE');
@@ -102,7 +103,6 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
     final missions = ref.watch(friendChallengesProvider);
     final chiuse = ref.watch(closedPartyProvider);
     final bocciate = ref.watch(closedDuelsProvider);
-    final entries = ref.watch(friendEntriesProvider);
     // **Le missioni che ho lanciato io, prese dal provider che le sa.**
     //
     // Qui c'era una lista vuota scritta a mano, ed e' il motivo per cui una
@@ -186,8 +186,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                     const _LaunchDuel(),
                     const SizedBox(height: AppSpacing.md),
                     _Switch(
-                      todo: todo.length,
-                      running: running.length + entries.length,
+                      todo: todo.length + running.length,
                       done: chiuse.length + bocciate.length,
                       daRispondere: ref.watch(pendingDuelsCountProvider),
                     ),
@@ -209,7 +208,6 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                       closed: chiuse,
                       rejected: bocciate,
                       meId: ref.watch(currentUserIdProvider),
-                      entries: entries,
                     ),
                   ],
                 ),
@@ -236,7 +234,6 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
     required List<Challenge> closed,
     required List<Challenge> rejected,
     required String? meId,
-    required List<ChallengeEntry> entries,
   }) {
     // Una sfida mirata e una missione aperta a tutti sono due righe diverse, e
     // qui stanno nello stesso elenco: si sceglie guardando la missione, non la
@@ -254,10 +251,10 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
 
     switch (view) {
       case FriendActivityView.todo:
-        if (todo.isEmpty) {
+        if (todo.isEmpty && running.isEmpty) {
           return const [
             EmptyState(
-              title: 'Non aspetta niente',
+              title: 'Niente di aperto',
               message:
                   'Quando un amico ti sfida o lancia una missione, la trovi '
                   'qui. Accettare una sfida è una parola data.',
@@ -265,34 +262,10 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
           ];
         }
 
-        return [for (final challenge in todo) riga(challenge)];
-
-      case FriendActivityView.running:
-        if (running.isEmpty && entries.isEmpty) {
-          return const [
-            EmptyState(
-              title: 'Niente in corso',
-              message:
-                  'Qui finisce quello che è già partito: le sfide che hai '
-                  'lanciato, le missioni in cui sei dentro e le foto con cui i '
-                  'tuoi amici sono in gara adesso.',
-            ),
-          ];
-        }
-
+        // Prima quello che aspetta te, poi quello che aspetta gli altri.
         return [
+          for (final challenge in todo) riga(challenge),
           for (final challenge in running) riga(challenge),
-          // **Le foto in fondo, non in cima.** Le missioni sono cose in cui si
-          // e' dentro; le foto degli amici sono cose da guardare, e le cose da
-          // guardare non passano davanti a quelle in cui si gioca.
-          for (final entry in entries)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-              // Doppio tocco per la fiamma, tocco singolo per aprirla grande:
-              // gli stessi due gesti della home. Qui non si impara niente di
-              // nuovo, cambia solo di chi sono le foto.
-              child: _InGara(entry: entry),
-            ),
         ];
 
       case FriendActivityView.done:
@@ -344,13 +317,11 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
 class _Switch extends ConsumerWidget {
   const _Switch({
     required this.todo,
-    required this.running,
     required this.done,
     required this.daRispondere,
   });
 
   final int todo;
-  final int running;
   final int done;
 
   /// Quante sfide ricevute aspettano ancora una risposta.
@@ -364,7 +335,6 @@ class _Switch extends ConsumerWidget {
 
     int quante(FriendActivityView view) => switch (view) {
       FriendActivityView.todo => todo,
-      FriendActivityView.running => running,
       FriendActivityView.done => done,
     };
 
@@ -778,87 +748,6 @@ class _DuelRow extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Una foto di un amico, con sopra la gara in cui sta.
-///
-/// **La foto da sola non basta.** Vedere che un amico e' in gara senza sapere
-/// per cosa e per quanto e' un pettegolezzo, non un invito: la domanda che uno
-/// si fa guardandola e' "quanto c'e' in palio, e posso entrarci anch'io". Il
-/// premio in rosso e il titolo sono le stesse due cose che si leggono per prime
-/// su ogni scheda della home — qui in piccolo, perche' la foto resta la cosa
-/// grande.
-///
-/// La riga si tocca e apre la gara. La gara si prende fra quelle gia' caricate:
-/// una lettura in piu' per ogni foto, solo per scrivere una riga sopra, sarebbe
-/// il modo piu' silenzioso di rimettere in piedi il conto delle letture appena
-/// smontato.
-class _InGara extends ConsumerWidget {
-  const _InGara({required this.entry});
-
-  final ChallengeEntry entry;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final palette = context.palette;
-    final texts = context.texts;
-    final challenge = ref.watch(knownChallengeProvider(entry.challengeId));
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (challenge != null) ...[
-          GestureDetector(
-            onTap: () =>
-                context.push(AppRoutes.challengeDetailOf(challenge.id)),
-            behavior: HitTestBehavior.opaque,
-            // **Una riga piccola, e la foto grande sotto.**
-            //
-            // Il premio era grande come sulla scheda della home, e li' e'
-            // giusto — la' si decide se entrare in una gara. Qui no: qui si
-            // guarda cosa ha combinato un amico, e la cosa da guardare e' la
-            // foto.
-            child: Row(
-              children: [
-                Text(
-                  challenge.prizeLabel,
-                  style: texts.labelSmall?.copyWith(color: palette.accent),
-                ),
-                Text(
-                  '  ·  ',
-                  style: texts.labelSmall?.copyWith(color: palette.textFaint),
-                ),
-                Flexible(
-                  child: Text(
-                    challenge.title.toUpperCase(),
-                    style: texts.labelSmall?.copyWith(
-                      color: palette.textSecondary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 2),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: 14,
-                  color: palette.textFaint,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-        ],
-        // Il titolo della gara sta gia' nella riga qui sopra: ripeterlo sotto
-        // la foto sarebbe la stessa cosa scritta due volte a due dita di
-        // distanza.
-        EntryTile(entry: entry, showChallenge: challenge == null),
-        // **La riga che separa una missione dall'altra.**
-        const SizedBox(height: AppSpacing.lg),
-        Divider(color: palette.line, height: 0.5, thickness: 0.5),
-      ],
     );
   }
 }

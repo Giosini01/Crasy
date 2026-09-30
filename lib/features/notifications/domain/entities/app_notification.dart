@@ -217,7 +217,7 @@ class AppNotification {
     NotificationKind.fire => '@$actorUsername ha dato una fiamma alla tua foto',
     NotificationKind.mention => '@$actorUsername ti ha nominato in un commento',
     NotificationKind.friendRequest =>
-      '@$actorUsername ti ha chiesto l\'amicizia',
+      '@$actorUsername ha iniziato a seguirti',
     NotificationKind.comeback => 'Ci sono missioni nuove che ti aspettano',
     NotificationKind.duel => '@$actorUsername ti ha sfidato',
     NotificationKind.duelAccepted =>

@@ -1748,7 +1748,7 @@ exports.sendPushOnNotification = onDocumentCreated(
       removed: 'La tua foto è stata tolta dalla gara',
       comment: 'Nuovo commento sotto la tua foto',
       mention: 'Ti hanno nominato in un commento',
-      friendRequest: 'Hai una richiesta di amicizia',
+      friendRequest: 'Qualcuno ha iniziato a seguirti',
       comeback: 'Ci sono missioni aperte. Entra e prova a vincere',
       // **Le sfide mirate dicono il nome, le altre no.**
       //
@@ -1829,7 +1829,10 @@ exports.sendPushOnFriendRequest = onDocumentCreated(
     // Chi l'ha mandata non si dice: uno schermo bloccato lo leggono anche gli
     // altri, ed e' la stessa regola che vale per le fiamme e i commenti. Il
     // nome sta in campanella, che e' anche il posto dove si accetta.
-    await mandaAUnaPersona(event.params.userId, 'Hai una richiesta di amicizia', {
+    // **Seguire ha preso il posto della richiesta**: la riga nel database e'
+    // la stessa, cambia quello che vuol dire. Chi la riceve puo' ricambiare, e
+    // da li' siete amici.
+    await mandaAUnaPersona(event.params.userId, 'Qualcuno ha iniziato a seguirti', {
       kind: 'friendRequest',
       challengeId: '',
       // Le richieste non sono documenti della campanella: la riga si ricava

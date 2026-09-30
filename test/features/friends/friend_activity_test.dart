@@ -60,6 +60,10 @@ void main() {
             for (final id in ids) Friend(userId: id, username: id),
           ]),
         ),
+        // Chi seguo senza essere amici: nessuno. Le foto arrivano dagli amici.
+        myFollowingProvider.overrideWith(
+          (ref) => Stream.value(const <Friend>[]),
+        ),
         liveChallengesProvider.overrideWith((ref) => Stream.value(live)),
         reservedChallengesProvider.overrideWith(
           (ref) => Stream.value(reserved),
@@ -79,6 +83,7 @@ void main() {
     // I flussi vanno aspettati: letti prima del primo valore darebbero liste
     // vuote, e il test passerebbe per il motivo sbagliato.
     await container.read(myFriendsProvider.future);
+    await container.read(myFollowingProvider.future);
     await container.read(liveChallengesProvider.future);
     await container.read(reservedChallengesProvider.future);
 
@@ -120,7 +125,7 @@ void main() {
 
       await attendi(container, ['amico']);
 
-      expect(container.read(friendEntriesProvider).map((e) => e.id), ['a']);
+      expect(container.read(followedEntriesProvider).map((e) => e.id), ['a']);
     },
   );
 
@@ -146,7 +151,7 @@ void main() {
 
     expect(container.read(friendChallengesProvider), isEmpty);
     expect(container.read(partyChallengesProvider).map((c) => c.id), ['party']);
-    expect(container.read(friendEntriesProvider).map((e) => e.id), [
+    expect(container.read(followedEntriesProvider).map((e) => e.id), [
       'nel-party',
     ]);
   });
@@ -176,7 +181,7 @@ void main() {
 
     // Senza data vuol dire mandata adesso, e Firestore non ha ancora fatto in
     // tempo a timbrarla: sta con le piu' recenti, non in fondo.
-    expect(container.read(friendEntriesProvider).map((e) => e.id), [
+    expect(container.read(followedEntriesProvider).map((e) => e.id), [
       'appena-partita',
       'recente',
       'vecchia',
@@ -192,6 +197,6 @@ void main() {
     await attendi(container, []);
 
     expect(container.read(friendChallengesProvider), isEmpty);
-    expect(container.read(friendEntriesProvider), isEmpty);
+    expect(container.read(followedEntriesProvider), isEmpty);
   });
 }

@@ -8,10 +8,32 @@ import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
+import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
+import 'package:crasy/features/friends/presentation/widgets/followed_entry.dart';
 import 'package:crasy/features/notifications/presentation/widgets/notification_bell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+/// Cosa si guarda nella home: chi segui, o tutte le gare.
+///
+/// **Come su TikTok, due parole in cima e ferme.** GLOBALE e' la home di
+/// sempre, tutte le gare aperte; SEGUITI e' dove sono in gara, adesso, le
+/// persone che segui. Prima quella seconda stava nel Party sotto IN CORSO, cioe'
+/// in una scheda dentro una scheda: la cosa che fa venire voglia di aprire
+/// l'app — cosa stanno combinando gli altri — era la piu' difficile da trovare.
+enum HomeFeed {
+  followed('SEGUITI'),
+  global('GLOBALE');
+
+  const HomeFeed(this.label);
+
+  final String label;
+}
+
+/// Quale delle due si guarda. Si apre su GLOBALE: chi non segue ancora
+/// nessuno troverebbe una schermata vuota come prima cosa.
+final homeFeedProvider = StateProvider<HomeFeed>((ref) => HomeFeed.global);
 
 /// La home: le challenge aperte, una sotto l'altra.
 ///
@@ -26,6 +48,7 @@ class ChallengesPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final challenges = ref.watch(liveChallengesProvider);
     final oggi = ref.watch(dailyChallengeProvider);
+    final feed = ref.watch(homeFeedProvider);
 
     return Scaffold(
       body: AppBackground(
@@ -67,8 +90,13 @@ class ChallengesPage extends ConsumerWidget {
                   ],
                 ),
               ),
+              // **Ferme, fuori da quello che scorre.** Si cambia vista da
+              // qualunque punto della lista, senza tornare in cima.
+              const _FeedSwitch(),
               Expanded(
-                child: RefreshIndicator(
+                child: feed == HomeFeed.followed
+                    ? const _Seguiti()
+                    : RefreshIndicator(
                   color: context.palette.accent,
                   onRefresh: () async => ref.invalidate(liveChallengesProvider),
                   child: CustomScrollView(
@@ -125,6 +153,162 @@ class ChallengesPage extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// SEGUITI · GLOBALE, piccole e rosse sotto il marchio.
+///
+/// **Piccole apposta.** Sono un interruttore, non un titolo: la cosa da
+/// guardare e' quello che c'e' sotto. La scelta e' rossa e piena, l'altra
+/// grigia, e un trattino sotto dice dove si e'.
+class _FeedSwitch extends ConsumerWidget {
+  const _FeedSwitch();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+    final scelta = ref.watch(homeFeedProvider);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (final feed in HomeFeed.values)
+            GestureDetector(
+              onTap: () => ref.read(homeFeedProvider.notifier).state = feed,
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: 4,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      feed.label,
+                      style: context.texts.labelSmall?.copyWith(
+                        fontSize: 11,
+                        letterSpacing: 1.2,
+                        fontWeight: feed == scelta
+                            ? FontWeight.w800
+                            : FontWeight.w600,
+                        color: feed == scelta
+                            ? palette.accent
+                            : palette.textFaint,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      width: feed == scelta ? 16 : 0,
+                      height: 2,
+                      decoration: BoxDecoration(
+                        color: palette.accent,
+                        borderRadius: BorderRadius.circular(1),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// **SEGUITI**: dove sono in gara, adesso, le persone che segui.
+///
+/// Una foto per riga, con sopra la gara in cui sta: da qui si da' la fiamma e
+/// si entra nella gara, come dalla home di sempre.
+class _Seguiti extends ConsumerWidget {
+  const _Seguiti();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+    final seguiti = ref.watch(followedIdsProvider);
+    final foto = ref.watch(followedEntriesProvider);
+    final problema = ref.watch(friendActivityProblemProvider);
+
+    Widget vuoto(String titolo, String messaggio, {bool cerca = false}) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.page,
+          AppSpacing.xl,
+          AppSpacing.page,
+          AppSpacing.xxl,
+        ),
+        children: [
+          EmptyState(title: titolo, message: messaggio),
+          if (cerca) ...[
+            const SizedBox(height: AppSpacing.md),
+            Center(
+              child: TextButton(
+                onPressed: () => context.go(AppRoutes.search),
+                child: Text(
+                  'CERCA PERSONE DA SEGUIRE',
+                  style: context.texts.labelSmall?.copyWith(
+                    color: palette.accent,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      );
+    }
+
+    final Widget corpo;
+
+    if (seguiti.isEmpty) {
+      corpo = vuoto(
+        'Non segui ancora nessuno',
+        'Segui chi conosci: qui vedi in quali gare sono dentro, adesso. Se ti '
+            'segue anche lui siete amici, e potete sfidarvi.',
+        cerca: true,
+      );
+    } else if (problema != null && foto.isEmpty) {
+      corpo = vuoto(
+        'Non riusciamo a caricare',
+        'Non riusciamo a leggere dove sono in gara le persone che segui. '
+            'Riprova fra poco.',
+      );
+    } else if (foto.isEmpty) {
+      corpo = vuoto(
+        'Nessuno in gara adesso',
+        'Quando qualcuno che segui manda una foto a una gara aperta, la trovi '
+            'qui.',
+      );
+    } else {
+      corpo = ListView.builder(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.page,
+          AppSpacing.sm,
+          AppSpacing.page,
+          AppSpacing.xxl,
+        ),
+        itemCount: foto.length,
+        itemBuilder: (context, index) => Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+          child: FollowedEntry(entry: foto[index]),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      color: palette.accent,
+      onRefresh: () async {
+        ref
+          ..invalidate(liveChallengesProvider)
+          ..invalidate(myFriendsProvider)
+          ..invalidate(myFollowingProvider);
+      },
+      child: corpo,
     );
   }
 }

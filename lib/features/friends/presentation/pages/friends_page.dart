@@ -79,7 +79,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
               Row(
                 children: [
                   Text(
-                    'TI HANNO CHIESTO',
+                    'TI SEGUONO',
                     style: context.texts.labelSmall?.copyWith(
                       color: palette.accent,
                     ),
@@ -215,7 +215,7 @@ class _RequestRow extends ConsumerWidget {
           TextButton(
             onPressed: () => actions.reject(request),
             child: Text(
-              'No',
+              'Rimuovi',
               style: context.texts.titleMedium?.copyWith(
                 color: palette.textFaint,
               ),
@@ -224,7 +224,7 @@ class _RequestRow extends ConsumerWidget {
           TextButton(
             onPressed: () => actions.accept(request),
             child: Text(
-              'Accetta',
+              'Ricambia',
               style: context.texts.titleMedium?.copyWith(color: palette.accent),
             ),
           ),

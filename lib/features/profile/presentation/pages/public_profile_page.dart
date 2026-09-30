@@ -315,7 +315,10 @@ class _OfficialNote extends StatelessWidget {
   }
 }
 
-/// Il comando dell'amicizia: uno solo, e dice esattamente a che punto siamo.
+/// Il comando per seguire: uno solo, e dice esattamente a che punto siamo.
+///
+/// **Si segue da soli, si diventa amici in due.** Seguire fa vedere dove
+/// gareggia; se l'altro ricambia siete amici, e da li' si puo' sfidare.
 class _FriendshipAction extends ConsumerWidget {
   const _FriendshipAction({required this.profile});
 
@@ -335,20 +338,23 @@ class _FriendshipAction extends ConsumerWidget {
 
       case FriendshipStatus.none:
         return CrasyButton(
-          label: 'Aggiungi',
-          onPressed: () => actions.send(profile.id),
+          label: 'Segui',
+          onPressed: () =>
+              actions.send(profile.id, toUsername: profile.username),
         );
 
+      // Lo segui, lui non ancora: toccando si smette di seguirlo.
       case FriendshipStatus.requestSent:
         return SecondaryButton(
-          label: 'Richiesta mandata',
-          icon: Icons.schedule_rounded,
+          label: 'Segui già',
+          icon: Icons.check_rounded,
           onPressed: () => actions.cancel(profile.id),
         );
 
+      // Ti segue: ricambiare vi fa diventare amici.
       case FriendshipStatus.requestReceived:
         return CrasyButton(
-          label: 'Accetta',
+          label: 'Ricambia',
           onPressed: () => actions.accept(
             FriendRequest(
               fromUserId: profile.id,
@@ -366,7 +372,7 @@ class _FriendshipAction extends ConsumerWidget {
                 Icon(Icons.check_rounded, size: 16, color: palette.accent),
                 const SizedBox(width: AppSpacing.xs),
                 Text(
-                  'Siete amici',
+                  'Amici: vi seguite',
                   style: context.texts.labelLarge?.copyWith(
                     color: palette.accent,
                   ),
@@ -375,7 +381,7 @@ class _FriendshipAction extends ConsumerWidget {
                 TextButton(
                   onPressed: () => actions.remove(profile.id),
                   child: Text(
-                    'Togli',
+                    'Smetti',
                     style: context.texts.titleMedium?.copyWith(
                       color: palette.textFaint,
                     ),

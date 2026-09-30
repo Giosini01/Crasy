@@ -75,7 +75,38 @@ final myFriendsProvider = StreamProvider<List<Friend>>((ref) {
   return repository.watchFriends(userId);
 });
 
-/// Le richieste che ho ricevuto e non ho ancora deciso.
+/// Chi seguo io (senza gli amici di prima dei follower: per quelli vedi
+/// [followedIdsProvider]).
+final myFollowingProvider = StreamProvider<List<Friend>>((ref) {
+  final repository = ref.watch(friendsRepositoryProvider);
+  final userId = ref.watch(currentUserIdProvider);
+
+  if (repository == null || userId == null) {
+    return Stream.value(const <Friend>[]);
+  }
+
+  return repository.watchFollowing(userId);
+});
+
+/// **Tutti quelli di cui vedo le gare**: chi seguo, e gli amici.
+///
+/// Gli amici ci stanno sempre, anche se la riga in `following` non c'e': le
+/// amicizie nate prima dei follower non l'hanno, e un amico e' per definizione
+/// qualcuno che si segue.
+final followedIdsProvider = Provider<List<String>>((ref) {
+  final amici = ref.watch(myFriendsProvider).valueOrNull ?? const <Friend>[];
+  final seguiti = ref.watch(myFollowingProvider).valueOrNull ?? const <Friend>[];
+
+  return {
+    for (final amico in amici) amico.userId,
+    for (final seguito in seguiti) seguito.userId,
+  }.toList();
+});
+
+/// Chi mi segue e io non ancora: le "richieste" di prima.
+///
+/// Il nome del provider e' rimasto quello: nel database sono ancora le stesse
+/// righe, e ricambiare e' ancora quello che era accettare.
 final incomingRequestsProvider = StreamProvider<List<FriendRequest>>((ref) {
   final repository = ref.watch(friendsRepositoryProvider);
   final userId = ref.watch(currentUserIdProvider);
@@ -157,7 +188,11 @@ class FriendActions {
   FirestoreFriendsRepository? get _repository =>
       _ref.read(friendsRepositoryProvider);
 
-  Future<void> send(String toUserId) async {
+  /// **Segui.** Da qui si vedono le sue gare; se ricambia, siete amici.
+  ///
+  /// [toUsername] serve alla riga in `following`: senza, l'elenco di chi seguo
+  /// dovrebbe leggere un profilo per ogni nome.
+  Future<void> send(String toUserId, {String toUsername = ''}) async {
     final meId = _meId;
     final repository = _repository;
 
@@ -170,8 +205,14 @@ class FriendActions {
       fromUsername: _meUsername,
       toUserId: toUserId,
     );
+    await repository.markFollowing(
+      meId: meId,
+      otherId: toUserId,
+      otherUsername: toUsername,
+    );
   }
 
+  /// **Smetti di seguire** chi non ti segue.
   Future<void> cancel(String toUserId) async {
     final meId = _meId;
     final repository = _repository;
@@ -181,8 +222,10 @@ class FriendActions {
     }
 
     await repository.cancelRequest(fromUserId: meId, toUserId: toUserId);
+    await repository.unmarkFollowing(followerId: meId, otherId: toUserId);
   }
 
+  /// **Ricambia**: segui chi ti segue, e da quel momento siete amici.
   Future<void> accept(FriendRequest request) async {
     final meId = _meId;
     final repository = _repository;
@@ -197,8 +240,14 @@ class FriendActions {
       fromUserId: request.fromUserId,
       fromUsername: request.fromUsername,
     );
+    await repository.markFollowing(
+      meId: meId,
+      otherId: request.fromUserId,
+      otherUsername: request.fromUsername,
+    );
   }
 
+  /// **Rimuovi chi ti segue.** Smette di vedere le tue gare da qui.
   Future<void> reject(FriendRequest request) async {
     final meId = _meId;
     final repository = _repository;
@@ -208,8 +257,14 @@ class FriendActions {
     }
 
     await repository.rejectRequest(meId: meId, fromUserId: request.fromUserId);
+    await repository.unmarkFollowing(
+      followerId: request.fromUserId,
+      otherId: meId,
+    );
   }
 
+  /// **Non siete piu' amici**, e nessuno dei due segue piu' l'altro: togliere
+  /// un amico e restare a guardarlo da fuori sarebbe una cosa a meta'.
   Future<void> remove(String otherId) async {
     final meId = _meId;
     final repository = _repository;
@@ -219,6 +274,8 @@ class FriendActions {
     }
 
     await repository.removeFriend(meId: meId, otherId: otherId);
+    await repository.unmarkFollowing(followerId: meId, otherId: otherId);
+    await repository.unmarkFollowing(followerId: otherId, otherId: meId);
   }
 }
 
@@ -247,7 +304,8 @@ final friendChallengesProvider = Provider<List<Challenge>>((ref) {
   ];
 });
 
-/// Le foto con cui i miei amici sono **in gara adesso**.
+/// Le foto con cui **chi seguo** e' in gara adesso: la scheda SEGUITI della
+/// home.
 ///
 /// Solo quelle nelle gare ancora aperte, e la ragione e' quello che uno ci fa:
 /// da qui si accende una fiamma. Su una gara chiusa la fiamma non si puo' piu'
@@ -256,21 +314,15 @@ final friendChallengesProvider = Provider<List<Challenge>>((ref) {
 ///
 /// Le piu' recenti in cima: e' l'ordine in cui si guarda cosa e' successo da
 /// quando non si apriva l'app.
-final friendEntriesProvider = Provider<List<ChallengeEntry>>((ref) {
-  final friends = ref.watch(myFriendsProvider).valueOrNull ?? const <Friend>[];
+final followedEntriesProvider = Provider<List<ChallengeEntry>>((ref) {
+  final seguiti = ref.watch(followedIdsProvider);
 
-  if (friends.isEmpty) {
+  if (seguiti.isEmpty) {
     return const <ChallengeEntry>[];
   }
 
   final entries =
-      ref
-          .watch(
-            entriesOfManyProvider(
-              usersKey([for (final amico in friends) amico.userId]),
-            ),
-          )
-          .valueOrNull ??
+      ref.watch(entriesOfManyProvider(usersKey(seguiti))).valueOrNull ??
       const <ChallengeEntry>[];
 
   final aperte = {
@@ -286,7 +338,7 @@ final friendEntriesProvider = Provider<List<ChallengeEntry>>((ref) {
       if (challenge.isLiveAt(DateTime.now())) challenge.id,
   };
 
-  final loro = {for (final amico in friends) amico.userId};
+  final loro = seguiti.toSet();
 
   // Si controlla **anche di chi e' la foto**, non solo in che gara sta. La
   // query chiede gia' soltanto le partecipazioni di queste persone, e questa
@@ -328,15 +380,13 @@ final friendActivityProblemProvider = Provider<Object?>((ref) {
     return friends.error;
   }
 
-  final loro = friends.valueOrNull ?? const <Friend>[];
+  final loro = ref.watch(followedIdsProvider);
 
   if (loro.isEmpty) {
     return null;
   }
 
-  final entries = ref.watch(
-    entriesOfManyProvider(usersKey([for (final amico in loro) amico.userId])),
-  );
+  final entries = ref.watch(entriesOfManyProvider(usersKey(loro)));
 
   if (entries.hasError) {
     return entries.error;

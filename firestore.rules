@@ -427,6 +427,24 @@ service cloud.firestore {
       // Le legge chi le riceve, e le rilegge chi le ha mandate: quel secondo
       // permesso e' quello che fa scrivere "richiesta mandata" sul bottone
       // invece di riproporre "aggiungi" all'infinito.
+      // **Chi seguo.** La scrive solo chi segue; la legge chiunque sia dentro,
+      // come gli amici. La cancella chi segue (smette) o chi e' seguito (toglie
+      // un follower): nessuno deve restare a guardare qualcuno che l'ha tolto.
+      match /following/{otherId} {
+        allow read: if signedIn();
+
+        allow create: if signedIn()
+                      && request.auth.uid == userId
+                      && otherId != userId
+                      && request.resource.data.username is string;
+
+        allow delete: if signedIn()
+                      && (request.auth.uid == userId
+                          || request.auth.uid == otherId);
+
+        allow update: if false;
+      }
+
       match /friendRequests/{fromUserId} {
         allow read: if signedIn()
                     && (request.auth.uid == userId

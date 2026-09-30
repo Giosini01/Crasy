@@ -228,6 +228,7 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
       'notifications',
       'votes',
       'friendRequests',
+      'following',
       'private',
     ]) {
       await _eraseCollection(user.collection(collezione));

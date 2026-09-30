@@ -7,7 +7,17 @@ import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 ///
 ///     users/{userId}                          il profilo, leggibile da tutti
 ///     users/{userId}/friends/{friendId}       gli amici, due righe per coppia
-///     users/{userId}/friendRequests/{fromId}  le richieste ricevute
+///     users/{userId}/friendRequests/{fromId}  chi mi segue e io non ancora
+///     users/{userId}/following/{otherId}      chi seguo io
+///
+/// ## Seguire, e diventare amici
+///
+/// **Si segue da soli, si diventa amici in due.** Seguire qualcuno scrive due
+/// cose: la riga in `following` sotto di me — serve a vedere dove gareggia — e
+/// la "richiesta" nella sua cartella, che per lui vuol dire *ti segue* e gli fa
+/// arrivare l'avviso. Se ricambia, nascono le due righe di `friends` e da li'
+/// si puo' sfidare: e' la stessa amicizia di prima, a cui si arriva seguendosi
+/// a vicenda.
 ///
 /// **Un'amicizia sono due documenti**, uno per parte, e non uno solo con dentro
 /// due nomi. Sembra una duplicazione ed e' la scelta che tiene in piedi tutto:
@@ -29,6 +39,56 @@ class FirestoreFriendsRepository {
 
   CollectionReference<Map<String, dynamic>> _requests(String userId) =>
       _users.doc(userId).collection('friendRequests');
+
+  CollectionReference<Map<String, dynamic>> _following(String userId) =>
+      _users.doc(userId).collection('following');
+
+  /// Chi seguo. Gli amici ci sono anche loro, se si sono seguiti da quando
+  /// esiste questa cartella: per le amicizie di prima vale `friends`.
+  Stream<List<Friend>> watchFollowing(String userId) {
+    return _following(userId).limit(300).snapshots().map((snapshot) {
+      return [
+        for (final document in snapshot.docs)
+          Friend(
+            userId: document.id,
+            username: document.data()['username'] as String? ?? '',
+            since: (document.data()['since'] as Timestamp?)?.toDate(),
+          ),
+      ];
+    });
+  }
+
+  /// Scrive che [meId] segue [otherId].
+  ///
+  /// **Non lancia.** La cartella `following` ha regole sue: se non sono ancora
+  /// state pubblicate la scrittura viene rifiutata, e seguire deve funzionare
+  /// lo stesso — la richiesta, cioe' l'avviso e il bottone, e' gia' partita.
+  Future<void> markFollowing({
+    required String meId,
+    required String otherId,
+    required String otherUsername,
+  }) async {
+    try {
+      await _following(meId).doc(otherId).set({
+        'username': otherUsername,
+        'since': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (_) {
+      // Vedi sopra.
+    }
+  }
+
+  /// Toglie che [followerId] segue [otherId]. Non lancia, come [markFollowing].
+  Future<void> unmarkFollowing({
+    required String followerId,
+    required String otherId,
+  }) async {
+    try {
+      await _following(followerId).doc(otherId).delete();
+    } on FirebaseException catch (_) {
+      // Vedi sopra.
+    }
+  }
 
   /// Il profilo di chiunque. Emette `null` se non esiste.
   Stream<UserProfile?> watchProfile(String userId) {
