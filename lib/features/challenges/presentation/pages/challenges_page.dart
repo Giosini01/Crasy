@@ -10,6 +10,7 @@ import 'package:crasy/features/challenges/presentation/providers/challenge_provi
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/followed_entry.dart';
+import 'package:crasy/features/friends/presentation/widgets/suggested_drawer.dart';
 import 'package:crasy/features/notifications/presentation/widgets/notification_bell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -237,20 +238,29 @@ class _Seguiti extends ConsumerWidget {
     Widget vuoto(String titolo, String messaggio, {bool cerca = false}) {
       return ListView(
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.page,
+          0,
           AppSpacing.xl,
-          AppSpacing.page,
+          0,
           AppSpacing.xxl,
         ),
         children: [
-          EmptyState(title: titolo, message: messaggio),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+            child: EmptyState(title: titolo, message: messaggio),
+          ),
+          // **La rubrica, subito.** Chi non segue nessuno ha una cosa sola da
+          // fare: trovare chi conosce. Il riquadro si apre da solo, chiede il
+          // permesso ai contatti e mostra chi e' gia' qui, con Segui accanto.
+          // Chi segue gia' qualcuno lo trova chiuso, a un tocco.
+          const SizedBox(height: AppSpacing.md),
+          SuggestedDrawer(apertoSubito: cerca),
           if (cerca) ...[
             const SizedBox(height: AppSpacing.md),
             Center(
               child: TextButton(
                 onPressed: () => context.go(AppRoutes.search),
                 child: Text(
-                  'CERCA PERSONE DA SEGUIRE',
+                  'OPPURE CERCA PER NOME',
                   style: context.texts.labelSmall?.copyWith(
                     color: palette.accent,
                     letterSpacing: 1.2,

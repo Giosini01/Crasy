@@ -187,12 +187,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                       ?.length ??
                                   0),
                           following: ref.watch(followedIdsProvider).length,
-                          pending:
-                              ref
-                                  .watch(incomingRequestsProvider)
-                                  .valueOrNull
-                                  ?.length ??
-                              0,
+                          pending: ref.watch(newFollowersCountProvider),
                         ),
                         // **Il cassetto di chi conosci.** Si apre da qui e non
                         // porta da nessuna parte: chiudere l'app per trovare

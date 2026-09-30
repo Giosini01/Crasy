@@ -1,0 +1,120 @@
+# .github/workflows/server-firebase.yml
+#
+# Regole, indici e funzioni di Firebase, pubblicati da qui.
+#
+# **Solo a mano** (Actions > Server su Firebase > Run workflow), mai a ogni
+# push: le funzioni muovono soldi, e vanno pubblicate quando lo si decide, non
+# perche' qualcuno ha corretto una virgola nell'app.
+#
+# Usa gli stessi secret del sito:
+#
+#   FIREBASE_SERVICE_ACCOUNT   la chiave di servizio (Secrets)
+#   FIREBASE_PROJECT_ID        l'ID del progetto (Variables)
+#
+# La chiave deve poter pubblicare regole e funzioni, non solo il sito. Se il
+# passo "Pubblica" fallisce per permessi, alla chiave (IAM, su Google Cloud)
+# vanno aggiunti i ruoli: Firebase Admin, Cloud Functions Admin, Service
+# Account User, Secret Manager Secret Accessor.
+
+name: Server su Firebase
+
+on:
+  workflow_dispatch:
+    inputs:
+      sistema_i_dati:
+        description: 'Dopo il deploy: sistema chi seguiva gia'' e riempie l''indice della rubrica'
+        type: boolean
+        default: true
+
+concurrency:
+  group: server-firebase
+  cancel-in-progress: false
+
+jobs:
+  pubblica:
+    name: Regole, indici e funzioni
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 22
+        # La versione scritta in functions/package.json: le funzioni girano
+        # su quella, e le dipendenze si installano con quella.
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Dipendenze delle funzioni
+        working-directory: functions
+        run: npm ci
+
+      - name: Firebase CLI
+        run: npm install --global firebase-tools
+
+      - name: Credenziali di servizio
+        env:
+          CHIAVE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -e
+
+          if [ -z "$CHIAVE" ]; then
+            echo "Il secret FIREBASE_SERVICE_ACCOUNT e' vuoto."
+            exit 1
+          fi
+
+          printf '%s' "$CHIAVE" > "$RUNNER_TEMP/chiave.json"
+          chmod 600 "$RUNNER_TEMP/chiave.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/chiave.json" >> "$GITHUB_ENV"
+
+      - name: Pubblica
+        env:
+          PROGETTO: ${{ vars.FIREBASE_PROJECT_ID }}
+        run: |
+          set -e
+
+          if [ -z "$PROGETTO" ]; then
+            echo "La variabile FIREBASE_PROJECT_ID non c'e' o e' vuota."
+            exit 1
+          fi
+
+          # `--force` risponde di si' alla domanda sulle funzioni che non
+          # esistono piu' nel codice: senza, un deploy non interattivo si
+          # ferma li'.
+          firebase deploy \
+            --only firestore:rules,firestore:indexes,functions \
+            --project "$PROGETTO" \
+            --non-interactive \
+            --force
+
+      - name: Chi seguiva gia' qualcuno
+        if: ${{ inputs.sistema_i_dati }}
+        working-directory: functions
+        run: node tool/migra_seguiti.js --chiave "$RUNNER_TEMP/chiave.json" --scrivi
+
+      - name: Indice della rubrica
+        # Chi si era iscritto prima dell'indice non ci e' mai entrato: senza
+        # questo passo, la ricerca fra i contatti non trova nessuno. Il
+        # segreto e' lo stesso che usano le funzioni, letto da Secret Manager.
+        if: ${{ inputs.sistema_i_dati }}
+        working-directory: functions
+        env:
+          PROGETTO: ${{ vars.FIREBASE_PROJECT_ID }}
+        run: |
+          set -e
+
+          PEPE=$(firebase functions:secrets:access PEPE_RUBRICA --project "$PROGETTO")
+
+          if [ -z "$PEPE" ]; then
+            echo "Il segreto PEPE_RUBRICA non c'e' in Secret Manager."
+            exit 1
+          fi
+
+          echo "::add-mask::$PEPE"
+          node tool/indice_rubrica.js --chiave "$RUNNER_TEMP/chiave.json" --pepe "$PEPE" --scrivi
+
+      - name: Pulizia credenziali
+        if: always()
+        run: rm -f "$RUNNER_TEMP/chiave.json"

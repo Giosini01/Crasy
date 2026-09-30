@@ -17,7 +17,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// suo leggerebbe la rubrica di chiunque apra il proprio profilo, e la rubrica
 /// si guarda quando qualcuno lo chiede.
 class SuggestedDrawer extends ConsumerStatefulWidget {
-  const SuggestedDrawer({super.key});
+  const SuggestedDrawer({this.apertoSubito = false, super.key});
+
+  /// Aperto e gia' in cerca appena compare: in SEGUITI, quando non si segue
+  /// nessuno, e' l'unica cosa da fare e non deve servire un tocco in piu'.
+  final bool apertoSubito;
 
   @override
   ConsumerState<SuggestedDrawer> createState() => _SuggestedDrawerState();
@@ -25,6 +29,21 @@ class SuggestedDrawer extends ConsumerStatefulWidget {
 
 class _SuggestedDrawerState extends ConsumerState<SuggestedDrawer> {
   bool _aperto = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.apertoSubito && !kIsWeb) {
+      _aperto = true;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && ref.read(suggestedFriendsProvider).valueOrNull == null) {
+          ref.read(suggestedFriendsProvider.notifier).cerca();
+        }
+      });
+    }
+  }
 
   void _tocca() {
     setState(() => _aperto = !_aperto);

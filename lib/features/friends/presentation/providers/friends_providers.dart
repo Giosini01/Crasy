@@ -88,6 +88,45 @@ final myFollowingProvider = StreamProvider<List<Friend>>((ref) {
   return repository.watchFollowing(userId);
 });
 
+/// Il mio documento, per la parte che riguarda chi seguo e chi mi segue.
+final ownFollowProvider =
+    StreamProvider<({List<String> seguiti, DateTime? followersSeenAt})>((ref) {
+      final repository = ref.watch(friendsRepositoryProvider);
+      final userId = ref.watch(currentUserIdProvider);
+
+      if (repository == null || userId == null) {
+        return Stream.value((seguiti: const <String>[], followersSeenAt: null));
+      }
+
+      return repository.watchOwnFollow(userId);
+    });
+
+/// **Quanti hanno iniziato a seguirmi da quando ho guardato l'ultima volta.**
+///
+/// E' il pallino rosso su FOLLOWER e sulla scheda del profilo. Prima contava
+/// tutti quelli che mi seguivano senza che io ricambiassi, e restava acceso per
+/// sempre: chi non voleva ricambiare se lo teneva addosso. Adesso si spegne
+/// appena si apre l'elenco, come la campanella.
+final newFollowersCountProvider = Provider<int>((ref) {
+  final mio = ref.watch(ownFollowProvider);
+
+  // Finche' non si sa quando ho guardato, zero: meglio un pallino in ritardo
+  // che uno che si accende e si spegne da solo.
+  if (!mio.hasValue) {
+    return 0;
+  }
+
+  final visti = mio.value?.followersSeenAt;
+  final richieste =
+      ref.watch(incomingRequestsProvider).valueOrNull ?? const <FriendRequest>[];
+
+  return richieste.where((richiesta) {
+    final quando = richiesta.createdAt;
+
+    return visti == null || quando == null || quando.isAfter(visti);
+  }).length;
+});
+
 /// **Tutti quelli di cui vedo le gare**: chi seguo, e gli amici.
 ///
 /// Gli amici ci stanno sempre, anche se la riga in `following` non c'e': le
@@ -96,10 +135,13 @@ final myFollowingProvider = StreamProvider<List<Friend>>((ref) {
 final followedIdsProvider = Provider<List<String>>((ref) {
   final amici = ref.watch(myFriendsProvider).valueOrNull ?? const <Friend>[];
   final seguiti = ref.watch(myFollowingProvider).valueOrNull ?? const <Friend>[];
+  final nelProfilo =
+      ref.watch(ownFollowProvider).valueOrNull?.seguiti ?? const <String>[];
 
   return {
     for (final amico in amici) amico.userId,
     for (final seguito in seguiti) seguito.userId,
+    ...nelProfilo,
   }.toList();
 });
 
@@ -210,6 +252,39 @@ class FriendActions {
       otherId: toUserId,
       otherUsername: toUsername,
     );
+    await repository.addSeguito(meId: meId, otherId: toUserId);
+  }
+
+  /// **Rimette a posto chi seguo**, per chi ha iniziato a seguire prima che
+  /// esistesse l'elenco: il bottone diceva "Segui già" ma le sue gare non si
+  /// vedevano. Si chiama dal profilo di quella persona, e non costa niente se
+  /// e' gia' tutto in ordine.
+  Future<void> ensureFollowing(String otherId, {String username = ''}) async {
+    final meId = _meId;
+    final repository = _repository;
+
+    if (meId == null || repository == null) {
+      return;
+    }
+
+    await repository.addSeguito(meId: meId, otherId: otherId);
+    await repository.markFollowing(
+      meId: meId,
+      otherId: otherId,
+      otherUsername: username,
+    );
+  }
+
+  /// Segna che ho guardato chi mi segue.
+  Future<void> markFollowersSeen() async {
+    final meId = _meId;
+    final repository = _repository;
+
+    if (meId == null || repository == null) {
+      return;
+    }
+
+    await repository.markFollowersSeen(meId);
   }
 
   /// **Smetti di seguire** chi non ti segue.
@@ -223,6 +298,7 @@ class FriendActions {
 
     await repository.cancelRequest(fromUserId: meId, toUserId: toUserId);
     await repository.unmarkFollowing(followerId: meId, otherId: toUserId);
+    await repository.removeSeguito(meId: meId, otherId: toUserId);
   }
 
   /// **Ricambia**: segui chi ti segue, e da quel momento siete amici.
@@ -245,6 +321,7 @@ class FriendActions {
       otherId: request.fromUserId,
       otherUsername: request.fromUsername,
     );
+    await repository.addSeguito(meId: meId, otherId: request.fromUserId);
   }
 
   /// **Rimuovi chi ti segue.** Smette di vedere le tue gare da qui.
@@ -275,6 +352,7 @@ class FriendActions {
 
     await repository.removeFriend(meId: meId, otherId: otherId);
     await repository.unmarkFollowing(followerId: meId, otherId: otherId);
+    await repository.removeSeguito(meId: meId, otherId: otherId);
     await repository.unmarkFollowing(followerId: otherId, otherId: meId);
   }
 }

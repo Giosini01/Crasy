@@ -280,8 +280,9 @@ class _NavItem extends ConsumerWidget {
     // Sta sul profilo e non sulla scheda degli amici perche' e' dal profilo che
     // si apre l'elenco: quella scheda mostra cosa stanno combinando, non chi ha
     // suonato al campanello.
+    // Solo i follower **nuovi**: guardato l'elenco, il numero si spegne.
     final richieste = tab.route == AppRoutes.profile
-        ? (ref.watch(incomingRequestsProvider).valueOrNull ?? const []).length
+        ? ref.watch(newFollowersCountProvider)
         : 0;
 
     // **Il pallino sui vincitori: una gara e' finita.**

@@ -105,7 +105,7 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
                   title: 'Non hai ancora amici',
                   message:
                       'Le sfide si lanciano a una persona che conosci. Cerca '
-                      'qualcuno e mandagli una richiesta: appena accetta, '
+                      'qualcuno e seguilo: appena ti segue anche lui, '
                       'potrai sfidarlo.',
                 ),
               )

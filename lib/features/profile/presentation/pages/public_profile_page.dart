@@ -346,6 +346,17 @@ class _FriendshipAction extends ConsumerWidget {
 
       // Lo segui, lui non ancora: toccando si smette di seguirlo.
       case FriendshipStatus.requestSent:
+        // Se si era iniziato a seguire prima che esistesse l'elenco di chi
+        // seguo, qui lo si rimette: da adesso le sue gare si vedono.
+        if (!ref.watch(followedIdsProvider).contains(profile.id)) {
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => actions.ensureFollowing(
+              profile.id,
+              username: profile.username,
+            ),
+          );
+        }
+
         return SecondaryButton(
           label: 'Segui già',
           icon: Icons.check_rounded,

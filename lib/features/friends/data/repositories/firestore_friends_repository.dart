@@ -58,6 +58,73 @@ class FirestoreFriendsRepository {
     });
   }
 
+  /// **Chi seguo e quando ho guardato i follower**, dal mio profilo.
+  ///
+  /// Chi seguo sta anche qui, in un elenco dentro il mio documento, e non solo
+  /// nella cartella `following`: il mio documento lo posso scrivere con le
+  /// regole di sempre, e seguire qualcuno deve funzionare anche prima che le
+  /// regole nuove siano pubblicate. Era il motivo per cui chi seguiva senza
+  /// essere ricambiato non vedeva niente.
+  Stream<({List<String> seguiti, DateTime? followersSeenAt})> watchOwnFollow(
+    String userId,
+  ) {
+    return _users.doc(userId).snapshots().map((snapshot) {
+      final data = snapshot.data() ?? const <String, dynamic>{};
+      final seguiti = [
+        for (final id in (data['seguiti'] as List<dynamic>? ?? const []))
+          if (id is String && id.isNotEmpty) id,
+      ];
+
+      // Mentre l'ora del server non e' ancora tornata vale adesso: letta come
+      // nulla, riaccenderebbe il pallino su tutti per un istante.
+      var visti = (data['followersSeenAt'] as Timestamp?)?.toDate();
+
+      if (visti == null &&
+          snapshot.metadata.hasPendingWrites &&
+          data.containsKey('followersSeenAt')) {
+        visti = DateTime.now();
+      }
+
+      return (seguiti: seguiti, followersSeenAt: visti);
+    });
+  }
+
+  /// Aggiunge [otherId] a chi seguo, nel mio documento. Non lancia.
+  Future<void> addSeguito({required String meId, required String otherId}) async {
+    try {
+      await _users.doc(meId).set({
+        'seguiti': FieldValue.arrayUnion([otherId]),
+      }, SetOptions(merge: true));
+    } on FirebaseException catch (_) {
+      // Resta la riga in `following`, se le regole la lasciano scrivere.
+    }
+  }
+
+  /// Toglie [otherId] da chi seguo, nel mio documento. Non lancia.
+  Future<void> removeSeguito({
+    required String meId,
+    required String otherId,
+  }) async {
+    try {
+      await _users.doc(meId).set({
+        'seguiti': FieldValue.arrayRemove([otherId]),
+      }, SetOptions(merge: true));
+    } on FirebaseException catch (_) {
+      // Vedi sopra.
+    }
+  }
+
+  /// Segna che ho guardato chi mi segue: il pallino rosso si spegne.
+  Future<void> markFollowersSeen(String userId) async {
+    try {
+      await _users.doc(userId).set({
+        'followersSeenAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } on FirebaseException catch (_) {
+      // Il pallino resta acceso fino alla prossima volta. Pazienza.
+    }
+  }
+
   /// Scrive che [meId] segue [otherId].
   ///
   /// **Non lancia.** La cartella `following` ha regole sue: se non sono ancora

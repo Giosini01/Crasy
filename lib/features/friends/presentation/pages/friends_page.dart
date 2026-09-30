@@ -40,11 +40,31 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
   int _requestsShown = _initiallyShown;
 
   @override
+  void initState() {
+    super.initState();
+
+    // **Aperto l'elenco, i follower nuovi sono visti**: il pallino rosso su
+    // FOLLOWER e sulla scheda del profilo si spegne. Dopo la frame, non
+    // durante: qui si scrive sul database.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(friendActionsProvider).markFollowersSeen();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final palette = context.palette;
     final requests =
         ref.watch(incomingRequestsProvider).valueOrNull ?? const [];
     final friends = ref.watch(myFriendsProvider).valueOrNull ?? const [];
+    final amiciIds = {for (final amico in friends) amico.userId};
+    // Chi seguo senza che mi segua: gli amici no, stanno sotto.
+    final seguo = [
+      for (final id in ref.watch(followedIdsProvider))
+        if (!amiciIds.contains(id)) id,
+    ];
     // Una lettura sola per tutti: chiedendo amico per amico sarebbero venti
     // richieste ogni volta che questa scheda si apre.
     final inGara = ref.watch(
@@ -61,7 +81,10 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
       // profilo. Una pagina in cui si e' entrati deve dire da subito **come si
       // torna indietro**, e il logo, li' sopra, quella domanda la lasciava
       // aperta.
-      appBar: AppBar(leading: const BackButton(), title: const Text('Amici')),
+      appBar: AppBar(
+        leading: const BackButton(),
+        title: const Text('Follower'),
+      ),
       body: AppBackground(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(
@@ -118,6 +141,32 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
               Divider(color: palette.line),
               const SizedBox(height: AppSpacing.lg),
             ],
+            // **Chi segui, e non ti segue ancora.** Da qui si smette; se ti
+            // segue anche lui, passa fra gli amici qui sotto.
+            if (seguo.isNotEmpty) ...[
+              Row(
+                children: [
+                  Text(
+                    'SEGUI',
+                    style: context.texts.labelSmall?.copyWith(
+                      color: palette.accent,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    '${seguo.length}',
+                    style: context.texts.labelSmall?.copyWith(
+                      color: palette.accent,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              for (final id in seguo) _FollowingRow(userId: id),
+              const SizedBox(height: AppSpacing.lg),
+              Divider(color: palette.line),
+              const SizedBox(height: AppSpacing.lg),
+            ],
             // Il titolo della sezione e' grande e rosso, non una scritta
             // grigia in punta di piedi. E' la schermata delle persone che
             // uno conosce: senza il rosso e' un elenco di nomi, con il rosso
@@ -133,11 +182,11 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
                   TextSpan(
                     style: context.texts.headlineSmall,
                     children: [
-                      const TextSpan(text: 'I TUOI '),
                       TextSpan(
                         text: 'AMICI',
                         style: TextStyle(color: palette.accent),
                       ),
+                      const TextSpan(text: ' · VI SEGUITE'),
                     ],
                   ),
                 ),
@@ -156,8 +205,9 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
               const EmptyState(
                 title: 'Ancora nessun amico',
                 message:
-                    'Tocca il nome sotto una foto per aprire il profilo di '
-                    'chi l\'ha mandata, e da li\' chiedigli l\'amicizia.',
+                    'Diventate amici quando vi seguite a vicenda. Tocca il nome '
+                    'sotto una foto per aprire il profilo di chi l\'ha mandata, '
+                    'e seguilo.',
               )
             else
               for (final friend in friends)
@@ -173,6 +223,49 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
                 ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Una persona che seguo e che non mi segue: faccia, nome e "Smetti".
+class _FollowingRow extends ConsumerWidget {
+  const _FollowingRow({required this.userId});
+
+  final String userId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+    final nome =
+        ref.watch(publicProfileProvider(userId)).valueOrNull?.username ?? '';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        children: [
+          FriendAvatar(userId: userId, username: nome),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => context.push(AppRoutes.userProfileOf(userId)),
+              child: TickedName(
+                userId: userId,
+                text: nome.isEmpty ? '' : '@$nome',
+                style: context.texts.titleMedium,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => ref.read(friendActionsProvider).cancel(userId),
+            child: Text(
+              'Smetti',
+              style: context.texts.titleMedium?.copyWith(
+                color: palette.textFaint,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

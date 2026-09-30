@@ -419,6 +419,21 @@ PushTap pushTapOf(
       foto = io ?? '';
     }
 
+    // **Senza la foto, in campanella sulla riga giusta.** La push di una
+    // nomina porta la foto solo dal server aggiornato; senza, la gara intera
+    // non dice dove sia il commento. La campanella si apre su COMMENTI con la
+    // riga accesa, e se la riga conosce la foto apre lei il commento.
+    if (foto.isEmpty) {
+      return (
+        scheda: AppRoutes.challenges,
+        apri: AppRoutes.notifications,
+        evidenzia: dati['notificationId'],
+        notificationId: dati['notificationId'],
+        daFermo: daFermo,
+        quando: DateTime.now().microsecondsSinceEpoch,
+      );
+    }
+
     if (gara.isNotEmpty) {
       return (
         scheda: AppRoutes.challenges,

@@ -162,9 +162,26 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       if (riga != null) {
         _viste.add(riga.group);
 
+        // **Un commento o una nomina aprono il commento.** Si arriva qui da una
+        // notifica toccata che non sapeva la foto; la riga pero' la sa, perche'
+        // l'ha scritta chi ha commentato. Si apre subito: la campanella resta
+        // sotto, con la riga accesa, e tornando indietro si ritrova.
+        final foto = riga.entryId;
+        final apriIlCommento =
+            foto.isNotEmpty &&
+            riga.challengeId.isNotEmpty &&
+            (riga.kind == NotificationKind.mention ||
+                riga.kind == NotificationKind.comment);
+
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            ref.read(notificationFilterProvider.notifier).state = riga.group;
+          if (!mounted) {
+            return;
+          }
+
+          ref.read(notificationFilterProvider.notifier).state = riga.group;
+
+          if (apriIlCommento) {
+            context.push(AppRoutes.entryCommentsOf(riga.challengeId, foto));
           }
         });
 
