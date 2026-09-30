@@ -61,6 +61,19 @@ class KeyboardCloser extends StatelessWidget {
                 : mediaQuery,
             child: child,
           ),
+          // **Sotto la tastiera, lo stesso colore della barra.** La tastiera
+          // dell'iPhone ha gli angoli arrotondati e non si possono cambiare:
+          // negli angoli si vedeva l'app sotto, e barra piu' tastiera
+          // sembravano due pezzi staccati. Riempiendo quello spazio, il blocco
+          // resta squadrato, ad angolo retto.
+          if (conBarra)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: tastiera,
+              child: const ColoredBox(color: AppColors.paperMuted),
+            ),
           if (conBarra)
             Positioned(
               left: 0,
