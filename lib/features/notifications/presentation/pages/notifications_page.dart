@@ -10,7 +10,6 @@ import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
-import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
 import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:flutter/material.dart';
@@ -718,10 +717,9 @@ class _Face extends StatelessWidget {
       );
     }
 
-    // **Il richiamo lo manda CRASY**, e ha la sua faccia: la V rossa dei
-    // verificati.
+    // **Il richiamo lo manda CRASY**, e ha la sua faccia: l'icona dell'app.
     if (kind == NotificationKind.comeback) {
-      return const VerifiedBadge(size: _size);
+      return const CrasyAppIcon(size: _size);
     }
 
     // **Senza una persona dietro, niente sagoma.** Una gara finita, una foto

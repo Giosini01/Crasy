@@ -68,11 +68,10 @@ class FriendAvatar extends ConsumerWidget {
         profilo?.isOfficial ??
         username.trim().toLowerCase() == UserProfile.officialUsername;
 
-    // **La V rossa, non la fiamma.** La fiamma e' il voto: sulla faccia della
-    // casa si confondeva con "qualcuno ti ha dato una fiamma". La V e' il
-    // segno che CRASY da' agli altri, e sulla sua faccia dice chi e'.
+    // **La faccia della casa e' l'icona dell'app**, la stessa che si tocca
+    // sul telefono. La V rossa sta accanto al nome, come per i verificati.
     if (ufficiale) {
-      return VerifiedBadge(size: size);
+      return CrasyAppIcon(size: size);
     }
 
     final foto = ClipRRect(
@@ -112,6 +111,29 @@ class FriendAvatar extends ConsumerWidget {
             child: VerifiedBadge(size: (size * 0.36).clamp(12, 22)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// L'icona dell'app dentro un cerchio: la faccia dell'account ufficiale.
+class CrasyAppIcon extends StatelessWidget {
+  const CrasyAppIcon({this.size = 40, super.key});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        border: Border.all(color: context.palette.line),
+      ),
+      child: ClipOval(
+        child: Image.asset('assets/brand/crasy-icon.png', fit: BoxFit.cover),
       ),
     );
   }

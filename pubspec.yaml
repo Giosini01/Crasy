@@ -55,3 +55,5 @@ flutter:
     # Lo stesso segno per i fondi scuri: le lettere bianche, le fiamme rosse.
     # E' il file vero ricolorato, non una scritta rifatta con un carattere.
     - assets/brand/crasy-wordmark-dark.png
+    # L'icona dell'app, piccola: e' la faccia dell'account ufficiale.
+    - assets/brand/crasy-icon.png
