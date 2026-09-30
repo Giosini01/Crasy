@@ -15,9 +15,10 @@ import 'package:go_router/go_router.dart';
 
 /// **Follower: chi ti segue.**
 ///
-/// Due gruppi, nello stesso elenco. In cima chi ti segue e tu non ancora — e'
-/// l'unica parte in cui c'e' qualcosa da fare: ricambiare, e diventare amici,
-/// o toglierlo. Sotto gli amici, cioe' chi ti segue e che segui anche tu.
+/// **Un elenco solo.** Accanto a chi non segui ancora c'e' "Segui": toccandolo
+/// diventate amici. Accanto agli amici — vi seguite gia' — niente, perche'
+/// non c'e' niente da fare. Prima vengono quelli da seguire, poi gli amici,
+/// ma senza titoli in mezzo: e' la stessa lista di persone che ti seguono.
 ///
 /// **Si legge a pagine.** Con mille follower caricarli tutti ogni volta che si
 /// apre questa schermata vorrebbe dire mille letture per guardarne dieci: qui
@@ -176,22 +177,10 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
         );
   }
 
-  Future<void> _rimuovi(_Follower riga) async {
-    setState(() => _righe.remove(riga));
-
-    await ref
-        .read(friendActionsProvider)
-        .reject(
-          FriendRequest(fromUserId: riga.userId, fromUsername: riga.username),
-        );
-  }
-
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
     final totale = ref.watch(followersCountProvider);
-    final daRicambiare = _righe.where((riga) => !riga.amico).length;
-    final primoAmico = _righe.indexWhere((riga) => riga.amico);
 
     return Scaffold(
       appBar: AppBar(
@@ -249,64 +238,13 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
 
               final riga = _righe[index];
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // I titoli dei due gruppi, dove cominciano.
-                  if (index == 0 && !riga.amico)
-                    _Titolo(
-                      testo: 'TI SEGUONO · RICAMBIA',
-                      numero: daRicambiare,
-                      rosso: true,
-                    ),
-                  if (index == primoAmico)
-                    _Titolo(
-                      testo: 'AMICI · VI SEGUITE',
-                      numero: null,
-                      rosso: false,
-                      spazioSopra: index > 0,
-                    ),
-                  _FollowerRow(
-                    riga: riga,
-                    onRicambia: () => _ricambia(riga),
-                    onRimuovi: () => _rimuovi(riga),
-                  ),
-                ],
+              return _FollowerRow(
+                riga: riga,
+                onSegui: () => _ricambia(riga),
               );
             },
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _Titolo extends StatelessWidget {
-  const _Titolo({
-    required this.testo,
-    required this.numero,
-    required this.rosso,
-    this.spazioSopra = false,
-  });
-
-  final String testo;
-  final int? numero;
-  final bool rosso;
-  final bool spazioSopra;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-    final colore = rosso ? palette.accent : palette.textFaint;
-
-    return Padding(
-      padding: EdgeInsets.only(
-        top: spazioSopra ? AppSpacing.lg : AppSpacing.xs,
-        bottom: AppSpacing.sm,
-      ),
-      child: Text(
-        numero == null ? testo : '$testo · $numero',
-        style: context.texts.labelSmall?.copyWith(color: colore),
       ),
     );
   }
@@ -331,18 +269,12 @@ class _Fondo extends StatelessWidget {
   }
 }
 
-/// Una persona che ti segue: faccia, nome, e — se non la segui ancora —
-/// ricambia o togli.
+/// Una persona che ti segue: faccia, nome, e "Segui" se non la segui ancora.
 class _FollowerRow extends StatelessWidget {
-  const _FollowerRow({
-    required this.riga,
-    required this.onRicambia,
-    required this.onRimuovi,
-  });
+  const _FollowerRow({required this.riga, required this.onSegui});
 
   final _Follower riga;
-  final VoidCallback onRicambia;
-  final VoidCallback onRimuovi;
+  final VoidCallback onSegui;
 
   @override
   Widget build(BuildContext context) {
@@ -365,25 +297,10 @@ class _FollowerRow extends StatelessWidget {
               ),
             ),
           ),
-          if (riga.amico)
-            Text(
-              'AMICI',
-              style: context.texts.labelSmall?.copyWith(
-                color: palette.textFaint,
-              ),
-            )
-          else ...[
-            TextButton(
-              onPressed: onRimuovi,
-              child: Text(
-                'Rimuovi',
-                style: context.texts.titleMedium?.copyWith(
-                  color: palette.textFaint,
-                ),
-              ),
-            ),
+          // Gia' amici: niente da fare, e niente tasto.
+          if (!riga.amico)
             FilledButton(
-              onPressed: onRicambia,
+              onPressed: onSegui,
               style: FilledButton.styleFrom(
                 backgroundColor: palette.accent,
                 foregroundColor: Colors.white,
@@ -393,9 +310,8 @@ class _FollowerRow extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
-              child: const Text('Ricambia'),
+              child: const Text('Segui'),
             ),
-          ],
         ],
       ),
     );

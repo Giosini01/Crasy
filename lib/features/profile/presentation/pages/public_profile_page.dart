@@ -367,7 +367,7 @@ class _FriendshipAction extends ConsumerWidget {
       // Ti segue: ricambiare vi fa diventare amici.
       case FriendshipStatus.requestReceived:
         return CrasyButton(
-          label: 'Ricambia',
+          label: 'Segui',
           onPressed: () => actions.accept(
             FriendRequest(
               fromUserId: profile.id,

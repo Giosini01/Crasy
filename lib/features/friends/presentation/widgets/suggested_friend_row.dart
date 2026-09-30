@@ -200,7 +200,7 @@ class _Azione extends StatelessWidget {
       // un gesto piu' breve. Offrirgli "invia richiesta" vorrebbe dire far
       // partire una seconda richiesta al contrario e lasciare la sua senza
       // risposta.
-      child: Text(tiHaChiesto ? 'Ricambia' : 'Segui'),
+      child: const Text('Segui'),
     );
   }
 }
