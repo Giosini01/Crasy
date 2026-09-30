@@ -4,7 +4,9 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/presentation/widgets/winner_reveal.dart';
+import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Il rullo di tamburi, provato secondo per secondo.
@@ -57,13 +59,13 @@ void main() {
 
   Future<void> apri(WidgetTester tester, {required bool mine}) async {
     await tester.pumpWidget(
-      MaterialApp(
+      _conProvider(MaterialApp(
         home: WinnerReveal(challenge: gara, winner: vincitrice, mine: mine),
-      ),
+      )),
     );
   }
 
-  Widget conIlTasto() => MaterialApp(
+  Widget conIlTasto() => _conProvider(MaterialApp(
     home: Builder(
       builder: (context) => TextButton(
         onPressed: () => WinnerReveal.show(
@@ -75,7 +77,7 @@ void main() {
         child: const Text('apri'),
       ),
     ),
-  );
+  ));
 
   testWidgets('prima i tamburi, e nientaltro', (tester) async {
     await apri(tester, mine: false);
@@ -131,7 +133,7 @@ void main() {
     //
     // Adesso il riquadro non c'e' proprio, e la notizia sta nel nome.
     await tester.pumpWidget(
-      MaterialApp(
+      _conProvider(MaterialApp(
         home: WinnerReveal(
           challenge: gara,
           winner: ChallengeEntry(
@@ -145,7 +147,7 @@ void main() {
           ),
           mine: false,
         ),
-      ),
+      )),
     );
 
     await tester.pump(const Duration(milliseconds: 2200));
@@ -193,3 +195,13 @@ void main() {
     expect(find.text('apri'), findsOneWidget);
   });
 }
+
+/// Il rullo mostra la spunta accanto al nome, e la spunta legge il profilo:
+/// serve il contenitore dei provider, con un profilo che non arriva mai — qui
+/// si prova il tempo, non il database.
+Widget _conProvider(Widget child) => ProviderScope(
+  overrides: [
+    publicProfileProvider.overrideWith((ref, id) => Stream.value(null)),
+  ],
+  child: child,
+);
