@@ -28,6 +28,7 @@ import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:crasy/features/challenges/presentation/widgets/winner_reveal.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
+import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/moderation/domain/report_reason.dart';
 import 'package:crasy/features/moderation/presentation/widgets/report_sheet.dart';
 import 'package:flutter/material.dart';
@@ -755,10 +756,11 @@ class _EntryGridTile extends ConsumerWidget {
               child: GestureDetector(
                 onTap: () =>
                     context.push(AppRoutes.userProfileOf(entry.userId)),
-                child: Text(
-                  '@${entry.authorName}',
+                child: TickedName(
+                  userId: entry.userId,
+                  text: '@${entry.authorName}',
                   style: context.texts.labelMedium,
-                  overflow: TextOverflow.ellipsis,
+                  tickSize: 12,
                 ),
               ),
             ),
@@ -2007,9 +2009,10 @@ class _SplatStormBodyState extends State<_SplatStormBody>
                   top: centro.dy + raggio + AppSpacing.sm,
                   child: Opacity(
                     opacity: visibile,
-                    child: Text(
-                      '@${widget.username}',
-                      textAlign: TextAlign.center,
+                    child: TickedName(
+                      userId: widget.userId,
+                      text: '@${widget.username}',
+                      center: true,
                       style: texts.titleMedium?.copyWith(color: Colors.white),
                     ),
                   ),
@@ -2272,8 +2275,10 @@ class _DuelMessage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.xxs),
-          Text(
-            '@${challenge.createdByUsername}',
+          TickedName(
+            userId: challenge.createdByUserId,
+            text: '@${challenge.createdByUsername}',
+            tickSize: 12,
             style: context.texts.labelSmall?.copyWith(
               color: palette.textFaint,
             ),

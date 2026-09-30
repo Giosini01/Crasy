@@ -278,10 +278,11 @@ class ChallengeShowcase extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  '@${entry.authorName}',
+                child: TickedName(
+                  userId: entry.userId,
+                  text: '@${entry.authorName}',
                   style: texts.labelMedium,
-                  overflow: TextOverflow.ellipsis,
+                  tickSize: 12,
                 ),
               ),
               Text(

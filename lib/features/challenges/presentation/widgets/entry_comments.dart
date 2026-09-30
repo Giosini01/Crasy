@@ -7,6 +7,7 @@ import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/presentation/controllers/comment_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
+import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -436,7 +437,12 @@ class _CommentRow extends StatelessWidget {
               GestureDetector(
                 onTap: () => _apriProfilo(context, comment.userId),
                 behavior: HitTestBehavior.opaque,
-                child: Text('@${comment.authorName}', style: texts.titleMedium),
+                child: TickedName(
+                  userId: comment.userId,
+                  text: '@${comment.authorName}',
+                  style: texts.titleMedium,
+                  shrink: false,
+                ),
               ),
               const SizedBox(width: AppSpacing.xs),
               if (quando != null)

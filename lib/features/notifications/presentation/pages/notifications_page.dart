@@ -10,6 +10,7 @@ import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
+import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
 import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:flutter/material.dart';
@@ -670,6 +671,13 @@ class _Message extends StatelessWidget {
             style: texts.bodyLarge?.copyWith(
               fontWeight: FontWeight.w700,
               color: palette.textPrimary,
+            ),
+          ),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 3),
+              child: VerifiedTick(userId: notification.actorId, size: 13),
             ),
           ),
           TextSpan(

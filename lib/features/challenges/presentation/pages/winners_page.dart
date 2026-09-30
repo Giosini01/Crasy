@@ -12,6 +12,7 @@ import 'package:crasy/features/challenges/domain/leaderboard_showcase.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
+import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -339,11 +340,11 @@ class _Gradino extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 2),
-            child: Text(
-              '@${riga.username}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
+            child: TickedName(
+              userId: riga.userId,
+              text: '@${riga.username}',
+              center: true,
+              tickSize: 11,
               style: texts.labelSmall?.copyWith(color: palette.textSecondary),
             ),
           ),
@@ -557,10 +558,10 @@ class _RigaClassifica extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    sonoIo ? '@${riga.username} · tu' : '@${riga.username}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  TickedName(
+                    userId: riga.userId,
+                    text: sonoIo ? '@${riga.username} · tu' : '@${riga.username}',
+                    tickSize: 12,
                     style: texts.labelMedium?.copyWith(
                       color: palette.textPrimary,
                     ),

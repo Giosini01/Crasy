@@ -9,6 +9,7 @@ import 'package:crasy/features/challenges/presentation/controllers/vote_controll
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
+import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -103,10 +104,10 @@ class EntryTile extends ConsumerWidget {
                           onTap: () => context.push(
                             AppRoutes.userProfileOf(entry.userId),
                           ),
-                          child: Text(
-                            '@${entry.authorName}',
+                          child: TickedName(
+                            userId: entry.userId,
+                            text: '@${entry.authorName}',
                             style: texts.titleMedium,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),

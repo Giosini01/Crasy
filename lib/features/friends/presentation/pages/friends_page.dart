@@ -8,6 +8,7 @@ import 'package:crasy/features/challenges/presentation/providers/challenge_provi
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
+import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -205,10 +206,10 @@ class _RequestRow extends ConsumerWidget {
             child: GestureDetector(
               onTap: () =>
                   context.push(AppRoutes.userProfileOf(request.fromUserId)),
-              child: Text(
-                '@${request.fromUsername}',
+              child: TickedName(
+                userId: request.fromUserId,
+                text: '@${request.fromUsername}',
                 style: context.texts.titleMedium,
-                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
@@ -258,10 +259,10 @@ class _FriendRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    '@${friend.username}',
+                  TickedName(
+                    userId: friend.userId,
+                    text: '@${friend.username}',
                     style: context.texts.titleMedium,
-                    overflow: TextOverflow.ellipsis,
                   ),
                   if (inGame case final gara?) ...[
                     const SizedBox(height: 1),

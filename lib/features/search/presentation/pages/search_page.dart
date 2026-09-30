@@ -8,6 +8,7 @@ import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
+import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/search/presentation/providers/search_providers.dart';
 import 'package:flutter/material.dart';
@@ -434,7 +435,11 @@ class _PersonResult extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('@${profile.username}', style: texts.titleMedium),
+                  TickedName(
+                    userId: profile.id,
+                    text: '@${profile.username}',
+                    style: texts.titleMedium,
+                  ),
                   if (under.isNotEmpty)
                     Text(
                       under,

@@ -9,6 +9,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
+import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -144,6 +145,13 @@ class _WinnerBlock extends ConsumerWidget {
                   TextSpan(
                     text: '@${winner.authorName}',
                     style: texts.titleMedium,
+                  ),
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: VerifiedTick(userId: winner.userId),
+                    ),
                   ),
                   TextSpan(
                     // Il numero anche qui, scritto: sulla foto e' un

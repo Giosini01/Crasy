@@ -5,6 +5,7 @@ import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -590,8 +591,11 @@ class _Proclamazione extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          '@${winner.authorName}',
+                        TickedName(
+                          userId: winner.userId,
+                          text: '@${winner.authorName}',
+                          shrink: false,
+                          tickSize: winner.isVideo ? 24 : 18,
                           style: TextStyle(
                             color: Colors.white,
                             // **Senza la foto, il nome cresce.** Quando ha vinto

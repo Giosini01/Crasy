@@ -5,6 +5,7 @@ import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/domain/entities/suggested_friend.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
+import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -104,10 +105,10 @@ class _SuggestedFriendRowState extends ConsumerState<SuggestedFriendRow> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    chi.nome,
+                  TickedName(
+                    userId: chi.userId,
+                    text: chi.nome,
                     style: context.texts.titleMedium,
-                    overflow: TextOverflow.ellipsis,
                   ),
                   if (chi.displayName.isNotEmpty)
                     Text(

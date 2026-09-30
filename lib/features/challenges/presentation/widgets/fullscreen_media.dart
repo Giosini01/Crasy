@@ -9,6 +9,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_comments.dart';
+import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/moderation/domain/report_reason.dart';
 import 'package:crasy/features/moderation/presentation/widgets/report_sheet.dart';
 import 'package:flutter/material.dart';
@@ -402,12 +403,12 @@ class _BottomBar extends ConsumerWidget {
               context.push(AppRoutes.userProfileOf(entry.userId));
             },
             behavior: HitTestBehavior.opaque,
-            child: Text(
-              '@${entry.authorName}',
+            child: TickedName(
+              userId: entry.userId,
+              text: '@${entry.authorName}',
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(color: AppColors.paper),
-              overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),

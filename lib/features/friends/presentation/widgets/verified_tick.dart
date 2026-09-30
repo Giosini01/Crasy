@@ -29,6 +29,59 @@ class VerifiedBadge extends StatelessWidget {
   }
 }
 
+/// **Un nome con la sua spunta**, sempre insieme.
+///
+/// La spunta compariva solo in qualche posto — sul profilo, sulle gare — e
+/// sotto una foto no: chi l'aveva presa non si vedeva mai verificato proprio
+/// dove si fa vedere di piu'. Con un widget solo per nome e spunta, non c'e'
+/// piu' un posto in cui ci si possa dimenticare di metterla.
+///
+/// [shrink] a `false` quando il nome sta in un posto senza larghezza fissa
+/// (dentro una riga libera, dentro un `FittedBox`): li' il nome non si puo'
+/// accorciare, e chiederglielo manda in errore l'impaginazione.
+class TickedName extends StatelessWidget {
+  const TickedName({
+    required this.userId,
+    required this.text,
+    this.style,
+    this.tickSize = 14,
+    this.shrink = true,
+    this.center = false,
+    super.key,
+  });
+
+  final String userId;
+
+  /// Il testo intero, chiocciola compresa: "@mario", o "@mario · tu".
+  final String text;
+  final TextStyle? style;
+  final double tickSize;
+  final bool shrink;
+  final bool center;
+
+  @override
+  Widget build(BuildContext context) {
+    final nome = Text(
+      text,
+      style: style,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: center
+          ? MainAxisAlignment.center
+          : MainAxisAlignment.start,
+      children: [
+        if (shrink) Flexible(child: nome) else nome,
+        const SizedBox(width: 4),
+        VerifiedTick(userId: userId, size: tickSize),
+      ],
+    );
+  }
+}
+
 /// Il segno giusto accanto al nome di una persona: la fiamma per l'account
 /// ufficiale, la spunta per i verificati, niente per gli altri.
 class VerifiedTick extends ConsumerWidget {
