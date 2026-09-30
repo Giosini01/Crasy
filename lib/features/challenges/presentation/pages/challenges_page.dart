@@ -6,6 +6,7 @@ import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
@@ -295,6 +296,17 @@ class _Seguiti extends ConsumerWidget {
             'qui.',
       );
     } else {
+      // **Una persona, un riquadro.** Le foto arrivano dalla piu' recente; si
+      // raggruppano per chi le ha mandate tenendo quell'ordine, cosi' in cima
+      // resta chi ha fatto qualcosa per ultimo.
+      final perPersona = <String, List<ChallengeEntry>>{};
+
+      for (final entry in foto) {
+        perPersona.putIfAbsent(entry.userId, () => []).add(entry);
+      }
+
+      final persone = perPersona.values.toList();
+
       corpo = ListView.builder(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.page,
@@ -302,10 +314,10 @@ class _Seguiti extends ConsumerWidget {
           AppSpacing.page,
           AppSpacing.xxl,
         ),
-        itemCount: foto.length,
+        itemCount: persone.length,
         itemBuilder: (context, index) => Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.md),
-          child: FollowedEntry(entry: foto[index]),
+          child: FollowedPerson(entries: persone[index]),
         ),
       );
     }

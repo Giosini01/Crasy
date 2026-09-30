@@ -2,9 +2,9 @@
 #
 # Regole, indici e funzioni di Firebase, pubblicati da qui.
 #
-# **Solo a mano** (Actions > Server su Firebase > Run workflow), mai a ogni
-# push: le funzioni muovono soldi, e vanno pubblicate quando lo si decide, non
-# perche' qualcuno ha corretto una virgola nell'app.
+# **Parte a ogni push su main che tocca il server**: un push su main e' un
+# rilascio intero — app, sito e server insieme. Si puo' lanciare anche a mano
+# (Actions > Server su Firebase > Run workflow).
 #
 # Usa gli stessi secret del sito:
 #
@@ -19,10 +19,17 @@
 name: Server su Firebase
 
 on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'functions/**'
+      - 'firestore.rules'
+      - 'firestore.indexes.json'
+      - '.github/workflows/server-firebase.yml'
   workflow_dispatch:
     inputs:
       sistema_i_dati:
-        description: 'Dopo il deploy: sistema chi seguiva gia'' e riempie l''indice della rubrica'
+        description: 'Riempie anche l''indice della rubrica'
         type: boolean
         default: true
 
@@ -69,7 +76,9 @@ jobs:
           chmod 600 "$RUNNER_TEMP/chiave.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/chiave.json" >> "$GITHUB_ENV"
 
-      - name: Pubblica
+      - name: Regole e indici
+        # Prima le regole: sono quelle che servono all'app per scrivere chi
+        # seguo, e chiedono meno permessi delle funzioni.
         env:
           PROGETTO: ${{ vars.FIREBASE_PROJECT_ID }}
         run: |
@@ -80,19 +89,23 @@ jobs:
             exit 1
           fi
 
-          # `--force` risponde di si' alla domanda sulle funzioni che non
-          # esistono piu' nel codice: senza, un deploy non interattivo si
-          # ferma li'.
-          firebase deploy \
-            --only firestore:rules,firestore:indexes,functions \
-            --project "$PROGETTO" \
-            --non-interactive \
-            --force
+          firebase deploy             --only firestore:rules,firestore:indexes             --project "$PROGETTO"             --non-interactive
 
       - name: Chi seguiva gia' qualcuno
-        if: ${{ inputs.sistema_i_dati }}
+        # Si puo' rifare ogni volta: quello che c'e' gia' resta com'e'.
         working-directory: functions
         run: node tool/migra_seguiti.js --chiave "$RUNNER_TEMP/chiave.json" --scrivi
+
+      - name: Funzioni
+        # `--force` risponde di si' alla domanda sulle funzioni che non
+        # esistono piu' nel codice: senza, un deploy non interattivo si ferma.
+        #
+        # Serve che la chiave abbia i ruoli "Service Account User" e "Cloud
+        # Functions Admin": senza, qui si ferma con un errore che lo dice.
+        env:
+          PROGETTO: ${{ vars.FIREBASE_PROJECT_ID }}
+        run: |
+          firebase deploy             --only functions             --project "$PROGETTO"             --non-interactive             --force
 
       - name: Indice della rubrica
         # Chi si era iscritto prima dell'indice non ci e' mai entrato: senza
