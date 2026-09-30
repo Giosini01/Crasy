@@ -1,5 +1,4 @@
 import 'package:crasy/core/theme/app_palette.dart';
-import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,11 +49,9 @@ class VerifiedTick extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    if (profilo.isOfficial) {
-      return OfficialFlame(size: size);
-    }
-
-    if (profilo.verificato) {
+    // L'account ufficiale ha la stessa V rossa dei verificati: e' CRASY, ed e'
+    // il primo dei verificati. La fiamma resta il voto e basta.
+    if (profilo.isOfficial || profilo.verificato) {
       return VerifiedBadge(size: size);
     }
 

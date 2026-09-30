@@ -4,7 +4,6 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
-import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
@@ -169,7 +168,7 @@ class _BodyState extends ConsumerState<_Body> {
                   ),
                   if (profile.isOfficial) ...[
                     const SizedBox(width: AppSpacing.xs),
-                    const OfficialFlame(size: 22),
+                    const VerifiedBadge(size: 22),
                   ] else if (profile.verificato) ...[
                     const SizedBox(width: AppSpacing.xs),
                     const VerifiedBadge(size: 22),

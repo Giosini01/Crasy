@@ -10,6 +10,7 @@ import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
+import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
 import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:flutter/material.dart';
@@ -714,6 +715,36 @@ class _Face extends StatelessWidget {
         ),
         alignment: Alignment.center,
         child: Icon(Icons.emoji_events, size: 26, color: palette.accent),
+      );
+    }
+
+    // **Il richiamo lo manda CRASY**, e ha la sua faccia: la V rossa dei
+    // verificati.
+    if (kind == NotificationKind.comeback) {
+      return const VerifiedBadge(size: _size);
+    }
+
+    // **Senza una persona dietro, niente sagoma.** Una gara finita, una foto
+    // tolta, una sfida scaduta non le ha fatte nessuno: la sagoma grigia al
+    // posto della faccia sembrava una foto che non si era caricata. Al suo
+    // posto il segno della notizia, grande, come la coppa delle vittorie.
+    if (notification.actorId.isEmpty) {
+      final segno = switch (kind) {
+        NotificationKind.ended => Icons.flag_rounded,
+        NotificationKind.removed => Icons.visibility_off_rounded,
+        NotificationKind.duelNoVerdict => Icons.hourglass_disabled_rounded,
+        _ => Icons.notifications_rounded,
+      };
+
+      return Container(
+        width: _size,
+        height: _size,
+        decoration: BoxDecoration(
+          color: palette.accentTint,
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: Icon(segno, size: 24, color: palette.accent),
       );
     }
 

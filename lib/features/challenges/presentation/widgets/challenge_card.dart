@@ -1,7 +1,6 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
-import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/countdown_text.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
@@ -400,11 +399,11 @@ class ChallengeAuthor extends StatelessWidget {
         // **Le missioni dei verificati si riconoscono.** La spunta accanto a
         // chi l'ha lanciata: e' la cosa che fa scegliere questa gara fra
         // dieci.
-        if (!challenge.byCrasy) ...[
+        if (!challenge.byCrasy && !official) ...[
           const SizedBox(width: 4),
           VerifiedTick(userId: challenge.createdByUserId, size: 14),
         ],
-        // **La fiamma accanto al nome, anche qui.**
+        // **La V rossa accanto al nome, anche qui.**
         //
         // E' il posto in cui serve di piu': su una gara, chi l'ha lanciata e'
         // la sola cosa che dice se fidarsi. Una sfida del giorno e una lanciata
@@ -413,7 +412,7 @@ class ChallengeAuthor extends StatelessWidget {
         // chiunque puo' scriversi prendendosi un nome somigliante.
         if (official || challenge.byCrasy) ...[
           const SizedBox(width: AppSpacing.xxs),
-          const OfficialFlame(size: 14),
+          const VerifiedBadge(size: 14),
         ],
       ],
     );

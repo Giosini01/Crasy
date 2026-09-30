@@ -60,6 +60,8 @@ void main() {
           // Le facce non c'entrano con la classifica, e senza database non
           // arriverebbero comunque: restano le iniziali.
           publicProfileProvider.overrideWith((ref, id) => Stream.value(null)),
+          // La vetrina aggiunge posti inventati: qui si provano i conti veri.
+          classificaVetrinaProvider.overrideWithValue(false),
         ],
         child: MaterialApp(theme: AppTheme.light(), home: const WinnersPage()),
       ),
@@ -155,6 +157,8 @@ void main() {
           ),
           currentUserIdProvider.overrideWithValue(null),
           publicProfileProvider.overrideWith((ref, id) => Stream.value(null)),
+          // La vetrina aggiunge posti inventati: qui si provano i conti veri.
+          classificaVetrinaProvider.overrideWithValue(false),
         ],
         child: MaterialApp(theme: AppTheme.light(), home: const WinnersPage()),
       ),

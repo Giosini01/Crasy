@@ -7,6 +7,7 @@ class LeaderRow {
     required this.username,
     required this.cents,
     required this.count,
+    this.photoUrl,
   });
 
   final String userId;
@@ -17,6 +18,10 @@ class LeaderRow {
 
   /// Quante gare. **Serve a sciogliere i pari, non a fare la classifica.**
   final int count;
+
+  /// La foto da mostrare quando la riga non ha un profilo da cui prenderla:
+  /// i posti della classifica di vetrina.
+  final String? photoUrl;
 }
 
 /// **Chi conta, adesso.**

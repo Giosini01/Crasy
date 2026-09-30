@@ -255,14 +255,34 @@ class _FacciaVincente extends StatelessWidget {
         border: Border.all(color: palette.background, width: 2),
       ),
       child: ClipOval(
-        child: Image.network(
-          url,
-          fit: BoxFit.cover,
-          // Una foto che non arriva lascia il cerchio grigio: e' gia' il segno
-          // che li' c'era qualcosa, e una icona di errore in miniatura sarebbe
-          // solo rumore.
-          errorBuilder: (context, error, stack) => const SizedBox.shrink(),
-        ),
+        // **Senza foto, la coppa.** Il cerchio grigio che restava quando la
+        // foto non arrivava — un video, una foto gia' tolta — sembrava
+        // un'immagine rotta. La coppa rossa dice la stessa cosa della foto:
+        // qui qualcuno ha vinto.
+        child: url.isEmpty
+            ? _Coppa(palette: palette)
+            : Image.network(
+                url,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stack) =>
+                    _Coppa(palette: palette),
+              ),
+      ),
+    );
+  }
+}
+
+class _Coppa extends StatelessWidget {
+  const _Coppa({required this.palette});
+
+  final AppPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: palette.accentTint,
+      child: Center(
+        child: Icon(Icons.emoji_events, size: 18, color: palette.accent),
       ),
     );
   }

@@ -87,11 +87,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       IconButton(
                         onPressed: () => context.push(AppRoutes.tip),
                         icon: const Icon(
-                          Icons.favorite_border_rounded,
+                          Icons.favorite_rounded,
                           size: 20,
                         ),
                         tooltip: 'Sostieni CRASY',
-                        color: palette.textFaint,
+                        // Rosso: e' l'unica icona della barra che chiede
+                        // qualcosa, e deve farsi trovare.
+                        color: palette.accent,
                       ),
                     // **La modifica sale qui, accanto all'ingranaggio.**
                     //

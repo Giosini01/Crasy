@@ -8,7 +8,9 @@ import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/leaderboard.dart';
+import 'package:crasy/features/challenges/domain/leaderboard_showcase.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,6 +26,49 @@ import 'package:go_router/go_router.dart';
 /// sopravvivere a chi esce e rientra dalla scheda.
 final trendViewProvider = StateProvider<TrendView>((ref) => TrendView.winners);
 
+/// Se la classifica di vetrina si mostra. Un provider e non la costante letta
+/// direttamente: le prove della classifica la spengono, e guardano solo i conti
+/// veri.
+final classificaVetrinaProvider = Provider<bool>((ref) => classificaVetrina);
+
+/// Gli account veri della classifica di vetrina, per nome: identificativo.
+///
+/// Si cercano una volta per nome esatto. Trovati, la riga mostra la foto vera
+/// e porta al profilo; non trovati, restano con la faccia disegnata.
+final _accountVetrinaProvider = FutureProvider<Map<String, String>>((
+  ref,
+) async {
+  final repository = ref.watch(friendsRepositoryProvider);
+
+  if (!ref.watch(classificaVetrinaProvider) || repository == null) {
+    return const {};
+  }
+
+  final trovati = <String, String>{};
+
+  for (final posto in [...vincitoriVetrina, ...chiFaGiocareVetrina]) {
+    if (!posto.account) {
+      continue;
+    }
+
+    try {
+      final profili = await repository.searchProfiles(posto.username, limit: 3);
+
+      for (final profilo in profili) {
+        if (profilo.username.toLowerCase() == posto.username.toLowerCase()) {
+          trovati[posto.username] = profilo.id;
+
+          break;
+        }
+      }
+    } on Object catch (_) {
+      // Resta la faccia disegnata.
+    }
+  }
+
+  return trovati;
+});
+
 class WinnersPage extends ConsumerWidget {
   const WinnersPage({super.key});
 
@@ -32,6 +77,9 @@ class WinnersPage extends ConsumerWidget {
     final challenges = ref.watch(endedChallengesProvider);
     final view = ref.watch(trendViewProvider);
     final chiuse = challenges.valueOrNull ?? const <Challenge>[];
+    final trovati =
+        ref.watch(_accountVetrinaProvider).valueOrNull ?? const <String, String>{};
+    final vetrina = ref.watch(classificaVetrinaProvider);
 
     return Scaffold(
       body: AppBackground(
@@ -70,8 +118,18 @@ class WinnersPage extends ConsumerWidget {
                     const SizedBox(height: AppSpacing.xl),
                     _Classifica(
                       righe: view == TrendView.winners
-                          ? Leaderboard.winners(chiuse)
-                          : Leaderboard.launchers(chiuse),
+                          ? conVetrina(
+                              Leaderboard.winners(chiuse),
+                              vincitoriVetrina,
+                              trovati,
+                              accesa: vetrina,
+                            )
+                          : conVetrina(
+                              Leaderboard.launchers(chiuse),
+                              chiFaGiocareVetrina,
+                              trovati,
+                              accesa: vetrina,
+                            ),
                       vuota: view == TrendView.winners
                           ? 'Quando qualcuno vince una gara con dei soldi in '
                                 'palio, il podio si riempie da solo.'
@@ -276,6 +334,7 @@ class _Gradino extends StatelessWidget {
             userId: riga.userId,
             username: riga.username,
             size: grande ? 54 : 42,
+            fotoRiserva: riga.photoUrl,
           ),
           const SizedBox(height: AppSpacing.xs),
           Padding(
@@ -485,6 +544,7 @@ class _RigaClassifica extends ConsumerWidget {
               userId: riga.userId,
               username: riga.username,
               size: 32,
+              fotoRiserva: riga.photoUrl,
             ),
             const SizedBox(width: AppSpacing.sm),
             // Il nome sopra, le gare sotto. Affiancati si contendevano lo

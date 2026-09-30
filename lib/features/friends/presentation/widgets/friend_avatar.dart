@@ -1,4 +1,3 @@
-import 'package:crasy/core/theme/app_colors.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
@@ -22,6 +21,7 @@ class FriendAvatar extends ConsumerWidget {
     required this.userId,
     required this.username,
     this.size = 40,
+    this.fotoRiserva,
     super.key,
   });
 
@@ -33,10 +33,19 @@ class FriendAvatar extends ConsumerWidget {
 
   final double size;
 
+  /// La foto da usare quando il profilo non ne ha una, o non c'e' un profilo.
+  final String? fotoRiserva;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profilo = ref.watch(publicProfileProvider(userId)).valueOrNull;
-    final photoUrl = profilo?.photoUrl;
+    // Senza identificativo non c'e' niente da leggere: un documento senza nome
+    // su Firestore non esiste, e chiederlo fa solo un errore.
+    final profilo = userId.isEmpty
+        ? null
+        : ref.watch(publicProfileProvider(userId)).valueOrNull;
+    final photoUrl = (profilo?.photoUrl?.isNotEmpty ?? false)
+        ? profilo!.photoUrl
+        : fotoRiserva;
 
     // **La casa ha il suo segno, non delle iniziali.**
     //
@@ -59,23 +68,11 @@ class FriendAvatar extends ConsumerWidget {
         profilo?.isOfficial ??
         username.trim().toLowerCase() == UserProfile.officialUsername;
 
+    // **La V rossa, non la fiamma.** La fiamma e' il voto: sulla faccia della
+    // casa si confondeva con "qualcuno ti ha dato una fiamma". La V e' il
+    // segno che CRASY da' agli altri, e sulla sua faccia dice chi e'.
     if (ufficiale) {
-      return SizedBox(
-        width: size,
-        height: size,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppColors.paper,
-            border: Border.all(color: context.palette.line),
-          ),
-          child: Icon(
-            Icons.local_fire_department,
-            size: size * 0.62,
-            color: context.palette.accent,
-          ),
-        ),
-      );
+      return VerifiedBadge(size: size);
     }
 
     final foto = ClipRRect(
