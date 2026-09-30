@@ -79,6 +79,20 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 action: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // **La mancia sta qui, piccola.** Era una riga di testo
+                    // sotto il portafoglio ed era la cosa che saltava piu'
+                    // all'occhio del profilo: chi vuole sostenere CRASY la
+                    // trova lo stesso, gli altri non ci inciampano.
+                    if (paymentsEnabled)
+                      IconButton(
+                        onPressed: () => context.push(AppRoutes.tip),
+                        icon: const Icon(
+                          Icons.favorite_border_rounded,
+                          size: 20,
+                        ),
+                        tooltip: 'Sostieni CRASY',
+                        color: palette.textFaint,
+                      ),
                     // **La modifica sale qui, accanto all'ingranaggio.**
                     //
                     // Stava dentro il profilo, accanto alla foto: un'icona in
@@ -155,22 +169,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           ),
                           child: WalletCard(),
                         ),
-                        // **La mancia**, sotto il portafoglio: e' l'altro
-                        // posto dove si parla di soldi. Da dieci euro da' la
-                        // spunta, ed e' il modo piu' semplice di averla.
-                        if (paymentsEnabled)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.page,
-                            ),
-                            child: TextButton.icon(
-                              onPressed: () => context.push(AppRoutes.tip),
-                              icon: const VerifiedBadge(size: 16),
-                              label: const Text(
-                                'Sostieni CRASY · da 10 € la spunta verificata',
-                              ),
-                            ),
-                          ),
                         const SizedBox(height: AppSpacing.xs),
                         _Stats(
                           entries: entries.length,

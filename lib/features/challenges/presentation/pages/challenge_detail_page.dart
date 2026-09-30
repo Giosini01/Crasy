@@ -22,6 +22,7 @@ import 'package:crasy/features/challenges/presentation/providers/challenge_provi
 import 'package:crasy/features/challenges/presentation/widgets/archive_badge.dart';
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
 import 'package:crasy/features/challenges/presentation/widgets/duel_badge.dart';
+import 'package:crasy/features/challenges/presentation/widgets/entry_comments.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
@@ -422,6 +423,10 @@ class _EntriesState extends ConsumerState<_Entries> {
   void didUpdateWidget(_Entries oldWidget) {
     super.didUpdateWidget(oldWidget);
 
+    // La foto cercata puo' arrivare con lo stream dopo l'apertura: chi tocca
+    // una notifica entra quando le partecipazioni non sono ancora tutte qui.
+    _openSharedEntry();
+
     // **Anche qui, e non solo all'apertura.** La gara arriva spesso ancora
     // aperta e il server la chiude un istante dopo: il vincitore compare in
     // quel momento, con un widget nuovo. Guardando soltanto all'ingresso, il
@@ -558,12 +563,18 @@ class _EntriesState extends ConsumerState<_Entries> {
   /// partecipazioni arrivano da uno stream e questo widget si ricostruisce a
   /// ogni fiamma che qualcuno accende. Senza il segno, la foto si riaprirebbe
   /// da sola sopra a quella che si sta guardando.
+  ///
+  /// Con `&commenti=1` si aprono anche i commenti di quella foto: e' dove porta
+  /// chi tocca "ti ha nominato" o "ha commentato la tua foto". Arrivare sulla
+  /// foto e dover cercare da soli il fumetto vorrebbe dire non leggere mai la
+  /// riga per cui si era venuti.
   void _openSharedEntry() {
     if (_opened) {
       return;
     }
 
-    final wanted = GoRouterState.of(context).uri.queryParameters['foto'];
+    final query = GoRouterState.of(context).uri.queryParameters;
+    final wanted = query['foto'];
 
     if (wanted == null || wanted.isEmpty || widget.entries.isEmpty) {
       return;
@@ -577,9 +588,23 @@ class _EntriesState extends ConsumerState<_Entries> {
 
     _opened = true;
 
+    // I commenti si aprono solo a gara aperta, come dal fumetto: a gara chiusa
+    // resta la foto, e il foglio con il campo per scrivere non avrebbe senso.
+    final commenti = query['commenti'] == '1' && !widget.challenge.isOver;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        FullscreenMedia.open(context, entries: widget.entries, entry: entry);
+      if (!mounted) {
+        return;
+      }
+
+      unawaited(
+        FullscreenMedia.open(context, entries: widget.entries, entry: entry),
+      );
+
+      // Sopra la foto, nello stesso navigatore: chiudendo i commenti si resta
+      // sulla foto di cui parlavano.
+      if (commenti) {
+        unawaited(showEntryComments(context, entry: entry));
       }
     });
   }

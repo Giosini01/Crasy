@@ -4,6 +4,7 @@ import 'package:crasy/core/moderation/content_policy.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/notifications/data/repositories/firestore_notifications_repository.dart';
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
 import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
@@ -63,15 +64,26 @@ class CommentSender {
     // Solo i nominati che compaiono davvero nel testo. Fra il tocco sul
     // suggerimento e l'invio si puo' cancellare mezzo commento, e chi e' stato
     // tolto dalla riga non deve ricevere una chiamata.
+    final scritti = _nomiNelTesto(scritto);
     final nominati = [
       for (final mention in mentions)
-        if (scritto.contains('@${mention.username}') &&
+        if (scritti.contains(mention.username.toLowerCase()) &&
             mention.userId != authState.user.id)
           mention,
     ];
 
+    // **E anche quelli scritti a mano.** Chi scrive `@mario` per intero senza
+    // toccare il suggerimento lo ha nominato lo stesso, e si aspetta che a
+    // Mario arrivi la notizia: prima non arrivava niente, e il nome restava
+    // testo nero. Si cerca il nome esatto, uno per uno.
+    nominati.addAll(
+      await _risolviAMano(scritti, gia: nominati, io: authState.user.id),
+    );
+
+    final String commentId;
+
     try {
-      await _ref
+      final commento = await _ref
           .read(challengeRepositoryProvider)
           .addComment(
             challengeId: challengeId,
@@ -81,6 +93,7 @@ class CommentSender {
             text: scritto,
             mentions: nominati,
           );
+      commentId = commento.id;
     } on Object catch (_) {
       return 'Commento non mandato. Riprova.';
     }
@@ -91,6 +104,8 @@ class CommentSender {
         actorId: authState.user.id,
         actorUsername: autore,
         challengeId: challengeId,
+        entryId: entryId,
+        commentId: commentId,
         challengeTitle: challengeTitle,
       ),
     );
@@ -100,21 +115,82 @@ class CommentSender {
     // un muro. Il nome della partecipazione **e'** l'identificativo di chi
     // l'ha mandata — e' la regola "una foto a testa" scritta nella forma dei
     // dati — quindi qui non serve leggere niente per sapere a chi scrivere.
-    unawaited(
-      _avvisaAutore(
-        entryId,
-        actorId: authState.user.id,
-        actorUsername: autore,
-        challengeId: challengeId,
-        challengeTitle: challengeTitle,
-      ),
-    );
+    //
+    // Se e' anche fra i nominati gli arriva gia' quella: due squilli per la
+    // stessa riga sono uno di troppo.
+    if (!nominati.any((mention) => mention.userId == entryId)) {
+      unawaited(
+        _avvisaAutore(
+          entryId,
+          commentId: commentId,
+          actorId: authState.user.id,
+          actorUsername: autore,
+          challengeId: challengeId,
+          challengeTitle: challengeTitle,
+        ),
+      );
+    }
 
     return null;
   }
 
+  /// I nomi scritti con la chiocciola, in minuscolo.
+  static Set<String> _nomiNelTesto(String testo) => {
+    for (final trovato in RegExp(r'@([A-Za-z0-9_.]+)').allMatches(testo))
+      trovato.group(1)!.toLowerCase(),
+  };
+
+  /// Le persone nominate a mano: `@nome` scritto per intero, senza passare dai
+  /// suggerimenti.
+  ///
+  /// Una ricerca per nome, e solo per quelli che non si conoscono gia'. Al
+  /// massimo cinque: un commento con dieci chiocciole non e' una conversazione.
+  /// Non lancia: un nome che non si trova resta testo, e il commento parte lo
+  /// stesso.
+  Future<List<EntryMention>> _risolviAMano(
+    Set<String> scritti, {
+    required List<EntryMention> gia,
+    required String io,
+  }) async {
+    final noti = {for (final mention in gia) mention.username.toLowerCase()};
+    final daCercare = scritti.difference(noti).take(5).toList();
+
+    if (daCercare.isEmpty) {
+      return const [];
+    }
+
+    final repository = _ref.read(friendsRepositoryProvider);
+
+    if (repository == null) {
+      return const [];
+    }
+
+    final trovati = <EntryMention>[];
+
+    for (final nome in daCercare) {
+      try {
+        final profili = await repository.searchProfiles(nome, limit: 3);
+
+        for (final profilo in profili) {
+          if (profilo.username.toLowerCase() == nome && profilo.id != io) {
+            trovati.add(
+              EntryMention(userId: profilo.id, username: profilo.username),
+            );
+
+            break;
+          }
+        }
+      } on Object catch (_) {
+        // Vedi sopra: resta testo.
+      }
+    }
+
+    return trovati;
+  }
+
   Future<void> _avvisaAutore(
     String entryId, {
+    required String commentId,
     required String actorId,
     required String actorUsername,
     required String challengeId,
@@ -133,12 +209,13 @@ class CommentSender {
       id: FirestoreNotificationsRepository.commentId(
         challengeId: challengeId,
         entryId: entryId,
-        actorId: actorId,
+        commentId: commentId,
       ),
       kind: NotificationKind.comment,
       actorId: actorId,
       actorUsername: actorUsername,
       challengeId: challengeId,
+      entryId: entryId,
       challengeTitle: challengeTitle,
     );
   }
@@ -148,6 +225,8 @@ class CommentSender {
     required String actorId,
     required String actorUsername,
     required String challengeId,
+    required String entryId,
+    required String commentId,
     required String challengeTitle,
   }) async {
     if (nominati.isEmpty) {
@@ -160,18 +239,12 @@ class CommentSender {
       return;
     }
 
-    // **Una chiamata sola per gara, per persona, da parte della stessa
-    // persona.** Il nome del documento non porta dentro quale commento, ed e'
-    // voluto: le regole accettano una notifica sola per quel nome, quindi chi
-    // nomina qualcuno dieci volte nella stessa gara — cosa che in una
-    // discussione capita da sola — gli fa squillare la campanella una volta.
+    // **Una chiamata per commento.** Prima era una sola per gara, per
+    // persona: dal secondo tag nella stessa gara la notifica veniva scartata
+    // in silenzio, e chi taggava qualcuno per rispondergli non lo raggiungeva
+    // piu'. Chi viene nominato vuole saperlo ogni volta.
     //
-    // Si perde qualcosa: la seconda chiamata, dentro la stessa gara, non
-    // arriva. Vale il prezzo. Una campanella che suona dieci volte per la
-    // stessa conversazione si spegne dalle impostazioni del telefono, e da li'
-    // non suona piu' nemmeno quando qualcuno vince.
-    //
-    // Dentro lo stesso commento vale lo stesso: nominare qualcuno tre volte
+    // Dentro lo stesso commento invece resta una: nominare qualcuno tre volte
     // nella stessa riga e' una chiamata sola.
     final visti = <String>{};
 
@@ -184,13 +257,14 @@ class CommentSender {
         toUserId: mention.userId,
         id: FirestoreNotificationsRepository.mentionId(
           challengeId: challengeId,
-          actorId: actorId,
+          commentId: commentId,
           toUserId: mention.userId,
         ),
         kind: NotificationKind.mention,
         actorId: actorId,
         actorUsername: actorUsername,
         challengeId: challengeId,
+        entryId: entryId,
         challengeTitle: challengeTitle,
       );
     }

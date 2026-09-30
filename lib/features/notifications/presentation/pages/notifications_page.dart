@@ -270,11 +270,15 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                               if (index < recenti.length) {
                                 return _Row(
                                   notification: recenti[index],
+                                  seenAt: seenAt,
                                   accesa: recenti[index].id == _accesa,
                                 );
                               }
 
-                              return _Older(notifications: vecchie);
+                              return _Older(
+                                notifications: vecchie,
+                                seenAt: seenAt,
+                              );
                             },
                           ),
                   ),
@@ -412,9 +416,10 @@ const _oldAfter = Duration(days: 7);
 /// una cosa precisa: nessuno scorre la campanella per rileggersi le fiamme del
 /// mese scorso.
 class _Older extends StatefulWidget {
-  const _Older({required this.notifications});
+  const _Older({required this.notifications, required this.seenAt});
 
   final List<AppNotification> notifications;
+  final DateTime? seenAt;
 
   @override
   State<_Older> createState() => _OlderState();
@@ -460,43 +465,73 @@ class _OlderState extends State<_Older> {
         ),
         if (_open)
           for (final notification in widget.notifications)
-            _Row(notification: notification),
+            _Row(notification: notification, seenAt: widget.seenAt),
       ],
     );
   }
 }
 
 class _Row extends ConsumerWidget {
-  const _Row({required this.notification, this.accesa = false});
+  const _Row({
+    required this.notification,
+    required this.seenAt,
+    this.accesa = false,
+  });
 
   final AppNotification notification;
+
+  /// L'ultima occhiata **di prima di questa visita**, la stessa dei numeri in
+  /// cima.
+  ///
+  /// Prima ogni riga leggeva quella di adesso, che aprendo la campanella
+  /// diventa "ora": i veli rossi delle non lette comparivano per un istante e
+  /// sparivano sotto gli occhi di chi era venuto proprio a vederli.
+  final DateTime? seenAt;
 
   /// Se e' la riga per cui si e' arrivati qui.
   final bool accesa;
 
-  void _open(BuildContext context) {
+  void _open(BuildContext context, WidgetRef ref) {
     if (notification.kind == NotificationKind.friendRequest) {
       context.push(AppRoutes.friends);
 
       return;
     }
 
-    if (notification.challengeId.isNotEmpty) {
-      context.push(AppRoutes.challengeDetailOf(notification.challengeId));
+    if (notification.challengeId.isEmpty) {
+      return;
     }
+
+    // **Un commento o una nomina portano al commento**, non alla gara: la foto
+    // si apre grande con i commenti sopra. Le notizie di commento scritte
+    // prima che portassero la foto la ritrovano lo stesso — la foto
+    // commentata e' la mia, e il suo nome e' il mio identificativo.
+    final foto = switch (notification.kind) {
+      NotificationKind.mention => notification.entryId,
+      NotificationKind.comment =>
+        notification.entryId.isNotEmpty
+            ? notification.entryId
+            : ref.read(currentUserIdProvider) ?? '',
+      _ => '',
+    };
+
+    context.push(
+      foto.isEmpty
+          ? AppRoutes.challengeDetailOf(notification.challengeId)
+          : AppRoutes.entryCommentsOf(notification.challengeId, foto),
+    );
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
     final texts = context.texts;
-    final seenAt = ref.watch(notificationsSeenAtProvider).valueOrNull;
     final unread = notification.isUnreadSince(seenAt);
     final createdAt = notification.createdAt;
     final isWin = notification.kind == NotificationKind.win;
 
     return GestureDetector(
-      onTap: () => _open(context),
+      onTap: () => _open(context, ref),
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         // **Il tempo dello spegnimento, non dell'accensione.** Arrivando da una
@@ -842,6 +877,24 @@ class _Thumb extends ConsumerWidget {
 
     if (notification.kind == NotificationKind.friendRequest) {
       return null;
+    }
+
+    // **Una nomina parla della foto sotto cui ti hanno nominato**, che di
+    // solito non e' la tua: mostrare la propria foto di quella gara vorrebbe
+    // dire indicare la cosa sbagliata. Le nomine vecchie non sanno quale foto
+    // fosse, e restano senza.
+    if (notification.kind == NotificationKind.mention) {
+      if (notification.entryId.isEmpty) {
+        return null;
+      }
+
+      final entries =
+          ref.watch(challengeEntriesProvider(challengeId)).valueOrNull ??
+          const <ChallengeEntry>[];
+
+      return entries
+          .where((entry) => entry.id == notification.entryId)
+          .firstOrNull;
     }
 
     final mine = ref.watch(myEntriesProvider).valueOrNull ?? const [];

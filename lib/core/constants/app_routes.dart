@@ -125,6 +125,11 @@ abstract final class AppRoutes {
 
   static String challengeDetailOf(String id) => '/challenge/$id';
 
+  /// La gara con una foto aperta grande e i suoi commenti sopra: dove porta chi
+  /// tocca un commento o una nomina.
+  static String entryCommentsOf(String challengeId, String entryId) =>
+      '/challenge/$challengeId?foto=${Uri.encodeComponent(entryId)}&commenti=1';
+
   static String userProfileOf(String id) => '/utente/$id';
 
   static String participateOf(String id) => '/challenge/$id/partecipa';

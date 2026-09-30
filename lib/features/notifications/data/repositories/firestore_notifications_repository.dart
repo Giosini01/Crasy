@@ -94,15 +94,30 @@ class FirestoreNotificationsRepository {
   }
 
   /// Quando si e' aperta la campanella l'ultima volta.
+  ///
+  /// **Mentre l'ora del server non e' ancora tornata, vale adesso.** [markSeen]
+  /// scrive un timestamp del server, e nell'istante fra la scrittura e la
+  /// risposta Firestore lo legge in locale come **nullo**. Nullo vuol dire "mai
+  /// aperta", cioe' tutte non lette: aprendo la campanella il pallino e i veli
+  /// rossi si accendevano su tutto per un attimo e poi sparivano. Si usa l'ora
+  /// del telefono finche' non arriva quella vera.
   Stream<DateTime?> watchSeenAt(String userId) {
     return _firestore
         .collection('users')
         .doc(userId)
         .snapshots()
-        .map(
-          (snapshot) =>
-              (snapshot.data()?['notificationsSeenAt'] as Timestamp?)?.toDate(),
-        );
+        .map((snapshot) {
+          final data = snapshot.data();
+          final seenAt = (data?['notificationsSeenAt'] as Timestamp?)?.toDate();
+
+          if (seenAt == null &&
+              snapshot.metadata.hasPendingWrites &&
+              (data?.containsKey('notificationsSeenAt') ?? false)) {
+            return DateTime.now();
+          }
+
+          return seenAt;
+        });
   }
 
   /// Segna tutto come visto.
@@ -134,6 +149,10 @@ class FirestoreNotificationsRepository {
     String challengeId = '',
     String challengeTitle = '',
 
+    /// La foto di cui si parla: serve a portare chi tocca un commento o una
+    /// nomina **sotto quella foto**, con i commenti aperti.
+    String entryId = '',
+
     /// La riga che chi lancia una sfida scrive all'amico. Vuota per tutto il
     /// resto: nessun'altra notifica porta parole scritte da qualcuno.
     String message = '',
@@ -149,6 +168,7 @@ class FirestoreNotificationsRepository {
         'actorUsername': actorUsername,
         'challengeId': challengeId,
         'challengeTitle': challengeTitle,
+        if (entryId.isNotEmpty) 'entryId': entryId,
         if (message.isNotEmpty) 'message': message,
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -188,27 +208,28 @@ class FirestoreNotificationsRepository {
 
   /// Il nome del documento di una nomina dentro un commento.
   ///
-  /// Ci sono la gara, chi nomina e chi e' nominato — non **quale** commento.
-  /// Cosi' chi ti nomina dieci volte nella stessa gara ti fa squillare la
-  /// campanella una volta: le regole accettano una notifica sola per nome di
-  /// documento, e le altre nove vengono scartate senza far niente.
+  /// **C'e' il commento.** Prima c'erano solo la gara, chi nomina e chi e'
+  /// nominato: dalla seconda nomina nella stessa gara il documento esisteva
+  /// gia', le regole rifiutavano la scrittura e la notifica non arrivava. Chi
+  /// tagga qualcuno per rispondergli si aspetta che gli arrivi ogni volta.
+  ///
+  /// Lo stesso nome dentro lo stesso commento resta una notifica sola.
   static String mentionId({
     required String challengeId,
-    required String actorId,
+    required String commentId,
     required String toUserId,
-  }) => 'nomina_${challengeId}_${actorId}_$toUserId';
+  }) => 'nomina_${challengeId}_${commentId}_$toUserId';
 
   /// Il nome del documento di un commento sotto una foto.
   ///
-  /// Ci sono la foto e chi ha scritto — non **quale** commento. Cosi' una
-  /// conversazione di venti righe fra due persone fa squillare la campanella
-  /// una volta: le regole accettano una notifica sola per nome di documento, e
-  /// le altre diciannove vengono scartate senza fare niente.
+  /// Uno per commento, per la stessa ragione delle nomine: con un nome solo
+  /// per persona e per foto, dal secondo commento in poi l'autore della foto
+  /// non ne sapeva piu' niente.
   static String commentId({
     required String challengeId,
     required String entryId,
-    required String actorId,
-  }) => 'commento_${challengeId}_${entryId}_$actorId';
+    required String commentId,
+  }) => 'commento_${challengeId}_${entryId}_$commentId';
 
   /// Il nome del documento di una notizia su una sfida mirata.
   ///
@@ -236,6 +257,7 @@ class FirestoreNotificationsRepository {
       actorUsername: data['actorUsername'] as String? ?? '',
       challengeId: data['challengeId'] as String? ?? '',
       challengeTitle: data['challengeTitle'] as String? ?? '',
+      entryId: data['entryId'] as String? ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }

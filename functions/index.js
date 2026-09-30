@@ -1791,6 +1791,9 @@ exports.sendPushOnNotification = onDocumentCreated(
     await mandaAUnaPersona(userId, corpo, {
       kind: String(dati.kind || ''),
       challengeId: String(dati.challengeId || ''),
+      // La foto di un commento o di una nomina: toccando la notifica l'app la
+      // apre grande, con i commenti sopra, invece di lasciarla cercare.
+      entryId: String(dati.entryId || ''),
       // **Quale riga, non solo quale specie.** Senza questo, toccare la
       // notifica apre la campanella e poi tocca a chi guarda ritrovare da solo
       // la cosa per cui era venuto, in mezzo a tutte le altre. Con il nome del

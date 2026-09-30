@@ -33,6 +33,9 @@ class _CrasyAppState extends ConsumerState<CrasyApp> {
   /// completa**, cioe' quando esiste davvero una schermata su cui atterrare.
   PushTap? _inAttesa;
 
+  /// Dove compare l'avviso di una notifica arrivata ad app aperta.
+  final _avvisi = GlobalKey<ScaffoldMessengerState>();
+
   /// Va dove dice il tocco, dando per scontato che si possa.
   ///
   /// **Il router si chiede adesso, non si tiene da parte.** E' costruito sopra
@@ -64,7 +67,7 @@ class _CrasyAppState extends ConsumerState<CrasyApp> {
       // **Non si apre due volte la stessa pagina.** Chi tocca due notifiche di
       // fila si ritroverebbe due campanelle impilate, e due frecce indietro per
       // uscire da quella che ha aperto una volta sola.
-      if (router.state.matchedLocation == pagina) {
+      if (router.state.matchedLocation == Uri.parse(pagina).path) {
         router.replace(indirizzo);
 
         return;
@@ -122,6 +125,32 @@ class _CrasyAppState extends ConsumerState<CrasyApp> {
       }
     });
 
+    // **Su Android, ad app aperta, la notifica la mostra l'app.** Il sistema
+    // non lo fa: senza questo avviso chi stava usando CRASY non sapeva che
+    // qualcuno l'aveva appena taggato. Un tocco su "Apri" porta dove porterebbe
+    // la notifica vera.
+    ref.listen(foregroundPushProvider, (_, arrivo) {
+      final push = arrivo.valueOrNull;
+
+      if (push == null) {
+        return;
+      }
+
+      _avvisi.currentState
+        ?..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(push.testo),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Apri',
+              onPressed: () => _prendi(push.dove),
+            ),
+          ),
+        );
+    });
+
     // E quando la sessione finisce di aprirsi, il tocco messo da parte si
     // consuma. Senza questo, chi tocca una notifica ad app chiusa passa dai
     // muri d'ingresso e poi resta dove l'hanno lasciato i muri.
@@ -144,6 +173,7 @@ class _CrasyAppState extends ConsumerState<CrasyApp> {
 
     return MaterialApp.router(
       title: 'CRASY',
+      scaffoldMessengerKey: _avvisi,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       // Bloccata sul chiaro: l'app non segue il tema di sistema, cosi' le foto

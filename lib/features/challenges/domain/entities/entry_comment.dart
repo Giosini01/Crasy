@@ -50,7 +50,7 @@ class EntryComment {
   /// L'identificativo di chi porta questo nome, se e' fra i nominati.
   String? userIdOf(String username) {
     for (final mention in mentions) {
-      if (mention.username == username) {
+      if (mention.username.toLowerCase() == username.toLowerCase()) {
         return mention.userId;
       }
     }
