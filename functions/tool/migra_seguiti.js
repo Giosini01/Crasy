@@ -1,5 +1,5 @@
 /**
- * **Chi seguiva gia' qualcuno, adesso lo segue davvero.**
+ * **Chi seguiva gia' qualcuno, adesso lo segue davvero. E i contatori.**
  *
  * Seguire scrive due cose: la "richiesta" nella cartella di chi e' seguito —
  * e' quella che gli dice "ti segue" — e chi seguo, dalla parte di chi segue.
@@ -7,10 +7,18 @@
  * solo la prima: il bottone diceva "Segui gia'", ma le gare di quella persona
  * in SEGUITI non comparivano.
  *
- * Per ogni `users/{seguito}/friendRequests/{chiSegue}` questo script scrive
- * `users/{chiSegue}/following/{seguito}` e aggiunge `seguito` all'elenco
- * `seguiti` nel documento di chi segue. Si puo' rilanciare quante volte si
- * vuole: quello che c'e' gia' resta com'e'.
+ * Questo script:
+ *
+ * - per ogni `users/{seguito}/friendRequests/{chiSegue}` scrive
+ *   `users/{chiSegue}/following/{seguito}` e aggiunge `seguito` all'elenco
+ *   `seguiti` nel documento di chi segue;
+ * - lo stesso per gli amici, da tutte e due le parti: un amico e' qualcuno che
+ *   si segue, e le amicizie nate prima dei follower quella riga non l'hanno;
+ * - alla fine rifa' da capo i contatori sul profilo di ognuno — follower e
+ *   seguiti — contando le righe vere. Da li' in poi li tengono le funzioni.
+ *
+ * Si puo' rilanciare quante volte si vuole: quello che c'e' gia' resta
+ * com'e', e i contatori tornano giusti.
  *
  *     node tool/migra_seguiti.js --chiave C:/percorso/chiave.json
  *     node tool/migra_seguiti.js --chiave C:/percorso/chiave.json --scrivi
@@ -38,6 +46,7 @@ const db = admin.firestore();
 
 async function migra() {
   const richieste = await db.collectionGroup('friendRequests').get();
+  const amicizie = await db.collectionGroup('friends').get();
   const nomi = new Map();
 
   async function nomeDi(userId) {
@@ -49,12 +58,32 @@ async function migra() {
     return nomi.get(userId);
   }
 
-  const conto = { richieste: richieste.size, scritte: 0, gia: 0, senzaProfilo: 0 };
+  const conto = {
+    richieste: richieste.size,
+    amicizie: amicizie.size,
+    scritte: 0,
+    gia: 0,
+    senzaProfilo: 0,
+    contatori: 0,
+  };
 
-  for (const richiesta of richieste.docs) {
-    const chiSegue = richiesta.id;
-    const seguito = richiesta.ref.parent.parent?.id;
+  // Una richiesta in users/{seguito}/friendRequests/{chiSegue}: chiSegue segue
+  // seguito. Un'amicizia in users/{a}/friends/{b}: a segue b — la riga
+  // speculare, b segue a, arriva da sola perche' c'e' anche quella.
+  const coppie = [
+    ...richieste.docs.map((doc) => ({
+      chiSegue: doc.id,
+      seguito: doc.ref.parent.parent?.id,
+      quando: doc.get('createdAt'),
+    })),
+    ...amicizie.docs.map((doc) => ({
+      chiSegue: doc.ref.parent.parent?.id,
+      seguito: doc.id,
+      quando: doc.get('since'),
+    })),
+  ];
 
+  for (const { chiSegue, seguito, quando } of coppie) {
     if (!seguito || !chiSegue || seguito === chiSegue) {
       continue;
     }
@@ -83,13 +112,40 @@ async function migra() {
     if (scrivi) {
       await riga.set({
         username: (await nomeDi(seguito)) || '',
-        since: richiesta.get('createdAt') || admin.firestore.FieldValue.serverTimestamp(),
+        since: quando || admin.firestore.FieldValue.serverTimestamp(),
       });
 
       await db.collection('users').doc(chiSegue).set(
         { seguiti: admin.firestore.FieldValue.arrayUnion(seguito) },
         { merge: true },
       );
+    }
+  }
+
+  // **I contatori, da capo**, contati sulle righe vere per ognuno.
+  const utenti = await db.collection('users').get();
+
+  for (const utente of utenti.docs) {
+    const [chiesti, amici, seguiti] = await Promise.all([
+      utente.ref.collection('friendRequests').count().get(),
+      utente.ref.collection('friends').count().get(),
+      utente.ref.collection('following').count().get(),
+    ]);
+
+    const followersCount = chiesti.data().count + amici.data().count;
+    const followingCount = seguiti.data().count;
+
+    if (
+      utente.get('followersCount') === followersCount &&
+      utente.get('followingCount') === followingCount
+    ) {
+      continue;
+    }
+
+    conto.contatori += 1;
+
+    if (scrivi) {
+      await utente.ref.update({ followersCount, followingCount });
     }
   }
 

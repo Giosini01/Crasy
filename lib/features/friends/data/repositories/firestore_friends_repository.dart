@@ -65,9 +65,15 @@ class FirestoreFriendsRepository {
   /// regole di sempre, e seguire qualcuno deve funzionare anche prima che le
   /// regole nuove siano pubblicate. Era il motivo per cui chi seguiva senza
   /// essere ricambiato non vedeva niente.
-  Stream<({List<String> seguiti, DateTime? followersSeenAt})> watchOwnFollow(
-    String userId,
-  ) {
+  Stream<
+    ({
+      List<String> seguiti,
+      DateTime? followersSeenAt,
+      int? followersCount,
+      int? followingCount,
+    })
+  >
+  watchOwnFollow(String userId) {
     return _users.doc(userId).snapshots().map((snapshot) {
       final data = snapshot.data() ?? const <String, dynamic>{};
       final seguiti = [
@@ -85,8 +91,74 @@ class FirestoreFriendsRepository {
         visti = DateTime.now();
       }
 
-      return (seguiti: seguiti, followersSeenAt: visti);
+      return (
+        seguiti: seguiti,
+        followersSeenAt: visti,
+        // I contatori li tiene il server: con mille follower contarli qui
+        // vorrebbe dire leggerne mille a ogni apertura del profilo.
+        followersCount: (data['followersCount'] as num?)?.toInt(),
+        followingCount: (data['followingCount'] as num?)?.toInt(),
+      );
     });
+  }
+
+  /// **Una pagina di chi mi segue senza che io ricambi**, dalla piu' recente.
+  ///
+  /// A pagine e non tutti insieme: con mille follower l'elenco si legge
+  /// trenta alla volta, mentre si scorre, invece di mille righe ogni volta
+  /// che si apre la schermata.
+  Future<({List<FriendRequest> righe, DocumentSnapshot<Object?>? ultimo})>
+  pageIncoming(String userId, {DocumentSnapshot<Object?>? dopo, int quanti = 30}) async {
+    var query = _requests(
+      userId,
+    ).orderBy('createdAt', descending: true).limit(quanti);
+
+    if (dopo != null) {
+      query = query.startAfterDocument(dopo);
+    }
+
+    final pagina = await query.get();
+
+    return (
+      righe: [
+        for (final document in pagina.docs)
+          FriendRequest(
+            fromUserId: document.id,
+            fromUsername: document.data()['fromUsername'] as String? ?? '',
+            createdAt: (document.data()['createdAt'] as Timestamp?)?.toDate(),
+          ),
+      ],
+      ultimo: pagina.docs.isEmpty ? null : pagina.docs.last,
+    );
+  }
+
+  /// **Una pagina di amici**, dai piu' recenti. Come [pageIncoming].
+  Future<({List<Friend> righe, DocumentSnapshot<Object?>? ultimo})> pageFriends(
+    String userId, {
+    DocumentSnapshot<Object?>? dopo,
+    int quanti = 30,
+  }) async {
+    var query = _friends(
+      userId,
+    ).orderBy('since', descending: true).limit(quanti);
+
+    if (dopo != null) {
+      query = query.startAfterDocument(dopo);
+    }
+
+    final pagina = await query.get();
+
+    return (
+      righe: [
+        for (final document in pagina.docs)
+          Friend(
+            userId: document.id,
+            username: document.data()['username'] as String? ?? '',
+            since: (document.data()['since'] as Timestamp?)?.toDate(),
+          ),
+      ],
+      ultimo: pagina.docs.isEmpty ? null : pagina.docs.last,
+    );
   }
 
   /// Aggiunge [otherId] a chi seguo, nel mio documento. Non lancia.

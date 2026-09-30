@@ -175,18 +175,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         _Stats(
                           wins: trophies.length,
                           launched: commissions.length,
-                          followers:
-                              (ref
-                                      .watch(myFriendsProvider)
-                                      .valueOrNull
-                                      ?.length ??
-                                  0) +
-                              (ref
-                                      .watch(incomingRequestsProvider)
-                                      .valueOrNull
-                                      ?.length ??
-                                  0),
-                          following: ref.watch(followedIdsProvider).length,
+                          followers: ref.watch(followersCountProvider),
+                          following: ref.watch(followingCountProvider),
                           pending: ref.watch(newFollowersCountProvider),
                         ),
                         // **Il cassetto di chi conosci.** Si apre da qui e non
@@ -491,10 +481,11 @@ class _Stats extends StatelessWidget {
                 waiting: pending,
               ),
               _Divider(color: palette.line),
+              // Due porte diverse: chi mi segue e chi seguo.
               _Stat(
                 label: 'SEGUITI',
                 value: '$following',
-                onTap: () => context.push(AppRoutes.friends),
+                onTap: () => context.push(AppRoutes.following),
               ),
             ],
           ),

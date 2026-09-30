@@ -1,8 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
-import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
@@ -13,16 +13,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-/// Gli amici.
+/// **Follower: chi ti segue.**
 ///
-/// Due blocchi e nient'altro: **chi ti ha chiesto l'amicizia** e **chi ce
-/// l'hai gia'**. Le richieste stanno in cima perche' sono l'unica cosa che
-/// aspetta una risposta da te; gli amici stanno sotto perche' sono un elenco da
-/// consultare, non da smaltire.
+/// Due gruppi, nello stesso elenco. In cima chi ti segue e tu non ancora — e'
+/// l'unica parte in cui c'e' qualcosa da fare: ricambiare, e diventare amici,
+/// o toglierlo. Sotto gli amici, cioe' chi ti segue e che segui anche tu.
 ///
-/// Non c'e' una ricerca per nome, e non e' una dimenticanza: qui le persone si
-/// incontrano guardando le foto che mandano alle challenge, non digitando un
-/// nome che si dovrebbe gia' conoscere.
+/// **Si legge a pagine.** Con mille follower caricarli tutti ogni volta che si
+/// apre questa schermata vorrebbe dire mille letture per guardarne dieci: qui
+/// ne arrivano trenta alla volta, mentre si scorre. Prima tutti quelli da
+/// ricambiare, poi gli amici.
+///
+/// Chi seguo io sta in un'altra schermata — [FollowingPage] — ed e' un'altra
+/// domanda: questa e' "chi mi guarda", quella "chi guardo".
 class FriendsPage extends ConsumerStatefulWidget {
   const FriendsPage({super.key});
 
@@ -30,365 +33,370 @@ class FriendsPage extends ConsumerStatefulWidget {
   ConsumerState<FriendsPage> createState() => _FriendsPageState();
 }
 
-class _FriendsPageState extends ConsumerState<FriendsPage> {
-  /// Quante richieste si vedono prima del "vedi le altre".
-  ///
-  /// Tre: abbastanza per accorgersi che ci sono, poche perche' gli amici
-  /// restino sopra la piega dello schermo.
-  static const int _initiallyShown = 3;
+/// Una riga dell'elenco: una persona, e se e' gia' un amico.
+typedef _Follower = ({String userId, String username, bool amico});
 
-  int _requestsShown = _initiallyShown;
+class _FriendsPageState extends ConsumerState<FriendsPage> {
+  static const int _pagina = 30;
+
+  final _scorrimento = ScrollController();
+  final _righe = <_Follower>[];
+
+  DocumentSnapshot<Object?>? _dopoRichieste;
+  DocumentSnapshot<Object?>? _dopoAmici;
+  bool _richiesteFinite = false;
+  bool _amiciFiniti = false;
+  bool _caricando = false;
+  Object? _errore;
 
   @override
   void initState() {
     super.initState();
+    _scorrimento.addListener(_forseAltre);
 
-    // **Aperto l'elenco, i follower nuovi sono visti**: il pallino rosso su
-    // FOLLOWER e sulla scheda del profilo si spegne. Dopo la frame, non
-    // durante: qui si scrive sul database.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        ref.read(friendActionsProvider).markFollowersSeen();
+      if (!mounted) {
+        return;
       }
+
+      // **Aperto l'elenco, i follower nuovi sono visti**: il pallino rosso
+      // su FOLLOWER e sulla scheda del profilo si spegne.
+      ref.read(friendActionsProvider).markFollowersSeen();
+      _carica();
     });
   }
 
   @override
+  void dispose() {
+    _scorrimento.dispose();
+    super.dispose();
+  }
+
+  /// A meno di mezzo schermo dal fondo si chiede la pagina dopo.
+  void _forseAltre() {
+    final posizione = _scorrimento.position;
+
+    if (posizione.pixels > posizione.maxScrollExtent - 600) {
+      _carica();
+    }
+  }
+
+  Future<void> _carica() async {
+    final repository = ref.read(friendsRepositoryProvider);
+    final io = ref.read(currentUserIdProvider);
+
+    if (_caricando || _amiciFiniti || repository == null || io == null) {
+      return;
+    }
+
+    setState(() {
+      _caricando = true;
+      _errore = null;
+    });
+
+    try {
+      if (!_richiesteFinite) {
+        final pagina = await repository.pageIncoming(
+          io,
+          dopo: _dopoRichieste,
+          quanti: _pagina,
+        );
+
+        _righe.addAll([
+          for (final richiesta in pagina.righe)
+            (
+              userId: richiesta.fromUserId,
+              username: richiesta.fromUsername,
+              amico: false,
+            ),
+        ]);
+        _dopoRichieste = pagina.ultimo ?? _dopoRichieste;
+        _richiesteFinite = pagina.righe.length < _pagina;
+      } else {
+        final pagina = await repository.pageFriends(
+          io,
+          dopo: _dopoAmici,
+          quanti: _pagina,
+        );
+
+        _righe.addAll([
+          for (final amico in pagina.righe)
+            if (!_righe.any((riga) => riga.userId == amico.userId))
+              (userId: amico.userId, username: amico.username, amico: true),
+        ]);
+        _dopoAmici = pagina.ultimo ?? _dopoAmici;
+        _amiciFiniti = pagina.righe.length < _pagina;
+      }
+    } on Object catch (errore) {
+      _errore = errore;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _caricando = false);
+
+    // Una pagina corta non riempie lo schermo, e senza scorrere non arriva
+    // la prossima: si chiede da soli finche' c'e' qualcosa.
+    if (_errore == null && !_amiciFiniti) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            _scorrimento.hasClients &&
+            _scorrimento.position.maxScrollExtent < 600) {
+          _carica();
+        }
+      });
+    }
+  }
+
+  Future<void> _ricarica() async {
+    setState(() {
+      _righe.clear();
+      _dopoRichieste = null;
+      _dopoAmici = null;
+      _richiesteFinite = false;
+      _amiciFiniti = false;
+    });
+
+    await _carica();
+  }
+
+  Future<void> _ricambia(_Follower riga) async {
+    final indice = _righe.indexOf(riga);
+
+    setState(() {
+      _righe[indice] = (userId: riga.userId, username: riga.username, amico: true);
+    });
+
+    await ref
+        .read(friendActionsProvider)
+        .accept(
+          FriendRequest(fromUserId: riga.userId, fromUsername: riga.username),
+        );
+  }
+
+  Future<void> _rimuovi(_Follower riga) async {
+    setState(() => _righe.remove(riga));
+
+    await ref
+        .read(friendActionsProvider)
+        .reject(
+          FriendRequest(fromUserId: riga.userId, fromUsername: riga.username),
+        );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final requests =
-        ref.watch(incomingRequestsProvider).valueOrNull ?? const [];
-    final friends = ref.watch(myFriendsProvider).valueOrNull ?? const [];
-    final amiciIds = {for (final amico in friends) amico.userId};
-    // Chi seguo senza che mi segua: gli amici no, stanno sotto.
-    final seguo = [
-      for (final id in ref.watch(followedIdsProvider))
-        if (!amiciIds.contains(id)) id,
-    ];
-    // Una lettura sola per tutti: chiedendo amico per amico sarebbero venti
-    // richieste ogni volta che questa scheda si apre.
-    final inGara = ref.watch(
-      friendsInGameProvider(
-        usersKey([for (final amico in friends) amico.userId]),
-      ),
-    );
+    final totale = ref.watch(followersCountProvider);
+    final daRicambiare = _righe.where((riga) => !riga.amico).length;
+    final primoAmico = _righe.indexWhere((riga) => riga.amico);
 
     return Scaffold(
-      // **In cima c'e' una freccia, non il marchio.**
-      //
-      // Il marchio sta sulle quattro schede, e vuol dire "sei a casa": qui non
-      // ci si arriva scorrendo la barra in fondo, ci si entra da un numero sul
-      // profilo. Una pagina in cui si e' entrati deve dire da subito **come si
-      // torna indietro**, e il logo, li' sopra, quella domanda la lasciava
-      // aperta.
       appBar: AppBar(
         leading: const BackButton(),
-        title: const Text('Follower'),
+        title: Text(totale > 0 ? 'Follower · $totale' : 'Follower'),
       ),
       body: AppBackground(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.page,
-            AppSpacing.sm,
-            AppSpacing.page,
-            AppSpacing.xxl,
-          ),
-          children: [
-            const HighlightedText(
-              'Le persone che conosci, e cosa stanno combinando.',
-              highlight: 'cosa stanno combinando',
+        child: RefreshIndicator(
+          color: palette.accent,
+          onRefresh: _ricarica,
+          child: ListView.builder(
+            controller: _scorrimento,
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.page,
+              AppSpacing.sm,
+              AppSpacing.page,
+              AppSpacing.xxl,
             ),
-            const SizedBox(height: AppSpacing.xl),
-            if (requests.isNotEmpty) ...[
-              Row(
-                children: [
-                  Text(
-                    'TI SEGUONO',
-                    style: context.texts.labelSmall?.copyWith(
-                      color: palette.accent,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(
-                    '${requests.length}',
-                    style: context.texts.labelSmall?.copyWith(
-                      color: palette.accent,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              // **Non tutte, se sono tante.** Con cento richieste in attesa
-              // l'elenco degli amici finisce due schermate piu' giu', e la
-              // scheda smette di servire a quello per cui esiste. Se ne
-              // vedono tre, e le altre stanno dietro un tocco.
-              for (final request in requests.take(_requestsShown))
-                _RequestRow(request: request),
-              if (requests.length > _requestsShown) ...[
-                const SizedBox(height: AppSpacing.xs),
-                GestureDetector(
-                  onTap: () => setState(() => _requestsShown = requests.length),
-                  behavior: HitTestBehavior.opaque,
-                  child: Text(
-                    'VEDI LE ALTRE ${requests.length - _requestsShown}',
-                    style: context.texts.labelSmall?.copyWith(
-                      color: palette.accent,
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(height: AppSpacing.lg),
-              Divider(color: palette.line),
-              const SizedBox(height: AppSpacing.lg),
-            ],
-            // **Chi segui, e non ti segue ancora.** Da qui si smette; se ti
-            // segue anche lui, passa fra gli amici qui sotto.
-            if (seguo.isNotEmpty) ...[
-              Row(
-                children: [
-                  Text(
-                    'SEGUI',
-                    style: context.texts.labelSmall?.copyWith(
-                      color: palette.accent,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(
-                    '${seguo.length}',
-                    style: context.texts.labelSmall?.copyWith(
-                      color: palette.accent,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              for (final id in seguo) _FollowingRow(userId: id),
-              const SizedBox(height: AppSpacing.lg),
-              Divider(color: palette.line),
-              const SizedBox(height: AppSpacing.lg),
-            ],
-            // Il titolo della sezione e' grande e rosso, non una scritta
-            // grigia in punta di piedi. E' la schermata delle persone che
-            // uno conosce: senza il rosso e' un elenco di nomi, con il rosso
-            // e' la parte di CRASY che gli appartiene.
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                // Due parole, due pesi: "I TUOI" e' la premessa, "AMICI" e'
-                // la cosa. Il rosso sta sulla seconda, come il punto rosso in
-                // fondo ai titoli dell'app — un accento, non una vernice.
-                Text.rich(
-                  TextSpan(
-                    style: context.texts.headlineSmall,
-                    children: [
-                      TextSpan(
-                        text: 'AMICI',
-                        style: TextStyle(color: palette.accent),
+            // Una riga in piu' in fondo: la rotellina, il vuoto o l'errore.
+            itemCount: _righe.length + 1,
+            itemBuilder: (context, index) {
+              if (index == _righe.length) {
+                if (_errore != null) {
+                  return _Fondo(
+                    testo: 'Non riusciamo a caricare. Tira giu\' per riprovare.',
+                    colore: palette.accent,
+                  );
+                }
+
+                if (_caricando || !_amiciFiniti) {
+                  return const Padding(
+                    padding: EdgeInsets.all(AppSpacing.lg),
+                    child: Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       ),
-                      const TextSpan(text: ' · VI SEGUITE'),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                if (friends.isNotEmpty)
-                  Text(
-                    '${friends.length}',
-                    style: context.texts.titleMedium?.copyWith(
-                      color: palette.textFaint,
                     ),
+                  );
+                }
+
+                if (_righe.isEmpty) {
+                  return const EmptyState(
+                    title: 'Nessun follower, per ora',
+                    message:
+                        'Quando qualcuno inizia a seguirti lo trovi qui. Se lo '
+                        'segui anche tu, diventate amici e potete sfidarvi.',
+                  );
+                }
+
+                return const SizedBox.shrink();
+              }
+
+              final riga = _righe[index];
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // I titoli dei due gruppi, dove cominciano.
+                  if (index == 0 && !riga.amico)
+                    _Titolo(
+                      testo: 'TI SEGUONO · RICAMBIA',
+                      numero: daRicambiare,
+                      rosso: true,
+                    ),
+                  if (index == primoAmico)
+                    _Titolo(
+                      testo: 'AMICI · VI SEGUITE',
+                      numero: null,
+                      rosso: false,
+                      spazioSopra: index > 0,
+                    ),
+                  _FollowerRow(
+                    riga: riga,
+                    onRicambia: () => _ricambia(riga),
+                    onRimuovi: () => _rimuovi(riga),
                   ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            if (friends.isEmpty)
-              const EmptyState(
-                title: 'Ancora nessun amico',
-                message:
-                    'Diventate amici quando vi seguite a vicenda. Tocca il nome '
-                    'sotto una foto per aprire il profilo di chi l\'ha mandata, '
-                    'e seguilo.',
-              )
-            else
-              for (final friend in friends)
-                _FriendRow(
-                  friend: friend,
-                  // **Cosa sta combinando adesso.** In cima a questa
-                  // scheda c'e' scritto proprio quello, e sotto c'era
-                  // un elenco di nomi: la stessa cosa che si vede nella
-                  // rubrica del telefono. Questa riga e' la differenza
-                  // fra una rubrica e una scheda che vale la pena
-                  // aprire.
-                  inGame: inGara[friend.userId],
-                ),
-          ],
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
   }
 }
 
-/// Una persona che seguo e che non mi segue: faccia, nome e "Smetti".
-class _FollowingRow extends ConsumerWidget {
-  const _FollowingRow({required this.userId});
+class _Titolo extends StatelessWidget {
+  const _Titolo({
+    required this.testo,
+    required this.numero,
+    required this.rosso,
+    this.spazioSopra = false,
+  });
 
-  final String userId;
+  final String testo;
+  final int? numero;
+  final bool rosso;
+  final bool spazioSopra;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final palette = context.palette;
-    final nome =
-        ref.watch(publicProfileProvider(userId)).valueOrNull?.username ?? '';
+    final colore = rosso ? palette.accent : palette.textFaint;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Row(
-        children: [
-          FriendAvatar(userId: userId, username: nome),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => context.push(AppRoutes.userProfileOf(userId)),
-              child: TickedName(
-                userId: userId,
-                text: nome.isEmpty ? '' : '@$nome',
-                style: context.texts.titleMedium,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () => ref.read(friendActionsProvider).cancel(userId),
-            child: Text(
-              'Smetti',
-              style: context.texts.titleMedium?.copyWith(
-                color: palette.textFaint,
-              ),
-            ),
-          ),
-        ],
+      padding: EdgeInsets.only(
+        top: spazioSopra ? AppSpacing.lg : AppSpacing.xs,
+        bottom: AppSpacing.sm,
+      ),
+      child: Text(
+        numero == null ? testo : '$testo · $numero',
+        style: context.texts.labelSmall?.copyWith(color: colore),
       ),
     );
   }
 }
 
-/// Una richiesta: chi e', e le due risposte possibili.
-///
-/// Accetta e rifiuta stanno una accanto all'altra e hanno peso diverso — una e'
-/// rossa, l'altra e' grigia. Non e' una scelta simmetrica: rifiutare non deve
-/// costare un pensiero, ma nemmeno essere il gesto piu' facile per sbaglio.
-class _RequestRow extends ConsumerWidget {
-  const _RequestRow({required this.request});
+class _Fondo extends StatelessWidget {
+  const _Fondo({required this.testo, required this.colore});
 
-  final FriendRequest request;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final palette = context.palette;
-    final actions = ref.read(friendActionsProvider);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Row(
-        children: [
-          FriendAvatar(
-            userId: request.fromUserId,
-            username: request.fromUsername,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: GestureDetector(
-              onTap: () =>
-                  context.push(AppRoutes.userProfileOf(request.fromUserId)),
-              child: TickedName(
-                userId: request.fromUserId,
-                text: '@${request.fromUsername}',
-                style: context.texts.titleMedium,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () => actions.reject(request),
-            child: Text(
-              'Rimuovi',
-              style: context.texts.titleMedium?.copyWith(
-                color: palette.textFaint,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () => actions.accept(request),
-            child: Text(
-              'Ricambia',
-              style: context.texts.titleMedium?.copyWith(color: palette.accent),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FriendRow extends StatelessWidget {
-  const _FriendRow({required this.friend, this.inGame});
-
-  final Friend friend;
-
-  /// Il titolo della gara aperta a cui sta partecipando, se ce n'e' una.
-  final String? inGame;
+  final String testo;
+  final Color colore;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Text(
+        testo,
+        textAlign: TextAlign.center,
+        style: context.texts.bodySmall?.copyWith(color: colore),
+      ),
+    );
+  }
+}
+
+/// Una persona che ti segue: faccia, nome, e — se non la segui ancora —
+/// ricambia o togli.
+class _FollowerRow extends StatelessWidget {
+  const _FollowerRow({
+    required this.riga,
+    required this.onRicambia,
+    required this.onRimuovi,
+  });
+
+  final _Follower riga;
+  final VoidCallback onRicambia;
+  final VoidCallback onRimuovi;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: GestureDetector(
-        onTap: () => context.push(AppRoutes.userProfileOf(friend.userId)),
-        behavior: HitTestBehavior.opaque,
-        child: Row(
-          children: [
-            FriendAvatar(userId: friend.userId, username: friend.username),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TickedName(
-                    userId: friend.userId,
-                    text: '@${friend.username}',
-                    style: context.texts.titleMedium,
-                  ),
-                  if (inGame case final gara?) ...[
-                    const SizedBox(height: 1),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.local_fire_department_rounded,
-                          size: 12,
-                          color: context.palette.accent,
-                        ),
-                        const SizedBox(width: 3),
-                        Expanded(
-                          child: Text(
-                            'IN GARA  ·  ${gara.toUpperCase()}',
-                            style: context.texts.labelSmall?.copyWith(
-                              color: context.palette.accent,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
+      child: Row(
+        children: [
+          FriendAvatar(userId: riga.userId, username: riga.username),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => context.push(AppRoutes.userProfileOf(riga.userId)),
+              behavior: HitTestBehavior.opaque,
+              child: TickedName(
+                userId: riga.userId,
+                text: '@${riga.username}',
+                style: context.texts.titleMedium,
               ),
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: context.palette.textFaint,
+          ),
+          if (riga.amico)
+            Text(
+              'AMICI',
+              style: context.texts.labelSmall?.copyWith(
+                color: palette.textFaint,
+              ),
+            )
+          else ...[
+            TextButton(
+              onPressed: onRimuovi,
+              child: Text(
+                'Rimuovi',
+                style: context.texts.titleMedium?.copyWith(
+                  color: palette.textFaint,
+                ),
+              ),
+            ),
+            FilledButton(
+              onPressed: onRicambia,
+              style: FilledButton.styleFrom(
+                backgroundColor: palette.accent,
+                foregroundColor: Colors.white,
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              child: const Text('Ricambia'),
             ),
           ],
-        ),
+        ],
       ),
     );
   }

@@ -91,11 +91,6 @@ jobs:
 
           firebase deploy             --only firestore:rules,firestore:indexes             --project "$PROGETTO"             --non-interactive
 
-      - name: Chi seguiva gia' qualcuno
-        # Si puo' rifare ogni volta: quello che c'e' gia' resta com'e'.
-        working-directory: functions
-        run: node tool/migra_seguiti.js --chiave "$RUNNER_TEMP/chiave.json" --scrivi
-
       - name: Funzioni
         # `--force` risponde di si' alla domanda sulle funzioni che non
         # esistono piu' nel codice: senza, un deploy non interattivo si ferma.
@@ -106,6 +101,15 @@ jobs:
           PROGETTO: ${{ vars.FIREBASE_PROJECT_ID }}
         run: |
           firebase deploy             --only functions             --project "$PROGETTO"             --non-interactive             --force
+
+      - name: Chi seguiva gia' qualcuno
+        # Si puo' rifare ogni volta: quello che c'e' gia' resta com'e', e i
+        # contatori di follower e seguiti tornano giusti. Dopo le funzioni, cosi'
+        # da qui in poi li tengono loro. Gira anche se le funzioni non sono
+        # passate: le righe di chi segue servono lo stesso.
+        if: ${{ !cancelled() }}
+        working-directory: functions
+        run: node tool/migra_seguiti.js --chiave "$RUNNER_TEMP/chiave.json" --scrivi
 
       - name: Indice della rubrica
         # Chi si era iscritto prima dell'indice non ci e' mai entrato: senza

@@ -49,6 +49,9 @@ abstract final class AppRoutes {
   /// Gli amici: le richieste da decidere e chi hai gia'.
   static const friends = '/amici';
 
+  /// Chi seguo: l'altra meta' di [friends], che e' chi mi segue.
+  static const following = '/seguiti';
+
   /// Cosa stanno combinando: le loro missioni, le loro foto in gara.
   static const friendsActivity = '/amici/attivita';
 

@@ -1905,6 +1905,74 @@ exports.sendPushOnFriendRequest = onDocumentCreated(
 );
 
 /**
+ * **I contatori di follower e seguiti, sul profilo.**
+ *
+ * Contarli nell'app vorrebbe dire leggere tutti i follower per scrivere un
+ * numero: con mille follower, mille letture a ogni apertura del profilo. Qui
+ * si tiene un numero solo, che sale e scende quando qualcuno inizia o smette.
+ *
+ * - **follower** = chi mi segue senza che io ricambi (`friendRequests`) piu'
+ *   gli amici (`friends`). Ricambiare toglie una riga dalla prima e ne mette
+ *   una nella seconda: il numero non cambia, ed e' giusto.
+ * - **seguiti** = le righe di `following`.
+ *
+ * Si usa `update` e non `set`: se il profilo non c'e' piu' — account
+ * cancellato — il contatore non deve farlo rinascere vuoto.
+ */
+async function sposta(userId, campo, quanto) {
+  try {
+    await db
+      .collection('users')
+      .doc(userId)
+      .update({ [campo]: admin.firestore.FieldValue.increment(quanto) });
+  } catch (error) {
+    if (error.code !== 5) {
+      logger.error('contatore non aggiornato', { userId, campo, error });
+    }
+  }
+}
+
+function nataOMorta(event) {
+  const prima = Boolean(event.data?.before?.exists);
+  const dopo = Boolean(event.data?.after?.exists);
+
+  return prima === dopo ? 0 : dopo ? 1 : -1;
+}
+
+exports.contaFollowerNuovi = onDocumentWritten(
+  'users/{userId}/friendRequests/{fromId}',
+  async (event) => {
+    const quanto = nataOMorta(event);
+
+    if (quanto !== 0) {
+      await sposta(event.params.userId, 'followersCount', quanto);
+    }
+  }
+);
+
+exports.contaFollowerAmici = onDocumentWritten(
+  'users/{userId}/friends/{friendId}',
+  async (event) => {
+    const quanto = nataOMorta(event);
+
+    if (quanto !== 0) {
+      await sposta(event.params.userId, 'followersCount', quanto);
+    }
+  }
+);
+
+exports.contaSeguiti = onDocumentWritten(
+  'users/{userId}/following/{otherId}',
+  async (event) => {
+    const quanto = nataOMorta(event);
+
+    if (quanto !== 0) {
+      await sposta(event.params.userId, 'followingCount', quanto);
+    }
+  }
+);
+
+/**
  * Dopo quante ore di assenza si prova a richiamare qualcuno.
  *
  * **Dieci, ed erano tre giorni.** Il cambio non e' una taratura: e' un cambio

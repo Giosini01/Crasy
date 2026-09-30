@@ -89,17 +89,53 @@ final myFollowingProvider = StreamProvider<List<Friend>>((ref) {
 });
 
 /// Il mio documento, per la parte che riguarda chi seguo e chi mi segue.
-final ownFollowProvider =
-    StreamProvider<({List<String> seguiti, DateTime? followersSeenAt})>((ref) {
-      final repository = ref.watch(friendsRepositoryProvider);
-      final userId = ref.watch(currentUserIdProvider);
+typedef OwnFollow = ({
+  List<String> seguiti,
+  DateTime? followersSeenAt,
+  int? followersCount,
+  int? followingCount,
+});
 
-      if (repository == null || userId == null) {
-        return Stream.value((seguiti: const <String>[], followersSeenAt: null));
-      }
+final ownFollowProvider = StreamProvider<OwnFollow>((ref) {
+  final repository = ref.watch(friendsRepositoryProvider);
+  final userId = ref.watch(currentUserIdProvider);
 
-      return repository.watchOwnFollow(userId);
-    });
+  if (repository == null || userId == null) {
+    return Stream.value((
+      seguiti: const <String>[],
+      followersSeenAt: null,
+      followersCount: null,
+      followingCount: null,
+    ));
+  }
+
+  return repository.watchOwnFollow(userId);
+});
+
+/// **Quanti mi seguono**: il contatore del server, se c'e'.
+///
+/// Senza — finche' le funzioni che lo tengono non sono pubblicate — si contano
+/// amici e richieste che l'app ha gia' in mano. Quel conto ha un tetto (le
+/// letture si fermano a trecento amici e cento richieste), ed e' il motivo per
+/// cui il numero vero lo tiene il server.
+final followersCountProvider = Provider<int>((ref) {
+  final contatore = ref.watch(ownFollowProvider).valueOrNull?.followersCount;
+
+  if (contatore != null) {
+    return contatore;
+  }
+
+  return (ref.watch(myFriendsProvider).valueOrNull?.length ?? 0) +
+      (ref.watch(incomingRequestsProvider).valueOrNull?.length ?? 0);
+});
+
+/// **Quanti ne seguo**: il contatore del server, se c'e'; altrimenti l'elenco
+/// che l'app ha in mano.
+final followingCountProvider = Provider<int>((ref) {
+  final contatore = ref.watch(ownFollowProvider).valueOrNull?.followingCount;
+
+  return contatore ?? ref.watch(followedIdsProvider).length;
+});
 
 /// **Quanti hanno iniziato a seguirmi da quando ho guardato l'ultima volta.**
 ///
@@ -403,10 +439,23 @@ final followedEntriesProvider = Provider<List<ChallengeEntry>>((ref) {
       ref.watch(entriesOfManyProvider(usersKey(seguiti))).valueOrNull ??
       const <ChallengeEntry>[];
 
-  final aperte = {
+  // **Le missioni fra amici si vedono solo fra amici.** Chi segui senza essere
+  // ricambiato ti mostra le gare pubbliche in cui e' dentro, non quelle del suo
+  // gruppo: seguire qualcuno non ti fa entrare nella sua cerchia. Le gare
+  // riservate compaiono solo per le foto dei tuoi amici.
+  final amici = {
+    for (final amico
+        in ref.watch(myFriendsProvider).valueOrNull ?? const <Friend>[])
+      amico.userId,
+  };
+  final pubbliche = {
     for (final challenge
         in ref.watch(liveChallengesProvider).valueOrNull ?? const <Challenge>[])
       challenge.id,
+  };
+
+  final aperte = {
+    ...pubbliche,
     // Le gare del party non passano dalla query pubblica della home. Sono
     // pero' gare aperte esattamente come le altre: se un amico ci manda una
     // foto, deve comparire anche in "IN GARA", non solo dentro "LE LORO".
@@ -426,7 +475,10 @@ final followedEntriesProvider = Provider<List<ChallengeEntry>>((ref) {
   final foto =
       [
         for (final entry in entries)
-          if (loro.contains(entry.userId) && aperte.contains(entry.challengeId))
+          if (loro.contains(entry.userId) &&
+              aperte.contains(entry.challengeId) &&
+              (pubbliche.contains(entry.challengeId) ||
+                  amici.contains(entry.userId)))
             entry,
       ]..sort((a, b) {
         // Una partecipazione senza data e' una che Firestore non ha ancora
