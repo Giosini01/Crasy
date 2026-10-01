@@ -107,66 +107,66 @@ class ChallengesPage extends ConsumerWidget {
                 child: feed == HomeFeed.followed
                     ? const _Seguiti()
                     : RefreshIndicator(
-                  color: context.palette.accent,
-                  onRefresh: () async => ref.invalidate(liveChallengesProvider),
-                  child: CustomScrollView(
-                    slivers: [
-                      // **La sfida del giorno sta prima di tutto.**
-                      //
-                      // Non e' una gara di CRASY: e' la gara di qualcuno messa
-                      // in cima per ventiquattro ore. A mezzanotte cambia da
-                      // sola.
-                      //
-                      // Sta in cima alla lista e non incollata allo schermo, ed
-                      // e' una scelta: una scheda di gara e' alta mezzo
-                      // telefono, e mezzo telefono che non si sposta mai
-                      // significa scorrere la home dentro una finestrella.
-                      if (oggi != null) _Daily(challenge: oggi),
-                      challenges.when(
-                        loading: () =>
-                            const SliverToBoxAdapter(child: SizedBox.shrink()),
-                        error: (_, _) => const _Message(
-                          title: 'Niente da mostrare',
-                          message:
-                              'Non riusciamo a caricare le challenge. '
-                              'Controlla la connessione e riprova.',
-                        ),
-                        data: (items) => items.isEmpty
-                            ? const _Message(
-                                title: 'Nessuna challenge aperta',
-                                message:
-                                    'Appena ne parte una la trovi qui, con quanto '
-                                    'c\'è in palio e quanto tempo hai.',
-                              )
-                            : _ChallengeList(
-                                // Senza la sfida del giorno, che sta gia'
-                                // sopra: la stessa gara due volte nella stessa
-                                // schermata fa dubitare di tutte le altre.
-                                //
-                                // **La sfida del giorno non si riordina**: sta
-                                // in cima perche' e' quella del giorno, e
-                                // lasciarla scivolare in mezzo alle altre
-                                // perche' ha il premio basso vorrebbe dire
-                                // togliere l'unica cosa che la rende tale.
-                                challenges: ordina(
-                                  [
-                                    for (final challenge in items)
-                                      if (challenge.id != oggi?.id) challenge,
-                                  ],
-                                  ref.watch(challengeSortProvider),
-                                ),
+                        color: context.palette.accent,
+                        onRefresh: () async =>
+                            ref.invalidate(liveChallengesProvider),
+                        child: CustomScrollView(
+                          slivers: [
+                            // **La sfida del giorno sta prima di tutto.**
+                            //
+                            // Non e' una gara di CRASY: e' la gara di qualcuno messa
+                            // in cima per ventiquattro ore. A mezzanotte cambia da
+                            // sola.
+                            //
+                            // Sta in cima alla lista e non incollata allo schermo, ed
+                            // e' una scelta: una scheda di gara e' alta mezzo
+                            // telefono, e mezzo telefono che non si sposta mai
+                            // significa scorrere la home dentro una finestrella.
+                            if (oggi != null) _Daily(challenge: oggi),
+                            challenges.when(
+                              loading: () => const SliverToBoxAdapter(
+                                child: SizedBox.shrink(),
                               ),
+                              error: (_, _) => const _Message(
+                                title: 'Niente da mostrare',
+                                message:
+                                    'Non riusciamo a caricare le challenge. '
+                                    'Controlla la connessione e riprova.',
+                              ),
+                              data: (items) => items.isEmpty
+                                  ? const _Message(
+                                      title: 'Nessuna challenge aperta',
+                                      message:
+                                          'Appena ne parte una la trovi qui, con quanto '
+                                          'c\'è in palio e quanto tempo hai.',
+                                    )
+                                  : _ChallengeList(
+                                      // Senza la sfida del giorno, che sta gia'
+                                      // sopra: la stessa gara due volte nella stessa
+                                      // schermata fa dubitare di tutte le altre.
+                                      //
+                                      // **La sfida del giorno non si riordina**: sta
+                                      // in cima perche' e' quella del giorno, e
+                                      // lasciarla scivolare in mezzo alle altre
+                                      // perche' ha il premio basso vorrebbe dire
+                                      // togliere l'unica cosa che la rende tale.
+                                      challenges: ordina([
+                                        for (final challenge in items)
+                                          if (challenge.id != oggi?.id)
+                                            challenge,
+                                      ], ref.watch(challengeSortProvider)),
+                                    ),
+                            ),
+                            // **Una riga, non le foto.** Le gare finite hanno una
+                            // schermata loro: qui resta il modo di arrivarci.
+                            // Mettercele dentro voleva dire appoggiare la cosa piu'
+                            // importante che l'app ha da dire in coda a una lista
+                            // che parla d'altro — e per giunta la leggeva solo chi
+                            // scorreva fino in fondo, cioe' chi aveva gia' deciso.
+                            const SliverToBoxAdapter(child: _AppenaFinite()),
+                          ],
+                        ),
                       ),
-                      // **Una riga, non le foto.** Le gare finite hanno una
-                      // schermata loro: qui resta il modo di arrivarci.
-                      // Mettercele dentro voleva dire appoggiare la cosa piu'
-                      // importante che l'app ha da dire in coda a una lista
-                      // che parla d'altro — e per giunta la leggeva solo chi
-                      // scorreva fino in fondo, cioe' chi aveva gia' deciso.
-                      const SliverToBoxAdapter(child: _AppenaFinite()),
-                    ],
-                  ),
-                ),
               ),
             ],
           ),
@@ -189,17 +189,11 @@ class _FeedSwitch extends ConsumerWidget {
     final palette = context.palette;
     final scelta = ref.watch(homeFeedProvider);
 
-    return Padding(
+    final interruttore = Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // **Un buco a sinistra grande quanto l'icona a destra.**
-          //
-          // Senza, le due parole starebbero al centro di quello che resta
-          // dopo l'icona, cioe' spostate a sinistra: poco, ma abbastanza da
-          // vedersi storte sotto un marchio che e' centrato davvero.
-          const SizedBox(width: 40),
           for (final feed in HomeFeed.values)
             GestureDetector(
               onTap: () => ref.read(homeFeedProvider.notifier).state = feed,
@@ -252,12 +246,30 @@ class _FeedSwitch extends ConsumerWidget {
           // sempre: e' l'unico modo di non far cercare a nessuno perche' la
           // lista e' in un ordine strano. Senza, un ordinamento lasciato acceso
           // ieri sembrerebbe oggi un difetto dell'app.
-          if (scelta == HomeFeed.global)
-            const _SortButton()
-          else
-            const SizedBox(width: 40),
         ],
       ),
+    );
+
+    // **Le parole al centro, l'imbuto al bordo.**
+    //
+    // Messo accanto a GLOBALE spingeva le due parole fuori asse e sembrava la
+    // terza voce di un interruttore a tre: una cosa fra cui scegliere, non un
+    // comando. Al bordo destro non puo' essere scambiato per nessuna delle
+    // due, e le parole restano centrate sotto il marchio.
+    //
+    // La pila invece di una riga a tre: dentro una riga, l'imbuto occuperebbe
+    // spazio e sposterebbe comunque il centro di quello che resta — di poco,
+    // ma abbastanza da vedersi storto sotto un marchio centrato davvero.
+    return Stack(
+      alignment: Alignment.centerRight,
+      children: [
+        interruttore,
+        if (scelta == HomeFeed.global)
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.page),
+            child: const _SortButton(),
+          ),
+      ],
     );
   }
 }
@@ -340,14 +352,24 @@ Future<void> _apriLaScelta(BuildContext context, WidgetRef ref) {
                     ),
                   ),
                 ),
+                // **Grasse e spaziate, come i titoli dell'app.**
+                //
+                // Erano scritte con il carattere del testo normale, che qui
+                // dentro serve a leggere delle frasi: cinque voci brevi, tutte
+                // uguali e sottili, si leggono come un elenco di parole invece
+                // che come cinque comandi. Il peso forte e le lettere larghe
+                // sono gli stessi di SEGUITI · GLOBALE, e sono il motivo per
+                // cui quelle si riconoscono a colpo d'occhio.
                 for (final come in ChallengeSort.values)
                   ListTile(
                     title: Text(
                       come.label,
-                      style: context.texts.bodyLarge?.copyWith(
-                        fontWeight: come == scelta
-                            ? FontWeight.w800
-                            : FontWeight.w500,
+                      style: context.texts.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.1,
+                        color: come == scelta
+                            ? palette.accent
+                            : palette.textPrimary,
                       ),
                     ),
                     trailing: come == scelta
@@ -362,7 +384,53 @@ Future<void> _apriLaScelta(BuildContext context, WidgetRef ref) {
                       Navigator.of(context).pop();
                     },
                   ),
-                const SizedBox(height: AppSpacing.sm),
+                // **Ripristina: torna all'ordine di sempre.**
+                //
+                // Esiste perche' "in scadenza" e' una delle cinque voci e non
+                // si legge come il ritorno a com'era: chi ha toccato tre
+                // ordinamenti di fila non sa piu' quale fosse quello di
+                // partenza, e senza una via d'uscita scritta resta con la home
+                // in un ordine che non ha scelto davvero.
+                //
+                // Spento quando non c'e' niente da ripristinare: un tasto che
+                // si puo' premere e non fa niente insegna a non fidarsi dei
+                // tasti.
+                if (scelta != ChallengeSort.inScadenza)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.page,
+                      AppSpacing.xs,
+                      AppSpacing.page,
+                      0,
+                    ),
+                    child: GestureDetector(
+                      onTap: () {
+                        ref.read(challengeSortProvider.notifier).state =
+                            ChallengeSort.inScadenza;
+                        Navigator.of(context).pop();
+                      },
+                      behavior: HitTestBehavior.opaque,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.refresh_rounded,
+                            size: 16,
+                            color: palette.textFaint,
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Text(
+                            'RIPRISTINA',
+                            style: context.texts.labelSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.1,
+                              color: palette.textFaint,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: AppSpacing.lg),
               ],
             );
           },
@@ -388,12 +456,7 @@ class _Seguiti extends ConsumerWidget {
 
     Widget vuoto(String titolo, String messaggio, {bool cerca = false}) {
       return ListView(
-        padding: const EdgeInsets.fromLTRB(
-          0,
-          AppSpacing.xl,
-          0,
-          AppSpacing.xxl,
-        ),
+        padding: const EdgeInsets.fromLTRB(0, AppSpacing.xl, 0, AppSpacing.xxl),
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
