@@ -7,6 +7,7 @@ import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_sort.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
@@ -36,6 +37,13 @@ enum HomeFeed {
 /// Quale delle due si guarda. Si apre su GLOBALE: chi non segue ancora
 /// nessuno troverebbe una schermata vuota come prima cosa.
 final homeFeedProvider = StateProvider<HomeFeed>((ref) => HomeFeed.global);
+
+/// In che ordine si guardano le missioni. Si apre su IN SCADENZA, che e'
+/// l'ordine con cui la lista nasce: davanti c'e' quello che smette di essere
+/// possibile se non lo fai adesso.
+final challengeSortProvider = StateProvider<ChallengeSort>(
+  (ref) => ChallengeSort.inScadenza,
+);
 
 /// La home: le challenge aperte, una sotto l'altra.
 ///
@@ -95,6 +103,7 @@ class ChallengesPage extends ConsumerWidget {
               // **Ferme, fuori da quello che scorre.** Si cambia vista da
               // qualunque punto della lista, senza tornare in cima.
               const _FeedSwitch(),
+              if (feed == HomeFeed.global) const _SortBar(),
               Expanded(
                 child: feed == HomeFeed.followed
                     ? const _Seguiti()
@@ -134,10 +143,19 @@ class ChallengesPage extends ConsumerWidget {
                                 // Senza la sfida del giorno, che sta gia'
                                 // sopra: la stessa gara due volte nella stessa
                                 // schermata fa dubitare di tutte le altre.
-                                challenges: [
-                                  for (final challenge in items)
-                                    if (challenge.id != oggi?.id) challenge,
-                                ],
+                                //
+                                // **La sfida del giorno non si riordina**: sta
+                                // in cima perche' e' quella del giorno, e
+                                // lasciarla scivolare in mezzo alle altre
+                                // perche' ha il premio basso vorrebbe dire
+                                // togliere l'unica cosa che la rende tale.
+                                challenges: ordina(
+                                  [
+                                    for (final challenge in items)
+                                      if (challenge.id != oggi?.id) challenge,
+                                  ],
+                                  ref.watch(challengeSortProvider),
+                                ),
                               ),
                       ),
                       // **Una riga, non le foto.** Le gare finite hanno una
@@ -736,6 +754,72 @@ class _ChallengeList extends StatelessWidget {
                 context.push(AppRoutes.participateOf(challenge.id)),
           );
         },
+      ),
+    );
+  }
+}
+
+/// **La fila delle missioni: in che ordine guardarle.**
+///
+/// Sta sotto SEGUITI · GLOBALE e si vede solo sulla home globale: su SEGUITI
+/// le gare sono quelle poche in cui e' in corso qualcuno che conosci, e
+/// riordinarle per premio non vuol dire niente.
+///
+/// **Le scelte sono scritte, non dentro un menu.** Un'icona a imbuto che apre
+/// un foglio e' un tocco in piu' e, soprattutto, nasconde il fatto che
+/// l'ordine si possa cambiare: qui dentro nessuno va a cercarlo. Scritte in
+/// chiaro, si leggono di passaggio e si provano.
+class _SortBar extends ConsumerWidget {
+  const _SortBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+    final scelta = ref.watch(challengeSortProvider);
+
+    return SizedBox(
+      height: 34,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+        children: [
+          for (final come in ChallengeSort.values)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.xs),
+              child: GestureDetector(
+                onTap: () =>
+                    ref.read(challengeSortProvider.notifier).state = come,
+                behavior: HitTestBehavior.opaque,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                  ),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    // La scelta e' piena di rosso, le altre sono solo
+                    // contornate: a colpo d'occhio si vede quale regge la
+                    // lista senza doverle leggere tutte.
+                    color: come == scelta
+                        ? palette.accent
+                        : Colors.transparent,
+                    border: Border.all(
+                      color: come == scelta ? palette.accent : palette.line,
+                    ),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    come.label,
+                    style: context.texts.labelSmall?.copyWith(
+                      fontSize: 10,
+                      letterSpacing: 1,
+                      color: come == scelta ? Colors.white : palette.textFaint,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
