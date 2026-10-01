@@ -22,6 +22,7 @@ import 'package:crasy/features/moderation/presentation/widgets/report_sheet.dart
 import 'package:crasy/features/payments/presentation/widgets/wallet_card.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/widgets/profile_shelf.dart';
+import 'package:crasy/features/profile/presentation/widgets/streak_badge.dart';
 import 'package:crasy/features/profile/presentation/widgets/trophy_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -177,6 +178,11 @@ class _BodyState extends ConsumerState<_Body> {
                   ],
                 ],
               ),
+              // Si vede anche da fuori: e' il punto di tutta la cosa.
+              if (profile.streak >= 2) ...[
+                const SizedBox(height: AppSpacing.xs),
+                StreakBadge(giorni: profile.streak),
+              ],
               if (profile.hasBio) ...[
                 const SizedBox(height: AppSpacing.xxs),
                 Text(profile.bio, style: texts.bodyMedium),

@@ -2711,6 +2711,132 @@ exports.countParticipant = onDocumentCreated(
   }
 );
 
+/**
+ * **La serie: da quanti giorni di fila partecipa.**
+ *
+ * Era l'unica cosa che legava un giorno al successivo, e non c'era: ogni
+ * mattina CRASY ricominciava da zero, e chi aveva giocato dieci giorni di
+ * seguito non aveva niente che lo dicesse — a lui, e agli altri.
+ *
+ * **La conta il server e non il telefono**, per la stessa ragione per cui non
+ * e' il telefono a dire quanti soldi hai in portafoglio: un numero che vale
+ * qualcosa, scritto da chi lo possiede, non e' un numero. Qui l'app non puo'
+ * toccarlo — le regole glielo vietano — e questa funzione lo muove solo quando
+ * arriva una foto vera in una gara vera.
+ *
+ * ## Quando si rompe
+ *
+ * Si rompe saltando **un giorno intero**, e non e' una scelta morbida: a
+ * mezzanotte la gara del giorno cambia, e chi partecipa la sera e poi la
+ * mattina dopo ha giocato due giorni diversi a sei ore di distanza. Contare le
+ * ventiquattro ore invece dei giorni di calendario spezzerebbe la serie a
+ * qualcuno che non ha saltato niente — ed e' il tipo di ingiustizia che non si
+ * spiega e fa smettere.
+ *
+ * Il giorno e' quello italiano, non quello di Greenwich: una foto mandata
+ * all'una di notte deve contare per la notte appena passata, come la conta chi
+ * l'ha scattata.
+ */
+exports.aggiornaLaSerie = onDocumentCreated(
+  'challenges/{challengeId}/entries/{entryId}',
+  async (event) => {
+    const entry = event.data;
+    const userId = entry && entry.get('userId');
+
+    if (!userId) {
+      return;
+    }
+
+    // Il giorno come lo vive chi gioca, non come lo vede il server. Senza il
+    // fuso, fra l'una e le due di notte la data cambierebbe un'ora dopo che e'
+    // cambiata sul telefono di chi ha mandato la foto.
+    const oggi = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Rome',
+    }).format(new Date());
+
+    const utente = db.collection('users').doc(userId);
+
+    try {
+      await db.runTransaction(async (giro) => {
+        const profilo = await giro.get(utente);
+
+        if (!profilo.exists) {
+          return;
+        }
+
+        const ultimo = profilo.get('lastPlayedOn') || '';
+
+        // Gia' contato oggi. **Succede sempre**: cinque partecipazioni al
+        // giorno vuol dire cinque passaggi di qui, e senza questa riga la
+        // serie direbbe cinque giorni dopo un pomeriggio.
+        if (ultimo === oggi) {
+          return;
+        }
+
+        const ieri = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Europe/Rome',
+        }).format(new Date(Date.now() - 24 * 60 * 60 * 1000));
+
+        const serie = ultimo === ieri ? (profilo.get('streak') || 0) + 1 : 1;
+        const record = Math.max(serie, profilo.get('bestStreak') || 0);
+
+        giro.update(utente, {
+          streak: serie,
+          bestStreak: record,
+          lastPlayedOn: oggi,
+        });
+      });
+    } catch (error) {
+      logger.warn(`Serie non aggiornata per ${userId}.`, error);
+    }
+  }
+);
+
+/**
+ * **Spegne le serie di chi ha saltato un giorno.**
+ *
+ * Senza questa, un numero vecchio resterebbe scritto per sempre: chi ha
+ * giocato dieci giorni di fila e poi e' sparito per un mese continuerebbe a
+ * mostrare "10 giorni" sul proprio profilo, e la serie smetterebbe di voler
+ * dire qualcosa per tutti — anche per chi la sta facendo davvero.
+ *
+ * Gira una volta al giorno a notte fonda, quando la gente dorme e nessuno
+ * guarda il proprio profilo mentre il numero cambia.
+ */
+exports.spegniLeSerieInterrotte = onSchedule(
+  { schedule: '15 3 * * *', timeZone: 'Europe/Rome' },
+  async () => {
+    const ieri = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Rome',
+    }).format(new Date(Date.now() - 24 * 60 * 60 * 1000));
+
+    // Chi ha giocato ieri o oggi tiene la sua serie. Tutti gli altri l'hanno
+    // persa — e si cercano solo quelli che ne hanno ancora una da perdere.
+    const interrotte = await db
+      .collection('users')
+      .where('streak', '>', 0)
+      .where('lastPlayedOn', '<', ieri)
+      .limit(500)
+      .get();
+
+    if (interrotte.empty) {
+      return;
+    }
+
+    const scrittura = db.batch();
+
+    for (const profilo of interrotte.docs) {
+      // `bestStreak` non si tocca: il record e' una cosa fatta, e le cose
+      // fatte non si cancellano perche' uno ha saltato un giorno.
+      scrittura.update(profilo.ref, { streak: 0 });
+    }
+
+    await scrittura.commit();
+
+    logger.info(`Serie interrotte: ${interrotte.size}.`);
+  }
+);
+
 // **Gli amici che hai gia' in rubrica.** Vedi rubrica.js: l'indice dei numeri
 // vive solo sul server, e i numeri che arrivano dalla rubrica non si scrivono
 // da nessuna parte.

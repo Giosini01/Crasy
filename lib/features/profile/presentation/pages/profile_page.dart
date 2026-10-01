@@ -25,6 +25,7 @@ import 'package:crasy/features/profile/presentation/controllers/profile_edit_con
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:crasy/features/profile/presentation/widgets/profile_settings.dart';
 import 'package:crasy/features/profile/presentation/widgets/profile_shelf.dart';
+import 'package:crasy/features/profile/presentation/widgets/streak_badge.dart';
 import 'package:crasy/features/profile/presentation/widgets/trophy_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -298,6 +299,15 @@ class _Identity extends ConsumerWidget {
             ],
           ],
         ),
+        // **La serie sta accanto al nome, dove la vedono gli altri.**
+        //
+        // Un contatore privato e' un promemoria, e i promemoria si ignorano.
+        // Qui e' una cosa che chiunque apra il profilo puo' guardare, ed e'
+        // quello il motivo per cui le serie si tengono.
+        if (profile.streak >= 2) ...[
+          const SizedBox(height: AppSpacing.xs),
+          StreakBadge(giorni: profile.streak),
+        ],
         if (profile.hasBio) ...[
           const SizedBox(height: AppSpacing.xxs),
           Text(profile.bio, style: texts.bodyMedium),

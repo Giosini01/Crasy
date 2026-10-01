@@ -7,6 +7,7 @@ import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
@@ -97,7 +98,9 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Sfida un amico')),
-      body: AppBackground(
+      body: Stack(
+        children: [
+          AppBackground(
         child: friends.isEmpty
             ? const Padding(
                 padding: EdgeInsets.symmetric(horizontal: AppSpacing.page),
@@ -268,6 +271,9 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
                   ],
                 ),
               ),
+          ),
+          if (_pagando) const Positioned.fill(child: FlameWaiting()),
+        ],
       ),
     );
   }
@@ -278,13 +284,28 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
   /// telefono, la sua pagina sul sito. Torna `false` se il pagamento non e'
   /// andato — annullato, rifiutato, o mai aperto — e in quel caso la sfida
   /// resta scritta ma spenta, esattamente come una missione non pagata.
+  /// Mentre Stripe si apre, lo schermo e' coperto dalla fiamma che gira.
+  bool _pagando = false;
+
   Future<bool> _paga(String challengeId) async {
+    if (mounted) {
+      setState(() => _pagando = true);
+    }
+
     try {
       return await ref
           .read(paymentsServiceProvider)
           .payChallenge(challengeId, returnRoute: AppRoutes.friendsActivity);
     } on Object {
       return false;
+    } finally {
+      // **Nel `finally`, non dopo il `return`.** Il pagamento esce da qui per
+      // tre strade — riuscito, rifiutato, esploso — e due di quelle saltano
+      // qualunque riga scritta sotto: il velo resterebbe sullo schermo per
+      // sempre, con l'app viva sotto e nessun modo di toccarla.
+      if (mounted) {
+        setState(() => _pagando = false);
+      }
     }
   }
 

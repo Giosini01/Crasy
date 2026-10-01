@@ -183,6 +183,12 @@ service cloud.firestore {
 
       // **Il saldo del portafoglio non lo tocca nessun telefono.**
       //
+      // **E nemmeno la serie di giorni.** E' un numero che gli altri vedono
+      // sul profilo: se lo scrivesse l'app, dire "sono a trenta giorni"
+      // sarebbe cambiare un campo, e quel numero smetterebbe di voler dire
+      // qualcosa per tutti — anche per chi la serie la sta facendo davvero. La
+      // muove `aggiornaLaSerie`, che guarda le foto mandate per davvero.
+      //
       // E' la riga piu' importante di questo file dopo quella sul premio: se
       // `walletCents` fosse scrivibile dal client, regalarsi mille euro
       // sarebbe cambiare un numero. A muoverlo e' solo il server — accredita
@@ -193,7 +199,10 @@ service cloud.firestore {
       // Alla creazione il saldo non c'e' proprio: nasce quando arriva il primo
       // premio.
       function doesNotTouchTheWallet() {
-        return !('walletCents' in request.resource.data.diff(resource.data).affectedKeys())
+        return !('streak' in request.resource.data.diff(resource.data).affectedKeys())
+               && !('bestStreak' in request.resource.data.diff(resource.data).affectedKeys())
+               && !('lastPlayedOn' in request.resource.data.diff(resource.data).affectedKeys())
+               && !('walletCents' in request.resource.data.diff(resource.data).affectedKeys())
                && !('withdrawingCents' in request.resource.data.diff(resource.data).affectedKeys())
                && !('stripeAccountId' in request.resource.data.diff(resource.data).affectedKeys())
                && !('payoutReady' in request.resource.data.diff(resource.data).affectedKeys())

@@ -26,6 +26,8 @@ class UserProfile {
     this.profilingConsent = false,
     this.tutorialSeen = false,
     this.phoneVerified = false,
+    this.streak = 0,
+    this.bestStreak = 0,
     this.contactsPromptSeen = false,
     this.permissionsSeen = false,
     this.verificato = false,
@@ -139,6 +141,19 @@ class UserProfile {
   /// sapere se lasciar passare.
   final bool phoneVerified;
 
+  /// **Da quanti giorni di fila partecipa.**
+  ///
+  /// Zero vuol dire "non oggi, e nemmeno ieri": la serie si rompe saltando un
+  /// giorno intero. La scrive il server quando arriva una foto vera — dal
+  /// telefono questo numero non si tocca, o dire "sono a trenta giorni"
+  /// sarebbe cambiare un campo, e il numero smetterebbe di voler dire qualcosa
+  /// per tutti.
+  final int streak;
+
+  /// La serie piu' lunga mai fatta. Non si azzera mai: una cosa fatta resta
+  /// fatta anche il giorno in cui si salta.
+  final int bestStreak;
+
   /// **Se gli e' gia' stato chiesto una volta chi conosce qui.**
   ///
   /// Si chiede una volta e non si ripete, che abbia detto si' o che abbia
@@ -200,6 +215,8 @@ class UserProfile {
     bool? profilingConsent,
     bool? tutorialSeen,
     bool? phoneVerified,
+    int? streak,
+    int? bestStreak,
     bool? contactsPromptSeen,
     bool? permissionsSeen,
     bool? verificato,
@@ -221,6 +238,8 @@ class UserProfile {
       profilingConsent: profilingConsent ?? this.profilingConsent,
       tutorialSeen: tutorialSeen ?? this.tutorialSeen,
       phoneVerified: phoneVerified ?? this.phoneVerified,
+      streak: streak ?? this.streak,
+      bestStreak: bestStreak ?? this.bestStreak,
       contactsPromptSeen: contactsPromptSeen ?? this.contactsPromptSeen,
       permissionsSeen: permissionsSeen ?? this.permissionsSeen,
       verificato: verificato ?? this.verificato,
@@ -248,6 +267,8 @@ class UserProfile {
         other.updatedAt == updatedAt &&
         other.onboardingCompleted == onboardingCompleted &&
         other.phoneVerified == phoneVerified &&
+        other.streak == streak &&
+        other.bestStreak == bestStreak &&
         other.contactsPromptSeen == contactsPromptSeen &&
         other.permissionsSeen == permissionsSeen &&
         other.verificato == verificato;
@@ -266,6 +287,8 @@ class UserProfile {
     updatedAt,
     onboardingCompleted,
     phoneVerified,
+    streak,
+    bestStreak,
     contactsPromptSeen,
     permissionsSeen,
     verificato,

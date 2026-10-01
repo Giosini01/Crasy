@@ -7,6 +7,7 @@ import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
@@ -172,7 +173,9 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
       appBar: AppBar(
         title: Text(widget.forFriends ? 'Sfida i tuoi amici' : 'Crea'),
       ),
-      body: AppBackground(
+      body: Stack(
+        children: [
+          AppBackground(
         child: Form(
           key: _formKey,
           child: ListView(
@@ -399,22 +402,6 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                 const SizedBox(height: AppSpacing.md),
                 InlineBanner(message: _error!),
               ],
-              // **A che punto e' il pagamento, mentre si aspetta.**
-              //
-              // Fra il tocco e il foglio di Stripe ci sono tre passi, e
-              // ognuno puo' fermarsi. Finche' non se ne vedeva nessuno, un
-              // blocco in mezzo era indistinguibile da un bottone morto: e' la
-              // differenza fra "non funziona" e "si e' fermato mentre
-              // preparava il foglio", e la seconda dice da dove ripartire.
-              if (_passo != null && _error == null) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  '${_passo!}…',
-                  style: context.texts.bodySmall?.copyWith(
-                    color: context.palette.textFaint,
-                  ),
-                ),
-              ],
               const SizedBox(height: AppSpacing.xl),
               // Il conto, prima del bottone.
               //
@@ -460,6 +447,16 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
             ],
           ),
         ),
+          ),
+          // **Mentre si paga, lo schermo e' coperto.**
+          //
+          // Non e' solo per dire che sta lavorando: e' per togliere i tasti da
+          // sotto le dita. Fra il tocco e il foglio di Stripe passano dei
+          // secondi, e in quei secondi un bottone ancora premibile significa
+          // due pagamenti aperti per la stessa gara.
+          if (_passo != null && _error == null)
+            const Positioned.fill(child: FlameWaiting()),
+        ],
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crasy/core/constants/app_routes.dart';
+import 'package:crasy/core/services/share/invite_friend.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
@@ -9,6 +10,7 @@ import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
+import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -186,6 +188,21 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
       appBar: AppBar(
         leading: const BackButton(),
         title: Text(totale > 0 ? 'Follower · $totale' : 'Follower'),
+        actions: [
+          // **Il modo di portarne di nuovi, dove si guardano quelli che ci
+          // sono.** E' la schermata in cui uno si accorge di essere solo: il
+          // tasto per rimediare deve stare li', non in un menu da cercare.
+          IconButton(
+            onPressed: () => InviteFriend.send(
+              context,
+              username:
+                  ref.read(currentUserProfileProvider).valueOrNull?.username ??
+                  '',
+            ),
+            tooltip: 'Invita un amico',
+            icon: Icon(Icons.person_add_alt_1_rounded, color: palette.accent),
+          ),
+        ],
       ),
       body: AppBackground(
         child: RefreshIndicator(

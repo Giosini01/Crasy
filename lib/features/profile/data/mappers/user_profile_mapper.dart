@@ -19,6 +19,8 @@ abstract final class UserProfileMapper {
       marketingConsent: data['marketingConsent'] as bool? ?? false,
       profilingConsent: data['profilingConsent'] as bool? ?? false,
       tutorialSeen: data['tutorialSeen'] as bool? ?? false,
+      streak: (data['streak'] as num?)?.toInt() ?? 0,
+      bestStreak: (data['bestStreak'] as num?)?.toInt() ?? 0,
       contactsPromptSeen: data['contactsPromptSeen'] as bool? ?? false,
       permissionsSeen: data['permissionsSeen'] as bool? ?? false,
       verificato: data['verificato'] as bool? ?? false,
