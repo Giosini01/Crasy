@@ -103,7 +103,6 @@ class ChallengesPage extends ConsumerWidget {
               // **Ferme, fuori da quello che scorre.** Si cambia vista da
               // qualunque punto della lista, senza tornare in cima.
               const _FeedSwitch(),
-              if (feed == HomeFeed.global) const _SortBar(),
               Expanded(
                 child: feed == HomeFeed.followed
                     ? const _Seguiti()
@@ -195,6 +194,12 @@ class _FeedSwitch extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // **Un buco a sinistra grande quanto l'icona a destra.**
+          //
+          // Senza, le due parole starebbero al centro di quello che resta
+          // dopo l'icona, cioe' spostate a sinistra: poco, ma abbastanza da
+          // vedersi storte sotto un marchio che e' centrato davvero.
+          const SizedBox(width: 40),
           for (final feed in HomeFeed.values)
             GestureDetector(
               onTap: () => ref.read(homeFeedProvider.notifier).state = feed,
@@ -234,10 +239,137 @@ class _FeedSwitch extends ConsumerWidget {
                 ),
               ),
             ),
+          // **L'imbuto sta accanto alle due parole, non sopra la lista.**
+          //
+          // Prima le cinque scelte erano scritte tutte, una fila di pastiglie
+          // sotto l'interruttore: si leggevano senza cercarle, ma si prendevano
+          // una riga di schermo sempre — anche a chi l'ordine non lo cambia
+          // mai, che e' quasi tutti. Un'icona costa un tocco in piu' a chi la
+          // usa e niente a tutti gli altri, e in una schermata dove la cosa da
+          // guardare e' la foto di una gara quel baratto conviene.
+          //
+          // Il pallino rosso compare solo quando l'ordine **non** e' quello di
+          // sempre: e' l'unico modo di non far cercare a nessuno perche' la
+          // lista e' in un ordine strano. Senza, un ordinamento lasciato acceso
+          // ieri sembrerebbe oggi un difetto dell'app.
+          if (scelta == HomeFeed.global)
+            const _SortButton()
+          else
+            const SizedBox(width: 40),
         ],
       ),
     );
   }
+}
+
+/// L'imbuto che apre la scelta dell'ordine.
+class _SortButton extends ConsumerWidget {
+  const _SortButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+    final come = ref.watch(challengeSortProvider);
+
+    return SizedBox(
+      width: 40,
+      child: GestureDetector(
+        onTap: () => _apriLaScelta(context, ref),
+        behavior: HitTestBehavior.opaque,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Icon(
+              Icons.tune_rounded,
+              size: 18,
+              color: come == ChallengeSort.inScadenza
+                  ? palette.textFaint
+                  : palette.accent,
+            ),
+            if (come != ChallengeSort.inScadenza)
+              Positioned(
+                top: 2,
+                right: 6,
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: palette.accent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Il foglio che scende dal basso con le cinque scelte.
+Future<void> _apriLaScelta(BuildContext context, WidgetRef ref) {
+  final palette = context.palette;
+
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: palette.background,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (context) {
+      return SafeArea(
+        child: Consumer(
+          builder: (context, ref, _) {
+            final scelta = ref.watch(challengeSortProvider);
+
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.page,
+                    AppSpacing.lg,
+                    AppSpacing.page,
+                    AppSpacing.sm,
+                  ),
+                  child: Text(
+                    'IN CHE ORDINE',
+                    style: context.texts.labelSmall?.copyWith(
+                      color: palette.accent,
+                    ),
+                  ),
+                ),
+                for (final come in ChallengeSort.values)
+                  ListTile(
+                    title: Text(
+                      come.label,
+                      style: context.texts.bodyLarge?.copyWith(
+                        fontWeight: come == scelta
+                            ? FontWeight.w800
+                            : FontWeight.w500,
+                      ),
+                    ),
+                    trailing: come == scelta
+                        ? Icon(Icons.check_rounded, color: palette.accent)
+                        : null,
+                    onTap: () {
+                      ref.read(challengeSortProvider.notifier).state = come;
+                      // Si chiude da solo: la lista dietro e' gia' cambiata, e
+                      // tenere aperto il foglio su una cosa gia' fatta
+                      // costringe a un secondo gesto per vedere il risultato
+                      // del primo.
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+            );
+          },
+        ),
+      );
+    },
+  );
 }
 
 /// **SEGUITI**: dove sono in gara, adesso, le persone che segui.
@@ -754,72 +886,6 @@ class _ChallengeList extends StatelessWidget {
                 context.push(AppRoutes.participateOf(challenge.id)),
           );
         },
-      ),
-    );
-  }
-}
-
-/// **La fila delle missioni: in che ordine guardarle.**
-///
-/// Sta sotto SEGUITI · GLOBALE e si vede solo sulla home globale: su SEGUITI
-/// le gare sono quelle poche in cui e' in corso qualcuno che conosci, e
-/// riordinarle per premio non vuol dire niente.
-///
-/// **Le scelte sono scritte, non dentro un menu.** Un'icona a imbuto che apre
-/// un foglio e' un tocco in piu' e, soprattutto, nasconde il fatto che
-/// l'ordine si possa cambiare: qui dentro nessuno va a cercarlo. Scritte in
-/// chiaro, si leggono di passaggio e si provano.
-class _SortBar extends ConsumerWidget {
-  const _SortBar();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final palette = context.palette;
-    final scelta = ref.watch(challengeSortProvider);
-
-    return SizedBox(
-      height: 34,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-        children: [
-          for (final come in ChallengeSort.values)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.xs),
-              child: GestureDetector(
-                onTap: () =>
-                    ref.read(challengeSortProvider.notifier).state = come,
-                behavior: HitTestBehavior.opaque,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 160),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                  ),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    // La scelta e' piena di rosso, le altre sono solo
-                    // contornate: a colpo d'occhio si vede quale regge la
-                    // lista senza doverle leggere tutte.
-                    color: come == scelta
-                        ? palette.accent
-                        : Colors.transparent,
-                    border: Border.all(
-                      color: come == scelta ? palette.accent : palette.line,
-                    ),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    come.label,
-                    style: context.texts.labelSmall?.copyWith(
-                      fontSize: 10,
-                      letterSpacing: 1,
-                      color: come == scelta ? Colors.white : palette.textFaint,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }

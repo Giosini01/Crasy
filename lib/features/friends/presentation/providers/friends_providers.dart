@@ -772,12 +772,20 @@ final contactsRepositoryProvider = Provider<ContactsRepository?>((ref) {
 /// del telefono, e una richiesta del genere che salta fuori da sola, senza che
 /// l'utente abbia chiesto niente, e' il modo piu' rapido di prendersi un "no"
 /// che poi resta per sempre. Prima si spiega, poi si chiede.
+///
+/// **Non si butta via da solo, e c'e' voluto un guasto per capirlo.** Era
+/// `autoDispose`, e il cassetto sul profilo lo chiamava con un `read` prima che
+/// qualcuno lo guardasse: nato per la chiamata, buttato via subito dopo perche'
+/// nessuno lo ascoltava, e ricreato vuoto un istante dopo quando il pannello
+/// si apriva. Il server rispondeva — nei log si vedevano le persone trovate —
+/// e a schermo compariva "nessuno dei tuoi contatti e' ancora qui". Il peggior
+/// tipo di difetto: tutto funziona, e il risultato e' una bugia.
 final suggestedFriendsProvider =
-    AsyncNotifierProvider.autoDispose<SuggestedFriendsNotifier,
-        List<SuggestedFriend>?>(SuggestedFriendsNotifier.new);
+    AsyncNotifierProvider<SuggestedFriendsNotifier, List<SuggestedFriend>?>(
+      SuggestedFriendsNotifier.new,
+    );
 
-class SuggestedFriendsNotifier
-    extends AutoDisposeAsyncNotifier<List<SuggestedFriend>?> {
+class SuggestedFriendsNotifier extends AsyncNotifier<List<SuggestedFriend>?> {
   /// Null vuol dire "non li abbiamo ancora cercati", che e' diverso da una
   /// lista vuota — quella vuol dire "cercati, e non c'e' nessuno".
   @override

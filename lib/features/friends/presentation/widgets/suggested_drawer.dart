@@ -137,6 +137,24 @@ class _Pannello extends ConsumerWidget {
         piccolo: true,
         onRiprova: () => ref.read(suggestedFriendsProvider.notifier).cerca(),
       );
+    } else if (stato.valueOrNull == null) {
+      // **Non ancora cercato non e' "non c'e' nessuno".**
+      //
+      // Prima finivano nello stesso ramo, perche' un elenco mai chiesto e un
+      // elenco vuoto diventavano tutti e due una lista vuota. Il risultato era
+      // che il cassetto, nell'istante prima di partire, diceva gia' che non
+      // conoscevi nessuno — e se qualcosa andava storto quella frase restava
+      // li', falsa, senza che niente segnalasse un guasto.
+      dentro = Center(
+        child: SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: palette.accent,
+          ),
+        ),
+      );
     } else {
       final trovati = stato.valueOrNull ?? const [];
 
