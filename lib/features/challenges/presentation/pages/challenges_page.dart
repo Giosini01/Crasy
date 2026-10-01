@@ -261,14 +261,25 @@ class _FeedSwitch extends ConsumerWidget {
     // spazio e sposterebbe comunque il centro di quello che resta — di poco,
     // ma abbastanza da vedersi storto sotto un marchio centrato davvero.
     return Stack(
-      alignment: Alignment.centerRight,
+      // **In alto, all'altezza delle parole.**
+      //
+      // Al centro della riga finiva sotto la linea di SEGUITI · GLOBALE, cioe'
+      // piu' in basso di tutto il resto: sembrava appoggiata li' invece che
+      // allineata a qualcosa. Alla stessa altezza delle due parole diventa
+      // parte della stessa riga di comandi.
+      alignment: Alignment.topRight,
       children: [
         interruttore,
-        if (scelta == HomeFeed.global)
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.page),
-            child: const _SortButton(),
-          ),
+        Positioned(
+          right: AppSpacing.page,
+          // I quattro punti sono lo scarto fra il bordo del testo e il suo
+          // disegno: senza, l'icona si legge un capello piu' alta delle
+          // lettere invece che in asse con loro.
+          top: 4,
+          child: scelta == HomeFeed.global
+              ? const _SortButton()
+              : const SizedBox.shrink(),
+        ),
       ],
     );
   }
