@@ -9,6 +9,7 @@ import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/crasy_camera.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/core/widgets/video/local_video_stub.dart'
     if (dart.library.io) 'package:crasy/core/widgets/video/local_video_io.dart';
@@ -87,84 +88,96 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Partecipa')),
-      body: AppBackground(
-        child: challengeState.when(
-          loading: () => const SizedBox.shrink(),
-          error: (_, _) => const _Notice(
-            title: 'Challenge non disponibile',
-            message: 'Non riusciamo a caricarla. Riprova tra poco.',
-          ),
-          data: (challenge) {
-            if (challenge == null) {
-              return const _Notice(
-                title: 'Challenge non trovata',
-                message: 'Questa challenge non esiste più.',
-              );
-            }
+      body: Stack(
+        children: [
+          AppBackground(
+            child: challengeState.when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, _) => const _Notice(
+                title: 'Challenge non disponibile',
+                message: 'Non riusciamo a caricarla. Riprova tra poco.',
+              ),
+              data: (challenge) {
+                if (challenge == null) {
+                  return const _Notice(
+                    title: 'Challenge non trovata',
+                    message: 'Questa challenge non esiste più.',
+                  );
+                }
 
-            if (challenge.hasEndedAt(DateTime.now())) {
-              return const _Notice(
-                title: 'Tempo scaduto',
-                message:
-                    'Questa challenge si è chiusa. Guarda chi ha vinto o '
-                    'scegline un\'altra.',
-              );
-            }
+                if (challenge.hasEndedAt(DateTime.now())) {
+                  return const _Notice(
+                    title: 'Tempo scaduto',
+                    message:
+                        'Questa challenge si è chiusa. Guarda chi ha vinto o '
+                        'scegline un\'altra.',
+                  );
+                }
 
-            // Chi ha lanciato la challenge non ci partecipa: mette lui i soldi
-            // del premio, e una gara in cui chi paga puo' anche vincere non e'
-            // una gara.
-            if (ref.watch(isMyChallengeProvider(widget.challengeId))) {
-              return const _Notice(
-                title: 'È la tua challenge',
-                message:
-                    'Il premio lo metti tu, quindi non puoi correre per '
-                    'vincerlo. Guarda cosa manda la gente e chi sta in testa.',
-              );
-            }
+                // Chi ha lanciato la challenge non ci partecipa: mette lui i soldi
+                // del premio, e una gara in cui chi paga puo' anche vincere non e'
+                // una gara.
+                if (ref.watch(isMyChallengeProvider(widget.challengeId))) {
+                  return const _Notice(
+                    title: 'È la tua challenge',
+                    message:
+                        'Il premio lo metti tu, quindi non puoi correre per '
+                        'vincerlo. Guarda cosa manda la gente e chi sta in testa.',
+                  );
+                }
 
-            // Chi ha gia' mandato la sua foto non vede nemmeno la fotocamera:
-            // il limite si spiega prima, non dopo lo scatto.
-            if (myEntry != null) {
-              return const _Notice(
-                title: 'Hai già partecipato',
-                message:
-                    'Si manda una foto sola per challenge, e la tua è già '
-                    'in gara. La trovi nel feed insieme a quelle degli altri.',
-              );
-            }
+                // Chi ha gia' mandato la sua foto non vede nemmeno la fotocamera:
+                // il limite si spiega prima, non dopo lo scatto.
+                if (myEntry != null) {
+                  return const _Notice(
+                    title: 'Hai già partecipato',
+                    message:
+                        'Si manda una foto sola per challenge, e la tua è già '
+                        'in gara. La trovi nel feed insieme a quelle degli altri.',
+                  );
+                }
 
-            return _Form(
-              challenge: challenge,
-              media: _media,
-              fotocameraAperta: _fotocameraAperta,
-              error: _error,
-              submitting: submitting,
-              // Sulla sfida del giorno il bottone non si spegne mai: non
-              // costa una delle cinque, quindi non c'e' niente da finire.
-              outOfLives:
-                  !challenge.isDaily &&
+                return _Form(
+                  challenge: challenge,
+                  media: _media,
+                  fotocameraAperta: _fotocameraAperta,
+                  error: _error,
+                  submitting: submitting,
+                  // Sulla sfida del giorno il bottone non si spegne mai: non
+                  // costa una delle cinque, quindi non c'e' niente da finire.
+                  outOfLives:
+                      !challenge.isDaily &&
                       // Una sfida mirata non pesa sulla giornata: vedi
                       // `livesLeftProvider`. Il bottone deve dire la stessa
                       // cosa, o si arriva a scattare per sentirsi dire di no.
                       !challenge.isDuel &&
                       ref.watch(livesLeftProvider) <= 0,
-              caption: _caption,
-              onCapture: () => _capture(challenge),
-              onSubmit: () => _submit(challenge),
-              // **Rifare lo scatto riapre la fotocamera, non svuota la
-              // pagina.** Prima si tornava a una schermata vuota con il
-              // bottone da premere di nuovo: due tocchi per rifare una cosa
-              // che si rifa' perche' la prima non andava bene — e nel mezzo
-              // la foto scompariva prima che ce ne fosse un'altra.
-              //
-              // Adesso si riapre direttamente, e quella di prima resta finche'
-              // non ne arriva una nuova: chiudere la fotocamera senza scattare
-              // non fa perdere niente.
-              onRetake: () => _capture(challenge),
-            );
-          },
-        ),
+                  caption: _caption,
+                  onCapture: () => _capture(challenge),
+                  onSubmit: () => _submit(challenge),
+                  // **Rifare lo scatto riapre la fotocamera, non svuota la
+                  // pagina.** Prima si tornava a una schermata vuota con il
+                  // bottone da premere di nuovo: due tocchi per rifare una cosa
+                  // che si rifa' perche' la prima non andava bene — e nel mezzo
+                  // la foto scompariva prima che ce ne fosse un'altra.
+                  //
+                  // Adesso si riapre direttamente, e quella di prima resta finche'
+                  // non ne arriva una nuova: chiudere la fotocamera senza scattare
+                  // non fa perdere niente.
+                  onRetake: () => _capture(challenge),
+                );
+              },
+            ),
+          ),
+          // **Mentre la foto sale, lo schermo e' coperto.**
+          //
+          // Un video dalla galleria puo' pesare decine di megabyte e metterci
+          // mezzo minuto: in quel mezzo minuto il bottone restava premibile e
+          // la schermata sembrava ferma. Chi non vede niente succedere ripreme,
+          // e ripremere qui vuol dire bruciare una seconda partecipazione sulla
+          // stessa gara.
+          if (submitting) const Positioned.fill(child: FlameWaiting()),
+        ],
       ),
     );
   }
@@ -205,6 +218,21 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
       // Rinunciare a scattare non e' un errore: se l'utente chiude la
       // fotocamera non deve trovarsi un messaggio rosso in pagina.
       if (media == null || !mounted) {
+        return;
+      }
+
+      // **Si misura adesso, non dopo.**
+      //
+      // Senza questa riga il file partiva, saliva per mezzo minuto e veniva
+      // rifiutato alla fine da Storage con un errore che parlava di permessi:
+      // il nome sbagliato per un problema di dimensione, davanti a chi aveva
+      // appena aspettato il caricamento. Qui si dice subito, e si dice quanto
+      // pesa e quanto puo' pesare.
+      final troppo = media.troppoGrande;
+
+      if (troppo != null) {
+        setState(() => _error = troppo);
+
         return;
       }
 

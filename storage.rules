@@ -45,8 +45,16 @@ service firebase.storage {
                     && (
                       (request.resource.contentType.matches('image/.*')
                        && request.resource.size < 12 * 1024 * 1024)
+                      // **Cento, non quaranta.** Quaranta bastavano per mezzo
+                      // minuto girato al momento, non per un video preso dalla
+                      // galleria: quelli arrivano dalla fotocamera di sistema,
+                      // spesso in alta definizione, e passano i quaranta quasi
+                      // sempre. Il rifiuto arrivava qui sotto forma di errore
+                      // di permessi, cioe' con il nome sbagliato, e chi lo
+                      // leggeva andava a cercare un problema di accessi che non
+                      // c'era.
                       || (request.resource.contentType.matches('video/.*')
-                          && request.resource.size < 40 * 1024 * 1024)
+                          && request.resource.size < 100 * 1024 * 1024)
                     );
 
       allow update, delete: if false;

@@ -23,6 +23,16 @@ import 'package:image_picker/image_picker.dart';
 /// indovinato: da un iPhone puo' arrivare un HEIC, e dichiararlo JPEG
 /// significa consegnare a Storage un file che chi lo rilegge non sa aprire.
 class PickedMedia {
+  /// **Quanto puo' pesare quello che si manda.**
+  ///
+  /// Sono gli stessi numeri scritti in `storage.rules`, e tenerli uguali e'
+  /// tutto il punto: quando divergono, il file parte, sale per mezzo minuto e
+  /// viene rifiutato alla fine con un errore che parla di permessi — cioe' con
+  /// il nome sbagliato, mentre il problema era la dimensione. Qui si controlla
+  /// **prima**, e si dice la cosa vera.
+  static const int maxVideoBytes = 100 * 1024 * 1024;
+  static const int maxPhotoBytes = 12 * 1024 * 1024;
+
   const PickedMedia({
     required this.bytes,
     this.filePath,
@@ -31,6 +41,36 @@ class PickedMedia {
   });
 
   final Uint8List bytes;
+
+  /// Quanto pesa.
+  ///
+  /// Bastano i byte: anche quando il file sta sul disco — i video — questi
+  /// byte sono stati letti comunque al momento della scelta, e sono gli stessi
+  /// che Storage misurera'. Aprire di nuovo il file per contarlo vorrebbe dire
+  /// trascinare `dart:io` dentro una classe che gira anche sul web.
+  int get lunghezza => bytes.length;
+
+  /// Troppo grande per essere mandato, con dentro il perche'.
+  ///
+  /// Torna `null` quando va bene. Il messaggio dice **quanto pesa e quanto puo'
+  /// pesare**: "video troppo grande" da solo non fa sapere a nessuno se deve
+  /// tagliarne due secondi o rinunciare.
+  String? get troppoGrande {
+    final tetto = isVideo ? maxVideoBytes : maxPhotoBytes;
+    final peso = lunghezza;
+
+    if (peso < tetto) {
+      return null;
+    }
+
+    final mega = (peso / (1024 * 1024)).round();
+    final tettoMega = tetto ~/ (1024 * 1024);
+
+    return isVideo
+        ? 'Questo video pesa $mega MB e il limite è $tettoMega. Mandane uno '
+              'più corto, o registralo sul momento.'
+        : 'Questa foto pesa $mega MB e il limite è $tettoMega.';
+  }
 
   /// Dove sta il file **sul telefono**, quando ci sta.
   ///

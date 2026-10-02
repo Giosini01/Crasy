@@ -182,9 +182,29 @@ class FirestoreChallengeRepository implements ChallengeRepository {
         .map((snapshot) {
           final now = DateTime.now();
 
-          return _challengesFrom(
-            snapshot,
-          ).where((challenge) => !challenge.isUpcomingAt(now)).toList();
+          return _challengesFrom(snapshot).where((challenge) {
+            if (challenge.isUpcomingAt(now)) {
+              return false;
+            }
+
+            // **Una gara fra amici col premio non pagato non si vede.**
+            //
+            // Qui mancava, e sulle pubbliche c'era: una missione da cinquanta
+            // euro lanciata senza arrivare in fondo al pagamento compariva a
+            // tutti gli amici come qualunque altra. I soldi non erano a
+            // rischio — le regole non lasciano partecipare a una gara non
+            // pagata — ma il danno era peggiore: una promessa scritta a
+            // schermo, con una cifra sopra, che nessuno aveva mantenuto. E
+            // chi la leggeva non aveva nessun modo di saperlo.
+            //
+            // **Chi l'ha lanciata continua a vederla**, e non e' un'eccezione
+            // di comodo: e' l'unico posto da cui puo' finire di pagarla.
+            // Nascondendola anche a lui, quella gara resterebbe scritta nel
+            // database e invisibile a tutti, compreso l'unico che poteva
+            // rimediare.
+            return challenge.isPayable ||
+                challenge.createdByUserId == userId;
+          }).toList();
         });
   }
 

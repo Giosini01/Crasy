@@ -1,3 +1,4 @@
+import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
@@ -6,6 +7,7 @@ import 'package:crasy/features/friends/presentation/widgets/suggested_problem.da
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 /// **Il cassetto di chi conosci, sotto i numeri del profilo.**
 ///
@@ -17,15 +19,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// suo leggerebbe la rubrica di chiunque apra il proprio profilo, e la rubrica
 /// si guarda quando qualcuno lo chiede.
 class SuggestedDrawer extends ConsumerStatefulWidget {
-  const SuggestedDrawer({this.apertoSubito = false, super.key});
+  const SuggestedDrawer({
+    this.apertoSubito = false,
+    this.portaAlProfilo = false,
+    super.key,
+  });
 
   /// Aperto e gia' in cerca appena compare: in SEGUITI, quando non si segue
   /// nessuno, e' l'unica cosa da fare e non deve servire un tocco in piu'.
   final bool apertoSubito;
 
+  /// **Qui il cassetto non si apre: porta dove si apre.**
+  ///
+  /// Nella scheda dei seguiti questa riga sta in fondo a un elenco vuoto, e
+  /// aprendosi li' mostrava delle persone in un posto che non e' il loro —
+  /// una schermata che parla di chi segui, con dentro un pezzo di profilo.
+  /// Chi la tocca da li' viene portato sul proprio profilo, dove il cassetto
+  /// e' gia' aperto: le persone trovate si guardano una volta sola, nel posto
+  /// in cui si torna a cercarle.
+  final bool portaAlProfilo;
+
   @override
   ConsumerState<SuggestedDrawer> createState() => _SuggestedDrawerState();
 }
+
+/// Chiede al profilo di aprire il cassetto appena ci si arriva.
+final apriIlCassettoProvider = StateProvider<bool>((ref) => false);
 
 class _SuggestedDrawerState extends ConsumerState<SuggestedDrawer> {
   bool _aperto = false;
@@ -38,7 +57,21 @@ class _SuggestedDrawerState extends ConsumerState<SuggestedDrawer> {
       _aperto = true;
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && ref.read(suggestedFriendsProvider).valueOrNull == null) {
+        if (!mounted) {
+          return;
+        }
+
+        // **L'interruttore si spegne appena e' servito.**
+        //
+        // Lo accende la scheda dei seguiti per dire "aprilo appena arrivi".
+        // Lasciandolo acceso, il profilo si riaprirebbe con il cassetto gia'
+        // aperto per sempre — anche arrivandoci dalla barra in fondo, mesi
+        // dopo, senza che nessuno l'abbia chiesto.
+        if (ref.read(apriIlCassettoProvider)) {
+          ref.read(apriIlCassettoProvider.notifier).state = false;
+        }
+
+        if (ref.read(suggestedFriendsProvider).valueOrNull == null) {
           ref.read(suggestedFriendsProvider.notifier).cerca();
         }
       });
@@ -46,6 +79,16 @@ class _SuggestedDrawerState extends ConsumerState<SuggestedDrawer> {
   }
 
   void _tocca() {
+    if (widget.portaAlProfilo) {
+      // Il cassetto laggiu' lo aprira' questo interruttore, che si spegne da
+      // solo appena letto: senza, il profilo si riaprirebbe con il cassetto
+      // gia' aperto per sempre, anche arrivandoci dalla barra in fondo.
+      ref.read(apriIlCassettoProvider.notifier).state = true;
+      context.go(AppRoutes.profile);
+
+      return;
+    }
+
     setState(() => _aperto = !_aperto);
 
     // Si cerca alla prima apertura e non piu': riaprire il cassetto non deve

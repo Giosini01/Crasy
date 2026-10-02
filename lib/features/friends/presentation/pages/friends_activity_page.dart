@@ -852,6 +852,25 @@ class _MissionRow extends ConsumerWidget {
               // questa parola non si distingue la cosa che si e' chiesta da
               // quella a cui si puo' rispondere.
               if (isMine) ...[
+                // **Non pagata: lo dice qui, e non altrove.**
+                //
+                // Una missione col premio mai incassato non la vede nessuno
+                // tranne chi l'ha lanciata — e se non glielo si dice, lui la
+                // vede comparire come tutte le altre e crede di averla
+                // lanciata davvero. Se ne accorgerebbe solo scoprendo che non
+                // partecipa nessuno, cioe' troppo tardi per rimediare.
+                if (!challenge.isPayable) ...[
+                  Text(
+                    'NON PAGATA · SOLO TU LA VEDI',
+                    style: texts.labelSmall?.copyWith(color: palette.accent),
+                  ),
+                  Text(
+                    '  ·  ',
+                    style: texts.labelSmall?.copyWith(
+                      color: palette.textFaint,
+                    ),
+                  ),
+                ],
                 Text(
                   'L\'HAI LANCIATA TU',
                   style: texts.labelSmall?.copyWith(color: palette.accent),

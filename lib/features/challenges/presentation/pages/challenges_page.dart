@@ -473,12 +473,14 @@ class _Seguiti extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
             child: EmptyState(title: titolo, message: messaggio),
           ),
-          // **La rubrica, subito.** Chi non segue nessuno ha una cosa sola da
-          // fare: trovare chi conosce. Il riquadro si apre da solo, chiede il
-          // permesso ai contatti e mostra chi e' gia' qui, con Segui accanto.
-          // Chi segue gia' qualcuno lo trova chiuso, a un tocco.
+          // **La rubrica, da qui, porta al profilo.**
+          //
+          // Aprendosi qui mostrava delle persone in fondo a una schermata che
+          // parla di chi segui: un pezzo di profilo appoggiato dentro un'altra
+          // scheda. Toccandola si va sul proprio profilo, dove il cassetto e'
+          // gia' aperto e dove si torna a cercarlo la volta dopo.
           const SizedBox(height: AppSpacing.md),
-          SuggestedDrawer(apertoSubito: cerca),
+          const SuggestedDrawer(portaAlProfilo: true),
           if (cerca) ...[
             const SizedBox(height: AppSpacing.md),
             Center(
