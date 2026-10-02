@@ -11,6 +11,7 @@ class SuggestedFriend {
     this.displayName = '',
     this.photoUrl = '',
     this.stato = SuggestedStato.nuovo,
+    this.numero = '',
   });
 
   final String userId;
@@ -25,6 +26,13 @@ class SuggestedFriend {
   /// la ricerca non avesse funzionato. Si mostrano tutti, e questo campo dice
   /// al tasto cosa scrivere.
   final SuggestedStato stato;
+
+  /// Il numero con cui l'abbiamo trovato fra i contatti.
+  ///
+  /// Serve a una cosa sola: togliere quella riga dall'elenco di chi resta da
+  /// invitare. E' un numero che il telefono aveva gia' in rubrica — nessuno gli
+  /// sta dicendo niente di nuovo — e non si mostra da nessuna parte.
+  final String numero;
 
   /// Come si chiama, per chi legge: il nome vero se c'e', altrimenti il nome
   /// utente. Una riga senza niente scritto sopra non si tocca.

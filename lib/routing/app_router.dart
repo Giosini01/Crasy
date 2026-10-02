@@ -10,6 +10,7 @@ import 'package:crasy/features/challenges/presentation/pages/challenge_detail_pa
 import 'package:crasy/features/challenges/presentation/pages/create_challenge_page.dart';
 import 'package:crasy/features/challenges/presentation/pages/participate_page.dart';
 import 'package:crasy/features/challenges/presentation/pages/recently_ended_page.dart';
+import 'package:crasy/features/friends/presentation/pages/find_friends_page.dart';
 import 'package:crasy/features/friends/presentation/pages/following_page.dart';
 import 'package:crasy/features/friends/presentation/pages/friends_page.dart';
 import 'package:crasy/features/friends/presentation/pages/launch_duel_page.dart';
@@ -349,6 +350,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // Gli amici non sono piu' una scheda: si aprono dal numero sul profilo,
       // e si chiudono col dito come tutte le pagine che stanno sopra.
       _pushedRoute(AppRoutes.friends, (state) => const FriendsPage()),
+      _pushedRoute(
+        AppRoutes.findFriends,
+        (state) => const FindFriendsPage(),
+      ),
       _pushedRoute(AppRoutes.following, (state) => const FollowingPage()),
       _pushedRoute(
         AppRoutes.createForFriends,

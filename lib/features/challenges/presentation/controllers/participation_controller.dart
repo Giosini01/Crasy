@@ -44,11 +44,14 @@ class PickedMedia {
 
   /// Quanto pesa.
   ///
-  /// Bastano i byte: anche quando il file sta sul disco — i video — questi
-  /// byte sono stati letti comunque al momento della scelta, e sono gli stessi
-  /// che Storage misurera'. Aprire di nuovo il file per contarlo vorrebbe dire
-  /// trascinare `dart:io` dentro una classe che gira anche sul web.
-  int get lunghezza => bytes.length;
+  /// Dal file quando c'e' — i video non si leggono piu' in memoria, quindi i
+  /// byte sarebbero zero e il controllo sulla dimensione direbbe sempre di si'
+  /// — e dai byte quando il file non c'e', che e' il caso del web.
+  int get lunghezza {
+    final dalDisco = lunghezzaDi(filePath ?? '');
+
+    return dalDisco > 0 ? dalDisco : bytes.length;
+  }
 
   /// Troppo grande per essere mandato, con dentro il perche'.
   ///
@@ -259,8 +262,19 @@ class ParticipationController extends AsyncNotifier<void> {
       // che costavano prima, cioe' quello che l'app ha retto per mesi.
       final copia = await _alSicuro(file.path);
 
+      // **I byte si leggono solo se la copia non c'e'.**
+      //
+      // La copia e' quella che risolve il problema del file che sparisce: sta
+      // in una cartella nostra, che nessuno pulisce. Leggere **anche** i byte
+      // voleva dire far passare quaranta megabyte per la memoria subito dopo
+      // lo stop, con la fotocamera ancora aperta — ed e' esattamente l'attesa
+      // immobile che si vedeva fra la fine della registrazione e l'anteprima.
+      //
+      // Se la copia fallisce, i byte restano la rete sotto: e' la strada che
+      // ha funzionato per mesi, e li' quel costo si paga volentieri perche'
+      // l'alternativa e' non mandare niente.
       return PickedMedia(
-        bytes: await file.readAsBytes(),
+        bytes: copia.isEmpty ? await file.readAsBytes() : Uint8List(0),
         filePath: copia,
         contentType: file.mimeType ?? 'video/mp4',
         isVideo: true,
@@ -285,27 +299,51 @@ class ParticipationController extends AsyncNotifier<void> {
   /// far registrare due minuti per poi dire "troppo lungo, rifallo" e' il modo
   /// piu' sicuro di far perdere una partecipazione.
   Future<PickedMedia?> _captureVideo(ChallengeSource from) async {
-    final archivio = from.isArchive;
-
     final picked = await ImagePicker().pickVideo(
       source: _dove(from),
-      // **Il tetto di durata vale solo per chi gira adesso.** Su un video che
-      // uno ha gia' non c'e' niente da limitare: il selettore non puo'
-      // accorciarlo, quindi il limite si trasformerebbe in un rifiuto secco
-      // davanti all'unico video che quella persona voleva mandare.
-      maxDuration: archivio ? null : MediaKind.maxVideoDuration,
+      // **Il tetto vale per tutti e due, ma funziona solo per chi gira adesso.**
+      //
+      // Registrando, il selettore ferma la registrazione da solo al ventesimo
+      // secondo. Dalla galleria il limite non lo applica: il video arriva
+      // intero, e a fermarlo e' il controllo qui sotto — che e' il motivo per
+      // cui quel controllo esiste invece di fidarsi di questa riga.
+      maxDuration: MediaKind.maxVideoDuration,
     );
 
     if (picked == null) {
       return null;
     }
 
-    // Sul telefono il percorso c'e' e basta quello; sul web non c'e', e li' i
-    // byte sono l'unica strada — ma li' arrivano gia' dal browser, e non c'e'
-    // una fotocamera aperta a contendersi la memoria.
+    // **Sul telefono il video non si legge affatto.**
+    //
+    // Prima si leggeva tutto in memoria e *poi* lo si caricava dal disco: i
+    // byte non li guardava nessuno — l'anteprima legge il file, il
+    // caricamento pure — e intanto cinquanta megabyte passavano per la RAM a
+    // ogni registrazione. E' quello che faceva aspettare dopo lo stop,
+    // immobile, prima ancora che il caricamento cominciasse.
+    //
+    // Sul web i byte sono l'unica strada: li' non esiste un file da aprire, e
+    // arrivano gia' pronti dal browser.
+    final percorso = kIsWeb ? null : await _alSicuro(picked.path);
+
+    // **Quanto dura davvero.**
+    //
+    // Dalla galleria il limite di sopra non viene applicato: chi sceglie un
+    // video di tre minuti lo manderebbe intero, e si accorgerebbe del rifiuto
+    // solo alla fine del caricamento — se mai arrivasse in fondo. Qui si apre
+    // il file, si legge la durata e si chiude: costa un istante, e dice la
+    // cosa vera prima che parta un solo byte.
+    final durata = await durataDelVideo(percorso ?? picked.path);
+
+    if (durata != null && durata > MediaKind.maxVideoDuration) {
+      await buttaLaCopia(percorso ?? '');
+
+      throw VideoTroppoLungo(durata);
+    }
+
     return PickedMedia(
-      bytes: await picked.readAsBytes(),
-      filePath: kIsWeb ? null : await _alSicuro(picked.path),
+      bytes: percorso == null ? await picked.readAsBytes() : Uint8List(0),
+      filePath: percorso,
       contentType: picked.mimeType ?? 'video/mp4',
       isVideo: true,
     );
@@ -463,4 +501,18 @@ class ParticipationController extends AsyncNotifier<void> {
       challengeTitle: challenge.title,
     );
   }
+}
+
+/// Il video scelto dalla galleria supera il tetto di durata.
+///
+/// Porta dentro **quanto dura davvero**: "il video e' troppo lungo" da solo
+/// non fa sapere a nessuno se deve tagliarne due secondi o sceglierne un
+/// altro.
+class VideoTroppoLungo implements Exception {
+  const VideoTroppoLungo(this.durata);
+
+  final Duration durata;
+
+  @override
+  String toString() => 'Il video dura ${durata.inSeconds} secondi.';
 }

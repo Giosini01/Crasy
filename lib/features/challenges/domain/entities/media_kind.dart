@@ -26,12 +26,17 @@ enum MediaKind {
 
   bool get isVideo => this == MediaKind.video;
 
-  /// Quanto puo' durare un video, in secondi.
+  /// Quanto puo' durare un video.
   ///
-  /// Mezzo minuto e non di piu': la challenge dura poche ore e le si guardano
-  /// tutte di fila. Un video lungo non lo finisce nessuno, e uno che nessuno
-  /// finisce non prende fiamme.
-  static const Duration maxVideoDuration = Duration(seconds: 30);
+  /// Venti secondi e non di piu'. Le gare si guardano tutte di fila, scorrendo:
+  /// un video lungo non lo finisce nessuno, e uno che nessuno finisce non
+  /// prende fiamme — il limite protegge chi lo manda prima ancora di chi lo
+  /// guarda.
+  ///
+  /// Era mezzo minuto, e trenta secondi dalla galleria sono decine di megabyte
+  /// da caricare su una rete che spesso non e' il wifi di casa: il limite che
+  /// si vedeva non era questo, era l'attesa.
+  static const Duration maxVideoDuration = Duration(seconds: 20);
 
   static MediaKind fromName(String? value) {
     for (final kind in MediaKind.values) {

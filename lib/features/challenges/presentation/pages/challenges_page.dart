@@ -480,7 +480,7 @@ class _Seguiti extends ConsumerWidget {
           // scheda. Toccandola si va sul proprio profilo, dove il cassetto e'
           // gia' aperto e dove si torna a cercarlo la volta dopo.
           const SizedBox(height: AppSpacing.md),
-          const SuggestedDrawer(portaAlProfilo: true),
+          const SuggestedDrawer(),
           if (cerca) ...[
             const SizedBox(height: AppSpacing.md),
             Center(

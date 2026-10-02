@@ -21,3 +21,10 @@ Future<void> buttaLaCopia(String percorso) async {}
 
 /// Sul web non ci sono file: si va sempre di byte.
 bool ilFileEBuono(String percorso) => false;
+
+/// Sul web non c'e' nessun file da misurare: valgono i byte.
+int lunghezzaDi(String percorso) => 0;
+
+/// Sul web il file non c'e', quindi la durata non si misura: si lascia
+/// passare, e il selettore del browser ha gia' fatto quel che poteva.
+Future<Duration?> durataDelVideo(String percorso) async => null;

@@ -2,6 +2,7 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
+import 'package:crasy/features/friends/data/repositories/contacts_repository.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/suggested_friend_row.dart';
 import 'package:crasy/features/friends/presentation/widgets/suggested_problem.dart';
@@ -62,7 +63,8 @@ class _WhoYouKnowPageState extends ConsumerState<WhoYouKnowPage> {
     final palette = context.palette;
     final texts = context.texts;
     final stato = ref.watch(suggestedFriendsProvider);
-    final trovati = stato.valueOrNull;
+    final rubrica = stato.valueOrNull;
+    final trovati = rubrica?.suCrasy;
     // Qualunque problema, non solo il permesso negato: prima un errore di rete
     // lasciava la schermata muta, con il tasto che tornava a "guarda chi c'e'".
     final negato = stato.hasError;
@@ -172,7 +174,7 @@ class _Corpo extends StatelessWidget {
     required this.onCerca,
   });
 
-  final AsyncValue<List<dynamic>?> stato;
+  final AsyncValue<RubricaTrovata?> stato;
   final bool negato;
   final VoidCallback onCerca;
 
@@ -193,7 +195,7 @@ class _Corpo extends StatelessWidget {
       );
     }
 
-    final trovati = stato.valueOrNull;
+    final trovati = stato.valueOrNull?.suCrasy;
 
     if (trovati == null || trovati.isEmpty) {
       return const SizedBox.shrink();

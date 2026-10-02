@@ -2,6 +2,7 @@ import 'package:crasy/core/services/share/share_entry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// **Portare qualcuno dentro CRASY.**
 ///
@@ -66,6 +67,60 @@ abstract final class InviteFriend {
     }
 
     await Clipboard.setData(ClipboardData(text: message));
+
+    messenger?.showSnackBar(
+      const SnackBar(
+        content: Text('Invito copiato: incollalo dove vuoi.'),
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  /// **Apre WhatsApp sulla chat di quel numero, con il messaggio gia' scritto.**
+  ///
+  /// Si apre la chat e basta: **il messaggio non parte da solo**. Non e' un
+  /// limite da aggirare, e' come deve essere — un'app che manda messaggi a nome
+  /// tuo ai numeri della tua rubrica e' esattamente la cosa per cui si
+  /// disinstalla un'app. L'ultimo tocco lo fa chi invita.
+  ///
+  /// **Il link porta al sito, non a uno dei due store**, e qui la ragione e'
+  /// diversa dal solito: non sappiamo che telefono ha chi riceve. Mandare
+  /// l'App Store a un Android, o Google Play a un iPhone, vuol dire mandarlo in
+  /// un posto dove non puo' scaricare niente. Il sito lo capisce da solo e
+  /// mostra il tasto giusto — ed e' anche l'unica pagina che spiega cos'e'
+  /// CRASY prima di chiedere di installarla.
+  static Future<void> suWhatsApp(
+    BuildContext context, {
+    required String numero,
+    String username = '',
+  }) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+
+    // WhatsApp vuole il numero in cifre, senza il piu' e senza spazi.
+    final pulito = numero.replaceAll(RegExp(r'[^0-9]'), '');
+    final indirizzo = Uri.parse(
+      'https://wa.me/$pulito?text=${Uri.encodeComponent(messageFor(username: username))}',
+    );
+
+    try {
+      final aperto = await launchUrl(
+        indirizzo,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (aperto) {
+        return;
+      }
+    } on Object {
+      // Si passa agli appunti.
+    }
+
+    // **Senza WhatsApp installato il messaggio si copia.** Il tasto deve fare
+    // qualcosa comunque: un invito che non parte e non dice niente si legge
+    // come un'app rotta, non come un telefono senza WhatsApp.
+    await Clipboard.setData(
+      ClipboardData(text: messageFor(username: username)),
+    );
 
     messenger?.showSnackBar(
       const SnackBar(

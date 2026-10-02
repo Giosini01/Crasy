@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:video_player/video_player.dart';
 
 /// Su telefono il file c'e', e si legge **a pezzi**.
 ///
@@ -120,5 +121,51 @@ bool ilFileEBuono(String percorso) {
     return file.existsSync() && file.lengthSync() > 0;
   } on Object catch (_) {
     return false;
+  }
+}
+
+/// Quanto pesa il file, senza aprirlo.
+///
+/// Serve a dire "questo video e' troppo grande" **prima** di provare a
+/// mandarlo, ora che i byte di un video non si leggono piu' in memoria. Zero
+/// quando il file non c'e': chi chiede ripiega sui byte che ha.
+int lunghezzaDi(String percorso) {
+  if (percorso.isEmpty) {
+    return 0;
+  }
+
+  try {
+    final file = File(percorso);
+
+    return file.existsSync() ? file.lengthSync() : 0;
+  } on Object catch (_) {
+    return 0;
+  }
+}
+
+/// Quanto dura un video, aperto e richiuso.
+///
+/// Torna `null` quando non si riesce a leggerlo, e in quel caso chi chiede
+/// lascia passare: un lettore che non apre un file non e' una buona ragione
+/// per rifiutare la partecipazione di qualcuno.
+Future<Duration?> durataDelVideo(String percorso) async {
+  if (percorso.isEmpty) {
+    return null;
+  }
+
+  VideoPlayerController? lettore;
+
+  try {
+    lettore = VideoPlayerController.file(File(percorso));
+
+    await lettore.initialize();
+
+    final durata = lettore.value.duration;
+
+    return durata == Duration.zero ? null : durata;
+  } on Object catch (_) {
+    return null;
+  } finally {
+    await lettore?.dispose();
   }
 }

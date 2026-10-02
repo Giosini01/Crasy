@@ -16,8 +16,11 @@ void main() {
     expect(MediaKind.fromName('gif'), MediaKind.photo);
   });
 
-  test('un video dura al massimo mezzo minuto', () {
-    expect(MediaKind.maxVideoDuration, const Duration(seconds: 30));
+  test('un video dura al massimo venti secondi', () {
+    // Erano trenta. Il limite non e' estetico: trenta secondi presi dalla
+    // galleria sono decine di megabyte da caricare su una rete che spesso non
+    // e' il wifi di casa, e l'attesa diventava il vero limite.
+    expect(MediaKind.maxVideoDuration, const Duration(seconds: 20));
     expect(MediaKind.video.isVideo, isTrue);
     expect(MediaKind.photo.isVideo, isFalse);
   });

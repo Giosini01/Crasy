@@ -1,8 +1,17 @@
 import 'package:crasy/features/challenges/data/repositories/firestore_challenge_repository.dart';
+import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
+import 'package:crasy/features/challenges/presentation/controllers/participation_controller.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 abstract final class ErrorMessageMapper {
   static String map(Object error) {
+    // **Dice quanto dura e quanto puo' durare.** "Troppo lungo" da solo non fa
+    // sapere a nessuno se deve tagliarne due secondi o sceglierne un altro.
+    if (error is VideoTroppoLungo) {
+      return 'Questo video dura ${error.durata.inSeconds} secondi e il massimo '
+          'e ${MediaKind.maxVideoDuration.inSeconds}. Scegline uno piu corto.';
+    }
+
     if (error is ChallengeClosedException) {
       return 'La challenge si e chiusa. Il tempo era scaduto.';
     }

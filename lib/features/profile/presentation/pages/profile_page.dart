@@ -184,13 +184,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         // porta da nessuna parte: chiudere l'app per trovare
                         // un amico e poi doverla riaprire e' il modo migliore
                         // di non farlo mai.
-                        // Arrivando dai seguiti il cassetto e' gia' aperto:
-                        // chi ha toccato "trova i tuoi amici" laggiu' ha
-                        // chiesto questo, e farglielo aprire una seconda volta
-                        // qui sarebbe chiedergli di ripetersi.
-                        SuggestedDrawer(
-                          apertoSubito: ref.watch(apriIlCassettoProvider),
-                        ),
+                        const SuggestedDrawer(),
                         const SizedBox(height: AppSpacing.xl),
                         ProfileShelfTabs(
                           selected: _shelf,

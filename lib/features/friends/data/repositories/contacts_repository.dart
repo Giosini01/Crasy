@@ -119,8 +119,14 @@ class ContactsRepository {
     return testo;
   }
 
-  /// Chiede il permesso e legge i numeri. Lista vuota se l'utente dice di no.
-  Future<List<String>> _numeriInRubrica() async {
+  /// Chiede il permesso e legge la rubrica.
+  ///
+  /// **Il nome resta sul telefono.** Al server va solo il numero: i nomi
+  /// servono qui, per scrivere "Invita Marco" invece di "Invita
+  /// +393331234567", e non hanno nessuna ragione di viaggiare. Chi non ha
+  /// CRASY non si e' iscritto a niente, e il suo nome in un nostro database
+  /// sarebbe roba che nessuno ci ha dato il permesso di tenere.
+  Future<List<Contatto>> _rubrica() async {
     final permesso = await FlutterContacts.permissions.request(
       PermissionType.read,
     );
@@ -144,17 +150,27 @@ class ContactsRepository {
       properties: {ContactProperty.phone},
     );
 
-    final numeri = <String>{};
+    // Per numero e non per contatto: la stessa persona compare due volte in
+    // rubrica — casa e cellulare — e comparirebbe due volte nell'elenco.
+    final perNumero = <String, Contatto>{};
 
     for (final contatto in contatti) {
       for (final telefono in contatto.phones) {
         final pulito = normalizza(telefono.number);
 
         if (pulito != null) {
-          numeri.add(pulito);
+          perNumero.putIfAbsent(
+            pulito,
+            () => Contatto(
+              nome: (contatto.displayName ?? '').trim(),
+              numero: pulito,
+            ),
+          );
         }
       }
     }
+
+    final numeri = perNumero.keys;
 
     // Permesso dato, ma niente da confrontare: rubrica vuota, o su iPhone
     // "solo alcuni contatti" con zero scelti. Dirgli "attiva il permesso"
@@ -164,7 +180,7 @@ class ContactsRepository {
       throw const RubricaVuota();
     }
 
-    return numeri.toList();
+    return perNumero.values.toList();
   }
 
   /// Apre le impostazioni dell'app: dopo un "no" definitivo il telefono non
@@ -177,7 +193,7 @@ class ContactsRepository {
   /// Lancia [ContattiNegati] se il permesso non c'e': chiamare e ricevere una
   /// lista vuota non distinguerebbe "nessuno dei tuoi amici e' qui" da "non ci
   /// hai fatto guardare", e sono due cose che vanno dette in modo diverso.
-  Future<List<SuggestedFriend>> suggeriti() async {
+  Future<RubricaTrovata> suggeriti() async {
     // **Dal browser non si puo', e va detto invece che fallire.**
     //
     // Una pagina web non ha una rubrica da leggere: il pacchetto non risponde
@@ -188,12 +204,14 @@ class ContactsRepository {
       throw const SoloDalTelefono();
     }
 
-    final numeri = await _numeriInRubrica();
+    final rubrica = await _rubrica();
+    final numeri = [for (final contatto in rubrica) contatto.numero];
 
     // **A pezzi da duemila.** Il server ne accetta al massimo tanti per volta,
     // e una rubrica piu' grande faceva fallire tutta la ricerca con un errore
     // generico: proprio chi ha piu' contatti non trovava nessuno.
     final perId = <String, SuggestedFriend>{};
+    final suCrasy = <String>{};
 
     for (var da = 0; da < numeri.length; da += 2000) {
       final fino = da + 2000 < numeri.length ? da + 2000 : numeri.length;
@@ -210,16 +228,50 @@ class ContactsRepository {
           displayName: trovato['displayName'] as String? ?? '',
           photoUrl: trovato['photoUrl'] as String? ?? '',
           stato: SuggestedStato.leggi(trovato['stato'] as String?),
+          numero: trovato['numero'] as String? ?? '',
         );
 
         if (chi.userId.isNotEmpty) {
           perId[chi.userId] = chi;
+          suCrasy.add(chi.numero);
         }
       }
     }
 
-    return perId.values.toList();
+    // **Quelli che restano sono quelli da invitare.** Si tolgono i numeri che
+    // hanno trovato qualcuno, e quello che avanza e' gente che CRASY non ce
+    // l'ha: ordinati per nome, perche' si scorre cercando una persona.
+    final mancanti = [
+      for (final contatto in rubrica)
+        if (!suCrasy.contains(contatto.numero) && contatto.nome.isNotEmpty)
+          contatto,
+    ]..sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+
+    return RubricaTrovata(
+      suCrasy: perId.values.toList(),
+      daInvitare: mancanti,
+    );
   }
+}
+
+/// Una riga della rubrica del telefono. **Non esce mai da questo telefono.**
+class Contatto {
+  const Contatto({required this.nome, required this.numero});
+
+  final String nome;
+
+  /// In forma internazionale: e' quella con cui si apre WhatsApp.
+  final String numero;
+}
+
+/// Il risultato di una passata sulla rubrica: chi c'e' gia' e chi manca.
+class RubricaTrovata {
+  const RubricaTrovata({this.suCrasy = const [], this.daInvitare = const []});
+
+  final List<SuggestedFriend> suCrasy;
+  final List<Contatto> daInvitare;
+
+  bool get vuota => suCrasy.isEmpty && daInvitare.isEmpty;
 }
 
 /// Non ci ha fatto guardare la rubrica.

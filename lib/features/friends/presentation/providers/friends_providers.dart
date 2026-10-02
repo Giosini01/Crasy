@@ -6,7 +6,6 @@ import 'package:crasy/features/challenges/presentation/providers/challenge_provi
 import 'package:crasy/features/friends/data/repositories/contacts_repository.dart';
 import 'package:crasy/features/friends/data/repositories/firestore_friends_repository.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
-import 'package:crasy/features/friends/domain/entities/suggested_friend.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
@@ -781,15 +780,15 @@ final contactsRepositoryProvider = Provider<ContactsRepository?>((ref) {
 /// e a schermo compariva "nessuno dei tuoi contatti e' ancora qui". Il peggior
 /// tipo di difetto: tutto funziona, e il risultato e' una bugia.
 final suggestedFriendsProvider =
-    AsyncNotifierProvider<SuggestedFriendsNotifier, List<SuggestedFriend>?>(
+    AsyncNotifierProvider<SuggestedFriendsNotifier, RubricaTrovata?>(
       SuggestedFriendsNotifier.new,
     );
 
-class SuggestedFriendsNotifier extends AsyncNotifier<List<SuggestedFriend>?> {
+class SuggestedFriendsNotifier extends AsyncNotifier<RubricaTrovata?> {
   /// Null vuol dire "non li abbiamo ancora cercati", che e' diverso da una
   /// lista vuota — quella vuol dire "cercati, e non c'e' nessuno".
   @override
-  Future<List<SuggestedFriend>?> build() async => null;
+  Future<RubricaTrovata?> build() async => null;
 
   Future<void> cerca() async {
     final repository = ref.read(contactsRepositoryProvider);

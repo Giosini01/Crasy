@@ -168,13 +168,20 @@ exports.trovaDallaRubrica = onCall(
     // Le impronte si tengono in un insieme: una rubrica ha lo stesso numero
     // scritto tre volte — casa, lavoro, quello vecchio — e cercarlo tre volte
     // costerebbe tre letture per niente.
-    const impronte = new Set();
+    //
+    // **E si tiene da parte il numero che ogni impronta nasconde.** Serve a
+    // dire al telefono quali dei numeri che ha mandato sono su CRASY — non per
+    // raccontargli qualcosa di nuovo: quei numeri ce li ha gia', sono i suoi
+    // contatti. Serve a sapere **chi resta da invitare**, che senza questa
+    // riga non si puo' calcolare: la risposta conterrebbe dei profili e
+    // nessun modo di collegarli alla rubrica.
+    const impronte = new Map();
 
     for (const numero of numeri) {
       const pulito = pulisci(numero);
 
       if (pulito) {
-        impronte.add(impronta(pulito, pepe));
+        impronte.set(impronta(pulito, pepe), pulito);
       }
     }
 
@@ -183,8 +190,11 @@ exports.trovaDallaRubrica = onCall(
     }
 
     const indice = db.collection('phoneIndex');
-    const chiavi = [...impronte];
+    const chiavi = [...impronte.keys()];
     const trovatiId = new Set();
+
+    /// Da chi e' stato trovato al numero con cui l'abbiamo trovato.
+    const numeroDi = new Map();
 
     // `getAll` legge a blocchi: in un colpo solo si superano i limiti di
     // Firestore, e una rubrica grossa manderebbe la richiesta in errore proprio
@@ -198,6 +208,7 @@ exports.trovaDallaRubrica = onCall(
 
         if (chi && chi !== mio) {
           trovatiId.add(chi);
+          numeroDi.set(chi, impronte.get(documento.id) || '');
         }
       }
     }
@@ -298,6 +309,10 @@ exports.trovaDallaRubrica = onCall(
           // errore da far scoprire premendo.
           stato: comeSiamo(documento.id),
           verificato: documento.get('verificato') === true,
+          // Il numero con cui l'abbiamo trovato: il telefono lo usa per
+          // togliere quella riga dall'elenco di chi resta da invitare. Non gli
+          // diciamo niente che non abbia gia' — e' un contatto suo.
+          numero: numeroDi.get(documento.id) || '',
         });
       }
     }

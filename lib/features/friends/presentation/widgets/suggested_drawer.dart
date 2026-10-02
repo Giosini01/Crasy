@@ -1,233 +1,66 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
-import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
-import 'package:crasy/features/friends/presentation/widgets/suggested_friend_row.dart';
-import 'package:crasy/features/friends/presentation/widgets/suggested_problem.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-/// **Il cassetto di chi conosci, sotto i numeri del profilo.**
+/// **La porta per "Trova i tuoi amici".**
 ///
-/// Una riga con una freccia in giu': si tocca e scende un pannello con le
-/// facce, i nomi e il tasto rosso per chiedere l'amicizia. Si richiude con la
-/// stessa freccia.
+/// Era un cassetto: si toccava e scendeva un pannello con dentro le persone.
+/// Funzionava, e stava nel posto sbagliato — un elenco di gente appoggiato in
+/// mezzo al proprio profilo, o in fondo a una schermata che parla d'altro. Chi
+/// c'e' gia' e chi va invitato sono una schermata loro, con le due meta'
+/// separate e lo spazio per scorrerle.
 ///
-/// Sta chiuso finche' non lo si apre, e questo non e' solo ordine: aperto di
-/// suo leggerebbe la rubrica di chiunque apra il proprio profilo, e la rubrica
-/// si guarda quando qualcuno lo chiede.
-class SuggestedDrawer extends ConsumerStatefulWidget {
-  const SuggestedDrawer({
-    this.apertoSubito = false,
-    this.portaAlProfilo = false,
-    super.key,
-  });
-
-  /// Aperto e gia' in cerca appena compare: in SEGUITI, quando non si segue
-  /// nessuno, e' l'unica cosa da fare e non deve servire un tocco in piu'.
-  final bool apertoSubito;
-
-  /// **Qui il cassetto non si apre: porta dove si apre.**
-  ///
-  /// Nella scheda dei seguiti questa riga sta in fondo a un elenco vuoto, e
-  /// aprendosi li' mostrava delle persone in un posto che non e' il loro —
-  /// una schermata che parla di chi segui, con dentro un pezzo di profilo.
-  /// Chi la tocca da li' viene portato sul proprio profilo, dove il cassetto
-  /// e' gia' aperto: le persone trovate si guardano una volta sola, nel posto
-  /// in cui si torna a cercarle.
-  final bool portaAlProfilo;
-
-  @override
-  ConsumerState<SuggestedDrawer> createState() => _SuggestedDrawerState();
-}
-
-/// Chiede al profilo di aprire il cassetto appena ci si arriva.
-final apriIlCassettoProvider = StateProvider<bool>((ref) => false);
-
-class _SuggestedDrawerState extends ConsumerState<SuggestedDrawer> {
-  bool _aperto = false;
-
-  @override
-  void initState() {
-    super.initState();
-
-    if (widget.apertoSubito && !kIsWeb) {
-      _aperto = true;
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) {
-          return;
-        }
-
-        // **L'interruttore si spegne appena e' servito.**
-        //
-        // Lo accende la scheda dei seguiti per dire "aprilo appena arrivi".
-        // Lasciandolo acceso, il profilo si riaprirebbe con il cassetto gia'
-        // aperto per sempre — anche arrivandoci dalla barra in fondo, mesi
-        // dopo, senza che nessuno l'abbia chiesto.
-        if (ref.read(apriIlCassettoProvider)) {
-          ref.read(apriIlCassettoProvider.notifier).state = false;
-        }
-
-        if (ref.read(suggestedFriendsProvider).valueOrNull == null) {
-          ref.read(suggestedFriendsProvider.notifier).cerca();
-        }
-      });
-    }
-  }
-
-  void _tocca() {
-    if (widget.portaAlProfilo) {
-      // Il cassetto laggiu' lo aprira' questo interruttore, che si spegne da
-      // solo appena letto: senza, il profilo si riaprirebbe con il cassetto
-      // gia' aperto per sempre, anche arrivandoci dalla barra in fondo.
-      ref.read(apriIlCassettoProvider.notifier).state = true;
-      context.go(AppRoutes.profile);
-
-      return;
-    }
-
-    setState(() => _aperto = !_aperto);
-
-    // Si cerca alla prima apertura e non piu': riaprire il cassetto non deve
-    // rifare il giro della rubrica, e chi ha gia' mandato le richieste non
-    // deve rivedersele comparire.
-    if (_aperto && ref.read(suggestedFriendsProvider).valueOrNull == null) {
-      ref.read(suggestedFriendsProvider.notifier).cerca();
-    }
-  }
+/// Qui resta la riga che ci porta. Il nome della classe e' rimasto quello di
+/// prima perche' compare in tre schermate, e cambiarlo avrebbe toccato tre
+/// file senza dire niente di nuovo.
+class SuggestedDrawer extends StatelessWidget {
+  const SuggestedDrawer({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Dal browser non si mostra: una pagina web non ha una rubrica da leggere,
+    // e una riga che porta dove non puo' funzionare e' peggio di nessuna riga.
     if (kIsWeb) {
       return const SizedBox.shrink();
     }
 
     final palette = context.palette;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        GestureDetector(
-          onTap: _tocca,
-          behavior: HitTestBehavior.opaque,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.page,
-              vertical: AppSpacing.sm,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'TROVA I TUOI AMICI',
-                  style: context.texts.labelSmall?.copyWith(
-                    color: palette.accent,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xxs),
-                // La freccia gira invece di cambiare: chi guarda capisce che
-                // e' la stessa cosa, e che si richiude da dove si e' aperta.
-                AnimatedRotation(
-                  turns: _aperto ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 20,
-                    color: palette.accent,
-                  ),
-                ),
-              ],
-            ),
-          ),
+    return GestureDetector(
+      onTap: () => context.push(AppRoutes.findFriends),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.page,
+          vertical: AppSpacing.sm,
         ),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          alignment: Alignment.topCenter,
-          child: _aperto
-              ? const _Pannello()
-              : const SizedBox(width: double.infinity),
-        ),
-      ],
-    );
-  }
-}
-
-class _Pannello extends ConsumerWidget {
-  const _Pannello();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final palette = context.palette;
-    final stato = ref.watch(suggestedFriendsProvider);
-
-    Widget dentro;
-
-    if (stato.isLoading) {
-      dentro = Center(
-        child: SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(strokeWidth: 2, color: palette.accent),
-        ),
-      );
-    } else if (stato.hasError) {
-      dentro = SuggestedProblem(
-        errore: stato.error,
-        piccolo: true,
-        onRiprova: () => ref.read(suggestedFriendsProvider.notifier).cerca(),
-      );
-    } else if (stato.valueOrNull == null) {
-      // **Non ancora cercato non e' "non c'e' nessuno".**
-      //
-      // Prima finivano nello stesso ramo, perche' un elenco mai chiesto e un
-      // elenco vuoto diventavano tutti e due una lista vuota. Il risultato era
-      // che il cassetto, nell'istante prima di partire, diceva gia' che non
-      // conoscevi nessuno — e se qualcosa andava storto quella frase restava
-      // li', falsa, senza che niente segnalasse un guasto.
-      dentro = Center(
-        child: SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: palette.accent,
-          ),
-        ),
-      );
-    } else {
-      final trovati = stato.valueOrNull ?? const [];
-
-      dentro = trovati.isEmpty
-          ? Text(
-              'Nessuno dei tuoi contatti è ancora qui.',
-              style: context.texts.bodySmall?.copyWith(
-                color: palette.textFaint,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.contact_phone_rounded, size: 14, color: palette.accent),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              'TROVA I TUOI AMICI',
+              style: context.texts.labelSmall?.copyWith(
+                color: palette.accent,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.1,
               ),
-            )
-          : Column(
-              children: [
-                for (final chi in trovati) SuggestedFriendRow(suggested: chi),
-              ],
-            );
-    }
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(
-        AppSpacing.page,
-        0,
-        AppSpacing.page,
-        AppSpacing.sm,
+            ),
+            const SizedBox(width: AppSpacing.xxs),
+            // La freccia va a destra, non in giu': in giu' prometteva una cosa
+            // che si apriva li' sotto, e adesso si apre un'altra schermata.
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: palette.accent,
+            ),
+          ],
+        ),
       ),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        border: Border.all(color: palette.line),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: dentro,
     );
   }
 }

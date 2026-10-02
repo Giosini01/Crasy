@@ -41,6 +41,20 @@ class _FlameWaitingState extends State<FlameWaiting>
 
   @override
   Widget build(BuildContext context) {
+    // **Niente passa di qui finche' non ha finito.**
+    //
+    // Il velo fermava i tocchi, non il resto: la freccia indietro, il gesto di
+    // scorrimento dal bordo e il tasto di sistema su Android portavano via la
+    // schermata mentre il caricamento era a meta'. Da fuori sembra di aver
+    // annullato; dentro, il caricamento va avanti e finisce su una schermata
+    // che non c'e' piu'. Si resta qui finche' non e' finito.
+    return PopScope(
+      canPop: false,
+      child: _riquadro(context),
+    );
+  }
+
+  Widget _riquadro(BuildContext context) {
     final palette = context.palette;
 
     return ColoredBox(

@@ -37,6 +37,7 @@ abstract final class AppRoutes {
   /// Le quattro regole del gioco, una volta sola.
   static const tutorial = '/come-funziona';
   static const whoYouKnow = '/chi-conosci';
+  static const findFriends = '/trova-amici';
 
   /// I permessi spiegati prima di chiederli, al primo ingresso.
   static const permissions = '/permessi';

@@ -190,11 +190,42 @@ class _CrasyAppState extends ConsumerState<CrasyApp> {
       // Le liste con una data dentro si rifanno da sole ogni pochi secondi.
       // Sta qui e non dentro una schermata perche' vale per tutte, e perche'
       // deve continuare a girare anche mentre si cambia scheda.
-      builder: (context, child) => AutoRefresh(
-        child: KeyboardCloser(
-          child: OpeningCurtain(child: child ?? const SizedBox.shrink()),
-        ),
-      ),
+      builder: (context, child) {
+        final sistema = MediaQuery.of(context);
+
+        return MediaQuery(
+          // **Le impostazioni di accessibilita' dell'iPhone, tenute a bada.**
+          //
+          // Chi ha alzato la dimensione del testo o acceso il grassetto di
+          // sistema vedeva un'altra app: titoli che sfondavano le schede,
+          // bottoni con la scritta tagliata, numeri che andavano a capo. Non e'
+          // un difetto dei telefoni di quelle persone — e' che qui dentro i
+          // caratteri sono gia' grandi e gia' pesanti, e il sistema li
+          // ingrandisce e li ingrassa **sopra** quelli.
+          data: sistema.copyWith(
+            // Fino a un quarto in piu' si sta dentro: chi ha alzato il testo
+            // perche' ci vede poco continua a leggere meglio, e le schermate
+            // reggono. Oltre, non reggono — e una schermata rotta non e' piu'
+            // accessibile di una piccola: e' solo inutilizzabile.
+            textScaler: sistema.textScaler.clamp(
+              minScaleFactor: 0.9,
+              maxScaleFactor: 1.25,
+            ),
+            // **Il grassetto di sistema si ignora del tutto.** I titoli di
+            // CRASY sono gia' al peso massimo: ingrassando anche il resto,
+            // tutto finisce allo stesso peso e la gerarchia sparisce — non si
+            // distingue piu' il titolo dalla spiegazione, e la schermata
+            // diventa un muro di nero. Dove serviva leggere meglio, si legge
+            // peggio.
+            boldText: false,
+          ),
+          child: AutoRefresh(
+            child: KeyboardCloser(
+              child: OpeningCurtain(child: child ?? const SizedBox.shrink()),
+            ),
+          ),
+        );
+      },
     );
   }
 }
