@@ -39,27 +39,22 @@ class _SuggestedFriendRowState extends ConsumerState<SuggestedFriendRow> {
 
   SuggestedStato get _stato => _adesso ?? widget.suggested.stato;
 
-  Future<void> _chiedi() =>
-      _prova(SuggestedStato.inviata, () {
-        return ref
-            .read(friendActionsProvider)
-            .send(
-              widget.suggested.userId,
-              toUsername: widget.suggested.username,
-            );
-      });
+  Future<void> _chiedi() => _prova(SuggestedStato.inviata, () {
+    return ref
+        .read(friendActionsProvider)
+        .send(widget.suggested.userId, toUsername: widget.suggested.username);
+  });
 
-  Future<void> _accetta() =>
-      _prova(SuggestedStato.amico, () {
-        return ref
-            .read(friendActionsProvider)
-            .accept(
-              FriendRequest(
-                fromUserId: widget.suggested.userId,
-                fromUsername: widget.suggested.username,
-              ),
-            );
-      });
+  Future<void> _accetta() => _prova(SuggestedStato.amico, () {
+    return ref
+        .read(friendActionsProvider)
+        .accept(
+          FriendRequest(
+            fromUserId: widget.suggested.userId,
+            fromUsername: widget.suggested.username,
+          ),
+        );
+  });
 
   /// Il tasto cambia subito, e **torna com'era se non e' andata**. Prima
   /// restava su INVIATA anche quando la richiesta non era partita: uno
@@ -80,9 +75,9 @@ class _SuggestedFriendRowState extends ConsumerState<SuggestedFriendRow> {
       }
 
       setState(() => _adesso = prima);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Non è partita. Riprova.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Non è partita. Riprova.')));
     }
   }
 
@@ -110,9 +105,12 @@ class _SuggestedFriendRowState extends ConsumerState<SuggestedFriendRow> {
                     text: chi.nome,
                     style: context.texts.titleMedium,
                   ),
-                  if (chi.displayName.isNotEmpty)
+                  // Sotto il nome della rubrica ci va il nome utente: sopra c'e'
+                  // `Zia Carla`, e senza questa riga non si sa che account si
+                  // sta per seguire.
+                  if (chi.sottoNome.isNotEmpty)
                     Text(
-                      '@${chi.username}',
+                      chi.sottoNome,
                       style: context.texts.bodySmall?.copyWith(
                         color: palette.textFaint,
                       ),
@@ -123,11 +121,7 @@ class _SuggestedFriendRowState extends ConsumerState<SuggestedFriendRow> {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          _Azione(
-            stato: _stato,
-            onChiedi: _chiedi,
-            onAccetta: _accetta,
-          ),
+          _Azione(stato: _stato, onChiedi: _chiedi, onAccetta: _accetta),
         ],
       ),
     );
@@ -173,12 +167,26 @@ class _Azione extends StatelessWidget {
       );
     }
 
+    // **"INVIATA", non "SEGUI GIÀ".** Diceva la cosa sbagliata, e nel modo piu'
+    // fastidioso: uno premeva "Segui", leggeva "segui gia'" e capiva di aver
+    // fatto una cosa inutile — mentre invece la richiesta era appena partita e
+    // stava aspettando una risposta. Qui non si segue ancora nessuno: si e'
+    // chiesto, e si aspetta.
     if (stato == SuggestedStato.inviata) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-        child: Text(
-          'SEGUI GIÀ',
-          style: context.texts.labelSmall?.copyWith(color: palette.textFaint),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.schedule_rounded, size: 13, color: palette.textFaint),
+            const SizedBox(width: 3),
+            Text(
+              'INVIATA',
+              style: context.texts.labelSmall?.copyWith(
+                color: palette.textFaint,
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -192,9 +200,7 @@ class _Azione extends StatelessWidget {
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         visualDensity: VisualDensity.compact,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(999),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
       ),
       // Chi ti ha gia' chiesto l'amicizia non va richiesto: va accettato, ed e'
       // un gesto piu' breve. Offrirgli "invia richiesta" vorrebbe dire far

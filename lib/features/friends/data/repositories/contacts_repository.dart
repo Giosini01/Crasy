@@ -66,10 +66,33 @@ class ContactsRepository {
   /// I prefissi riconosciuti nel proprio numero, dai piu' lunghi ai piu'
   /// corti: `+378` (San Marino) va provato prima di `+37`.
   static const _codiciPaese = [
-    '+378', '+351', '+352', '+353', '+355', '+356', '+385', '+386', '+387',
-    '+30', '+31', '+32', '+33', '+34', '+36', '+39',
-    '+40', '+41', '+43', '+44', '+45', '+46', '+47', '+48', '+49',
-    '+7', '+1',
+    '+378',
+    '+351',
+    '+352',
+    '+353',
+    '+355',
+    '+356',
+    '+385',
+    '+386',
+    '+387',
+    '+30',
+    '+31',
+    '+32',
+    '+33',
+    '+34',
+    '+36',
+    '+39',
+    '+40',
+    '+41',
+    '+43',
+    '+44',
+    '+45',
+    '+46',
+    '+47',
+    '+48',
+    '+49',
+    '+7',
+    '+1',
   ];
 
   /// Il numero come lo si manda al server: solo cifre, con il paese davanti.
@@ -207,6 +230,13 @@ class ContactsRepository {
     final rubrica = await _rubrica();
     final numeri = [for (final contatto in rubrica) contatto.numero];
 
+    // Il nome con cui ogni numero e' salvato, da riattaccare a chi torna dal
+    // server: la risposta porta il numero, non il nome, perche' il nome non e'
+    // mai partito.
+    final perNome = {
+      for (final contatto in rubrica) contatto.numero: contatto.nome,
+    };
+
     // **A pezzi da duemila.** Il server ne accetta al massimo tanti per volta,
     // e una rubrica piu' grande faceva fallire tutta la ricerca con un errore
     // generico: proprio chi ha piu' contatti non trovava nessuno.
@@ -222,13 +252,25 @@ class ContactsRepository {
       final trovati = risposta.data['trovati'] as List<dynamic>? ?? const [];
 
       for (final trovato in trovati.whereType<Map<Object?, Object?>>()) {
+        final numero = trovato['numero'] as String? ?? '';
+
         final chi = SuggestedFriend(
           userId: trovato['userId'] as String? ?? '',
           username: trovato['username'] as String? ?? '',
           displayName: trovato['displayName'] as String? ?? '',
           photoUrl: trovato['photoUrl'] as String? ?? '',
           stato: SuggestedStato.leggi(trovato['stato'] as String?),
-          numero: trovato['numero'] as String? ?? '',
+          numero: numero,
+          // **Il nome torna a riattaccarsi al numero da cui era partito.**
+          //
+          // Qui c'era il buco: il nome della rubrica veniva letto, usato per la
+          // meta' di gente da invitare, e perso per chi stava su CRASY — il
+          // server rimanda il numero, ma la riga non tornava piu' a chiedere al
+          // telefono come si chiamava. Il risultato era un elenco di nomi utente
+          // in cui non si riconosceva nessuno.
+          //
+          // Il viaggio e' tutto locale: il nome non e' mai uscito da qui.
+          nomeInRubrica: perNome[numero] ?? '',
         );
 
         if (chi.userId.isNotEmpty) {
@@ -247,10 +289,7 @@ class ContactsRepository {
           contatto,
     ]..sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
 
-    return RubricaTrovata(
-      suCrasy: perId.values.toList(),
-      daInvitare: mancanti,
-    );
+    return RubricaTrovata(suCrasy: perId.values.toList(), daInvitare: mancanti);
   }
 }
 
