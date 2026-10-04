@@ -1,4 +1,5 @@
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/seasons/season_skin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -26,7 +27,16 @@ class AppBackground extends StatelessWidget {
         systemNavigationBarColor: palette.background,
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
-      child: ColoredBox(color: palette.background, child: child),
+      // **L'unico punto da cui la stagione entra in tutte le pagine.**
+      //
+      // Ventinove schermate passano da qui, e nessuna di loro sa che esiste una
+      // stagione: le ragnatele di ottobre e la neve di dicembre si appendono in
+      // questa riga, non in ventinove file. Fuori stagione [SeasonSkin.decora]
+      // torna il figlio com'e' arrivato, e questo widget e' quello di sempre.
+      child: ColoredBox(
+        color: palette.background,
+        child: context.stagione.decora(context, child),
+      ),
     );
   }
 }

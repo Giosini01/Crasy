@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/seasons/season_skin.dart';
 import 'package:flutter/material.dart';
 
 /// **L'attesa fra il tocco e il foglio di Stripe.**
@@ -48,10 +49,7 @@ class _FlameWaitingState extends State<FlameWaiting>
     // schermata mentre il caricamento era a meta'. Da fuori sembra di aver
     // annullato; dentro, il caricamento va avanti e finisce su una schermata
     // che non c'e' piu'. Si resta qui finche' non e' finito.
-    return PopScope(
-      canPop: false,
-      child: _riquadro(context),
-    );
+    return PopScope(canPop: false, child: _riquadro(context));
   }
 
   Widget _riquadro(BuildContext context) {
@@ -85,11 +83,18 @@ class _FlameWaitingState extends State<FlameWaiting>
                 animation: _giro,
                 builder: (context, fiamma) {
                   return CustomPaint(
-                    painter: _Cerchio(
-                      giro: _giro.value,
-                      colore: palette.accent,
-                      scia: palette.line,
-                    ),
+                    // Di stagione gira una tela di ragno invece dell'arco. La
+                    // regola di sotto resta la sua: non un anello intero.
+                    painter:
+                        context.stagione.giostraDAttesa(
+                          giro: _giro.value,
+                          palette: palette,
+                        ) ??
+                        _Cerchio(
+                          giro: _giro.value,
+                          colore: palette.accent,
+                          scia: palette.line,
+                        ),
                     child: fiamma,
                   );
                 },
@@ -98,11 +103,16 @@ class _FlameWaitingState extends State<FlameWaiting>
                 // il segno che dice CRASY non va capovolto per fare
                 // un'animazione.
                 child: Center(
-                  child: Icon(
-                    Icons.local_fire_department,
-                    size: 30,
-                    color: palette.accent,
-                  ),
+                  child:
+                      context.stagione.segnoDAttesa(
+                        misura: 30,
+                        colore: palette.accent,
+                      ) ??
+                      Icon(
+                        Icons.local_fire_department,
+                        size: 30,
+                        color: palette.accent,
+                      ),
                 ),
               ),
             ),

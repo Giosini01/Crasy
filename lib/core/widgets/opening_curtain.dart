@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/seasons/season_skin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -100,7 +101,6 @@ class _OpeningCurtainState extends ConsumerState<OpeningCurtain>
         setState(() => _visible = false);
       }
     });
-
   }
 
   @override
@@ -109,7 +109,6 @@ class _OpeningCurtainState extends ConsumerState<OpeningCurtain>
     _fiamma.dispose();
     super.dispose();
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -212,15 +211,26 @@ class _Curtain extends StatelessWidget {
                       key: OpeningCurtain.chiaveDellaFiamma,
                       alignment: Alignment.center,
                       transform: Matrix4.diagonal3Values(scala, scala, 1),
-                      child: Icon(
-                        Icons.local_fire_department_rounded,
-                        // Piu' piccola di quanto sta dentro l'icona quadrata:
-                        // li' e' chiusa in un bordo che la contiene, qui ha
-                        // tutto lo schermo attorno e alla stessa misura
-                        // sembrerebbe enorme.
-                        size: lato * 0.22,
-                        color: palette.accent,
-                      ),
+                      // **La stagione cambia il segno, non l'animazione.** Sta
+                      // dentro il `Transform` con la chiave, quindi la
+                      // ragnatela di ottobre prende con lo stesso scatto e
+                      // ondeggia con le stesse due onde — e la prova che misura
+                      // la fiamma continua a misurare, perche' misura questo
+                      // nodo e non l'icona.
+                      child:
+                          context.stagione.segnoDApertura(
+                            misura: lato * 0.22,
+                            colore: palette.accent,
+                          ) ??
+                          Icon(
+                            Icons.local_fire_department_rounded,
+                            // Piu' piccola di quanto sta dentro l'icona quadrata:
+                            // li' e' chiusa in un bordo che la contiene, qui ha
+                            // tutto lo schermo attorno e alla stessa misura
+                            // sembrerebbe enorme.
+                            size: lato * 0.22,
+                            color: palette.accent,
+                          ),
                     ),
                   ],
                 ),
