@@ -31,17 +31,25 @@ import 'package:flutter/material.dart';
 class HalloweenSkin extends SeasonSkin {
   const HalloweenSkin();
 
-  /// **L'apertura: la fiamma davanti, la tela dietro.**
+  /// **L'apertura: la fiamma al centro della tela.**
   ///
   /// La fiamma resta quella che e' sempre stata, intera e in primo piano: e' il
-  /// marchio, e per un mese non si mette da parte. Dietro le si apre una
-  /// ragnatela con un ragno appeso, spostata in alto a sinistra — **non
-  /// centrata**, perche' una tela esattamente dietro una fiamma le passa sopra
-  /// con i suoi fili e la spezza in dodici pezzi.
+  /// marchio, e per un mese non si mette da parte. La ragnatela le si apre
+  /// **dietro, centrata**, e la fiamma finisce dove in una tela sta il ragno.
+  ///
+  /// ## Il mozzo non e' disegnato, perche' il mozzo e' lei
+  ///
+  /// Prima la tela stava di fianco, spostata in diagonale, e il motivo era che una
+  /// ragnatela intera dietro una fiamma e' una fiamma spezzata in dodici pezzi: i
+  /// raggi convergono tutti dove c'e' lei e le passano sopra.
+  ///
+  /// Il problema era il mozzo, non la posizione. Qui i raggi **cominciano oltre**
+  /// la fiamma e il centro resta vuoto: la tela e' centrata e nessun filo la
+  /// taglia. Ed e' anche piu' vero di una tela completa — in una ragnatela vera il
+  /// centro e' il buco in cui sta chi l'ha tessuta, non un nodo di fili.
   ///
   /// La tela e' tenuta piu' tenue della fiamma. Allo stesso peso si guarderebbe
-  /// lei: e' larga il doppio, e in una gara fra due segni vince sempre il piu'
-  /// grande.
+  /// lei: e' larga il doppio, e fra due segni vince sempre il piu' grande.
   @override
   Widget accompagnaApertura(
     Widget fiamma, {
@@ -54,16 +62,16 @@ class HalloweenSkin extends SeasonSkin {
       clipBehavior: Clip.none,
       alignment: Alignment.center,
       children: [
-        Positioned(
-          // Dietro e in diagonale: la fiamma resta libera al centro, e la tela
-          // sembra appesa all'angolo di qualcosa invece di stare in posa.
-          right: misura * 0.55,
-          bottom: misura * 0.5,
-          child: SizedBox(
-            width: lato,
-            height: lato,
-            child: CustomPaint(
-              painter: _RagnatelaPiena(colore: colore.withValues(alpha: 0.28)),
+        SizedBox(
+          width: lato,
+          height: lato,
+          child: CustomPaint(
+            painter: _RagnatelaPiena(
+              colore: colore.withValues(alpha: 0.28),
+              // Il buco in cui sta la fiamma. Poco piu' di meta' del raggio: la
+              // fiamma e' alta quanto [misura] e il raggio e' circa `misura`,
+              // quindi sotto il mezzo i raggi le toccherebbero le punte.
+              vuoto: 0.58,
             ),
           ),
         ),
@@ -209,9 +217,16 @@ void _anelli(
 
 /// La tela intera della schermata d'apertura, con il ragno appeso.
 class _RagnatelaPiena extends CustomPainter {
-  const _RagnatelaPiena({required this.colore});
+  const _RagnatelaPiena({required this.colore, this.vuoto = 0});
 
   final Color colore;
+
+  /// Quanta parte del raggio, dal centro in fuori, resta **senza fili**.
+  ///
+  /// A zero la tela e' intera e ha il suo mozzo. Sopra zero il mozzo non si
+  /// disegna: i raggi cominciano da qui, e quel buco e' il posto di quello che la
+  /// tela ha dentro — la fiamma, nell'apertura.
+  final double vuoto;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -226,22 +241,43 @@ class _RagnatelaPiena extends CustomPainter {
       for (var i = 0; i <= raggi; i++) -math.pi / 2 + i * 2 * math.pi / raggi,
     ];
 
+    final dentro = vuoto.clamp(0.0, 0.9);
+
     for (var i = 0; i < raggi; i++) {
       final a = angoli[i];
+      final direzione = Offset(math.cos(a), math.sin(a));
+
       canvas.drawLine(
-        centro,
-        centro + Offset(math.cos(a) * raggio, math.sin(a) * raggio),
+        centro + direzione * raggio * dentro,
+        centro + direzione * raggio,
         penna,
       );
     }
 
-    _anelli(canvas, centro, raggio, angoli, penna);
+    // Gli anelli si distribuiscono in quello che resta fuori dal buco: con il
+    // mozzo vuoto, le quote fisse della tela intera finirebbero tre su quattro
+    // dentro il buco e ne resterebbe uno.
+    _anelli(
+      canvas,
+      centro,
+      raggio,
+      angoli,
+      penna,
+      quote: [
+        for (final passo in const [0.0, 0.3, 0.62, 1.0])
+          dentro + (1 - dentro) * (0.04 + passo * 0.92),
+      ],
+    );
 
     // **Il filo che scende e il ragno in fondo.** Senza di lui la tela e' un
     // ornamento geometrico; con lui c'e' qualcuno dentro, ed e' tutta la
     // differenza fra un disegno e una scena.
-    final attacco = centro + Offset(raggio * 0.42, raggio * 0.34);
-    final appeso = attacco + Offset(0, raggio * 0.34);
+    //
+    // Attaccato **fuori dal buco**: appeso al mozzo starebbe addosso alla fiamma,
+    // e il ragno sotto la fiamma si legge come una macchia nera sul marchio.
+    final su = math.max(dentro, 0.45);
+    final attacco = centro + Offset(raggio * su * 0.72, raggio * su * 0.62);
+    final appeso = attacco + Offset(0, raggio * 0.3);
     canvas.drawLine(attacco, appeso, penna);
 
     _Ragno(colore: colore).disegna(
@@ -252,7 +288,8 @@ class _RagnatelaPiena extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RagnatelaPiena altro) => altro.colore != colore;
+  bool shouldRepaint(_RagnatelaPiena altro) =>
+      altro.colore != colore || altro.vuoto != vuoto;
 }
 
 /// Un ragno, piccolo: due corpi tondi e otto zampe piegate.
