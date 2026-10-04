@@ -1,96 +1,65 @@
 import 'package:crasy/features/challenges/domain/leaderboard.dart';
 
-/// **La classifica di vetrina: accesa.**
+/// **I posti tenuti aperti nella classifica.**
 ///
-/// Serve al lancio: con poche gare chiuse i due podi restano vuoti, e una
-/// schermata vuota non fa venire voglia di giocare a nessuno. Qui si aggiungono
-/// sei posti — tre per classifica — a quelli veri.
+/// Serve al lancio, e serve per un motivo che non ha niente a che fare con
+/// l'apparenza: [Leaderboard] conta solo chi ha mosso dei soldi, quindi con tre
+/// gare chiuse il podio ha un gradino e due buchi — e due buchi si leggono come
+/// un caricamento andato male, non come un'app nuova.
 ///
-/// **Sono inventati**, tranne due account della casa, e vanno spenti appena le
-/// gare vere bastano a riempire il podio: mettere `false` qui li toglie tutti,
-/// senza toccare nient'altro.
+/// ## Prima qui c'era gente inventata, e si vedeva
+///
+/// Quattro nomi con una faccia disegnata e centoventi euro di vincite a testa.
+/// Il guaio non era l'imbroglio — e' una vetrina, non un bilancio — era che
+/// **coprivano i veri**: chi aveva vinto novanta centesimi finiva quinto, sotto
+/// quattro persone che non esistono, e l'unica vincita vera dell'app non si
+/// vedeva nemmeno. Una vetrina che nasconde la merce.
+///
+/// Adesso i posti sono **account veri a zero**. Tengono su il podio quando non
+/// c'e' ancora niente, e appena qualcuno vince un centesimo gli passa davanti da
+/// solo: zero e' il fondo della classifica, quindi non c'e' piu' niente che
+/// possa stare sopra una vincita vera.
+///
+/// Si spengono mettendo `false` qui, e il giorno in cui le gare chiuse bastano a
+/// riempire i due podi e' la cosa giusta da fare.
 const bool classificaVetrina = true;
 
-/// Un posto di vetrina: chi, quanto, quante volte, e la faccia.
+/// Un posto tenuto aperto: di chi e', e con che conti ci sta.
 class ShowcaseSeat {
-  const ShowcaseSeat({
-    required this.username,
-    required this.cents,
-    required this.count,
-    required this.photoUrl,
-    this.account = false,
-  });
+  const ShowcaseSeat({required this.username, this.cents = 0, this.count = 0});
 
+  /// Il nome esatto dell'account. Si cerca, e trovandolo la riga prende la sua
+  /// faccia vera e porta al suo profilo.
   final String username;
+
+  /// **Zero, e non e' un valore da riempire.** Un posto con dei soldi dentro e'
+  /// un posto che passa davanti a qualcuno che li ha presi davvero.
   final int cents;
+
   final int count;
-
-  /// La foto da mostrare se l'account non si trova, o non ne ha una.
-  final String photoUrl;
-
-  /// Se e' un account vero, da cercare per nome: allora la faccia e il tocco
-  /// sul profilo sono quelli veri.
-  final bool account;
 }
 
-/// La faccia di un posto inventato. Disegnata, non una persona vera: nessuno
-/// si ritrova la propria foto accanto a una vincita che non ha mai fatto.
-String _faccia(String seme, String sfondo) =>
-    'https://api.dicebear.com/9.x/notionists/png?seed=$seme'
-    '&size=128&backgroundColor=$sfondo';
-
 /// Chi ha vinto di piu'.
-final vincitoriVetrina = <ShowcaseSeat>[
-  ShowcaseSeat(
-    username: 'giosini',
-    cents: 12000,
-    count: 4,
-    photoUrl: _faccia('giosini', 'ffd5dc'),
-    account: true,
-  ),
-  ShowcaseSeat(
-    username: 'frankk',
-    cents: 8500,
-    count: 3,
-    photoUrl: _faccia('frankk', 'c0aede'),
-    account: true,
-  ),
-  ShowcaseSeat(
-    username: 'martina.rv',
-    cents: 6000,
-    count: 2,
-    photoUrl: _faccia('martina', 'ffdfbf'),
-  ),
+const vincitoriVetrina = <ShowcaseSeat>[
+  ShowcaseSeat(username: 'giosini'),
+  ShowcaseSeat(username: 'frankk'),
 ];
 
 /// Chi ha messo di piu' in palio.
-final chiFaGiocareVetrina = <ShowcaseSeat>[
-  ShowcaseSeat(
-    username: 'ale.ferri',
-    cents: 15000,
-    count: 5,
-    photoUrl: _faccia('alessandro', 'b6e3f4'),
-  ),
-  ShowcaseSeat(
-    username: 'sofia_m',
-    cents: 9000,
-    count: 3,
-    photoUrl: _faccia('sofia', 'd1d4f9'),
-  ),
-  ShowcaseSeat(
-    username: 'davide.cst',
-    cents: 5000,
-    count: 2,
-    photoUrl: _faccia('davide', 'ffd5dc'),
-  ),
+const chiFaGiocareVetrina = <ShowcaseSeat>[
+  ShowcaseSeat(username: 'giosini'),
+  ShowcaseSeat(username: 'frankk'),
 ];
 
-/// Le righe vere con in mezzo quelle di vetrina, nello stesso ordine della
+/// Le righe vere con in mezzo i posti tenuti aperti, nello stesso ordine della
 /// classifica: prima i soldi, poi le volte, poi il nome.
 ///
-/// `trovati` porta l'identificativo degli account veri, per nome: con quello
-/// la riga mostra la foto vera e porta al profilo. Chi e' gia' in classifica
-/// per davvero non si ripete.
+/// `trovati` porta l'identificativo degli account, per nome. Chi e' gia' in
+/// classifica per davvero **non si ripete**: la sua riga vera, con i suoi soldi,
+/// vince sul posto a zero.
+///
+/// Un posto il cui account non si trova si lascia fuori: una riga con un nome e
+/// nessuna faccia, che non porta a nessun profilo, e' un buco scritto.
 List<LeaderRow> conVetrina(
   List<LeaderRow> vere,
   List<ShowcaseSeat> vetrina,
@@ -105,13 +74,13 @@ List<LeaderRow> conVetrina(
   final righe = [
     ...vere,
     for (final posto in vetrina)
-      if (!gia.contains(posto.username.toLowerCase()))
+      if (!gia.contains(posto.username.toLowerCase()) &&
+          (trovati[posto.username] ?? '').isNotEmpty)
         LeaderRow(
-          userId: posto.account ? trovati[posto.username] ?? '' : '',
+          userId: trovati[posto.username]!,
           username: posto.username,
           cents: posto.cents,
           count: posto.count,
-          photoUrl: posto.photoUrl,
         ),
   ];
 

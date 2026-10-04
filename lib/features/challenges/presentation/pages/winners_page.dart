@@ -48,10 +48,10 @@ final _accountVetrinaProvider = FutureProvider<Map<String, String>>((
   final trovati = <String, String>{};
 
   for (final posto in [...vincitoriVetrina, ...chiFaGiocareVetrina]) {
-    if (!posto.account) {
-      continue;
-    }
-
+    // **Si cercano tutti.** Prima solo quelli segnati come veri, perche' gli
+    // altri erano nomi inventati e non c'era niente da trovare. Adesso i posti
+    // sono account e basta: quello che non si trova resta fuori dalla
+    // classifica, e lo decide [conVetrina] con quello che esce di qui.
     try {
       final profili = await repository.searchProfiles(posto.username, limit: 3);
 
