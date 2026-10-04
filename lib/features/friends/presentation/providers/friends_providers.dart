@@ -153,7 +153,8 @@ final newFollowersCountProvider = Provider<int>((ref) {
 
   final visti = mio.value?.followersSeenAt;
   final richieste =
-      ref.watch(incomingRequestsProvider).valueOrNull ?? const <FriendRequest>[];
+      ref.watch(incomingRequestsProvider).valueOrNull ??
+      const <FriendRequest>[];
 
   return richieste.where((richiesta) {
     final quando = richiesta.createdAt;
@@ -169,7 +170,8 @@ final newFollowersCountProvider = Provider<int>((ref) {
 /// qualcuno che si segue.
 final followedIdsProvider = Provider<List<String>>((ref) {
   final amici = ref.watch(myFriendsProvider).valueOrNull ?? const <Friend>[];
-  final seguiti = ref.watch(myFollowingProvider).valueOrNull ?? const <Friend>[];
+  final seguiti =
+      ref.watch(myFollowingProvider).valueOrNull ?? const <Friend>[];
   final nelProfilo =
       ref.watch(ownFollowProvider).valueOrNull?.seguiti ?? const <String>[];
 
@@ -643,16 +645,14 @@ List<Challenge> _tutteLeChiuse(Ref ref, DateTime now) {
   for (final challenge in [...chiuse, ...aperte]) {
     // Finita davvero: o il tempo e' scaduto, o qualcuno l'ha chiusa prima —
     // che su una sfida mirata vuol dire che e' arrivato il verdetto.
-    final finita =
-        !challenge.isLiveAt(now) || challenge.duelVerdict.isGiven;
+    final finita = !challenge.isLiveAt(now) || challenge.duelVerdict.isGiven;
 
     if (finita && challenge.endsAt.isAfter(ieri)) {
       tutte[challenge.id] = challenge;
     }
   }
 
-  return tutte.values.toList()
-    ..sort((a, b) => b.endsAt.compareTo(a.endsAt));
+  return tutte.values.toList()..sort((a, b) => b.endsAt.compareTo(a.endsAt));
 }
 
 /// Le sfide mirate finite oggi: giudicate, valide o no.

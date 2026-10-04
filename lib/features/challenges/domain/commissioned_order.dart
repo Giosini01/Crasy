@@ -82,8 +82,9 @@ List<Challenge> commissionedOrder(
             // bacheca ogni coppa vuol dire la stessa cosa — *questa l'ho fatta
             // fare, e qualcuno l'ha fatta* — ed e' per quello che sotto non
             // c'e' bisogno di scriverlo.
-            if ((challenge.hasEndedAt(now) || challenge.winnerEntryId != null)
-                && challenge.participantsCount > 0 &&
+            if ((challenge.hasEndedAt(now) ||
+                    challenge.winnerEntryId != null) &&
+                challenge.participantsCount > 0 &&
                 (!challenge.isDuel || challenge.duelVerdict.isApproved))
               challenge,
         ]

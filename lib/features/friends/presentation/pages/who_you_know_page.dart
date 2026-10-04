@@ -81,9 +81,7 @@ class _WhoYouKnowPageState extends ConsumerState<WhoYouKnowPage> {
                   onPressed: _chiudendo ? null : _vaiAvanti,
                   child: Text(
                     'Salta',
-                    style: texts.bodyMedium?.copyWith(
-                      color: palette.textFaint,
-                    ),
+                    style: texts.bodyMedium?.copyWith(color: palette.textFaint),
                   ),
                 ),
               ),
@@ -183,9 +181,7 @@ class _Corpo extends StatelessWidget {
     final palette = context.palette;
 
     if (stato.isLoading) {
-      return Center(
-        child: CircularProgressIndicator(color: palette.accent),
-      );
+      return Center(child: CircularProgressIndicator(color: palette.accent));
     }
 
     if (negato) {
@@ -203,9 +199,7 @@ class _Corpo extends StatelessWidget {
 
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-      children: [
-        for (final chi in trovati) SuggestedFriendRow(suggested: chi),
-      ],
+      children: [for (final chi in trovati) SuggestedFriendRow(suggested: chi)],
     );
   }
 }

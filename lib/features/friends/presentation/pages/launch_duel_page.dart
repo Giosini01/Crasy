@@ -88,12 +88,15 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final texts = context.texts;
-    final friends = ref.watch(myFriendsProvider).valueOrNull ?? const <Friend>[];
+    final friends =
+        ref.watch(myFriendsProvider).valueOrNull ?? const <Friend>[];
     final busy = ref.watch(duelControllerProvider).isLoading;
 
     // Il nome tiene il passo con la scelta: serve a scriverlo dentro la sfida
     // senza leggere un profilo al momento dell'invio.
-    final scelto = friends.where((amico) => amico.userId == _targetId).firstOrNull;
+    final scelto = friends
+        .where((amico) => amico.userId == _targetId)
+        .firstOrNull;
     _targetName = scelto?.username ?? _targetName;
 
     return Scaffold(
@@ -101,176 +104,176 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
       body: Stack(
         children: [
           AppBackground(
-        child: friends.isEmpty
-            ? const Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.page),
-                child: EmptyState(
-                  title: 'Non hai ancora amici',
-                  message:
-                      'Le sfide si lanciano a una persona che conosci. Cerca '
-                      'qualcuno e seguilo: appena ti segue anche lui, '
-                      'potrai sfidarlo.',
-                ),
-              )
-            : Form(
-                key: _formKey,
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.page,
-                    AppSpacing.md,
-                    AppSpacing.page,
-                    AppSpacing.xxl,
-                  ),
-                  children: [
-                    if (_error != null) ...[
-                      InlineBanner(message: _error!),
-                      const SizedBox(height: AppSpacing.lg),
-                    ],
-                    Text(
-                      'CHI SFIDI',
-                      style: texts.labelSmall?.copyWith(
-                        color: palette.textFaint,
+            child: friends.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: AppSpacing.page),
+                    child: EmptyState(
+                      title: 'Non hai ancora amici',
+                      message:
+                          'Le sfide si lanciano a una persona che conosci. Cerca '
+                          'qualcuno e seguilo: appena ti segue anche lui, '
+                          'potrai sfidarlo.',
+                    ),
+                  )
+                : Form(
+                    key: _formKey,
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.page,
+                        AppSpacing.md,
+                        AppSpacing.page,
+                        AppSpacing.xxl,
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _FriendPicker(
-                      friends: friends,
-                      selected: _targetId,
-                      onPick: (amico) => setState(() {
-                        _targetId = amico.userId;
-                        _targetName = amico.username;
-                      }),
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-                    Text(
-                      'LA SFIDA',
-                      style: texts.labelSmall?.copyWith(
-                        color: palette.textFaint,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    TextFormField(
-                      controller: _title,
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: const InputDecoration(
-                        labelText: 'Titolo',
-                        hintText: 'BALLA IN MEZZO ALLA STRADA',
-                      ),
-                      maxLength: ChallengeDraftValidators.titleMaxLength,
-                      validator: ChallengeDraftValidators.validateTitle,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    TextFormField(
-                      controller: _brief,
-                      decoration: const InputDecoration(
-                        labelText: 'Cosa deve fare',
-                        hintText: 'Scrivi la consegna in una frase.',
-                      ),
-                      maxLines: 3,
-                      maxLength: ChallengeDraftValidators.briefMaxLength,
-                      validator: ChallengeDraftValidators.validateBrief,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    // **Una riga per l'amico, e una sola.**
-                    //
-                    // Non e' una chat: non si risponde, non resta niente dopo
-                    // la sfida, non c'e' nessuna casella da aprire. E' la
-                    // battuta che si fa a voce lanciando una scommessa,
-                    // attaccata alla cosa a cui si riferisce.
-                    TextFormField(
-                      controller: _messaggio,
-                      decoration: const InputDecoration(
-                        labelText: 'Scrivigli qualcosa (se vuoi)',
-                        hintText: 'Vediamo se ce la fai.',
-                      ),
-                      maxLength: 140,
-                      textCapitalization: TextCapitalization.sentences,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    _MediaKindPicker(
-                      selected: _mediaKind,
-                      onPick: (kind) => setState(() => _mediaKind = kind),
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-                    Text(
-                      'IL PREMIO',
-                      style: texts.labelSmall?.copyWith(
-                        color: palette.textFaint,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _PrizePicker(
-                      gratis: _gratis,
-                      onPick: (scelta) => setState(() => _gratis = scelta),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      _gratis
-                          ? 'Si gioca per la parola data. È la sfida normale.'
-                          : 'Da un euro in su. I soldi li dai tu a chi vince, '
-                                'e la sfida vale come una promessa fra voi.',
-                      style: texts.bodySmall?.copyWith(
-                        color: palette.textFaint,
-                      ),
-                    ),
-                    if (!_gratis) ...[
-                      const SizedBox(height: AppSpacing.sm),
-                      TextFormField(
-                        controller: _prize,
-                        decoration: const InputDecoration(
-                          labelText: 'Premio in euro',
-                          // Il suggerimento porta i centesimi apposta: e' il
-                          // solo posto in cui il campo dice di accettarli.
-                          hintText: '10,50',
-                        ),
-                        // `decimal: true` e' quello che mette la virgola sulla
-                        // tastiera dell'iPhone: senza, i centesimi si possono
-                        // accettare quanto si vuole — non c'e' modo di
-                        // digitarli.
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        // Il punto passa insieme alla virgola perche' una
-                        // tastiera in inglese offre quello, e un campo che
-                        // rifiuta il tasto suggerito dalla tastiera stessa
-                        // sembra rotto.
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                      children: [
+                        if (_error != null) ...[
+                          InlineBanner(message: _error!),
+                          const SizedBox(height: AppSpacing.lg),
                         ],
-                        validator: ChallengeDraftValidators.validatePrize,
-                        // Su Android il tasto in basso a destra dice "fatto" e
-                        // chiude; sull'iPhone c'e' la barra con "Fine".
-                        textInputAction: TextInputAction.done,
-                        onFieldSubmitted: (_) =>
-                            FocusScope.of(context).unfocus(),
-                      ),
-                      const SizedBox(height: AppSpacing.xxs),
-                      Text(
-                        'Almeno '
-                        '${AppMoney.format(ChallengeDraftValidators.prizeMinCents)}.',
-                        style: texts.bodySmall?.copyWith(
-                          color: palette.textFaint,
+                        Text(
+                          'CHI SFIDI',
+                          style: texts.labelSmall?.copyWith(
+                            color: palette.textFaint,
+                          ),
                         ),
-                      ),
-                    ],
-                    const SizedBox(height: AppSpacing.xl),
-                    // **Le tre cose che non si scelgono, dette prima.** Sono
-                    // le stesse tre che il modulo non chiede: chi non le legge
-                    // qui se le chiede dopo aver mandato, ed e' tardi.
-                    _Rules(
-                      palette: palette,
-                      texts: texts,
-                      gratis: _gratis,
+                        const SizedBox(height: AppSpacing.sm),
+                        _FriendPicker(
+                          friends: friends,
+                          selected: _targetId,
+                          onPick: (amico) => setState(() {
+                            _targetId = amico.userId;
+                            _targetName = amico.username;
+                          }),
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        Text(
+                          'LA SFIDA',
+                          style: texts.labelSmall?.copyWith(
+                            color: palette.textFaint,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        TextFormField(
+                          controller: _title,
+                          textCapitalization: TextCapitalization.characters,
+                          decoration: const InputDecoration(
+                            labelText: 'Titolo',
+                            hintText: 'BALLA IN MEZZO ALLA STRADA',
+                          ),
+                          maxLength: ChallengeDraftValidators.titleMaxLength,
+                          validator: ChallengeDraftValidators.validateTitle,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        TextFormField(
+                          controller: _brief,
+                          decoration: const InputDecoration(
+                            labelText: 'Cosa deve fare',
+                            hintText: 'Scrivi la consegna in una frase.',
+                          ),
+                          maxLines: 3,
+                          maxLength: ChallengeDraftValidators.briefMaxLength,
+                          validator: ChallengeDraftValidators.validateBrief,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        // **Una riga per l'amico, e una sola.**
+                        //
+                        // Non e' una chat: non si risponde, non resta niente dopo
+                        // la sfida, non c'e' nessuna casella da aprire. E' la
+                        // battuta che si fa a voce lanciando una scommessa,
+                        // attaccata alla cosa a cui si riferisce.
+                        TextFormField(
+                          controller: _messaggio,
+                          decoration: const InputDecoration(
+                            labelText: 'Scrivigli qualcosa (se vuoi)',
+                            hintText: 'Vediamo se ce la fai.',
+                          ),
+                          maxLength: 140,
+                          textCapitalization: TextCapitalization.sentences,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        _MediaKindPicker(
+                          selected: _mediaKind,
+                          onPick: (kind) => setState(() => _mediaKind = kind),
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        Text(
+                          'IL PREMIO',
+                          style: texts.labelSmall?.copyWith(
+                            color: palette.textFaint,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        _PrizePicker(
+                          gratis: _gratis,
+                          onPick: (scelta) => setState(() => _gratis = scelta),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          _gratis
+                              ? 'Si gioca per la parola data. È la sfida normale.'
+                              : 'Da un euro in su. I soldi li dai tu a chi vince, '
+                                    'e la sfida vale come una promessa fra voi.',
+                          style: texts.bodySmall?.copyWith(
+                            color: palette.textFaint,
+                          ),
+                        ),
+                        if (!_gratis) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          TextFormField(
+                            controller: _prize,
+                            decoration: const InputDecoration(
+                              labelText: 'Premio in euro',
+                              // Il suggerimento porta i centesimi apposta: e' il
+                              // solo posto in cui il campo dice di accettarli.
+                              hintText: '10,50',
+                            ),
+                            // `decimal: true` e' quello che mette la virgola sulla
+                            // tastiera dell'iPhone: senza, i centesimi si possono
+                            // accettare quanto si vuole — non c'e' modo di
+                            // digitarli.
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            // Il punto passa insieme alla virgola perche' una
+                            // tastiera in inglese offre quello, e un campo che
+                            // rifiuta il tasto suggerito dalla tastiera stessa
+                            // sembra rotto.
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'[0-9.,]'),
+                              ),
+                            ],
+                            validator: ChallengeDraftValidators.validatePrize,
+                            // Su Android il tasto in basso a destra dice "fatto" e
+                            // chiude; sull'iPhone c'e' la barra con "Fine".
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) =>
+                                FocusScope.of(context).unfocus(),
+                          ),
+                          const SizedBox(height: AppSpacing.xxs),
+                          Text(
+                            'Almeno '
+                            '${AppMoney.format(ChallengeDraftValidators.prizeMinCents)}.',
+                            style: texts.bodySmall?.copyWith(
+                              color: palette.textFaint,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.xl),
+                        // **Le tre cose che non si scelgono, dette prima.** Sono
+                        // le stesse tre che il modulo non chiede: chi non le legge
+                        // qui se le chiede dopo aver mandato, ed e' tardi.
+                        _Rules(palette: palette, texts: texts, gratis: _gratis),
+                        const SizedBox(height: AppSpacing.xl),
+                        CrasyButton(
+                          label: _daPagare == null
+                              ? 'Lancia la sfida'
+                              : 'Paga il premio',
+                          loading: busy,
+                          onPressed: busy ? null : _launch,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: AppSpacing.xl),
-                    CrasyButton(
-                      label: _daPagare == null ? 'Lancia la sfida' : 'Paga il premio',
-                      loading: busy,
-                      onPressed: busy ? null : _launch,
-                    ),
-                  ],
-                ),
-              ),
+                  ),
           ),
           if (_pagando) const Positioned.fill(child: FlameWaiting()),
         ],
@@ -669,9 +672,7 @@ class _PrizeChoice extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.pill),
           color: selected ? palette.accentTint : Colors.transparent,
-          border: Border.all(
-            color: selected ? palette.accent : palette.line,
-          ),
+          border: Border.all(color: selected ? palette.accent : palette.line),
         ),
         child: Text(
           label,

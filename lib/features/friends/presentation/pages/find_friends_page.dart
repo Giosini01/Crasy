@@ -57,7 +57,8 @@ class _FindFriendsPageState extends ConsumerState<FindFriendsPage> {
     await InviteFriend.suWhatsApp(
       context,
       numero: chi.numero,
-      username: ref.read(currentUserProfileProvider).valueOrNull?.username ?? '',
+      username:
+          ref.read(currentUserProfileProvider).valueOrNull?.username ?? '',
     );
   }
 
@@ -91,7 +92,8 @@ class _FindFriendsPageState extends ConsumerState<FindFriendsPage> {
         children: [
           SuggestedProblem(
             errore: stato.error,
-            onRiprova: () => ref.read(suggestedFriendsProvider.notifier).cerca(),
+            onRiprova: () =>
+                ref.read(suggestedFriendsProvider.notifier).cerca(),
           ),
         ],
       );
@@ -249,9 +251,7 @@ class _RigaDaInvitare extends StatelessWidget {
             onPressed: invitato ? null : onInvita,
             style: OutlinedButton.styleFrom(
               foregroundColor: palette.accent,
-              side: BorderSide(
-                color: invitato ? palette.line : palette.accent,
-              ),
+              side: BorderSide(color: invitato ? palette.line : palette.accent),
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               visualDensity: VisualDensity.compact,
               shape: RoundedRectangleBorder(

@@ -30,7 +30,11 @@ class SuggestedProblem extends StatelessWidget {
     final stile = (piccolo ? context.texts.bodySmall : context.texts.bodyMedium)
         ?.copyWith(color: palette.textFaint);
 
-    final (String testo, String tasto, void Function() azione) = switch (errore) {
+    final (
+      String testo,
+      String tasto,
+      void Function() azione,
+    ) = switch (errore) {
       ContattiNegati(perSempre: true) => (
         'Per vedere chi conosci serve il permesso sui contatti. Il telefono '
             'non lo chiede più: si accende dalle impostazioni, alla voce CRASY.',

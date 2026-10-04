@@ -169,7 +169,11 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
     final indice = _righe.indexOf(riga);
 
     setState(() {
-      _righe[indice] = (userId: riga.userId, username: riga.username, amico: true);
+      _righe[indice] = (
+        userId: riga.userId,
+        username: riga.username,
+        amico: true,
+      );
     });
 
     await ref
@@ -223,7 +227,8 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
               if (index == _righe.length) {
                 if (_errore != null) {
                   return _Fondo(
-                    testo: 'Non riusciamo a caricare. Tira giu\' per riprovare.',
+                    testo:
+                        'Non riusciamo a caricare. Tira giu\' per riprovare.',
                     colore: palette.accent,
                   );
                 }
@@ -255,10 +260,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
 
               final riga = _righe[index];
 
-              return _FollowerRow(
-                riga: riga,
-                onSegui: () => _ricambia(riga),
-              );
+              return _FollowerRow(riga: riga, onSegui: () => _ricambia(riga));
             },
           ),
         ),

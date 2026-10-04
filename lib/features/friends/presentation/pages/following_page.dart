@@ -132,10 +132,10 @@ class _FollowingRow extends ConsumerWidget {
               }
             },
             child: Text(
-                'Smetti',
-                style: texts.titleMedium?.copyWith(color: palette.textFaint),
-              ),
+              'Smetti',
+              style: texts.titleMedium?.copyWith(color: palette.textFaint),
             ),
+          ),
         ],
       ),
     );

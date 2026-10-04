@@ -136,7 +136,8 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
     // sono piu' cose da fare, sono cose in corso.
     final fatte = {
       for (final entry
-          in ref.watch(myEntriesProvider).valueOrNull ?? const <ChallengeEntry>[])
+          in ref.watch(myEntriesProvider).valueOrNull ??
+              const <ChallengeEntry>[])
         entry.challengeId,
     };
 
@@ -428,7 +429,8 @@ class _Switch extends ConsumerWidget {
                         ),
                       ),
                     ],
-                    if (view == FriendActivityView.personal && daRispondere > 0) ...[
+                    if (view == FriendActivityView.personal &&
+                        daRispondere > 0) ...[
                       const SizedBox(width: 5),
                       Container(
                         width: 6,
@@ -448,7 +450,6 @@ class _Switch extends ConsumerWidget {
     );
   }
 }
-
 
 /// Il comando per sfidare un amico, e quello per il party.
 ///
@@ -592,9 +593,7 @@ class _DuelRow extends ConsumerWidget {
     final controller = ref.watch(duelControllerProvider.notifier);
     final busy = ref.watch(duelControllerProvider).isLoading;
 
-    final chiId = received
-        ? challenge.createdByUserId
-        : challenge.targetUserId;
+    final chiId = received ? challenge.createdByUserId : challenge.targetUserId;
     final chiNome = received
         ? challenge.createdByUsername
         : challenge.targetUsername;
@@ -866,9 +865,7 @@ class _MissionRow extends ConsumerWidget {
                   ),
                   Text(
                     '  ·  ',
-                    style: texts.labelSmall?.copyWith(
-                      color: palette.textFaint,
-                    ),
+                    style: texts.labelSmall?.copyWith(color: palette.textFaint),
                   ),
                 ],
                 Text(

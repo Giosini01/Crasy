@@ -108,7 +108,11 @@ class FirestoreFriendsRepository {
   /// trenta alla volta, mentre si scorre, invece di mille righe ogni volta
   /// che si apre la schermata.
   Future<({List<FriendRequest> righe, DocumentSnapshot<Object?>? ultimo})>
-  pageIncoming(String userId, {DocumentSnapshot<Object?>? dopo, int quanti = 30}) async {
+  pageIncoming(
+    String userId, {
+    DocumentSnapshot<Object?>? dopo,
+    int quanti = 30,
+  }) async {
     var query = _requests(
       userId,
     ).orderBy('createdAt', descending: true).limit(quanti);
@@ -162,7 +166,10 @@ class FirestoreFriendsRepository {
   }
 
   /// Aggiunge [otherId] a chi seguo, nel mio documento. Non lancia.
-  Future<void> addSeguito({required String meId, required String otherId}) async {
+  Future<void> addSeguito({
+    required String meId,
+    required String otherId,
+  }) async {
     try {
       await _users.doc(meId).set({
         'seguiti': FieldValue.arrayUnion([otherId]),

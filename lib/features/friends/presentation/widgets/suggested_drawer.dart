@@ -53,11 +53,7 @@ class SuggestedDrawer extends StatelessWidget {
             const SizedBox(width: AppSpacing.xxs),
             // La freccia va a destra, non in giu': in giu' prometteva una cosa
             // che si apriva li' sotto, e adesso si apre un'altra schermata.
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 18,
-              color: palette.accent,
-            ),
+            Icon(Icons.chevron_right_rounded, size: 18, color: palette.accent),
           ],
         ),
       ),

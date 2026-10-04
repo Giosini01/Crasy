@@ -233,5 +233,8 @@ abstract class ChallengeRepository {
   /// [viewerId] vale come per [watchTrophiesOf]: chi non e' amico di [userId]
   /// vede le sue gare pubbliche e nient'altro — le missioni lanciate al gruppo
   /// restano dentro il gruppo.
-  Stream<List<Challenge>> watchCommissionedBy(String userId, {String? viewerId});
+  Stream<List<Challenge>> watchCommissionedBy(
+    String userId, {
+    String? viewerId,
+  });
 }
