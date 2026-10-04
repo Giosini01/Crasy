@@ -12,13 +12,21 @@ import 'package:flutter/material.dart';
 /// una stagione che puo' toccare tutto, in due anni, diventa un secondo tema da
 /// mantenere accanto al primo.
 ///
-/// ## Ogni metodo puo' dire "niente"
+/// ## **La fiamma non si sostituisce: si accompagna**
 ///
-/// Tornano `null`, e [SeasonSkin.nessuna] torna `null` da tutti. E' questo che
-/// tiene intatto il codice di sempre: chi chiama scrive
-/// `pelle.segnoDApertura(...) ?? Icon(Icons.local_fire_department)`, quindi la
-/// fiamma resta scritta dov'era. Fuori stagione quel ramo e' l'unico che gira,
-/// e l'app non sa nemmeno di avere un livello sopra.
+/// Il primo giro di questo livello scambiava la fiamma con una ragnatela, e era
+/// sbagliato nel modo peggiore — la fiamma e' il marchio. Un'app che per un mese
+/// si apre su un segno che non e' il suo e' un mese in cui nessuno impara come
+/// si chiama, e quel mese e' proprio quello in cui esce.
+///
+/// Quindi i metodi **ricevono il segno di sempre** e tornano quello che gli sta
+/// intorno. La fiamma entra da una parte ed esce dall'altra: la ragnatela le si
+/// mette dietro, non al posto suo. Una stagione aggiunge; se toglie, non e' una
+/// stagione — e' un'altra app.
+///
+/// Chi non ha niente da aggiungere torna quello che ha ricevuto, e [nessuna] fa
+/// esattamente questo da tutti i metodi: fuori stagione l'app e' quella di
+/// prima, oggetto per oggetto.
 abstract class SeasonSkin {
   const SeasonSkin();
 
@@ -34,26 +42,48 @@ abstract class SeasonSkin {
   /// La pelle spenta: CRASY come e'.
   static const SeasonSkin nessuna = _NessunaStagione();
 
-  /// Il segno grande al centro della schermata d'apertura, al posto della
-  /// fiamma.
+  /// Cosa sta attorno alla **fiamma della schermata d'apertura**.
   ///
-  /// Arriva [misura] e [colore] gia' calcolati da chi chiama, e chi disegna li
-  /// usa senza discutere: l'apertura fa crescere e ondeggiare quello che gli si
-  /// mette dentro, e un segno che si dimensiona da solo si scollerebbe
-  /// dall'animazione.
-  Widget? segnoDApertura({required double misura, required Color colore}) =>
-      null;
+  /// [fiamma] e' il segno di sempre, e torna in mezzo a quello che si aggiunge:
+  /// davanti, non dietro a niente. [misura] e [colore] sono quelli con cui e'
+  /// stata disegnata, cosi' che quello che le si mette attorno sia in scala con
+  /// lei invece di dimensionarsi da solo.
+  Widget accompagnaApertura(
+    Widget fiamma, {
+    required double misura,
+    required Color colore,
+  }) => fiamma;
 
-  /// Il segno fermo al centro dell'attesa, al posto della fiamma piccola.
-  Widget? segnoDAttesa({required double misura, required Color colore}) => null;
+  /// Cosa sta attorno alla **fiamma piccola dell'attesa**.
+  Widget accompagnaAttesa(
+    Widget fiamma, {
+    required double misura,
+    required Color colore,
+  }) => fiamma;
 
-  /// Quello che gira attorno al segno dell'attesa, al posto dell'arco.
+  /// Quello che gira attorno alla fiamma dell'attesa, al posto dell'arco.
+  ///
+  /// Qui si sostituisce, e si puo': l'arco non e' il marchio — e' un modo di
+  /// dire "sto lavorando", e una tela che gira lo dice uguale.
   ///
   /// [giro] va da 0 a 1 ed e' un giro intero.
   CustomPainter? giostraDAttesa({
     required double giro,
     required AppPalette palette,
   }) => null;
+
+  /// Un segno di stagione su **un tasto**, e non su tutti.
+  ///
+  /// [seme] e' una parola stabile — l'identificativo di una gara — e serve a far
+  /// decidere **sempre la stessa cosa per lo stesso tasto**. Due ragioni, e la
+  /// seconda e' quella vera: a caso, il segno salterebbe da un tasto all'altro a
+  /// ogni ridisegno, cioe' a ogni scorrimento dell'elenco; e un segno su *ogni*
+  /// tasto non e' piu' un dettaglio di stagione, e' una cornice — che e' il modo
+  /// in cui una decorazione diventa un elemento dell'interfaccia e smette di
+  /// farsi notare.
+  ///
+  /// Qualche tasto, sparso. Gli altri restano quelli di sempre.
+  Widget decoraTasto(Widget tasto, {required String seme}) => tasto;
 
   /// Il velo sopra la pagina: ragnatele agli angoli, neve, quel che sia.
   ///

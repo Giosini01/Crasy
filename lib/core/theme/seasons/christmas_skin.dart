@@ -25,25 +25,80 @@ import 'package:flutter/material.dart';
 class ChristmasSkin extends SeasonSkin {
   const ChristmasSkin();
 
+  /// **La fiamma davanti, tre fiocchi attorno.**
+  ///
+  /// Vale la regola di ottobre, ed e' la regola: la fiamma e' il marchio e non si
+  /// mette da parte per una festa. I fiocchi le stanno intorno a misure diverse,
+  /// e nessuno dei tre e' dietro di lei — una fiamma che scalda ha dello spazio
+  /// sgombro attorno, e dei fiocchi appoggiati sopra dicono il contrario.
   @override
-  Widget? segnoDApertura({required double misura, required Color colore}) {
-    // Come la ragnatela: un segno di fili ha bisogno di piu' spazio di una
-    // macchia piena per pesare uguale.
-    final lato = misura * 2.0;
+  Widget accompagnaApertura(
+    Widget fiamma, {
+    required double misura,
+    required Color colore,
+  }) {
+    // Dove sta ciascun fiocco rispetto al centro, e quanto e' grande: in
+    // frazioni della fiamma, cosi' seguono la scala dell'animazione.
+    const posti = [
+      (Offset(-1.15, -0.85), 0.42),
+      (Offset(1.05, -0.5), 0.3),
+      (Offset(-0.8, 0.95), 0.24),
+    ];
 
-    return SizedBox(
-      width: lato,
-      height: lato,
-      child: CustomPaint(painter: _Fiocco(colore: colore)),
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        for (final (dove, quanto) in posti)
+          Transform.translate(
+            offset: dove * misura,
+            child: SizedBox(
+              width: misura * quanto,
+              height: misura * quanto,
+              child: CustomPaint(
+                painter: _Fiocco(colore: colore.withValues(alpha: 0.45)),
+              ),
+            ),
+          ),
+        fiamma,
+      ],
     );
   }
 
+  /// **Un fiocco su qualche tasto.** Uno su tre, deciso dal seme: vedi
+  /// `HalloweenSkin.decoraTasto` per il perche' non e' a caso.
   @override
-  Widget? segnoDAttesa({required double misura, required Color colore}) {
-    return SizedBox(
-      width: misura,
-      height: misura,
-      child: CustomPaint(painter: _Fiocco(colore: colore)),
+  Widget decoraTasto(Widget tasto, {required String seme}) {
+    var somma = 0;
+
+    for (final unita in seme.codeUnits) {
+      somma = (somma + unita) % 100003;
+    }
+
+    if (somma % 3 != 0) {
+      return tasto;
+    }
+
+    return Stack(
+      children: [
+        tasto,
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Align(
+              alignment: const Alignment(-0.92, -0.5),
+              child: SizedBox(
+                width: 13,
+                height: 13,
+                // Bianco al 22%: il tasto sotto e' rosso pieno, e l'etichetta
+                // resta l'unica cosa da leggere.
+                child: CustomPaint(
+                  painter: _Fiocco(colore: const Color(0x38FFFFFF)),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

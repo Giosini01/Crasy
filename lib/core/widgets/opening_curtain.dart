@@ -211,26 +211,29 @@ class _Curtain extends StatelessWidget {
                       key: OpeningCurtain.chiaveDellaFiamma,
                       alignment: Alignment.center,
                       transform: Matrix4.diagonal3Values(scala, scala, 1),
-                      // **La stagione cambia il segno, non l'animazione.** Sta
-                      // dentro il `Transform` con la chiave, quindi la
-                      // ragnatela di ottobre prende con lo stesso scatto e
-                      // ondeggia con le stesse due onde — e la prova che misura
-                      // la fiamma continua a misurare, perche' misura questo
-                      // nodo e non l'icona.
-                      child:
-                          context.stagione.segnoDApertura(
-                            misura: lato * 0.22,
-                            colore: palette.accent,
-                          ) ??
-                          Icon(
-                            Icons.local_fire_department_rounded,
-                            // Piu' piccola di quanto sta dentro l'icona quadrata:
-                            // li' e' chiusa in un bordo che la contiene, qui ha
-                            // tutto lo schermo attorno e alla stessa misura
-                            // sembrerebbe enorme.
-                            size: lato * 0.22,
-                            color: palette.accent,
-                          ),
+                      // **La stagione le si mette attorno, non al posto.** La
+                      // fiamma entra qui dentro com'e' sempre stata — e' il
+                      // marchio, e un mese di apertura su un altro segno e' un
+                      // mese in cui l'app non dice come si chiama. A ottobre le
+                      // si apre una ragnatela dietro.
+                      //
+                      // Sta dentro il `Transform` con la chiave, quindi prende
+                      // con lo stesso scatto e ondeggia con le stesse due onde,
+                      // tela compresa — e la prova che misura la fiamma continua
+                      // a misurare, perche' misura questo nodo.
+                      child: context.stagione.accompagnaApertura(
+                        Icon(
+                          Icons.local_fire_department_rounded,
+                          // Piu' piccola di quanto sta dentro l'icona quadrata:
+                          // li' e' chiusa in un bordo che la contiene, qui ha
+                          // tutto lo schermo attorno e alla stessa misura
+                          // sembrerebbe enorme.
+                          size: lato * 0.22,
+                          color: palette.accent,
+                        ),
+                        misura: lato * 0.22,
+                        colore: palette.accent,
+                      ),
                     ),
                   ],
                 ),

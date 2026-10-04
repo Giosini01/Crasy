@@ -1,6 +1,7 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/theme/seasons/season_skin.dart';
 import 'package:crasy/core/widgets/countdown_text.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
@@ -156,7 +157,14 @@ class ChallengeCard extends ConsumerWidget {
             ],
           )
         else
-          CrasyButton(label: 'Partecipa', onPressed: onParticipate),
+          // Di stagione, qualche "Partecipa" si trova una ragnatela o una zucca
+          // nell'angolo — uno su tre, sempre gli stessi, perche' lo decide
+          // l'identificativo della gara e non il caso: con il caso il segno
+          // salterebbe da una card all'altra a ogni scorrimento dell'elenco.
+          context.stagione.decoraTasto(
+            CrasyButton(label: 'Partecipa', onPressed: onParticipate),
+            seme: challenge.id,
+          ),
       ],
     );
   }
@@ -550,8 +558,10 @@ class _LampeggioState extends State<_Lampeggio>
     duration: const Duration(milliseconds: 1400),
   )..repeat(reverse: true);
 
-  late final Animation<double> _luce = Tween<double>(begin: 1, end: 0.25)
-      .animate(CurvedAnimation(parent: _respiro, curve: Curves.easeInOut));
+  late final Animation<double> _luce = Tween<double>(
+    begin: 1,
+    end: 0.25,
+  ).animate(CurvedAnimation(parent: _respiro, curve: Curves.easeInOut));
 
   @override
   void dispose() {

@@ -31,33 +31,110 @@ import 'package:flutter/material.dart';
 class HalloweenSkin extends SeasonSkin {
   const HalloweenSkin();
 
-  /// **L'apertura: la ragnatela al posto della fiamma.**
+  /// **L'apertura: la fiamma davanti, la tela dietro.**
   ///
-  /// La tela arriva con un ragno appeso al filo. L'animazione di sotto resta la
-  /// stessa — cresce con lo scatto e poi ondeggia appena — e su una ragnatela
-  /// funziona meglio che su una fiamma: una tela che respira e' una tela nel
-  /// vento, mentre una fiamma che respira e' una fiamma, e bisognava spiegarlo.
+  /// La fiamma resta quella che e' sempre stata, intera e in primo piano: e' il
+  /// marchio, e per un mese non si mette da parte. Dietro le si apre una
+  /// ragnatela con un ragno appeso, spostata in alto a sinistra — **non
+  /// centrata**, perche' una tela esattamente dietro una fiamma le passa sopra
+  /// con i suoi fili e la spezza in dodici pezzi.
+  ///
+  /// La tela e' tenuta piu' tenue della fiamma. Allo stesso peso si guarderebbe
+  /// lei: e' larga il doppio, e in una gara fra due segni vince sempre il piu'
+  /// grande.
   @override
-  Widget? segnoDApertura({required double misura, required Color colore}) {
-    // Piu' larga della fiamma che sostituisce: la fiamma e' una macchia piena,
-    // la tela e' fatta di fili. Alla stessa misura si leggerebbe la meta'.
-    final lato = misura * 2.1;
+  Widget accompagnaApertura(
+    Widget fiamma, {
+    required double misura,
+    required Color colore,
+  }) {
+    final lato = misura * 2.4;
 
-    return SizedBox(
-      width: lato,
-      height: lato,
-      child: CustomPaint(painter: _RagnatelaPiena(colore: colore)),
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        Positioned(
+          // Dietro e in diagonale: la fiamma resta libera al centro, e la tela
+          // sembra appesa all'angolo di qualcosa invece di stare in posa.
+          right: misura * 0.55,
+          bottom: misura * 0.5,
+          child: SizedBox(
+            width: lato,
+            height: lato,
+            child: CustomPaint(
+              painter: _RagnatelaPiena(colore: colore.withValues(alpha: 0.28)),
+            ),
+          ),
+        ),
+        fiamma,
+      ],
     );
   }
 
-  /// **L'attesa: il ragno fermo al centro, la tela che gira.**
+  /// **L'attesa: la fiamma dov'era.**
+  ///
+  /// Qui non si aggiunge niente attorno, e la ragnatela la porta [giostraDAttesa]
+  /// al posto dell'arco che gira: il riquadro e' centoventotto per
+  /// centoventotto, e una tela ferma dietro una tela che gira non si leggerebbe
+  /// come due cose — si leggerebbe come un pasticcio.
   @override
-  Widget? segnoDAttesa({required double misura, required Color colore}) {
-    return SizedBox(
-      width: misura,
-      height: misura,
-      child: CustomPaint(painter: _Ragno(colore: colore)),
+  Widget accompagnaAttesa(
+    Widget fiamma, {
+    required double misura,
+    required Color colore,
+  }) => fiamma;
+
+  /// **Un segno su qualche tasto, non su tutti.**
+  ///
+  /// Uno su tre ha qualcosa addosso, e meta' di quelli e' una zucca invece di una
+  /// ragnatela: a tre gare per schermata ne capita in media una, che e' la
+  /// quantita' giusta perche' sembri che ottobre sia passato di qui e non che
+  /// qualcuno abbia aggiunto un elemento grafico al bottone.
+  ///
+  /// Il segno sta nell'angolo in alto a sinistra, **fuori dalla parola**:
+  /// l'etichetta e' centrata, e un disegno al centro di un tasto rosso con
+  /// scritto PARTECIPA sopra e' un disegno che toglie leggibilita' all'unica
+  /// cosa che quel tasto deve dire.
+  ///
+  /// Bianco al 22%, perche' il tasto e' rosso pieno: il nero sparirebbe e il
+  /// bianco pieno diventerebbe un secondo elemento da leggere.
+  @override
+  Widget decoraTasto(Widget tasto, {required String seme}) {
+    final sorte = _sorte(seme);
+
+    if (sorte % 3 != 0) {
+      return tasto;
+    }
+
+    return Stack(
+      children: [
+        tasto,
+        Positioned.fill(
+          // I tocchi passano: il tasto sotto e' l'unica cosa che qui conta.
+          child: IgnorePointer(
+            child: CustomPaint(
+              painter: sorte % 6 == 0 ? _ZuccaSulTasto() : _RagnatelaSulTasto(),
+            ),
+          ),
+        ),
+      ],
     );
+  }
+
+  /// Un numero stabile a partire da una parola.
+  ///
+  /// `hashCode` di una stringa non e' garantito uguale fra due esecuzioni, e un
+  /// segno che cambia tasto riaprendo l'app e' un segno che si nota per il motivo
+  /// sbagliato. Questa somma e' poca matematica e sempre la stessa.
+  int _sorte(String seme) {
+    var somma = 0;
+
+    for (final unita in seme.codeUnits) {
+      somma = (somma + unita) % 100003;
+    }
+
+    return somma;
   }
 
   @override
@@ -298,6 +375,105 @@ class _TelaCheGira extends CustomPainter {
 
   @override
   bool shouldRepaint(_TelaCheGira altro) => altro.giro != giro;
+}
+
+/// Il bianco con cui si disegna sopra un tasto rosso pieno.
+///
+/// Al 22%: si vede inclinando lo sguardo e non si legge insieme all'etichetta.
+/// Un bianco pieno qui diventerebbe una seconda cosa scritta sul tasto, e un
+/// tasto con due cose scritte sopra e' un tasto che si legge due volte.
+const _sulRosso = Color(0x38FFFFFF);
+
+/// Un quarto di ragnatela nell'angolo in alto a sinistra di un tasto.
+class _RagnatelaSulTasto extends CustomPainter {
+  _RagnatelaSulTasto();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final penna = _filo(_sulRosso, 1.1);
+    // Il centro sul vertice del tasto: la tela entra dall'angolo come se
+    // continuasse oltre il bordo, invece di stare appoggiata dentro.
+    const angolo = Offset.zero;
+    final raggio = size.height * 0.72;
+
+    const raggi = 5;
+    final angoli = [for (var i = 0; i <= raggi; i++) i * (math.pi / 2) / raggi];
+
+    for (final a in angoli) {
+      canvas.drawLine(
+        angolo,
+        angolo + Offset(math.cos(a) * raggio, math.sin(a) * raggio),
+        penna,
+      );
+    }
+
+    _anelli(
+      canvas,
+      angolo,
+      raggio,
+      angoli,
+      penna,
+      quote: const [0.42, 0.72, 0.98],
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RagnatelaSulTasto altro) => false;
+}
+
+/// Una zucca piccola nell'angolo in alto a sinistra di un tasto.
+///
+/// **A costine, non una palla con il gambo.** Una zucca si riconosce dai solchi
+/// verticali: il cerchio con il rametto sopra, a quattordici pixel, si legge come
+/// una mela — e una mela su un tasto non dice niente a nessuno.
+class _ZuccaSulTasto extends CustomPainter {
+  _ZuccaSulTasto();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final alta = size.height * 0.42;
+    final larga = alta * 1.22;
+    final centro = Offset(larga * 0.78, size.height * 0.5);
+    final penna = _filo(_sulRosso, 1.3);
+
+    // Il corpo: piu' largo che alto, com'e' una zucca vera.
+    canvas.drawOval(
+      Rect.fromCenter(center: centro, width: larga, height: alta),
+      penna,
+    );
+
+    // Le due costine interne. Sono archi, non rette: un solco diritto fa
+    // sembrare la zucca un barile.
+    for (final verso in [-1.0, 1.0]) {
+      canvas.drawPath(
+        Path()
+          ..moveTo(centro.dx + verso * larga * 0.1, centro.dy - alta / 2 + 1)
+          ..quadraticBezierTo(
+            centro.dx + verso * larga * 0.34,
+            centro.dy,
+            centro.dx + verso * larga * 0.1,
+            centro.dy + alta / 2 - 1,
+          ),
+        penna,
+      );
+    }
+
+    // Il gambo, corto e piegato da una parte: diritto sembra un chiodo.
+    canvas.drawPath(
+      Path()
+        ..moveTo(centro.dx, centro.dy - alta / 2)
+        ..quadraticBezierTo(
+          centro.dx + larga * 0.06,
+          centro.dy - alta * 0.72,
+          centro.dx + larga * 0.16,
+          centro.dy - alta * 0.68,
+        ),
+      penna,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ZuccaSulTasto altro) => false;
 }
 
 /// Le due ragnatele d'angolo che stanno su ogni pagina.

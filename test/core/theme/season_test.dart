@@ -3,6 +3,7 @@ import 'package:crasy/core/theme/app_theme.dart';
 import 'package:crasy/core/theme/seasons/season.dart';
 import 'package:crasy/core/theme/seasons/season_skin.dart';
 import 'package:crasy/core/widgets/app_background.dart';
+import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -42,11 +43,23 @@ void main() {
   });
 
   group('fuori stagione non resta niente', () {
-    test('la pelle spenta non ha un solo segno da dare', () {
+    test('la pelle spenta torna indietro quello che le si da', () {
       const pelle = SeasonSkin.nessuna;
+      const segno = Icon(Icons.local_fire_department);
+      const tasto = Text('PARTECIPA');
 
-      expect(pelle.segnoDApertura(misura: 100, colore: Colors.red), isNull);
-      expect(pelle.segnoDAttesa(misura: 30, colore: Colors.red), isNull);
+      // `same` e non `equals`: fuori stagione non deve tornare un oggetto
+      // uguale, deve tornare **quello**. Un involucro identico a vedersi
+      // lascerebbe comunque un livello in piu' sotto ogni schermata dell'anno.
+      expect(
+        pelle.accompagnaApertura(segno, misura: 100, colore: Colors.red),
+        same(segno),
+      );
+      expect(
+        pelle.accompagnaAttesa(segno, misura: 30, colore: Colors.red),
+        same(segno),
+      );
+      expect(pelle.decoraTasto(tasto, seme: 'gara-1'), same(tasto));
       expect(
         pelle.giostraDAttesa(giro: 0.5, palette: AppPalette.light),
         isNull,
@@ -85,15 +98,110 @@ void main() {
   });
 
   group('di stagione', () {
-    test('ottobre da tutti e tre i segni', () {
+    testWidgets('**la fiamma non sparisce**: la tela le sta attorno', (
+      tester,
+    ) async {
+      const fiamma = Icon(Icons.local_fire_department_rounded);
+
+      for (final stagione in [Season.halloween, Season.natale]) {
+        final pelle = SeasonSkin.perStagione(stagione);
+        final attorno = pelle.accompagnaApertura(
+          fiamma,
+          misura: 100,
+          colore: Colors.red,
+        );
+
+        // Qualcosa si aggiunge...
+        expect(attorno, isNot(same(fiamma)), reason: '$stagione');
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light(),
+            home: Center(child: attorno),
+          ),
+        );
+
+        // ...ma la fiamma e' ancora **quella**, dentro. E' il marchio: il primo
+        // giro di questo livello la scambiava con una ragnatela, e per un mese
+        // l'app si sarebbe aperta su un segno che non e' il suo — proprio il
+        // mese in cui esce.
+        expect(find.byWidget(fiamma), findsOneWidget, reason: '$stagione');
+      }
+    });
+
+    test('ottobre ha una tela da far girare nell attesa', () {
       final pelle = SeasonSkin.perStagione(Season.halloween);
 
-      expect(pelle.segnoDApertura(misura: 100, colore: Colors.red), isNotNull);
-      expect(pelle.segnoDAttesa(misura: 30, colore: Colors.red), isNotNull);
       expect(
         pelle.giostraDAttesa(giro: 0.5, palette: AppPalette.light),
         isNotNull,
       );
+    });
+
+    test('i segni stanno su qualche tasto, non su tutti', () {
+      final pelle = SeasonSkin.perStagione(Season.halloween);
+      const tasto = Text('PARTECIPA');
+
+      final semi = [for (var i = 0; i < 60; i++) 'gara-$i'];
+      final decorati = [
+        for (final seme in semi)
+          if (pelle.decoraTasto(tasto, seme: seme) != tasto) seme,
+      ];
+
+      // **Qualcuno si', qualcuno no.** I due casi che contano sono gli estremi:
+      // nessun tasto decorato vuol dire che la stagione non si vede, tutti
+      // decorati vuol dire una cornice — e una cornice e' un elemento
+      // dell'interfaccia, non un dettaglio di ottobre.
+      expect(decorati, isNotEmpty);
+      expect(decorati.length, lessThan(semi.length));
+
+      // **E sempre lo stesso verdetto per lo stesso tasto.** A caso, il segno
+      // salterebbe da una card all'altra a ogni scorrimento dell'elenco.
+      for (final seme in semi) {
+        expect(
+          pelle.decoraTasto(tasto, seme: seme) != tasto,
+          decorati.contains(seme),
+        );
+      }
+    });
+
+    testWidgets('il tasto decorato resta un tasto che si preme', (
+      tester,
+    ) async {
+      Season.fissata = Season.halloween;
+      addTearDown(() => Season.fissata = Season.base);
+
+      final pelle = SeasonSkin.perStagione(Season.halloween);
+      const tasto = Text('PARTECIPA');
+
+      // Il primo seme che prende un segno: su quello si prova che il disegno non
+      // si mette in mezzo.
+      final seme = [
+        for (var i = 0; i < 60; i++) 'gara-$i',
+      ].firstWhere((s) => pelle.decoraTasto(tasto, seme: s) != tasto);
+
+      var premuto = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: Center(
+              child: pelle.decoraTasto(
+                CrasyButton(
+                  label: 'Partecipa',
+                  onPressed: () => premuto = true,
+                ),
+                seme: seme,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('PARTECIPA'));
+
+      expect(premuto, isTrue);
     });
 
     testWidgets('la ragnatela non si mangia i tocchi', (tester) async {

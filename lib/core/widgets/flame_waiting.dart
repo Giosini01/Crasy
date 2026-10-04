@@ -103,16 +103,15 @@ class _FlameWaitingState extends State<FlameWaiting>
                 // il segno che dice CRASY non va capovolto per fare
                 // un'animazione.
                 child: Center(
-                  child:
-                      context.stagione.segnoDAttesa(
-                        misura: 30,
-                        colore: palette.accent,
-                      ) ??
-                      Icon(
-                        Icons.local_fire_department,
-                        size: 30,
-                        color: palette.accent,
-                      ),
+                  child: context.stagione.accompagnaAttesa(
+                    Icon(
+                      Icons.local_fire_department,
+                      size: 30,
+                      color: palette.accent,
+                    ),
+                    misura: 30,
+                    colore: palette.accent,
+                  ),
                 ),
               ),
             ),
