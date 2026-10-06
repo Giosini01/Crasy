@@ -479,16 +479,21 @@ class _Stats extends StatelessWidget {
               _Divider(color: palette.line),
               _Stat(label: 'LANCIATE', value: '$launched'),
               _Divider(color: palette.line),
-              // **"SEI SEGUITO", non "FOLLOWER".** La parola inglese dice chi
-              // sono — i follower — e in un'app in cui l'amicizia e' reciproca
-              // quella parola porta con se' l'idea sbagliata, quella del
-              // pubblico. Qui si dice **cosa sta succedendo a te**: qualcuno ti
-              // segue. Ed e' anche l'unica coppia che si legge come una coppia,
-              // perche' l'altra meta' e' "stai seguendo".
+              // **"TI SEGUONO" e "SEGUI", non "FOLLOWER" e "SEGUITI".**
+              //
+              // La parola inglese dice chi sono — i follower — e in un'app dove
+              // l'amicizia e' reciproca si porta dietro l'idea del pubblico, che
+              // qui non c'entra. Queste due invece dicono **cosa succede**, e si
+              // leggono come una coppia perche' sono lo stesso verbo girato: loro
+              // seguono te, tu segui loro.
+              //
+              // Due parole e una, cortissime: ci stanno su una riga anche in un
+              // quarto di schermo, e quattro numeri in fila devono potersi leggere
+              // tutti con un'occhiata sola.
               //
               // Il pallino dice quanti ti seguono e aspettano che ricambi.
               _Stat(
-                label: 'SEI SEGUITO',
+                label: 'TI SEGUONO',
                 value: '$followers',
                 onTap: () => context.push(AppRoutes.friends),
                 waiting: pending,
@@ -496,7 +501,7 @@ class _Stats extends StatelessWidget {
               _Divider(color: palette.line),
               // Due porte diverse: chi segue te e chi segui tu.
               _Stat(
-                label: 'STAI SEGUENDO',
+                label: 'SEGUI',
                 value: '$following',
                 onTap: () => context.push(AppRoutes.following),
               ),

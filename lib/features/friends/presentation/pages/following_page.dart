@@ -30,15 +30,26 @@ class FollowingPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // I piu' recenti in cima: l'elenco nel profilo cresce in coda.
     final seguiti = ref.watch(followedIdsProvider).reversed.toList();
-    final totale = ref.watch(followingCountProvider);
 
     return Scaffold(
       appBar: AppBar(
         leading: const BackButton(),
-        // L'altra meta' della coppia: "stai seguendo" nel profilo, "stai
-        // seguendo" qui. Due parole diverse per la stessa porta si leggono come
-        // due posti diversi.
-        title: Text(totale > 0 ? 'Stai seguendo · $totale' : 'Stai seguendo'),
+        // "Chi segui": nel profilo il riquadro dice SEGUI, e un titolo di pagina
+        // ha bisogno del complemento che un riquadro largo un quarto di schermo
+        // non si puo' permettere.
+        //
+        // **Il numero si conta, non si legge dal contatore.** Diceva tre mentre
+        // sotto ce n'erano trenta: il contatore sul profilo e' un numero tenuto
+        // dal server, e serve la' dove l'elenco non c'e' — leggere mille
+        // documenti per scrivere una cifra sarebbe mille letture a ogni apertura
+        // del profilo. Ma **qui l'elenco e' gia' in mano**, caricato per
+        // mostrarlo: contarlo non costa niente e non puo' essere sbagliato.
+        //
+        // Un titolo che litiga con la lista che gli sta sotto fa sembrare rotta
+        // tutta la schermata, ed e' peggio di un titolo senza numero.
+        title: Text(
+          seguiti.isNotEmpty ? 'Chi segui · ${seguiti.length}' : 'Chi segui',
+        ),
       ),
       body: AppBackground(
         child: seguiti.isEmpty

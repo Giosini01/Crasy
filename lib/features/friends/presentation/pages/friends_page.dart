@@ -186,14 +186,31 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final totale = ref.watch(followersCountProvider);
+    // **Il numero solo quando ci sono tutti.**
+    //
+    // Prima lo leggeva dal contatore del profilo, e il contatore diceva tre
+    // mentre qui sotto l'elenco ne mostrava trenta: un titolo che litiga con la
+    // lista che gli sta sotto fa sembrare rotta tutta la schermata.
+    //
+    // Contare le righe caricate non si puo': questa pagina le prende a pagine di
+    // venti, e il numero crescerebbe sotto gli occhi mentre si scorre — che e' un
+    // altro modo di sembrare rotti. Quindi si conta quando non c'e' piu' niente
+    // da caricare, e fino a quel momento il titolo resta senza numero.
+    //
+    // Un titolo senza numero non dice niente; un titolo con il numero sbagliato
+    // dice una cosa falsa.
+    final completo = _richiesteFinite && _amiciFiniti;
 
     return Scaffold(
       appBar: AppBar(
         leading: const BackButton(),
         // "Ti seguono", come il riquadro del profilo da cui si arriva qui.
         // "Follower" era la parola di un'altra app: quella del pubblico.
-        title: Text(totale > 0 ? 'Ti seguono · $totale' : 'Ti seguono'),
+        title: Text(
+          completo && _righe.isNotEmpty
+              ? 'Ti seguono · ${_righe.length}'
+              : 'Ti seguono',
+        ),
         actions: [
           // **Il modo di portarne di nuovi, dove si guardano quelli che ci
           // sono.** E' la schermata in cui uno si accorge di essere solo: il
