@@ -39,16 +39,27 @@ class ShowcaseSeat {
   final int count;
 }
 
-/// Chi ha vinto di piu'.
+/// **I nomi sono quelli veri, e per un po' non lo erano.**
+///
+/// C'era scritto `giosini` e `frankk`. Quei due account **non esistono**: i nomi
+/// giusti sono `giosyni` e `franksy`, e si vedono scorrendo i profili veri. Prima
+/// non si notava perche' un posto che non trovava il suo account restava comunque
+/// in classifica, con una faccia disegnata e nessun profilo dietro; da quando chi
+/// non si trova resta fuori, quei due erano **due posti che non comparivano** — e
+/// il podio restava vuoto, cioe' esattamente la cosa che questi posti esistono per
+/// evitare.
+///
+/// Un nome sbagliato qui non da' nessun errore: da' una classifica vuota. Chi li
+/// cambia controlli che l'account esista davvero.
 const vincitoriVetrina = <ShowcaseSeat>[
-  ShowcaseSeat(username: 'giosini'),
-  ShowcaseSeat(username: 'frankk'),
+  ShowcaseSeat(username: 'giosyni'),
+  ShowcaseSeat(username: 'franksy'),
 ];
 
 /// Chi ha messo di piu' in palio.
 const chiFaGiocareVetrina = <ShowcaseSeat>[
-  ShowcaseSeat(username: 'giosini'),
-  ShowcaseSeat(username: 'frankk'),
+  ShowcaseSeat(username: 'giosyni'),
+  ShowcaseSeat(username: 'franksy'),
 ];
 
 /// Le righe vere con in mezzo i posti tenuti aperti, nello stesso ordine della
