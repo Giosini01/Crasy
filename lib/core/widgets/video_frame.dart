@@ -133,6 +133,14 @@ class _VideoFrameState extends State<VideoFrame> {
   VideoPlayerController? _controller;
   Timer? _hide;
   bool _failed = false;
+
+  /// Quante volte si e' provato ad aprirlo.
+  ///
+  /// Serve a distinguere **"non ce l'ha fatta"** da **"non ce la fa"**. Il primo
+  /// tentativo che va male e' quasi sempre la rete, e la risposta giusta e'
+  /// riprovare; il secondo vuol dire che quel file non si apre, e li' l'unica
+  /// cosa utile e' il browser di sistema, che i formati li legge tutti.
+  int _tentativi = 0;
   bool _controls = false;
 
   @override
@@ -153,6 +161,7 @@ class _VideoFrameState extends State<VideoFrame> {
       _controller?.dispose();
       _controller = null;
       _failed = false;
+      _tentativi = 0;
       _hide?.cancel();
       _controls = false;
       _open();
@@ -173,28 +182,57 @@ class _VideoFrameState extends State<VideoFrame> {
     }
 
     final controller = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+    var pronto = false;
 
     try {
-      await controller.initialize();
+      // **Il tempo massimo per aprirsi, e senza questo l'app smetteva di
+      // mostrare video.**
+      //
+      // `initialize()` su Android non sempre fallisce quando le cose vanno
+      // male: a volte **non torna**. Rete che va e viene, un file grosso, un
+      // indirizzo che non risponde — e quella riga resta appesa per sempre,
+      // senza lanciare niente.
+      //
+      // Appesa li', non restituiva il posto in coda. I posti sono tre: bastavano
+      // tre video andati storti perche' la coda non si aprisse mai piu' e
+      // **nessun video dell'app ripartisse**, nemmeno quelli sani, nemmeno
+      // cambiando schermata. Si risolveva solo chiudendo e riaprendo l'app — e
+      // da fuori si vedeva come "su Android i video non partono".
+      //
+      // Quindici secondi: tanti perche' una connessione lenta ce la faccia,
+      // pochi perche' un video rotto non si porti via un posto per tutta la
+      // sessione.
+      await controller.initialize().timeout(const Duration(seconds: 15));
+      pronto = true;
     } on Object {
       // **Solo questo e' un video rotto**: il file non si apre, il formato non
-      // si sa leggere. Tutto il resto — non parte, non fa rumore — e' un video
-      // che c'e'.
+      // si sa leggere, o ci ha messo troppo. Tutto il resto — non parte, non fa
+      // rumore — e' un video che c'e'.
       await controller.dispose();
-      _Coda.esci();
 
       if (mounted) {
-        setState(() => _failed = true);
+        setState(() {
+          _failed = true;
+          _tentativi += 1;
+        });
       }
-
-      return;
+    } finally {
+      // **Il posto si lascia qui, e si lascia sempre.**
+      //
+      // Appena il video e' pronto, perche' la parte lenta e' quella che si e'
+      // appena conclusa: tenerlo fino alla fine vorrebbe dire che tre video gia'
+      // aperti bloccano tutti gli altri finche' restano a schermo.
+      //
+      // E **in un `finally`**, non su due rami come prima: erano due su tre —
+      // riuscito e fallito — e il terzo, quello appeso, non lo restituiva. Un
+      // posto si lascia per ogni posto che si prende, qualunque cosa sia
+      // successa in mezzo.
+      _Coda.esci();
     }
 
-    // **Il posto si lascia qui**, appena il video e' pronto: la parte lenta e'
-    // quella che si e' appena conclusa. Tenerlo fino alla fine vorrebbe dire
-    // che tre video gia' aperti bloccano tutti gli altri finche' restano a
-    // schermo, cioe' per sempre.
-    _Coda.esci();
+    if (!pronto) {
+      return;
+    }
 
     if (!mounted) {
       await controller.dispose();
@@ -330,18 +368,37 @@ class _VideoFrameState extends State<VideoFrame> {
     final controller = _controller;
 
     if (_failed) {
-      // Anche qui si offre una via d'uscita invece di un vicolo cieco: il file
-      // c'e', e il browser da solo — fuori dall'app — quasi sempre lo apre.
+      // **Prima si riprova, poi si esce.**
+      //
+      // Un'apertura andata male la prima volta e' quasi sempre la rete: il video
+      // c'e' ed e' sano, e mandare fuori dall'app chi voleva solo guardare una
+      // partecipazione e' una risposta sproporzionata — si perde il posto nella
+      // gara e si torna indietro a mano.
+      //
+      // Dal secondo tentativo in poi cambia la diagnosi: quel file li' non si
+      // apre, e insistere con lo stesso lettore non serve. Allora si offre il
+      // browser di sistema, che i formati li legge tutti.
+      final riprova = _tentativi < 2;
+
       return ColoredBox(
         color: palette.surfaceMuted,
         child: Center(
           child: TextButton(
-            onPressed: () => launchUrl(
-              Uri.parse(widget.url),
-              mode: LaunchMode.externalApplication,
-            ),
+            onPressed: () {
+              if (!riprova) {
+                launchUrl(
+                  Uri.parse(widget.url),
+                  mode: LaunchMode.externalApplication,
+                );
+
+                return;
+              }
+
+              setState(() => _failed = false);
+              _open();
+            },
             child: Text(
-              'APRI IL VIDEO',
+              riprova ? 'RIPROVA' : 'APRI IL VIDEO',
               style: context.texts.labelSmall?.copyWith(color: palette.accent),
             ),
           ),
