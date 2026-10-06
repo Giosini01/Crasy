@@ -136,10 +136,7 @@ final challengeEntriesProvider = StreamProvider.autoDispose
           .watch(challengeRepositoryProvider)
           .watchEntries(challengeId)
           .map((entries) {
-            final visibili = [
-              for (final entry in entries)
-                if (entry.isVisibleTo(viewerId, blocked: bloccati)) entry,
-            ];
+            final visibili = entries.visibiliPer(viewerId, blocked: bloccati);
 
             // **A gara aperta l'ordine e' mescolato, e diverso per ognuno.**
             //
@@ -177,11 +174,25 @@ final challengeTopEntryProvider = StreamProvider.autoDispose
       // documenti.
       cacheFor(ref);
 
+      final viewerId = ref.watch(currentUserIdProvider);
+      final bloccati = ref.watch(blockedNowProvider);
+
       return ref
           .watch(challengeRepositoryProvider)
           .watchTopEntry(
             challengeId,
             live: ref.watch(challengeIsLiveProvider(challengeId)),
+          )
+          // **La vetrina passa dallo stesso filtro.** La query di sotto guarda
+          // il controllo automatico, ma non sapeva niente di chi ha segnalato o
+          // bloccato: la foto che uno aveva appena fatto sparire restava la foto
+          // grande in testa alla scheda, in home, la prima cosa che vedeva
+          // riaprendo l'app.
+          .map(
+            (entry) =>
+                entry != null && entry.isVisibleTo(viewerId, blocked: bloccati)
+                ? entry
+                : null,
           );
     });
 
@@ -590,9 +601,15 @@ final entriesOfManyProvider = StreamProvider.autoDispose
         return Stream.value(const <ChallengeEntry>[]);
       }
 
+      final viewerId = ref.watch(currentUserIdProvider);
+      final bloccati = ref.watch(blockedNowProvider);
+
+      // Filtrate come tutte le altre: questa lista riempie la bacheca degli
+      // amici, e una foto segnalata che spariva dalla gara ricompariva li'.
       return ref
           .watch(challengeRepositoryProvider)
-          .watchEntriesByUsers(userIds.split(','));
+          .watchEntriesByUsers(userIds.split(','))
+          .map((entries) => entries.visibiliPer(viewerId, blocked: bloccati));
     });
 
 /// Le gare **riservate** che posso vedere: le mie e quelle dei miei amici.

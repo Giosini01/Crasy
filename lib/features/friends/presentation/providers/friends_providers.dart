@@ -6,6 +6,7 @@ import 'package:crasy/features/challenges/presentation/providers/challenge_provi
 import 'package:crasy/features/friends/data/repositories/contacts_repository.dart';
 import 'package:crasy/features/friends/data/repositories/firestore_friends_repository.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
+import 'package:crasy/features/moderation/presentation/providers/moderation_providers.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
@@ -211,9 +212,21 @@ final friendshipStatusProvider = StreamProvider.autoDispose
     });
 
 /// Le partecipazioni di una persona, per il suo profilo pubblico.
+///
+/// **Filtrate, e qui prima non lo erano.** Era il buco piu' brutto della
+/// segnalazione: si segnalava una foto, la si vedeva sparire dalla gara, e poi la
+/// si ritrovava intera aprendo il profilo di chi l'aveva pubblicata. Una
+/// segnalazione che non fa sparire la roba non e' una segnalazione — e' un tasto
+/// che fa finta.
 final entriesOfProvider = StreamProvider.autoDispose
     .family<List<ChallengeEntry>, String>((ref, userId) {
-      return ref.watch(challengeRepositoryProvider).watchEntriesByUser(userId);
+      final viewerId = ref.watch(currentUserIdProvider);
+      final bloccati = ref.watch(blockedNowProvider);
+
+      return ref
+          .watch(challengeRepositoryProvider)
+          .watchEntriesByUser(userId)
+          .map((entries) => entries.visibiliPer(viewerId, blocked: bloccati));
     });
 
 /// Quanto ha vinto una persona, in centesimi.

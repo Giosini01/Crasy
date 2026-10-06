@@ -170,6 +170,11 @@ class ChallengeEntry {
   /// da solo dieci volte.
   final List<String> reporters;
 
+  /// **Se questa foto si deve vedere, e l'unico posto che lo decide.**
+  ///
+  /// Chi legge delle partecipazioni passa da qui o dall'estensione qui sotto.
+  /// Nessuna schermata se lo chiede per conto proprio: era cosi' che il tasto
+  /// "segnala" aveva smesso di funzionare.
   bool isVisibleTo(String? viewerId, {Set<String> blocked = const {}}) {
     // **Chi hai bloccato non lo vedi piu', punto.** Prima di ogni altra
     // considerazione: non e' moderazione, e' una scelta tua, e non ha soglie.
@@ -267,4 +272,28 @@ class ChallengeEntry {
     mediaKind,
     caption,
   );
+}
+
+/// **Il filtro, in un posto solo.**
+///
+/// Segnalare una foto scriveva il segno giusto sulla partecipazione, e la foto
+/// spariva — dentro la gara. Nel profilo di chi l'aveva pubblicata no, e nemmeno
+/// nella bacheca degli amici: quelle schermate leggono le partecipazioni da
+/// un'altra strada, e lungo quella strada non c'era nessun filtro. Si segnalava,
+/// si vedeva sparire, e la si ritrovava due tocchi dopo.
+///
+/// Il difetto non era in nessuna delle due schermate: era che il filtro stava
+/// scritto **dentro** una di loro. Ora e' qui, e chiunque legga delle
+/// partecipazioni passa da questa riga.
+extension VisibleEntries on List<ChallengeEntry> {
+  /// Solo quelle che [viewerId] ha il diritto di vedere.
+  List<ChallengeEntry> visibiliPer(
+    String? viewerId, {
+    Set<String> blocked = const {},
+  }) {
+    return [
+      for (final entry in this)
+        if (entry.isVisibleTo(viewerId, blocked: blocked)) entry,
+    ];
+  }
 }
