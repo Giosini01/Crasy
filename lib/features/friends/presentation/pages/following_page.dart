@@ -3,6 +3,7 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/core/widgets/filter_field.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
@@ -23,13 +24,52 @@ import 'package:go_router/go_router.dart';
 /// ogni riga si leggono solo per le righe che compaiono sullo schermo, mentre
 /// si scorre. Duemila seguiti costano le letture delle dieci righe che si
 /// vedono, non duemila.
-class FollowingPage extends ConsumerWidget {
+class FollowingPage extends ConsumerStatefulWidget {
   const FollowingPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FollowingPage> createState() => _FollowingPageState();
+}
+
+class _FollowingPageState extends ConsumerState<FollowingPage> {
+  String _cerca = '';
+
+  @override
+  Widget build(BuildContext context) {
     // I piu' recenti in cima: l'elenco nel profilo cresce in coda.
-    final seguiti = ref.watch(followedIdsProvider).reversed.toList();
+    final tutti = ref.watch(followedIdsProvider).reversed.toList();
+
+    // **I nomi arrivano da un'altra parte.** Questa pagina ha in mano solo gli
+    // identificativi — il nome lo legge ogni riga per conto suo, dal profilo di
+    // quella persona — e con i soli identificativi non si puo' cercare per nome.
+    //
+    // La cartella `following` il nome ce l'ha, copiato dentro al momento in cui
+    // si e' iniziato a seguire: si prende da li', senza nessuna lettura in piu'
+    // perche' quell'ascolto e' gia' aperto per il contatore.
+    final nomi = {
+      for (final chi in ref.watch(myFollowingProvider).valueOrNull ?? const [])
+        chi.userId: chi.username,
+    };
+
+    final cerca = _cerca.trim();
+    final seguiti = cerca.isEmpty
+        ? tutti
+        : [
+            for (final id in tutti)
+              // **Senza nome non si tiene.** Le righe che `following` non
+              // conosce sono le persone seguite prima che quella cartella
+              // esistesse: il loro nome qui non c'e', quindi non si puo' dire se
+              // combacia. Mentre si cerca restano fuori — tenerle dentro
+              // vorrebbe dire mostrare righe che non c'entrano con quello che si
+              // e' scritto, e cercare "marco" per trovarsi mezza lista e' come
+              // non avere cercato.
+              if (combacia(nomi[id] ?? '', cerca) &&
+                  (nomi[id] ?? '').isNotEmpty)
+                id,
+          ];
+
+    final cercabile = FilterField.quandoServe(tutti.length) || cerca.isNotEmpty;
+    final vuotoPerLaRicerca = seguiti.isEmpty && cerca.isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -52,7 +92,7 @@ class FollowingPage extends ConsumerWidget {
         ),
       ),
       body: AppBackground(
-        child: seguiti.isEmpty
+        child: tutti.isEmpty
             ? const Padding(
                 padding: EdgeInsets.symmetric(horizontal: AppSpacing.page),
                 child: EmptyState(
@@ -69,9 +109,43 @@ class FollowingPage extends ConsumerWidget {
                   AppSpacing.page,
                   AppSpacing.xxl,
                 ),
-                itemCount: seguiti.length,
-                itemBuilder: (context, index) =>
-                    _FollowingRow(userId: seguiti[index]),
+                // **Il "non ho trovato niente" e' una riga della lista.** Senza,
+                // cercando un nome che non c'e' resterebbe a schermo il solo
+                // campo sopra una pagina muta: e nessuno legge quel vuoto come
+                // "non ho trovato", lo legge come "si e' rotto".
+                itemCount:
+                    (cercabile ? 1 : 0) +
+                    (vuotoPerLaRicerca ? 1 : seguiti.length),
+                itemBuilder: (context, index) {
+                  if (cercabile) {
+                    if (index == 0) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        child: FilterField(
+                          hint: 'Cerca fra chi segui',
+                          onChanged: (valore) =>
+                              setState(() => _cerca = valore),
+                        ),
+                      );
+                    }
+
+                    index -= 1;
+                  }
+
+                  if (vuotoPerLaRicerca) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.md),
+                      child: Text(
+                        'Nessuno con questo nome fra chi segui.',
+                        style: context.texts.bodyMedium?.copyWith(
+                          color: context.palette.textFaint,
+                        ),
+                      ),
+                    );
+                  }
+
+                  return _FollowingRow(userId: seguiti[index]);
+                },
               ),
       ),
     );

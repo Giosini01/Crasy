@@ -5,6 +5,7 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/core/widgets/filter_field.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
@@ -153,6 +154,33 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
     }
   }
 
+  /// Quello che si sta cercando fra chi ti segue.
+  String _cerca = '';
+
+  /// **Cercando si finisce di caricare.**
+  ///
+  /// Questa pagina prende le righe a pagine di venti, e un filtro sulle sole
+  /// righe caricate direbbe "nessuno" per una persona che c'e' ma sta nella
+  /// pagina dopo — che e' peggio di non avere il campo: uno conclude che quella
+  /// persona non lo segue piu'.
+  ///
+  /// Quindi alla prima lettera si tira giu' il resto. Sono al massimo quindici
+  /// pagine — gli amici sono trecento in tutto — e si fa una volta sola, perche'
+  /// finito [_completo] resta finito.
+  Future<void> _cercaFra(String valore) async {
+    setState(() => _cerca = valore);
+
+    if (valore.trim().isEmpty) {
+      return;
+    }
+
+    while (mounted && !_completo && _errore == null) {
+      await _carica();
+    }
+  }
+
+  bool get _completo => _richiesteFinite && _amiciFiniti;
+
   Future<void> _ricarica() async {
     setState(() {
       _righe.clear();
@@ -199,7 +227,19 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
     //
     // Un titolo senza numero non dice niente; un titolo con il numero sbagliato
     // dice una cosa falsa.
-    final completo = _richiesteFinite && _amiciFiniti;
+    final completo = _completo;
+
+    // Le righe da mostrare: tutte, o quelle che combaciano con la ricerca.
+    final mostrate = [
+      for (final riga in _righe)
+        if (combacia(riga.username, _cerca)) riga,
+    ];
+
+    // Il campo resta a schermo mentre si cerca anche se non resta nessuna riga:
+    // sparendo insieme ai risultati, non si potrebbe correggere quello che si e'
+    // scritto — si resterebbe su una schermata vuota senza il modo di uscirne.
+    final cercabile =
+        FilterField.quandoServe(_righe.length) || _cerca.trim().isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -240,10 +280,25 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
               AppSpacing.page,
               AppSpacing.xxl,
             ),
-            // Una riga in piu' in fondo: la rotellina, il vuoto o l'errore.
-            itemCount: _righe.length + 1,
+            // Una riga in piu' in testa quando c'e' il campo di ricerca, e una
+            // in piu' in fondo: la rotellina, il vuoto o l'errore.
+            itemCount: mostrate.length + 1 + (cercabile ? 1 : 0),
             itemBuilder: (context, index) {
-              if (index == _righe.length) {
+              if (cercabile) {
+                if (index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: FilterField(
+                      hint: 'Cerca fra chi ti segue',
+                      onChanged: _cercaFra,
+                    ),
+                  );
+                }
+
+                index -= 1;
+              }
+
+              if (index == mostrate.length) {
                 if (_errore != null) {
                   return _Fondo(
                     testo:
@@ -265,6 +320,17 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
                   );
                 }
 
+                // **Due vuoti diversi.** "Non ti segue nessuno" e "nessuno di
+                // chi ti segue si chiama cosi'" sono due notizie che non si
+                // somigliano, e dirle con la stessa frase manda a cercare un
+                // problema dove non c'e'.
+                if (mostrate.isEmpty && _cerca.trim().isNotEmpty) {
+                  return _Fondo(
+                    testo: 'Nessuno con questo nome fra chi ti segue.',
+                    colore: palette.textFaint,
+                  );
+                }
+
                 if (_righe.isEmpty) {
                   return const EmptyState(
                     title: 'Nessun follower, per ora',
@@ -277,7 +343,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
                 return const SizedBox.shrink();
               }
 
-              final riga = _righe[index];
+              final riga = mostrate[index];
 
               return _FollowerRow(riga: riga, onSegui: () => _ricambia(riga));
             },

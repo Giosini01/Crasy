@@ -311,7 +311,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
           final dove = AppRoutes.challengeDetailOf(gara);
 
-          return foto.isEmpty ? dove : '$dove?foto=${Uri.encodeComponent(foto)}';
+          return foto.isEmpty
+              ? dove
+              : '$dove?foto=${Uri.encodeComponent(foto)}';
         },
       ),
       _tabRoute(AppRoutes.onboarding, const OnboardingPage()),
@@ -338,6 +340,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       _pushedRoute(
         AppRoutes.launchDuel,
         (state) => LaunchDuelPage(friendId: state.uri.queryParameters['amico']),
+        // **Qui dentro c'e' una fila di facce che scorre di lato.**
+        //
+        // Con lo scorrimento-per-tornare-indietro attivo su tutta la pagina, il
+        // trascinamento orizzontale se lo prendeva la rotta: si provava a far
+        // scorrere gli amici e tornava indietro la schermata. Con pochi amici
+        // non si notava — ci stanno tutti a schermo — e dal quinto in poi gli
+        // altri erano **irraggiungibili**.
+        //
+        // Spento qui, si torna indietro dal bordo sinistro come su
+        // `ParticipatePage`, che ha lo stesso problema per lo stesso motivo.
+        swipeAnywhere: false,
       ),
       _pushedRoute(
         AppRoutes.notifications,
@@ -350,10 +363,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // Gli amici non sono piu' una scheda: si aprono dal numero sul profilo,
       // e si chiudono col dito come tutte le pagine che stanno sopra.
       _pushedRoute(AppRoutes.friends, (state) => const FriendsPage()),
-      _pushedRoute(
-        AppRoutes.findFriends,
-        (state) => const FindFriendsPage(),
-      ),
+      _pushedRoute(AppRoutes.findFriends, (state) => const FindFriendsPage()),
       _pushedRoute(AppRoutes.following, (state) => const FollowingPage()),
       _pushedRoute(
         AppRoutes.createForFriends,

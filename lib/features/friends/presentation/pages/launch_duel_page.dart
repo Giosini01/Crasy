@@ -7,6 +7,7 @@ import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/core/widgets/filter_field.dart';
 import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
@@ -58,6 +59,9 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
   final _prize = TextEditingController();
 
   String? _targetId;
+
+  /// Quello che si sta cercando nel campo sopra la fila delle facce.
+  String _cerca = '';
   String _targetName = '';
   MediaKind _mediaKind = MediaKind.photo;
 
@@ -99,6 +103,17 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
         .firstOrNull;
     _targetName = scelto?.username ?? _targetName;
 
+    // **Chi e' gia' scelto resta in fila anche se non combacia.** Scrivendo nel
+    // campo dopo aver scelto qualcuno, la sua faccia sparirebbe dalla fila e
+    // sopra il tasto resterebbe scritto il suo nome: la schermata direbbe due
+    // cose diverse, e si finirebbe a lanciare una sfida a qualcuno che non si
+    // vede piu'.
+    final mostrati = [
+      for (final amico in friends)
+        if (combacia(amico.username, _cerca) || amico.userId == _targetId)
+          amico,
+    ];
+
     return Scaffold(
       appBar: AppBar(title: const Text('Sfida un amico')),
       body: Stack(
@@ -136,8 +151,23 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
                           ),
                         ),
                         const SizedBox(height: AppSpacing.sm),
+                        // **Il campo per cercare, da otto amici in su.**
+                        //
+                        // La fila di facce scorre di lato, e con trecento amici
+                        // scorrere non e' una risposta: per arrivare al
+                        // duecentesimo ci vogliono decine di trascinamenti, e chi
+                        // ha trecento amici e' esattamente chi usa l'app di piu'.
+                        // Si scrive il nome e la fila si accorcia.
+                        if (FilterField.quandoServe(friends.length)) ...[
+                          FilterField(
+                            hint: 'Cerca fra i tuoi amici',
+                            onChanged: (valore) =>
+                                setState(() => _cerca = valore),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                        ],
                         _FriendPicker(
-                          friends: friends,
+                          friends: mostrati,
                           selected: _targetId,
                           onPick: (amico) => setState(() {
                             _targetId = amico.userId;
