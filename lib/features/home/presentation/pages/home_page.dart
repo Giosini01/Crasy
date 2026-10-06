@@ -209,6 +209,23 @@ class _NavBar extends StatelessWidget {
   final int selected;
   final void Function(int index) onTap;
 
+  /// Quanto spazio lasciare sotto le etichette.
+  ///
+  /// **La soglia e' quaranta punti.** Sotto quella misura cosa c'e' in fondo
+  /// allo schermo e' una lineetta o una zona di gesto — l'iPhone sta a
+  /// trentaquattro, Android a gesti sui ventiquattro — e li' si puo' disegnare:
+  /// se ne tiene un terzo, quanto basta perche' il dito non prema l'etichetta
+  /// proprio mentre sfiora la lineetta.
+  ///
+  /// Sopra, sono pulsanti veri: Android a tre tasti sta a quarantotto. Li' lo
+  /// spazio si prende tutto, perche' quello che ci finisce sotto non e' solo
+  /// brutto — e' inservibile.
+  static double _sotto(BuildContext context) {
+    final sistema = MediaQuery.paddingOf(context).bottom;
+
+    return sistema >= 40 ? sistema : sistema * 0.34;
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
@@ -218,7 +235,7 @@ class _NavBar extends StatelessWidget {
         color: palette.background,
         border: Border(top: BorderSide(color: palette.line, width: 0.5)),
       ),
-      // **La barra scende fino in fondo.**
+      // **La barra scende fino in fondo, ma solo dove c'e' una lineetta.**
       //
       // Il margine di sicurezza pieno — trentaquattro punti su un iPhone con la
       // lineetta — lasciava sotto le icone una fascia bianca alta quanto mezza
@@ -227,12 +244,18 @@ class _NavBar extends StatelessWidget {
       // lettera in un posto dove non serviva: sotto le etichette non c'e'
       // niente da toccare, e la lineetta di sistema puo' passarci sopra.
       //
-      // Se ne tiene un terzo: abbastanza perche' il dito non prema sull'etichetta
-      // proprio mentre sfiora la lineetta, poco perche' lo scalino sparisca.
+      // **Su Android con i tre tasti, pero', sotto c'e' qualcosa da toccare.**
+      // Quell'inset non e' una riga sottile: e' una barra alta quarantotto punti
+      // con dentro indietro, home e app recenti. Tenendone un terzo, CHALLENGE e
+      // PROFILO finivano **sotto i pulsanti di sistema** — illeggibili, e con il
+      // dito che premeva "indietro" invece della scheda.
+      //
+      // Si distingue dalla misura, non dal sistema operativo: sopra i quaranta
+      // punti e' una barra di pulsanti e si prende tutta, sotto e' una lineetta
+      // o un gesto e se ne tiene un terzo. Cosi' vale anche per Android a gesti,
+      // che sta sui ventiquattro, senza chiedere a nessuno su cosa sta girando.
       child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.paddingOf(context).bottom * 0.34,
-        ),
+        padding: EdgeInsets.only(bottom: _sotto(context)),
         child: SizedBox(
           height: 56,
           child: Row(
