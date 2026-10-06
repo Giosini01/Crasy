@@ -191,7 +191,9 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
     return Scaffold(
       appBar: AppBar(
         leading: const BackButton(),
-        title: Text(totale > 0 ? 'Follower · $totale' : 'Follower'),
+        // "Ti seguono", come il riquadro del profilo da cui si arriva qui.
+        // "Follower" era la parola di un'altra app: quella del pubblico.
+        title: Text(totale > 0 ? 'Ti seguono · $totale' : 'Ti seguono'),
         actions: [
           // **Il modo di portarne di nuovi, dove si guardano quelli che ci
           // sono.** E' la schermata in cui uno si accorge di essere solo: il

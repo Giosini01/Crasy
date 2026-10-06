@@ -87,10 +87,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     if (paymentsEnabled)
                       IconButton(
                         onPressed: () => context.push(AppRoutes.tip),
-                        icon: const Icon(
-                          Icons.favorite_rounded,
-                          size: 20,
-                        ),
+                        icon: const Icon(Icons.favorite_rounded, size: 20),
                         tooltip: 'Sostieni CRASY',
                         // Rosso: e' l'unica icona della barra che chiede
                         // qualcosa, e deve farsi trovare.
@@ -482,18 +479,24 @@ class _Stats extends StatelessWidget {
               _Divider(color: palette.line),
               _Stat(label: 'LANCIATE', value: '$launched'),
               _Divider(color: palette.line),
-              // **Da qui si entra.** Il pallino dice quanti ti seguono e
-              // aspettano che ricambi.
+              // **"SEI SEGUITO", non "FOLLOWER".** La parola inglese dice chi
+              // sono — i follower — e in un'app in cui l'amicizia e' reciproca
+              // quella parola porta con se' l'idea sbagliata, quella del
+              // pubblico. Qui si dice **cosa sta succedendo a te**: qualcuno ti
+              // segue. Ed e' anche l'unica coppia che si legge come una coppia,
+              // perche' l'altra meta' e' "stai seguendo".
+              //
+              // Il pallino dice quanti ti seguono e aspettano che ricambi.
               _Stat(
-                label: 'FOLLOWER',
+                label: 'SEI SEGUITO',
                 value: '$followers',
                 onTap: () => context.push(AppRoutes.friends),
                 waiting: pending,
               ),
               _Divider(color: palette.line),
-              // Due porte diverse: chi mi segue e chi seguo.
+              // Due porte diverse: chi segue te e chi segui tu.
               _Stat(
-                label: 'SEGUITI',
+                label: 'STAI SEGUENDO',
                 value: '$following',
                 onTap: () => context.push(AppRoutes.following),
               ),
@@ -579,8 +582,13 @@ class _Stat extends StatelessWidget {
             // **Tutte le etichette uguali.** Prima quelle che si toccano erano
             // piu' scure delle altre, e i quattro numeri sembravano scritti con
             // due caratteri diversi.
+            // **Centrata e libera di andare a capo.** Le etichette non sono piu'
+            // una parola sola: "STAI SEGUENDO" in un quarto di schermo non ci
+            // sta, e su un telefono piccolo nemmeno "SEI SEGUITO". Senza queste
+            // due righe la parola si taglierebbe a meta' invece di scendere.
             Text(
               label,
+              textAlign: TextAlign.center,
               style: texts.labelSmall?.copyWith(color: palette.textSecondary),
             ),
           ],

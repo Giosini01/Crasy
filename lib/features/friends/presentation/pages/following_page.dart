@@ -35,7 +35,10 @@ class FollowingPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         leading: const BackButton(),
-        title: Text(totale > 0 ? 'Seguiti · $totale' : 'Seguiti'),
+        // L'altra meta' della coppia: "stai seguendo" nel profilo, "stai
+        // seguendo" qui. Due parole diverse per la stessa porta si leggono come
+        // due posti diversi.
+        title: Text(totale > 0 ? 'Stai seguendo · $totale' : 'Stai seguendo'),
       ),
       body: AppBackground(
         child: seguiti.isEmpty

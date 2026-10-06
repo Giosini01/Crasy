@@ -357,10 +357,8 @@ class _FriendshipAction extends ConsumerWidget {
         // seguo, qui lo si rimette: da adesso le sue gare si vedono.
         if (!ref.watch(followedIdsProvider).contains(profile.id)) {
           WidgetsBinding.instance.addPostFrameCallback(
-            (_) => actions.ensureFollowing(
-              profile.id,
-              username: profile.username,
-            ),
+            (_) =>
+                actions.ensureFollowing(profile.id, username: profile.username),
           );
         }
 

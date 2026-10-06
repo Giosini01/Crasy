@@ -305,9 +305,21 @@ class FirestoreFriendsRepository {
     });
   }
 
+  /// Chi mi segue e aspetta che ricambi, **l'ultimo arrivato in testa**.
+  ///
+  /// Prima non era ordinato per niente: l'identificativo di un documento qui e'
+  /// quello di chi segue, quindi Firestore li restituiva in ordine di
+  /// identificativo — che non vuol dire niente per chi guarda. Si accendeva il
+  /// pallino con "1", si apriva, e il nuovo stava in mezzo all'elenco: il
+  /// pallino diceva che era successo qualcosa e la schermata non diceva cosa.
+  ///
+  /// **L'ordine si fa qui e non nella query.** Un `orderBy('createdAt')`
+  /// escluderebbe i documenti che quel campo non ce l'hanno — i follower di
+  /// prima che esistesse, che spariscono invece di finire in fondo — e
+  /// chiederebbe un indice. In memoria su cento righe non costa niente.
   Stream<List<FriendRequest>> watchIncomingRequests(String userId) {
     return _requests(userId).limit(100).snapshots().map((snapshot) {
-      return [
+      final richieste = [
         for (final document in snapshot.docs)
           FriendRequest(
             fromUserId: document.id,
@@ -315,6 +327,28 @@ class FirestoreFriendsRepository {
             createdAt: (document.data()['createdAt'] as Timestamp?)?.toDate(),
           ),
       ];
+
+      // Senza data vanno in fondo: sono le righe di prima, non le piu' recenti.
+      richieste.sort((a, b) {
+        final suo = b.createdAt;
+        final mio = a.createdAt;
+
+        if (mio == null && suo == null) {
+          return a.fromUsername.compareTo(b.fromUsername);
+        }
+
+        if (mio == null) {
+          return 1;
+        }
+
+        if (suo == null) {
+          return -1;
+        }
+
+        return suo.compareTo(mio);
+      });
+
+      return richieste;
     });
   }
 
