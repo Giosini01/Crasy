@@ -58,11 +58,11 @@ class FirestoreNotificationsRepository {
     // L'ordine si rifa' comunque in memoria: serve a mettere in fila le righe
     // che l'app costruisce da sola — *e' finita*, *hai vinto* — che nel
     // database non ci sono.
-    return _inbox(userId)
-        .orderBy('createdAt', descending: true)
-        .limit(50)
-        .snapshots()
-        .map((snapshot) {
+    return _inbox(
+      userId,
+    ).orderBy('createdAt', descending: true).limit(50).snapshots().map((
+      snapshot,
+    ) {
       final items = [
         for (final document in snapshot.docs)
           _from(document.id, document.data()),
@@ -102,22 +102,20 @@ class FirestoreNotificationsRepository {
   /// rossi si accendevano su tutto per un attimo e poi sparivano. Si usa l'ora
   /// del telefono finche' non arriva quella vera.
   Stream<DateTime?> watchSeenAt(String userId) {
-    return _firestore
-        .collection('users')
-        .doc(userId)
-        .snapshots()
-        .map((snapshot) {
-          final data = snapshot.data();
-          final seenAt = (data?['notificationsSeenAt'] as Timestamp?)?.toDate();
+    return _firestore.collection('users').doc(userId).snapshots().map((
+      snapshot,
+    ) {
+      final data = snapshot.data();
+      final seenAt = (data?['notificationsSeenAt'] as Timestamp?)?.toDate();
 
-          if (seenAt == null &&
-              snapshot.metadata.hasPendingWrites &&
-              (data?.containsKey('notificationsSeenAt') ?? false)) {
-            return DateTime.now();
-          }
+      if (seenAt == null &&
+          snapshot.metadata.hasPendingWrites &&
+          (data?.containsKey('notificationsSeenAt') ?? false)) {
+        return DateTime.now();
+      }
 
-          return seenAt;
-        });
+      return seenAt;
+    });
   }
 
   /// Segna tutto come visto.

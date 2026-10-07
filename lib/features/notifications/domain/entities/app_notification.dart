@@ -219,8 +219,7 @@ class AppNotification {
       '@$actorUsername ha partecipato alla tua challenge',
     NotificationKind.fire => '@$actorUsername ha dato una fiamma alla tua foto',
     NotificationKind.mention => '@$actorUsername ti ha nominato in un commento',
-    NotificationKind.friendRequest =>
-      '@$actorUsername ha iniziato a seguirti',
+    NotificationKind.friendRequest => '@$actorUsername ha iniziato a seguirti',
     NotificationKind.comeback => 'Ci sono missioni nuove che ti aspettano',
     NotificationKind.duel => '@$actorUsername ti ha sfidato',
     NotificationKind.duelAccepted =>
@@ -244,8 +243,7 @@ class AppNotification {
     NotificationKind.win => 'Hai vinto',
     NotificationKind.ended => 'La missione è finita: guarda chi ha vinto',
     NotificationKind.removed => 'La tua foto è stata tolta dalla gara',
-    NotificationKind.comment =>
-      '@$actorUsername ha commentato la tua foto',
+    NotificationKind.comment => '@$actorUsername ha commentato la tua foto',
   };
 
   /// La sezione in cui finisce.

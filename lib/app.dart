@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/services/refresh/auto_refresh.dart';
 import 'package:crasy/core/theme/app_theme.dart';
@@ -78,14 +76,21 @@ class _CrasyAppState extends ConsumerState<CrasyApp> {
   }
 
   /// Prende il tocco, e decide se e' il momento di usarlo.
+  ///
+  /// **Toccare una notifica non spegne la campanella.**
+  ///
+  /// Qui c'era una riga che, al primo tocco su una notifica qualunque, segnava
+  /// come lette **tutte** quelle in attesa. Il ragionamento era che toccare e'
+  /// gia' leggere — vero per quella notifica, falso per le altre nove che non
+  /// si sono nemmeno viste. Chi toccava "ti hanno sfidato" si ritrovava la
+  /// campanella pulita e perdeva per sempre le fiamme, i commenti e le
+  /// partecipazioni arrivate nel frattempo: non c'e' nessun posto dove
+  /// ricomparivano.
+  ///
+  /// Il numero rosso dice "qui dentro c'e' roba che non hai guardato", e
+  /// l'unico gesto che puo' smentirlo e' **guardarci dentro**. Si spegne
+  /// aprendo la campanella, che e' dove lo fa gia' `NotificationsPage`.
   void _prendi(PushTap dove) {
-    // Il tap e' gia' una lettura, anche se porta direttamente a una challenge
-    // terminata invece che alla campanella. Aspettare solo `NotificationsPage`
-    // lasciava il badge acceso per quel flusso.
-    if (dove.notificationId case final id? when id.isNotEmpty) {
-      unawaited(markNotificationsSeen(ref));
-    }
-
     final adesso = ref.read(sessionLandingRouteProvider);
 
     if (!AppRoutes.tabs.contains(adesso)) {

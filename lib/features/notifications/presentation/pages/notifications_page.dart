@@ -842,10 +842,7 @@ class _Face extends StatelessWidget {
       ),
       // Il martelletto: tocca a te decidere.
       NotificationKind.pickWinner => (Icons.gavel_rounded, palette.accent),
-      NotificationKind.soloJudge => (
-        Icons.gavel_rounded,
-        palette.accent,
-      ),
+      NotificationKind.soloJudge => (Icons.gavel_rounded, palette.accent),
       // La bandierina: una missione nuova aperta dentro il gruppo.
       NotificationKind.partyMission => (
         Icons.celebration_rounded,

@@ -463,7 +463,38 @@ PushTap pushTapOf(
     );
   }
 
-  // Tutto il resto — fiamme, commenti, nomine, vittorie — riguarda **te**: si
+  // **Una fiamma porta alla foto che l'ha presa.**
+  //
+  // Era la notifica piu' numerosa di tutte — sessantanove su trecento — e
+  // l'unica che non aveva un ramo suo: finiva nel caso generale, cioe' in
+  // campanella. Si leggeva "una fiamma nuova sulla tua foto", si toccava, e si
+  // arrivava a un elenco di notifiche con dentro scritta la stessa frase. La
+  // foto bisognava andarsela a cercare.
+  //
+  // **Quale foto lo si sa senza che il server lo dica.** Una partecipazione ha
+  // come identificativo l'uid di chi l'ha mandata — e' cosi' che il database
+  // garantisce una foto sola a testa — quindi la foto che ha preso la fiamma e'
+  // quella di chi riceve la notizia, in quella gara. E' lo stesso ragionamento
+  // che il ramo dei commenti fa gia' per le notizie vecchie.
+  if (kind == 'fire') {
+    final gara = dati['challengeId'] ?? '';
+    final foto = (dati['entryId'] as String?)?.isNotEmpty == true
+        ? dati['entryId'] as String
+        : (io ?? '');
+
+    if (gara.isNotEmpty && foto.isNotEmpty) {
+      return (
+        scheda: AppRoutes.challenges,
+        apri: AppRoutes.entryCommentsOf(gara, foto),
+        evidenzia: null,
+        notificationId: dati['notificationId'],
+        daFermo: daFermo,
+        quando: DateTime.now().microsecondsSinceEpoch,
+      );
+    }
+  }
+
+  // Tutto il resto — vittorie, richiami, rimozioni — riguarda **te**: si
   // va in campanella, sulla riga precisa da cui si e' arrivati.
   return (
     scheda: AppRoutes.challenges,
