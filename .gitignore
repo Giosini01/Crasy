@@ -127,3 +127,13 @@ functions/movimenti.csv
 *RECUPERO*
 *recupero*
 *.secret*
+
+# **Il pacchetto per il deposito SIAE non si versiona.**
+#
+# Dentro ci sono due file costruiti — l'archivio del sorgente e l'APK — che si
+# rifanno in un comando da quello che c'e' gia' nel repository. Metterli sotto
+# Git vorrebbe dire ottanta megabyte di roba duplicata a ogni deposito, e una
+# cronologia che pesa piu' del programma. I tre documenti scritti a mano, quelli,
+# restano.
+siae/*.zip
+siae/*.apk
