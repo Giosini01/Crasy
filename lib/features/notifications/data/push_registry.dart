@@ -87,6 +87,20 @@ class PushRegistry {
         final adesso = await _messaging.getNotificationSettings();
 
         if (adesso.authorizationStatus == AuthorizationStatus.notDetermined) {
+          // **Si esce, ma lasciando detto perche'.**
+          //
+          // Prima questa era un'uscita muta, ed e' costata la diagnosi di tutto
+          // il resto: su venticinque persone, ventuno non avevano **nessun**
+          // valore scritto qui — ne' "registrato", ne' "permesso negato", ne'
+          // "niente recapito". Non si capiva se la registrazione fosse fallita,
+          // se fosse stata rifiutata, o se non fosse proprio partita.
+          //
+          // Erano tutte ferme qui. Un'uscita che non lascia traccia non e' un
+          // caso gestito: e' un caso invisibile, e un caso invisibile su
+          // ventuno persone su venticinque e' il motivo per cui "le notifiche
+          // non funzionano" sembrava non avere una causa.
+          await _annota(userId, 'permesso non deciso: attende la schermata');
+
           return;
         }
       }
