@@ -101,18 +101,43 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   /// cosa che sparisce di colpo si legge come un difetto.
   Timer? _spegnimento;
 
+  /// Fa partire il conto alla rovescia dell'evidenziazione, **una volta sola**.
+  ///
+  /// Si chiama dal `build`, nel momento in cui la riga accesa compare davvero
+  /// nell'elenco. Il controllo su `_spegnimento` non e' prudenza: `build` gira
+  /// molte volte — a ogni dato nuovo, a ogni ridisegno — e senza, ogni giro
+  /// rimanderebbe lo spegnimento di altri due secondi e mezzo, lasciando la
+  /// riga accesa finche' qualcosa non si ferma.
+  void _accendi() {
+    if (_spegnimento != null || _accesa == null) {
+      return;
+    }
+
+    _spegnimento = Timer(const Duration(milliseconds: 2600), () {
+      if (mounted) {
+        setState(() => _accesa = null);
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     _accesa = widget.evidenzia;
 
-    if (_accesa != null) {
-      _spegnimento = Timer(const Duration(milliseconds: 2600), () {
-        if (mounted) {
-          setState(() => _accesa = null);
-        }
-      });
-    }
+    // **Il conto alla rovescia non parte da qui**, e prima partiva.
+    //
+    // Arrivando da una notifica toccata ad app chiusa, questa pagina nasce
+    // prima che le notifiche siano state lette dal database: la riga da
+    // accendere **non esiste ancora**. I due secondi e sei scorrevano sul
+    // vuoto, e quando l'elenco finalmente arrivava erano gia' finiti — la riga
+    // compariva spenta come tutte le altre.
+    //
+    // Da fuori si vedeva cosi': tocchi la notifica, si apre la campanella, e
+    // non si illumina niente. Il meccanismo funzionava, correva solo troppo
+    // presto.
+    //
+    // Adesso parte quando la riga si vede davvero: vedi [_accendi].
 
     // Dopo la prima frame, non durante: qui si scrive sul database, e farlo
     // mentre l'albero dei widget si sta costruendo e' il modo classico di
@@ -161,6 +186,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
 
       if (riga != null) {
         _viste.add(riga.group);
+        _accendi();
 
         // **Un commento o una nomina aprono il commento.** Si arriva qui da una
         // notifica toccata che non sapeva la foto; la riga pero' la sa, perche'
