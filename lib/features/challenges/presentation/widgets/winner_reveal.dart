@@ -253,11 +253,10 @@ class _WinnerRevealState extends State<WinnerReveal>
                 key: WinnerReveal.chiaveDeiTamburi,
                 // Da 0 a 1 dentro il colpo che stiamo suonando: e' quello che
                 // fa rimbalzare la pelle e scendere la bacchetta.
-                colpo:
-                    ((_passati - _inizioDelColpo) / _passoAdesso(t)).clamp(
-                      0.0,
-                      1.0,
-                    ),
+                colpo: ((_passati - _inizioDelColpo) / _passoAdesso(t)).clamp(
+                  0.0,
+                  1.0,
+                ),
                 // Il rullo cresce: i tamburi si avvicinano e si allargano un
                 // po' mentre accelerano.
                 crescita: (t / _scoppio).clamp(0.0, 1.0),
@@ -424,7 +423,10 @@ class _DisegnoDelTamburo extends CustomPainter {
         ),
         fusto,
       )
-      ..drawRect(Rect.fromLTRB(w / 2 - raggioX, cima, w / 2 + raggioX, fondo), fusto);
+      ..drawRect(
+        Rect.fromLTRB(w / 2 - raggioX, cima, w / 2 + raggioX, fondo),
+        fusto,
+      );
 
     // La cordatura: sei zigzag fra il bordo di sopra e quello di sotto. E' il
     // dettaglio che fa leggere "tamburo" invece di "barattolo".
@@ -607,13 +609,13 @@ class _Proclamazione extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                      if (challenge.prizeCents > 0) ...[
-                        const SizedBox(height: 4),
-                        _Grossa(
-                          testo: AppMoney.format(challenge.prizeCents),
-                          corpo: 26,
-                        ),
-                      ],
+                        if (challenge.prizeCents > 0) ...[
+                          const SizedBox(height: 4),
+                          _Grossa(
+                            testo: AppMoney.format(challenge.prizeCents),
+                            corpo: 26,
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -786,7 +788,8 @@ class _Coriandoli extends CustomPainter {
 
     for (final pezzo in pezzi) {
       final x = (pezzo.x0 + pezzo.vx * t) * size.width;
-      final y = (pezzo.y0 + pezzo.vy * t + 0.5 * _gravita * t * t) * size.height;
+      final y =
+          (pezzo.y0 + pezzo.vy * t + 0.5 * _gravita * t * t) * size.height;
 
       if (y > size.height + 40 || x < -40 || x > size.width + 40) {
         continue;

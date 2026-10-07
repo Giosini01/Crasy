@@ -202,8 +202,7 @@ class FirestoreChallengeRepository implements ChallengeRepository {
             // Nascondendola anche a lui, quella gara resterebbe scritta nel
             // database e invisibile a tutti, compreso l'unico che poteva
             // rimediare.
-            return challenge.isPayable ||
-                challenge.createdByUserId == userId;
+            return challenge.isPayable || challenge.createdByUserId == userId;
           }).toList();
         });
   }
@@ -469,9 +468,7 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     //
     // E' successo davvero, due volte. Meglio un invio che fallisce e lo dice.
     if (!daDisco && bytes.isEmpty) {
-      throw StateError(
-        "Il file da mandare non c'è più. Riprova a registrare.",
-      );
+      throw StateError("Il file da mandare non c'è più. Riprova a registrare.");
     }
 
     await (daDisco
@@ -860,8 +857,7 @@ class FirestoreChallengeRepository implements ChallengeRepository {
       // verrebbe filtrata — verrebbe respinta tutta, lasciando la bacheca
       // vuota. E' lo stesso motivo per cui qui si fanno piu' letture invece di
       // una.
-      if (friend)
-        vinte.where('duelVerdict', isEqualTo: 'approved').snapshots(),
+      if (friend) vinte.where('duelVerdict', isEqualTo: 'approved').snapshots(),
     ]).map(
       (challenges) => _mostRecentFirst([
         for (final challenge in challenges)
@@ -881,16 +877,17 @@ class FirestoreChallengeRepository implements ChallengeRepository {
   }
 
   @override
-  Stream<List<Challenge>> watchCommissionedBy(String userId, {String? viewerId}) {
+  Stream<List<Challenge>> watchCommissionedBy(
+    String userId, {
+    String? viewerId,
+  }) {
     final mie = _challenges.where('createdByUserId', isEqualTo: userId);
 
     return _unione([
       mie.where('audience', arrayContains: Challenge.everyone).snapshots(),
       if (viewerId != null && viewerId.isNotEmpty)
         mie.where('audience', arrayContains: viewerId).snapshots(),
-    ]).map(
-      (challenges) => commissionedOrder(challenges, now: DateTime.now()),
-    );
+    ]).map((challenges) => commissionedOrder(challenges, now: DateTime.now()));
   }
 
   /// Le stesse gare cercate in piu' modi, riunite senza doppioni.

@@ -27,7 +27,11 @@ import 'package:flutter/material.dart';
 /// sola etichetta resta quello che e': una gara normale, e un'eccezione
 /// dichiarata.
 class ArchiveBadge extends StatelessWidget {
-  const ArchiveBadge({required this.challenge, this.compact = false, super.key});
+  const ArchiveBadge({
+    required this.challenge,
+    this.compact = false,
+    super.key,
+  });
 
   final Challenge challenge;
 

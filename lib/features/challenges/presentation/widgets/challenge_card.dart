@@ -69,11 +69,29 @@ class ChallengeCard extends ConsumerWidget {
                   // Il premio in rosso, ed e' la cosa piu' grande della
                   // schermata. Se non lo fosse, questa sarebbe un'app di foto
                   // qualunque.
+                  // **Si rimpicciolisce invece di andare a capo.**
+                  //
+                  // "GRATIS" e' sei caratteri dove un premio ne ha due o tre:
+                  // dove ci sta "5 EUR" non ci sta la parola, e su Android —
+                  // caratteri piu' larghi, schermi piu' stretti — finiva
+                  // spezzata su due righe, con "GRA" sopra e "TIS" sotto.
+                  //
+                  // `BoxFit.scaleDown` non tocca niente finche' la riga ci
+                  // sta: le cifre restano grandi come sono sempre state, e
+                  // solo la parola lunga scende quel tanto che basta. Il
+                  // premio resta la cosa piu' grande della schermata, che e'
+                  // il punto di tutta questa riga.
                   Expanded(
-                    child: Text(
-                      challenge.prizeLabel,
-                      style: texts.displayLarge?.copyWith(
-                        color: palette.accent,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        challenge.prizeLabel,
+                        maxLines: 1,
+                        softWrap: false,
+                        style: texts.displayLarge?.copyWith(
+                          color: palette.accent,
+                        ),
                       ),
                     ),
                   ),

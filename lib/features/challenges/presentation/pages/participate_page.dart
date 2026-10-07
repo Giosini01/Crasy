@@ -496,9 +496,17 @@ class _Form extends StatelessWidget {
         AppSpacing.xxl,
       ),
       children: [
-        Text(
-          challenge.prizeLabel,
-          style: texts.displaySmall?.copyWith(color: palette.accent),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              challenge.prizeLabel,
+              maxLines: 1,
+              softWrap: false,
+              style: texts.displaySmall?.copyWith(color: palette.accent),
+            ),
+          ),
         ),
         const SizedBox(height: AppSpacing.xxs),
         Text(challenge.title.toUpperCase(), style: texts.headlineMedium),

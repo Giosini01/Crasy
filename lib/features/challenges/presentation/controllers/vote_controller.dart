@@ -405,7 +405,9 @@ Future<VoteOutcome> giveFire(
     intents.forget(voteKey);
 
     messenger?.showSnackBar(
-      const SnackBar(content: Text('Il tempo è scaduto: le fiamme sono chiuse.')),
+      const SnackBar(
+        content: Text('Il tempo è scaduto: le fiamme sono chiuse.'),
+      ),
     );
   }
 

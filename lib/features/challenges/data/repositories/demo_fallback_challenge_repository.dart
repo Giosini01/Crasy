@@ -232,11 +232,9 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
     required bool approved,
     ChallengeEntry? entry,
   }) {
-    return _forChallenge(challengeId).judgeDuel(
-      challengeId: challengeId,
-      approved: approved,
-      entry: entry,
-    );
+    return _forChallenge(
+      challengeId,
+    ).judgeDuel(challengeId: challengeId, approved: approved, entry: entry);
   }
 
   @override

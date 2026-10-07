@@ -96,10 +96,10 @@ abstract final class ChallengeMapper {
       'targetUsername': challenge.targetUsername,
       'duelMessage': challenge.duelMessage,
       'duelStatus': DuelStatus.pending.name,
+
       // Il verdetto non si scrive alla nascita: non c'e' niente da
       // giudicare finche' non c'e' una foto, e un campo vuoto e' piu'
       // onesto di un `none` scritto a mano.
-
       'respondedAt': null,
       // **Nasce sempre non pagata, qualunque cosa dica chi la crea.**
       //

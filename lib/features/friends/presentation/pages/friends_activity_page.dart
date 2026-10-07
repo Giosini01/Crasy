@@ -49,8 +49,18 @@ enum FriendActivityView {
   /// e quelle lanciate.
   personal('SFIDE PERSONALI'),
 
-  /// Le missioni fra amici ancora aperte, e quelle in cui tocca a me scegliere
-  /// chi ha vinto.
+  /// **Le missioni del party**: quelle lanciate al gruppo di amici, le loro e
+  /// le mie, piu' quelle in cui tocca a me scegliere chi ha vinto.
+  ///
+  /// Stavano dentro APERTE insieme alle gare pubbliche degli amici, mescolate.
+  /// Sono due cose che si guardano per motivi diversi — qui dentro ci sono le
+  /// missioni che **vedete soltanto voi**, e in APERTE quelle che ha lanciato un
+  /// amico ma puo' giocare chiunque — e in un elenco solo non si capiva quali
+  /// fossero le une e quali le altre.
+  group('SFIDE TRA AMICI'),
+
+  /// Le gare **pubbliche** lanciate dai tuoi amici: fuori dal party, aperte a
+  /// tutti, ma vale la pena vederle perche' le ha lanciate qualcuno che conosci.
   open('APERTE'),
 
   /// Com'e' finita.
@@ -143,7 +153,6 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
 
     bool daFare(Challenge challenge) => !fatte.contains(challenge.id);
 
-    final aperte = [...party, ...missions];
     final meId = ref.watch(currentUserIdProvider);
 
     // **Io contro uno.** Prima quelle a cui devo rispondere, poi quelle a cui
@@ -167,11 +176,23 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
           challenge,
     ];
 
+    // **Il party: solo le missioni riservate al gruppo.** Prima qui dentro
+    // finivano anche le gare pubbliche degli amici, e i due elenchi erano uno.
     final gruppo = <Challenge>[
       ...daScegliere,
-      for (final challenge in aperte)
+      for (final challenge in party)
         if (daFare(challenge)) challenge,
-      for (final challenge in aperte)
+      for (final challenge in party)
+        if (!daFare(challenge)) challenge,
+    ];
+
+    // **Fuori dal party: le gare pubbliche di chi conosci.** Stesso ordine —
+    // prima quelle a cui non hai ancora mandato niente, perche' sono le uniche
+    // su cui c'e' qualcosa da fare.
+    final fuoriDalParty = <Challenge>[
+      for (final challenge in missions)
+        if (daFare(challenge)) challenge,
+      for (final challenge in missions)
         if (!daFare(challenge)) challenge,
     ];
 
@@ -214,7 +235,8 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                     const SizedBox(height: AppSpacing.md),
                     _Switch(
                       personal: personali.length,
-                      open: gruppo.length,
+                      group: gruppo.length,
+                      open: fuoriDalParty.length,
                       done: finite.length + bocciate.length,
                       daRispondere: ref.watch(pendingDuelsCountProvider),
                     ),
@@ -232,6 +254,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                       view: view,
                       personali: personali,
                       gruppo: gruppo,
+                      fuoriDalParty: fuoriDalParty,
                       sent: sent,
                       closed: finite,
                       rejected: bocciate,
@@ -258,6 +281,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
     required FriendActivityView view,
     required List<Challenge> personali,
     required List<Challenge> gruppo,
+    required List<Challenge> fuoriDalParty,
     required List<Challenge> sent,
     required List<Challenge> closed,
     required List<Challenge> rejected,
@@ -292,19 +316,33 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
 
         return [for (final challenge in personali) riga(challenge)];
 
-      case FriendActivityView.open:
+      case FriendActivityView.group:
         if (gruppo.isEmpty) {
           return const [
             EmptyState(
-              title: 'Nessuna missione aperta',
+              title: 'Nessuna missione fra amici',
               message:
-                  'Lancia una missione ai tuoi amici: quando finisce, sei tu '
-                  'a scegliere chi ha vinto.',
+                  'Lancia una missione ai tuoi amici: la vedete soltanto voi, '
+                  'e quando finisce sei tu a scegliere chi ha vinto.',
             ),
           ];
         }
 
         return [for (final challenge in gruppo) riga(challenge)];
+
+      case FriendActivityView.open:
+        if (fuoriDalParty.isEmpty) {
+          return const [
+            EmptyState(
+              title: 'Nessuna gara dei tuoi amici',
+              message:
+                  'Qui finiscono le gare aperte a tutti lanciate da chi '
+                  'conosci. Quando un amico ne lancia una, la trovi qui.',
+            ),
+          ];
+        }
+
+        return [for (final challenge in fuoriDalParty) riga(challenge)];
 
       case FriendActivityView.done:
         if (closed.isEmpty && rejected.isEmpty) {
@@ -355,12 +393,14 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
 class _Switch extends ConsumerWidget {
   const _Switch({
     required this.personal,
+    required this.group,
     required this.open,
     required this.done,
     required this.daRispondere,
   });
 
   final int personal;
+  final int group;
   final int open;
   final int done;
 
@@ -375,12 +415,14 @@ class _Switch extends ConsumerWidget {
 
     int quante(FriendActivityView view) => switch (view) {
       FriendActivityView.personal => personal,
+      FriendActivityView.group => group,
       FriendActivityView.open => open,
       FriendActivityView.done => done,
     };
 
-    // Scorre di lato lo stesso: tre parole ci stanno su qualunque telefono, ma
-    // con il carattere ingrandito dalle impostazioni nessuna misura e' sicura.
+    // **Scorre di lato, e adesso serve davvero.** Con tre parole ci si stava
+    // quasi sempre; con quattro, di cui una e' "SFIDE TRA AMICI", su nessun
+    // telefono ci stanno tutte.
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(

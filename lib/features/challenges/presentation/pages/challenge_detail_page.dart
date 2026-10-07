@@ -214,10 +214,17 @@ class _Body extends ConsumerWidget {
       children: [
         Row(
           children: [
+            // Come sulla scheda: si rimpicciolisce invece di spezzarsi.
             Expanded(
-              child: Text(
-                challenge.prizeLabel,
-                style: texts.displayLarge?.copyWith(color: palette.accent),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  challenge.prizeLabel,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: texts.displayLarge?.copyWith(color: palette.accent),
+                ),
               ),
             ),
             // Come sulla scheda: al posto di GLOBAL, che c'era sempre e non
@@ -1556,7 +1563,9 @@ class _SoloJudgementState extends ConsumerState<_SoloJudgement> {
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Non siamo riusciti a salvarlo. Riprova.')),
+          const SnackBar(
+            content: Text('Non siamo riusciti a salvarlo. Riprova.'),
+          ),
         );
       }
     } finally {
@@ -1587,7 +1596,7 @@ class _SoloJudgementState extends ConsumerState<_SoloJudgement> {
               child: Text(
                 mio
                     ? 'Ha partecipato solo @${widget.entry.authorName}: decidi tu '
-                        'se ha vinto${ore == null ? '' : ' (hai ancora $ore ore)'}.'
+                          'se ha vinto${ore == null ? '' : ' (hai ancora $ore ore)'}.'
                     : 'Un solo partecipante: decide chi ha lanciato la missione.',
                 style: texts.bodySmall?.copyWith(color: palette.accent),
               ),
@@ -1667,7 +1676,9 @@ class _PickWinnerState extends ConsumerState<_PickWinner> {
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Non siamo riusciti a salvarlo. Riprova.')),
+          const SnackBar(
+            content: Text('Non siamo riusciti a salvarlo. Riprova.'),
+          ),
         );
       }
     } finally {
@@ -1866,11 +1877,7 @@ class _Schizzo {
 /// macchia incollata per sempre trasforma una battuta in una condanna — ogni
 /// volta che uno riapre quella missione se la ritrova addosso.
 class _SplatStorm extends StatelessWidget {
-  const _SplatStorm({
-    required this.userId,
-    required this.username,
-    super.key,
-  });
+  const _SplatStorm({required this.userId, required this.username, super.key});
 
   final String userId;
   final String username;
@@ -2154,9 +2161,10 @@ class _SchizziPainter extends CustomPainter {
     Color colore,
     int seme,
   ) {
-    final aperta = ((tempo - schizzo.parte - _SplatStormBodyState._volo) /
-            _SplatStormBodyState._apertura)
-        .clamp(0.0, 1.0);
+    final aperta =
+        ((tempo - schizzo.parte - _SplatStormBodyState._volo) /
+                _SplatStormBodyState._apertura)
+            .clamp(0.0, 1.0);
 
     // Un filo oltre e poi indietro: e' lo scatto che fa sembrare che sia
     // arrivata di forza invece di comparire.
@@ -2167,8 +2175,7 @@ class _SchizziPainter extends CustomPainter {
       return;
     }
 
-    final pennello = Paint()
-      ..color = colore.withValues(alpha: 0.92 * visibile);
+    final pennello = Paint()..color = colore.withValues(alpha: 0.92 * visibile);
 
     canvas.drawPath(_forma(dove, misura, seme), pennello);
 
@@ -2198,9 +2205,7 @@ class _SchizziPainter extends CustomPainter {
       final angolo = i / lati * math.pi * 2;
       final quanto = misura * (0.72 + _caso(seme, i) * 0.55);
 
-      punti.add(
-        centro + Offset(math.cos(angolo), math.sin(angolo)) * quanto,
-      );
+      punti.add(centro + Offset(math.cos(angolo), math.sin(angolo)) * quanto);
     }
 
     final path = Path()
@@ -2279,9 +2284,7 @@ class _DuelMessage extends StatelessWidget {
             userId: challenge.createdByUserId,
             text: '@${challenge.createdByUsername}',
             tickSize: 12,
-            style: context.texts.labelSmall?.copyWith(
-              color: palette.textFaint,
-            ),
+            style: context.texts.labelSmall?.copyWith(color: palette.textFaint),
           ),
         ],
       ),

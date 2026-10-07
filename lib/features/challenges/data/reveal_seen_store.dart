@@ -18,12 +18,14 @@ class RevealSeenStore {
 
   final FirebaseFirestore _firestore;
 
-  DocumentReference<Map<String, dynamic>> _doc(String userId, String challengeId) =>
-      _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('revealsSeen')
-          .doc(challengeId);
+  DocumentReference<Map<String, dynamic>> _doc(
+    String userId,
+    String challengeId,
+  ) => _firestore
+      .collection('users')
+      .doc(userId)
+      .collection('revealsSeen')
+      .doc(challengeId);
 
   /// Se questa persona ha gia' visto proclamare questa gara.
   ///
@@ -31,7 +33,10 @@ class RevealSeenStore {
   /// permessi — la scelta e' fra non mostrare un'animazione e mostrarla a
   /// qualcuno che l'ha gia' vista, magari sopra la classifica che stava
   /// leggendo. La prima si perde, la seconda da' fastidio.
-  Future<bool> seen({required String userId, required String challengeId}) async {
+  Future<bool> seen({
+    required String userId,
+    required String challengeId,
+  }) async {
     if (userId.isEmpty || challengeId.isEmpty) {
       return true;
     }
@@ -102,9 +107,10 @@ class RevealSeenStore {
     }
 
     try {
-      await _doc(userId, challengeId).set({
-        'seenAt': FieldValue.serverTimestamp(),
-      });
+      await _doc(
+        userId,
+        challengeId,
+      ).set({'seenAt': FieldValue.serverTimestamp()});
     } on Object catch (_) {
       // Se non si riesce a scrivere, il rullo si rivedra' una volta di troppo.
       // E' il tipo di guasto che non merita di far fallire niente.

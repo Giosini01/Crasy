@@ -251,17 +251,23 @@ class _CommentsSheetState extends ConsumerState<_CommentsSheet> {
               ),
               const SizedBox(height: AppSpacing.md),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.page,
+                ),
                 child: Row(
                   children: [
                     Text(
                       'COMMENTI',
-                      style: texts.labelSmall?.copyWith(color: palette.textFaint),
+                      style: texts.labelSmall?.copyWith(
+                        color: palette.textFaint,
+                      ),
                     ),
                     const Spacer(),
                     Text(
                       '${commenti.length}',
-                      style: texts.labelSmall?.copyWith(color: palette.textFaint),
+                      style: texts.labelSmall?.copyWith(
+                        color: palette.textFaint,
+                      ),
                     ),
                   ],
                 ),

@@ -84,9 +84,15 @@ class _WinnerBlock extends ConsumerWidget {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  challenge.prizeLabel,
-                  style: texts.displayMedium?.copyWith(color: palette.accent),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    challenge.prizeLabel,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: texts.displayMedium?.copyWith(color: palette.accent),
+                  ),
                 ),
               ),
               Text(

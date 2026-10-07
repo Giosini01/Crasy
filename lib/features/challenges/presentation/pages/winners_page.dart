@@ -79,7 +79,8 @@ class WinnersPage extends ConsumerWidget {
     final view = ref.watch(trendViewProvider);
     final chiuse = challenges.valueOrNull ?? const <Challenge>[];
     final trovati =
-        ref.watch(_accountVetrinaProvider).valueOrNull ?? const <String, String>{};
+        ref.watch(_accountVetrinaProvider).valueOrNull ??
+        const <String, String>{};
     final vetrina = ref.watch(classificaVetrinaProvider);
 
     return Scaffold(
@@ -167,6 +168,7 @@ enum TrendView {
 
   final String label;
 }
+
 /// I tre metalli, ognuno con la sua faccia: il fronte, il piano di sopra, il
 /// fianco in ombra e il colore del numero.
 ///
@@ -244,11 +246,7 @@ class _Podio extends StatelessWidget {
   Widget build(BuildContext context) {
     // Sotto i tre, un podio non e' un podio: con due gradini il terzo posto
     // vuoto si legge come un errore di caricamento. Si mostra quello che c'e'.
-    final posti = <int>[
-      if (righe.length > 1) 1,
-      0,
-      if (righe.length > 2) 2,
-    ];
+    final posti = <int>[if (righe.length > 1) 1, 0, if (righe.length > 2) 2];
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -502,8 +500,9 @@ class _RigaClassifica extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
     final texts = context.texts;
-    final sonoIo = riga.userId.isNotEmpty
-        && riga.userId == ref.watch(currentUserIdProvider);
+    final sonoIo =
+        riga.userId.isNotEmpty &&
+        riga.userId == ref.watch(currentUserIdProvider);
 
     return GestureDetector(
       onTap: riga.userId.isEmpty
@@ -560,7 +559,9 @@ class _RigaClassifica extends ConsumerWidget {
                 children: [
                   TickedName(
                     userId: riga.userId,
-                    text: sonoIo ? '@${riga.username} · tu' : '@${riga.username}',
+                    text: sonoIo
+                        ? '@${riga.username} · tu'
+                        : '@${riga.username}',
                     tickSize: 12,
                     style: texts.labelMedium?.copyWith(
                       color: palette.textPrimary,
