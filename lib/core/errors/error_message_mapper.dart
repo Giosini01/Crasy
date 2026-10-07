@@ -2,6 +2,7 @@ import 'package:crasy/features/challenges/data/repositories/firestore_challenge_
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/presentation/controllers/participation_controller.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 abstract final class ErrorMessageMapper {
   static String map(Object error) {
@@ -32,7 +33,28 @@ abstract final class ErrorMessageMapper {
       return _mapFirebaseError(error);
     }
 
-    return 'Si e verificato un problema. Riprova tra poco.';
+    // **Il nome dell'errore, scritto in fondo al messaggio.**
+    //
+    // Qui arriva solo quello che nessun ramo qui sopra ha saputo riconoscere, e
+    // per questo e' il caso piu' difficile da capire: "si e' verificato un
+    // problema" e' esattamente la frase che non dice niente a nessuno — ne' a
+    // chi la legge ne' a chi dovrebbe ripararla. Sei persone che provano l'app
+    // riferiscono tutte la stessa identica frase, e quella frase puo' voler dire
+    // dieci guasti diversi.
+    //
+    // **Non e' un errore mostrato male: e' un errore mostrato senza nome.** Un
+    // rifiuto del database, per dire, non passa mai di qui — ha il suo messaggio
+    // apposta. Arrivarci vuol dire che e' successo qualcos'altro, e il tipo
+    // dell'eccezione e' l'unica parola che restringe il campo.
+    //
+    // Finche' CRASY e' in prova — c'e' scritto BETA accanto al marchio — quella
+    // parola vale piu' della pulizia di una schermata: trasforma "si e' rotto"
+    // in una segnalazione su cui si puo' lavorare. **Va tolta il giorno che
+    // l'app esce**, insieme alla scritta BETA.
+    debugPrint('CRASY: errore non riconosciuto — $error');
+
+    return 'Si e verificato un problema. Riprova tra poco. '
+        '(${error.runtimeType})';
   }
 
   static String _mapAuthError(FirebaseAuthException error) {
