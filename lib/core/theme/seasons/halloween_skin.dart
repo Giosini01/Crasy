@@ -94,12 +94,12 @@ class HalloweenSkin extends SeasonSkin {
   /// **Una ragnatela nell'angolo della missione, e a volte il suo ragno.**
   ///
   /// In alto a destra, ancorata al vertice del blocco come se continuasse oltre
-  /// il bordo. Una missione su due ha anche il ragno appeso al suo filo: tutte
-  /// con il ragno sarebbe una fila di ragni uguali, e smetterebbe di far
-  /// sobbalzare.
+  /// il bordo. Una missione su quattro ha anche il ragno, fermo, appeso al suo
+  /// filo: le altre hanno la tela vuota. Tutte con il ragno sarebbe una fila di
+  /// ragni uguali, e smetterebbe di far sobbalzare.
   @override
   Widget decoraMissione(Widget missione, {required String seme}) {
-    final ragno = _sorte(seme).isEven;
+    final ragno = _sorte(seme) % 4 == 0;
 
     return Stack(
       // **La larghezza di chi sta fuori, non quella del testo.** Con quella
@@ -225,9 +225,6 @@ class _VivoState extends State<_Vivo> with SingleTickerProviderStateMixin {
   }
 }
 
-/// Su e giu', da 0 a 1 e ritorno, senza scatti alle estremita'.
-double _saliscendi(double t) => 0.5 - 0.5 * math.cos(2 * math.pi * t);
-
 /// Disegna ruotando di [angolo] attorno a [perno]: e' cosi' che una tela
 /// appesa a un angolo ondeggia, imperniata dove e' attaccata.
 void _ondeggiando(
@@ -245,19 +242,20 @@ void _ondeggiando(
   canvas.restore();
 }
 
-/// Un ragno appeso: il filo da [attacco] lungo [lunghezza], e lui in fondo
-/// che dondola appena di lato.
+/// Un ragno appeso: il filo da [attacco] lungo [lunghezza], e lui in fondo.
+///
+/// **Fermo.** Si e' provato a farlo scendere e risalire, e dava fastidio: un
+/// ragno che va avanti e indietro in un angolo tira l'occhio di continuo. Si
+/// muovono le tele, piano; i ragni stanno dove sono.
 void _ragnoAppeso(
   Canvas canvas,
   Offset attacco,
   double lunghezza,
   double misura,
-  double t,
   Color filo,
   Color corpo,
 ) {
-  final dondolo = math.sin(2 * math.pi * t * 3) * misura * 0.35;
-  final fondo = attacco + Offset(dondolo, lunghezza);
+  final fondo = attacco + Offset(0, lunghezza);
 
   canvas.drawLine(attacco, fondo, _filo(filo, 1));
   _Ragno(
@@ -355,17 +353,15 @@ class _RagnatelaMissione extends CustomPainter {
       return;
     }
 
-    // **Il ragno scende e risale.** Da appena sotto la tela fino in fondo al
-    // riquadro, e su di nuovo: e' il movimento che fa girare l'occhio.
+    // Il ragno, fermo a meta' del suo filo.
     final attacco = angolo + Offset(-raggio * 0.5, raggio * 0.5);
     final corsa = size.height - 20 - attacco.dy;
 
     _ragnoAppeso(
       canvas,
       attacco,
-      corsa * (0.15 + 0.85 * _saliscendi(t)),
+      corsa * 0.55,
       7,
-      t,
       _inchiostro,
       const Color(0x8C0A0A0B),
     );
@@ -647,26 +643,16 @@ class _RagnatelePagina extends CustomPainter {
       () => _quarto(canvas, destra, lato * 0.22, math.pi / 2, penna),
     );
 
-    // **Due ragni che fanno su e giu'**, uno per tela e mai insieme: quello
-    // grande scende lento fin sotto la barra in alto, quello piccolo fa due
-    // corse brevi nello stesso tempo.
+    // **Un ragno solo, fermo, sotto la tela grande.** Quella piccola a destra
+    // resta vuota: un ragno su ogni tela diventa una regola, e smette di
+    // sorprendere.
     _ragnoAppeso(
       canvas,
       Offset(lato * 0.2, lato * 0.24),
-      lato * (0.04 + 0.26 * _saliscendi(t)),
+      lato * 0.14,
       6,
-      t,
       _inchiostro,
       const Color(0x400A0A0B),
-    );
-    _ragnoAppeso(
-      canvas,
-      Offset(size.width - lato * 0.12, lato * 0.15),
-      lato * (0.02 + 0.12 * _saliscendi(t * 2 + 0.5)),
-      4.5,
-      t + 0.37,
-      _inchiostro,
-      const Color(0x380A0A0B),
     );
   }
 
