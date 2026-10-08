@@ -48,9 +48,7 @@ class _WalletPageState extends ConsumerState<WalletPage> {
     final dati = ref.read(payoutDetailsProvider).valueOrNull;
 
     if (dati == null || !dati.isComplete) {
-      final fatto = await Navigator.of(
-        context,
-      ).push<bool>(
+      final fatto = await Navigator.of(context).push<bool>(
         MaterialPageRoute(builder: (_) => const PayoutDetailsPage()),
       );
 
@@ -210,7 +208,9 @@ class _WalletPageState extends ConsumerState<WalletPage> {
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       AppMoney.format(balance),
-                      style: texts.displayLarge?.copyWith(color: palette.accent),
+                      style: texts.displayLarge?.copyWith(
+                        color: palette.accent,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(

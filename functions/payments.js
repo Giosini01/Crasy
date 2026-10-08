@@ -1282,6 +1282,144 @@ module.exports.chargeCents = chargeCents;
  * vuol dire *sono tuoi, sono in viaggio, non li puoi chiedere due volte*. E'
  * la stessa riga che impedisce a chi preme due volte di farsi pagare due volte.
  */
+/**
+ * **Pagare il premio con i soldi che si hanno gia' su CRASY.**
+ *
+ * Chi ha vinto qualcosa ha un saldo nel portafoglio, e finora quel saldo sapeva
+ * fare una cosa sola: uscire con un bonifico. Ma la cosa piu' naturale da fare
+ * con dei soldi vinti su CRASY e' rimetterli in gioco su CRASY — e per farlo
+ * bisognava prelevarli, aspettare giorni, e poi ripagare con la carta. Per un
+ * euro.
+ *
+ * **Costa meno che pagare con la carta, e non e' uno sconto.** Con Stripe chi
+ * lancia paga `chargeCents` — il premio piu' le commissioni dell'incasso, che
+ * esistono perche' del denaro entra davvero. Qui non entra niente: quei soldi
+ * sono gia' nostri, fermi nello stesso conto da cui usciranno per il vincitore.
+ * Non c'e' nessuna commissione da coprire, quindi si addebita il premio e
+ * basta. La trattenuta del dieci per cento sul premio resta: quella sta
+ * dall'altra parte, al momento della vittoria, e non cambia da dove arrivano i
+ * soldi.
+ *
+ * ## Una transazione sola, e deve esserlo
+ *
+ * Scalare il portafoglio e accendere la gara sono due scritture, e in mezzo c'e'
+ * tutto quello che puo' andare storto: una funzione che muore, la rete che
+ * cade. Fatte separatamente, il caso peggiore non e' un errore — e' **soldi
+ * tolti a qualcuno per una gara che non si e' mai aperta**, e nessuno se ne
+ * accorgerebbe se non lui.
+ *
+ * Dentro una transazione le due cose succedono tutte e due o nessuna delle due.
+ *
+ * ## E non si paga due volte
+ *
+ * Il controllo su `prizeStatus` sta **dentro** la transazione, dopo aver riletto
+ * la gara: due tocchi rapidi sul tasto leggerebbero entrambi un saldo buono
+ * prima che l'altro scriva, e scalerebbero il premio due volte per una gara
+ * sola. Riletta li' dentro, la seconda trova `held` e si ferma.
+ */
+exports.payChallengeFromWallet = onCall(async (request) => {
+  const userId = request.auth && request.auth.uid;
+
+  if (!userId) {
+    throw new HttpsError('unauthenticated', 'Serve un account.');
+  }
+
+  const challengeId = String((request.data && request.data.challengeId) || '');
+
+  if (!challengeId) {
+    throw new HttpsError('invalid-argument', 'Manca la challenge.');
+  }
+
+  const userRef = db.collection('users').doc(userId);
+  const challengeRef = db.collection('challenges').doc(challengeId);
+  const movimentoRef = userRef.collection('wallet').doc();
+
+  const esito = await db.runTransaction(async (transaction) => {
+    const [gara, utente] = await Promise.all([
+      transaction.get(challengeRef),
+      transaction.get(userRef),
+    ]);
+
+    if (!gara.exists) {
+      return { ok: false, reason: 'gara-sparita' };
+    }
+
+    // **Paga chi l'ha lanciata, e nessun altro.** Senza questo, chiunque
+    // conosca l'identificativo di una gara potrebbe pagarla col proprio
+    // portafoglio — che sembra un regalo, ed e' invece il modo di svuotare il
+    // saldo di qualcuno con una chiamata.
+    if (gara.get('createdByUserId') !== userId) {
+      return { ok: false, reason: 'non-tua' };
+    }
+
+    const premio = gara.get('prizeCents') || 0;
+
+    if (premio <= 0) {
+      return { ok: false, reason: 'gratis' };
+    }
+
+    const stato = gara.get('prizeStatus');
+
+    if (stato === 'held' || stato === 'paidOut') {
+      // Gia' pagata: si risponde di si' senza toccare niente. E' il secondo
+      // tocco sul tasto, e deve finire bene — non con un errore su una cosa
+      // che e' andata a buon fine.
+      return { ok: true, giaPagata: true };
+    }
+
+    const saldo = utente.get('walletCents') || 0;
+
+    if (saldo < premio) {
+      return { ok: false, reason: 'saldo-basso', walletCents: saldo };
+    }
+
+    // L'orologio della gara riparte adesso, come fa il webhook di Stripe: una
+    // gara comincia quando il premio c'e', non quando e' stata scritta.
+    const adesso = admin.firestore.Timestamp.now();
+    const startsAt = gara.get('startsAt');
+    const endsAt = gara.get('endsAt');
+    const durataMs =
+      startsAt && endsAt ? endsAt.toMillis() - startsAt.toMillis() : 0;
+    const durata = durataMs >= 60 * 1000 ? durataMs : 60 * 60 * 1000;
+
+    transaction.update(userRef, {
+      walletCents: admin.firestore.FieldValue.increment(-premio),
+    });
+
+    transaction.update(challengeRef, {
+      prizeStatus: 'held',
+      paidAt: adesso,
+      // **Scritto dentro la gara che e' stata pagata col portafoglio.** Non
+      // serve all'app: serve a chi un giorno dovra' far tornare i conti, e
+      // trovera' una gara pagata senza nessun incasso corrispondente su Stripe.
+      paidFromWallet: true,
+      startsAt: adesso,
+      endsAt: admin.firestore.Timestamp.fromMillis(
+        adesso.toMillis() + durata
+      ),
+    });
+
+    // La riga nel portafoglio: senza, il saldo cala e non c'e' scritto perche'.
+    transaction.set(movimentoRef, {
+      kind: 'challengePayment',
+      amountCents: -premio,
+      challengeId,
+      challengeTitle: gara.get('title') || '',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return { ok: true, amountCents: premio };
+  });
+
+  if (esito.ok) {
+    logger.info(
+      `${userId} ha pagato la challenge ${challengeId} col portafoglio.`
+    );
+  }
+
+  return esito;
+});
+
 exports.requestPayout = onCall(async (request) => {
   const userId = request.auth && request.auth.uid;
 

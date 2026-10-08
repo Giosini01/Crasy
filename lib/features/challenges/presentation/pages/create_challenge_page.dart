@@ -17,6 +17,7 @@ import 'package:crasy/features/challenges/presentation/controllers/create_challe
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 import 'package:crasy/features/payments/domain/prize_ledger.dart';
 import 'package:crasy/features/payments/presentation/providers/payments_providers.dart';
+import 'package:crasy/features/payments/presentation/widgets/pay_choice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -595,6 +596,74 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     // fra amici e' visibile da subito, e mandarla a Stripe con zero euro
     // voleva dire un rifiuto del server e una gara bloccata a meta'.
     if (paymentsEnabled && prizeCents > 0) {
+      // **Se i soldi ce li hai gia' su CRASY, si puo' pagare con quelli.**
+      //
+      // La cosa piu' naturale da fare con un premio vinto e' rimetterlo in
+      // gioco, e finora per farlo bisognava prelevarlo, aspettare giorni e
+      // ripagare con la carta. Per un euro.
+      //
+      // Si chiede, non si prende: il portafoglio e' denaro che sta aspettando
+      // di uscire sul conto, e un pagamento che se lo prende da solo e' una
+      // sorpresa — l'unico tipo di sorpresa che con i soldi non si fa.
+      //
+      // La domanda compare solo se il saldo copre davvero il premio: due strade
+      // di cui una impraticabile sono una scelta in meno di quante sembrano.
+      final saldo = ref.read(walletBalanceProvider);
+
+      if (saldo >= prizeCents) {
+        final scelta = await chiediComePagare(
+          context,
+          premioCents: prizeCents,
+          saldoCents: saldo,
+          conLaCartaCents: PrizeLedger.chargeCents(prizeCents),
+        );
+
+        if (!mounted) {
+          return;
+        }
+
+        // Chiuso il foglio senza scegliere: la gara resta salvata e non pagata,
+        // com'era un attimo fa. Non e' un errore e non si dice niente.
+        if (scelta == null) {
+          return;
+        }
+
+        if (scelta == PayChoice.portafoglio) {
+          final esito = await ref
+              .read(paymentsServiceProvider)
+              .payChallengeFromWallet(challengeId);
+
+          if (!mounted) {
+            return;
+          }
+
+          if (!esito.pagata) {
+            setState(() {
+              _error = esito.saldoBasso
+                  // Fra l'apertura del foglio e il tocco puo' essere partito un
+                  // prelievo: il saldo di un attimo fa non e' una promessa.
+                  ? "Il portafoglio non basta più. La challenge è "
+                        "salvata: riprova, o paga con la carta."
+                  : 'Non siamo riusciti a pagare dal portafoglio. La challenge '
+                        'è salvata: riprova fra poco.';
+            });
+
+            return;
+          }
+
+          // **Qui si atterra sulla gara, al contrario che con la carta.**
+          //
+          // Con Stripe si torna indietro, perche' la gara non e' visibile
+          // finche' il pagamento non arriva e mandare qualcuno su una pagina
+          // vuota dopo avergli chiesto dei soldi e' il modo migliore di fargli
+          // credere di essere stato truffato. Dal portafoglio il premio e' gia'
+          // dentro e la gara e' gia' aperta: e' la prova che e' andata bene.
+          context.pushReplacement(AppRoutes.challengeDetailOf(challengeId));
+
+          return;
+        }
+      }
+
       // **Un errore del server va detto, non inghiottito.** Senza questo
       // `try` un rifiuto di `startChallengePayment` si perdeva per strada: il
       // bottone tornava com'era, Stripe non si apriva e sullo schermo non

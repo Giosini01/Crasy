@@ -259,6 +259,7 @@ exports.stripeWebhook = payments.stripeWebhook;
 exports.createPayoutOnboarding = payments.createPayoutOnboarding;
 exports.withdrawWallet = payments.withdrawWallet;
 exports.requestPayout = payments.requestPayout;
+exports.payChallengeFromWallet = payments.payChallengeFromWallet;
 exports.adminListPayouts = payments.adminListPayouts;
 exports.adminMarkPayoutPaid = payments.adminMarkPayoutPaid;
 exports.cancelChallenge = payments.cancelChallenge;

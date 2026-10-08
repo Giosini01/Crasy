@@ -46,6 +46,35 @@ class PaymentsService {
   /// passo di questi e pochi per la pazienza di chi aspetta.
   static const _pazienza = Duration(seconds: 10);
 
+  /// **Paga il premio con il saldo del portafoglio.**
+  ///
+  /// Torna `true` se la gara e' aperta — anche quando era gia' pagata, perche'
+  /// il secondo tocco su un tasto deve finire bene come il primo.
+  ///
+  /// `saldoBasso` dice l'unico "no" che non e' un guasto: i soldi non bastano.
+  /// Gli altri motivi — la gara non e' tua, non c'e' piu', e' gratis — sono
+  /// casi che l'app non dovrebbe nemmeno riuscire a produrre, e se succede e'
+  /// un difetto nostro, non una cosa da spiegare a chi guarda.
+  Future<({bool pagata, bool saldoBasso})> payChallengeFromWallet(
+    String challengeId,
+  ) async {
+    try {
+      final risposta = await _functions
+          .httpsCallable('payChallengeFromWallet')
+          .call<Map<String, dynamic>>({'challengeId': challengeId})
+          .timeout(_pazienza);
+
+      final dati = risposta.data;
+
+      return (
+        pagata: dati['ok'] == true,
+        saldoBasso: dati['reason'] == 'saldo-basso',
+      );
+    } on Object {
+      return (pagata: false, saldoBasso: false);
+    }
+  }
+
   Future<bool> payChallenge(
     String challengeId, {
     void Function(String passo)? passo,
@@ -276,10 +305,7 @@ class PaymentsService {
                 icon: AppColors.inkSoft,
                 error: AppColors.crasyRed,
               ),
-              shapes: PaymentSheetShape(
-                borderRadius: 12,
-                borderWidth: 1,
-              ),
+              shapes: PaymentSheetShape(borderRadius: 12, borderWidth: 1),
               primaryButton: PaymentSheetPrimaryButtonAppearance(
                 colors: PaymentSheetPrimaryButtonTheme(
                   light: PaymentSheetPrimaryButtonThemeColors(

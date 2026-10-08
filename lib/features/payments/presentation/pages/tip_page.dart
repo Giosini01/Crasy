@@ -61,7 +61,9 @@ class _TipPageState extends ConsumerState<TipPage> {
     }
 
     if (chi.isEmpty) {
-      setState(() => _errore = 'Scrivi il nome utente di chi riceve la spunta.');
+      setState(
+        () => _errore = 'Scrivi il nome utente di chi riceve la spunta.',
+      );
 
       return;
     }
@@ -155,7 +157,10 @@ class _TipPageState extends ConsumerState<TipPage> {
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
-            Text('QUANTO', style: texts.labelSmall?.copyWith(color: palette.textFaint)),
+            Text(
+              'QUANTO',
+              style: texts.labelSmall?.copyWith(color: palette.textFaint),
+            ),
             const SizedBox(height: AppSpacing.xs),
             Wrap(
               spacing: AppSpacing.xs,
@@ -208,7 +213,10 @@ class _TipPageState extends ConsumerState<TipPage> {
             ],
             if (_errore != null) ...[
               const SizedBox(height: AppSpacing.md),
-              Text(_errore!, style: texts.bodySmall?.copyWith(color: palette.accent)),
+              Text(
+                _errore!,
+                style: texts.bodySmall?.copyWith(color: palette.accent),
+              ),
             ],
             const SizedBox(height: AppSpacing.xl),
             CrasyButton(

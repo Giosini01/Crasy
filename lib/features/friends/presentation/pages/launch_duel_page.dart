@@ -18,7 +18,9 @@ import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
+import 'package:crasy/features/payments/domain/prize_ledger.dart';
 import 'package:crasy/features/payments/presentation/providers/payments_providers.dart';
+import 'package:crasy/features/payments/presentation/widgets/pay_choice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -326,6 +328,36 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
     }
 
     try {
+      // **Col saldo che si ha gia', se basta.** Sfidare un amico per un euro e'
+      // il caso piu' probabile di tutti, ed e' anche quello in cui passare
+      // dalla carta per un euro ha meno senso: le commissioni dell'incasso su
+      // una cifra cosi' pesano quanto la cifra.
+      final premio = AppMoney.centsFrom(_prize.text) ?? 0;
+      final saldo = ref.read(walletBalanceProvider);
+
+      if (premio > 0 && saldo >= premio && mounted) {
+        final scelta = await chiediComePagare(
+          context,
+          premioCents: premio,
+          saldoCents: saldo,
+          conLaCartaCents: PrizeLedger.chargeCents(premio),
+        );
+
+        if (scelta == null) {
+          // Chiuso senza scegliere: la sfida resta salvata e non pagata, e il
+          // tasto qui sotto dira' "Paga il premio".
+          return false;
+        }
+
+        if (scelta == PayChoice.portafoglio) {
+          final esito = await ref
+              .read(paymentsServiceProvider)
+              .payChallengeFromWallet(challengeId);
+
+          return esito.pagata;
+        }
+      }
+
       return await ref
           .read(paymentsServiceProvider)
           .payChallenge(challengeId, returnRoute: AppRoutes.friendsActivity);
