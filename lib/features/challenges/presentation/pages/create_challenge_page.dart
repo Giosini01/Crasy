@@ -767,14 +767,15 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
 /// dalla carta, quanto arriva a chi vince, quanto tiene CRASY. La terza in
 /// particolare: una piattaforma che non dice quanto si prende la fa sembrare
 /// piu' di quanto sia.
-class _PaymentSummary extends StatelessWidget {
+class _PaymentSummary extends ConsumerWidget {
   const _PaymentSummary({required this.prize});
 
   final TextEditingController prize;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
+    final saldo = ref.watch(walletBalanceProvider);
 
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: prize,
@@ -811,6 +812,37 @@ class _PaymentSummary extends StatelessWidget {
                 label: 'Commissioni banca',
                 value: AppMoney.format(PrizeLedger.processingFeeCents(cents)),
               ),
+              // **Il portafoglio si dice qui, non al momento di pagare.**
+              //
+              // La scelta fra carta e portafoglio compare dopo, quando si
+              // preme il tasto — ed era l'unico posto in cui compariva. Chi non
+              // arriva in fondo non sa nemmeno che si puo' fare, e chi ci
+              // arriva se la trova addosso senza averci pensato. Il momento in
+              // cui serve saperlo e' **mentre si sceglie la cifra**: e' li' che
+              // uno decide quanto mettere, e sapere di avere un euro gia'
+              // dentro cambia la decisione.
+              //
+              // Compare solo se il saldo copre il premio, come il foglio dopo:
+              // scriverlo quando non basta vorrebbe dire annunciare una strada
+              // che poi non si apre.
+              if (saldo >= cents) ...[
+                const SizedBox(height: AppSpacing.xs),
+                _SummaryRow(
+                  label: 'Oppure dal portafoglio',
+                  value: AppMoney.format(cents),
+                  accent: true,
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Hai ${AppMoney.format(saldo)}: pagando da lì non ci sono '
+                    'commissioni, e te lo chiediamo prima di toccarli.',
+                    style: context.texts.bodySmall?.copyWith(
+                      color: palette.textFaint,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSpacing.sm),
               Divider(color: palette.line),
               const SizedBox(height: AppSpacing.md),
@@ -827,17 +859,25 @@ class _SummaryRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.strong = false,
+    this.accent = false,
   });
 
   final String label;
   final String value;
   final bool strong;
 
+  /// La riga in rosso: la usa il portafoglio, che non e' un costo in piu' ma
+  /// **un'altra strada** per lo stesso. In grigio come le altre si leggerebbe
+  /// come una quarta voce del conto, cioe' come altri soldi da tirare fuori.
+  final bool accent;
+
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
     final texts = context.texts;
-    final style = strong
+    final style = accent
+        ? texts.titleMedium?.copyWith(color: palette.accent)
+        : strong
         ? texts.titleMedium
         : texts.bodySmall?.copyWith(color: palette.textSecondary);
 
