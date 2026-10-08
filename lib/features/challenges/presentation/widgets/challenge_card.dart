@@ -120,12 +120,7 @@ class ChallengeCard extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
-                // Di stagione il titolo cambia carattere: a ottobre, lettere
-                // che colano.
-                Text(
-                  challenge.title.toUpperCase(),
-                  style: context.stagione.titolo(texts.displayMedium),
-                ),
+                Text(challenge.title.toUpperCase(), style: texts.displayMedium),
                 if (challenge.brief.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.xs),
                   // La consegna, non un riassunto: due righe bastano a dire cosa

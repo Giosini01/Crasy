@@ -236,13 +236,9 @@ class _Body extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.md),
-        // Di stagione: il titolo con le lettere della stagione, e una
-        // ragnatela che gli pende nell'angolo.
+        // Di stagione, una ragnatela che pende nell'angolo del titolo.
         context.stagione.decoraMissione(
-          Text(
-            challenge.title.toUpperCase(),
-            style: context.stagione.titolo(texts.displaySmall),
-          ),
+          Text(challenge.title.toUpperCase(), style: texts.displaySmall),
           seme: challenge.id,
         ),
         // **Chi ha sfidato chi, e a che punto siamo.** Su una sfida mirata e'

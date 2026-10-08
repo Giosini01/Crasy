@@ -159,13 +159,6 @@ void main() {
       }
     });
 
-    test('a ottobre il titolo della missione ha le lettere horror', () {
-      final pelle = SeasonSkin.perStagione(Season.halloween);
-
-      expect(pelle.titolo(const TextStyle())?.fontFamily, 'Creepster');
-      expect(SeasonSkin.nessuna.titolo(null), isNull);
-    });
-
     testWidgets('il tasto decorato resta un tasto che si preme', (
       tester,
     ) async {
