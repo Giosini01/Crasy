@@ -74,6 +74,20 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
   /// volta l'anteprima non c'era ancora, la seconda si'.
   bool _fotocameraAperta = false;
 
+  /// **Si sta preparando quello che e' stato appena scelto.**
+  ///
+  /// Copre tutto il tratto fra il tocco su "scegli un video" e l'anteprima
+  /// pronta: la galleria che si apre, il file che si legge, la durata che si
+  /// misura, la compressione. Su un video dalla galleria e' la parte lunga —
+  /// decine di megabyte, anche mezzo minuto — e finora a schermo non succedeva
+  /// niente.
+  ///
+  /// **E' separato da `_fotocameraAperta`** anche se oggi vanno insieme: quello
+  /// dice "spegni l'anteprima, il microfono serve altrove", questo dice "non
+  /// toccare niente, sto lavorando". Due significati nella stessa variabile
+  /// sono due significati che prima o poi divergono.
+  bool _preparando = false;
+
   @override
   void dispose() {
     _caption.dispose();
@@ -86,8 +100,23 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
     final submitting = ref.watch(participationControllerProvider).isLoading;
     final myEntry = ref.watch(myEntryForChallengeProvider(widget.challengeId));
 
+    // **Mentre si lavora non si esce.**
+    //
+    // Il velo copre il corpo della schermata ma non la barra in alto: la
+    // freccia indietro restava premibile sopra di esso, ed era l'unico modo di
+    // uscire proprio nel momento in cui non si deve — con un video da
+    // sessanta megabyte a meta' strada, o una partecipazione a meta' invio.
+    //
+    // Sparisce invece di diventare grigia: una freccia spenta si prova lo
+    // stesso, e chi la preme senza che succeda niente pensa che l'app sia
+    // bloccata. Una freccia che non c'e' non si prova.
+    final occupato = submitting || _preparando;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Partecipa')),
+      appBar: AppBar(
+        title: const Text('Partecipa'),
+        automaticallyImplyLeading: !occupato,
+      ),
       body: Stack(
         children: [
           AppBackground(
@@ -176,7 +205,12 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
           // la schermata sembrava ferma. Chi non vede niente succedere ripreme,
           // e ripremere qui vuol dire bruciare una seconda partecipazione sulla
           // stessa gara.
-          if (submitting) const Positioned.fill(child: FlameWaiting()),
+          // Il velo copre anche la **preparazione**, non solo l'invio. Scelto
+          // un video dalla galleria, fra il tocco e l'anteprima passa tutto il
+          // lavoro pesante — leggerlo, misurarlo, comprimerlo — e un video da
+          // mezzo minuto ci mette quanto l'invio. Senza niente a schermo quella
+          // e' un'app ferma: si ritocca, si torna indietro, si chiude.
+          if (occupato) const Positioned.fill(child: FlameWaiting()),
         ],
       ),
     );
@@ -188,6 +222,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
     setState(() {
       _error = null;
       _fotocameraAperta = true;
+      _preparando = true;
     });
 
     final kind = challenge.mediaKind;
@@ -243,7 +278,10 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
       }
     } finally {
       if (mounted) {
-        setState(() => _fotocameraAperta = false);
+        setState(() {
+          _fotocameraAperta = false;
+          _preparando = false;
+        });
       }
     }
   }
