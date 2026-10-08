@@ -148,6 +148,10 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
       userId: userId,
       authorName: authorName,
       bytes: bytes,
+      // **Senza questa riga nessun video arrivava a destinazione.** Un video
+      // viaggia come percorso, con i byte vuoti per costruzione: perso il
+      // percorso qui, dall'altra parte restava niente da mandare.
+      filePath: filePath,
       mediaKind: mediaKind,
       contentType: contentType,
       caption: caption,

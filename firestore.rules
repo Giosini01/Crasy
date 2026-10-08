@@ -152,6 +152,16 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // **La versione minima dell'app: la legge chiunque, anche senza accesso.**
+    //
+    // Il muro dell'aggiornamento deve comparire prima del login: chi ha una
+    // versione troppo vecchia potrebbe non riuscire nemmeno ad accedere. Si
+    // scrive solo dalla console.
+    match /config/{documento} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Il profilo.
     //
     // **Lo legge chiunque abbia fatto l'accesso, lo scrive solo il diretto

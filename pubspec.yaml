@@ -38,6 +38,8 @@ dependencies:
   # browser. Le carte le prende il codice di Stripe, non il nostro.
   flutter_stripe: ^11.4.0
   flutter_contacts: ^2.5.0
+  # Il numero della build installata, per sapere se c'e' da aggiornare.
+  package_info_plus: ^10.2.2
 
 dev_dependencies:
   flutter_test:

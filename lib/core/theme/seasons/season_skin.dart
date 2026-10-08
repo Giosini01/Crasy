@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 
 /// **Quello che una stagione ha il permesso di cambiare.**
 ///
-/// Tre cose, e sono poche di proposito: il segno della schermata d'apertura, il
-/// segno dell'attesa, e un velo sopra la pagina. Non c'e' un metodo per
+/// Poche cose, e poche di proposito: il segno della schermata d'apertura, il
+/// segno dell'attesa, un velo sopra la pagina, qualche tasto e il blocco di
+/// una missione. **Il carattere non si tocca mai**: e' quello di CRASY tutto
+/// l'anno. Non c'e' un metodo per
 /// cambiare i testi, i colori dei bottoni o la disposizione di una schermata —
 /// una stagione che puo' toccare tutto, in due anni, diventa un secondo tema da
 /// mantenere accanto al primo.
@@ -84,6 +86,13 @@ abstract class SeasonSkin {
   ///
   /// Qualche tasto, sparso. Gli altri restano quelli di sempre.
   Widget decoraTasto(Widget tasto, {required String seme}) => tasto;
+
+  /// Un segno di stagione **dentro il blocco di una missione**: una ragnatela
+  /// nell'angolo, un ragno appeso. Come per [decoraTasto], [seme] fa decidere
+  /// sempre la stessa cosa per la stessa missione.
+  ///
+  /// Chi decora lascia passare i tocchi: il blocco si apre toccandolo.
+  Widget decoraMissione(Widget missione, {required String seme}) => missione;
 
   /// Il velo sopra la pagina: ragnatele agli angoli, neve, quel che sia.
   ///

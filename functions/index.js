@@ -24,6 +24,8 @@ const db = admin.firestore();
 exports.mandaLaConferma = require('./posta').mandaLaConferma;
 exports.mandaIlRecupero = require('./posta').mandaIlRecupero;
 
+const posta = require('./posta');
+
 /**
  * Il suono di CRASY: tre note che salgono, mezzo secondo.
  *
@@ -2842,3 +2844,229 @@ exports.spegniLeSerieInterrotte = onSchedule(
 // da nessuna parte.
 exports.aggiornaIndiceRubrica = require('./rubrica').aggiornaIndiceRubrica;
 exports.trovaDallaRubrica = require('./rubrica').trovaDallaRubrica;
+
+/**
+ * **"C'e' una versione nuova": push a ogni telefono, email a ogni iscritto.**
+ *
+ * Parte creando un documento in `annunci` dalla console di Firebase. Nessuno
+ * dall'app lo puo' scrivere: le regole su `annunci` non esistono, quindi e'
+ * tutto chiuso.
+ *
+ * Campi, tutti facoltativi:
+ *
+ * - `linkIos`, `linkAndroid`: dove si scarica. Finiscono nell'email.
+ * - `testoIos`, `testoAndroid`: la frase della notifica, per sistema.
+ * - `push`, `email`: `false` per saltarne uno.
+ *
+ * **Arriva anche alle versioni vecchie**, ed e' tutto il motivo per cui passa
+ * di qui: la notifica la mostra il telefono, non l'app, quindi non serve che
+ * la versione installata sappia niente di aggiornamenti. Si bussa a ogni
+ * indirizzo uno per uno — non dal canale `tutti`, a cui le versioni piu'
+ * vecchie non si sono mai iscritte — e ognuno riceve il testo del suo sistema:
+ * a un iPhone "apri TestFlight", a un Android "scarica dal link".
+ *
+ * **Una volta sola.** Il documento si segna prima di spedire: se la funzione
+ * venisse richiamata sullo stesso documento, la seconda volta trova il segno e
+ * si ferma, invece di mandare a tutti la stessa email due volte.
+ */
+exports.annunciaAggiornamento = onDocumentCreated(
+  {
+    document: 'annunci/{id}',
+    secrets: [posta.SMTP_PASSWORD],
+    timeoutSeconds: 540,
+    memory: '512MiB',
+  },
+  async (event) => {
+    const ref = event.data?.ref;
+    const dati = event.data?.data() || {};
+
+    if (!ref) {
+      return;
+    }
+
+    const libero = await db.runTransaction(async (t) => {
+      const ora = await t.get(ref);
+
+      if (ora.get('stato')) {
+        return false;
+      }
+
+      t.update(ref, { stato: 'in corso' });
+
+      return true;
+    });
+
+    if (!libero) {
+      return;
+    }
+
+    const esito = { push: null, email: null };
+
+    try {
+      if (dati.push !== false) {
+        esito.push = await pushAggiornamento({
+          ios:
+            dati.testoIos ||
+            "C'è una nuova versione di CRASY. Apri TestFlight e tocca AGGIORNA.",
+          android:
+            dati.testoAndroid ||
+            "C'è una nuova versione di CRASY. Scaricala dal link che ti abbiamo mandato per email.",
+        });
+      }
+
+      if (dati.email !== false) {
+        esito.email = await emailAggiornamento({
+          linkIos: dati.linkIos || '',
+          linkAndroid: dati.linkAndroid || '',
+        });
+      }
+
+      await ref.update({
+        stato: 'fatto',
+        esito,
+        finitoIl: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (guaio) {
+      logger.error('annuncio aggiornamento fallito', { guaio: String(guaio) });
+      await ref.update({ stato: 'fallito', esito, guaio: String(guaio) });
+    }
+  }
+);
+
+/**
+ * La notifica, a ogni telefono, con il testo del suo sistema.
+ *
+ * I telefoni del sito (`web`) si saltano: li' l'app si aggiorna da sola
+ * ricaricando la pagina.
+ */
+async function pushAggiornamento(testi) {
+  const telefoni = await db.collectionGroup('devices').get();
+  const perIndirizzo = new Map();
+
+  for (const doc of telefoni.docs) {
+    if (!perIndirizzo.has(doc.id)) {
+      perIndirizzo.set(doc.id, doc);
+    }
+  }
+
+  const gruppi = { ios: [], android: [] };
+
+  for (const doc of perIndirizzo.values()) {
+    const sistema = String(doc.get('platform') || '').toLowerCase();
+
+    if (sistema in gruppi) {
+      gruppi[sistema].push(doc);
+    }
+  }
+
+  const conto = { ios: 0, android: 0, fallite: 0 };
+
+  for (const sistema of Object.keys(gruppi)) {
+    const docs = gruppi[sistema];
+    const messaggio = {
+      notification: { title: 'CRASY', body: testi[sistema] },
+      apns: { payload: { aps: { sound: SUONO_APPLE, badge: 1 } } },
+      android: {
+        priority: 'high',
+        notification: { sound: SUONO_ANDROID, color: ROSSO },
+      },
+    };
+
+    for (let inizio = 0; inizio < docs.length; inizio += 500) {
+      const pezzo = docs.slice(inizio, inizio + 500);
+      const risposta = await admin.messaging().sendEachForMulticast({
+        ...messaggio,
+        tokens: pezzo.map((doc) => doc.id),
+      });
+
+      conto[sistema] += risposta.successCount;
+      conto.fallite += risposta.failureCount;
+
+      // Gli indirizzi morti si tolgono, come in `annuncia`.
+      await Promise.all(
+        risposta.responses.map((r, i) => {
+          const codice = r.error?.code || '';
+
+          return codice === 'messaging/registration-token-not-registered' ||
+            codice === 'messaging/invalid-registration-token'
+            ? pezzo[i].ref.delete()
+            : null;
+        })
+      );
+    }
+  }
+
+  logger.info('push aggiornamento', conto);
+
+  return conto;
+}
+
+/**
+ * L'email, a ogni iscritto che ne ha una.
+ *
+ * Una alla volta e con una piccola pausa: la casella e' una casella normale,
+ * e cento email nello stesso secondo dallo stesso mittente sono il modo piu'
+ * rapido per finire nello spam di tutti.
+ */
+async function emailAggiornamento({ linkIos, linkAndroid }) {
+  const link = linkIos || linkAndroid;
+
+  if (!link) {
+    throw new Error('Manca il link: scrivi almeno linkIos o linkAndroid.');
+  }
+
+  const androidRiga = linkAndroid
+    ? '<b>Android:</b> <a href="' +
+      linkAndroid +
+      '" style="color:#FA0000;">scarica la nuova versione da qui</a>, ' +
+      'poi aprila e tocca Installa.'
+    : '';
+  const iosRiga = linkIos
+    ? '<b>iPhone:</b> apri TestFlight e tocca AGGIORNA accanto a CRASY. ' +
+      'Oppure usa il tasto qui sopra.'
+    : '';
+
+  const html = posta.vestito({
+    titolo: "C'è una versione nuova",
+    testo:
+      'Abbiamo sistemato il caricamento dei video e altre cose. ' +
+      'La versione che hai non funziona più bene: aggiornala per ' +
+      'continuare a partecipare alle sfide.',
+    tasto: linkIos ? 'AGGIORNA SU IPHONE' : 'SCARICA PER ANDROID',
+    link,
+    nota: [iosRiga, androidRiga].filter(Boolean).join('<br><br>'),
+  });
+
+  const conto = { inviate: 0, fallite: 0 };
+  let pagina;
+
+  do {
+    const elenco = await admin.auth().listUsers(1000, pagina);
+
+    for (const utente of elenco.users) {
+      if (!utente.email || utente.disabled) {
+        continue;
+      }
+
+      try {
+        await posta.spedisci({
+          from: '"CRASY" <' + posta.CASELLA + '>',
+          to: utente.email,
+          subject: "C'è una nuova versione di CRASY",
+          html,
+        });
+        conto.inviate += 1;
+      } catch (guaio) {
+        conto.fallite += 1;
+      }
+
+      await new Promise((fatto) => setTimeout(fatto, 400));
+    }
+
+    pagina = elenco.pageToken;
+  } while (pagina);
+
+  logger.info('email aggiornamento', conto);
+
+  return conto;
+}

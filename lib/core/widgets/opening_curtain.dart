@@ -214,8 +214,8 @@ class _Curtain extends StatelessWidget {
                       // **La stagione le si mette attorno, non al posto.** La
                       // fiamma entra qui dentro com'e' sempre stata — e' il
                       // marchio, e un mese di apertura su un altro segno e' un
-                      // mese in cui l'app non dice come si chiama. A ottobre le
-                      // si apre una ragnatela dietro.
+                      // mese in cui l'app non dice come si chiama. A ottobre
+                      // non le si mette niente: Halloween comincia dentro.
                       //
                       // Sta dentro il `Transform` con la chiave, quindi prende
                       // con lo stesso scatto e ondeggia con le stesse due onde,

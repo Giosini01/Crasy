@@ -7,6 +7,7 @@ import 'package:crasy/core/services/share/share_challenge.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/theme/seasons/season_skin.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/countdown_text.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
@@ -235,7 +236,11 @@ class _Body extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.md),
-        Text(challenge.title.toUpperCase(), style: texts.displaySmall),
+        // Di stagione, una ragnatela che pende nell'angolo del titolo.
+        context.stagione.decoraMissione(
+          Text(challenge.title.toUpperCase(), style: texts.displaySmall),
+          seme: challenge.id,
+        ),
         // **Chi ha sfidato chi, e a che punto siamo.** Su una sfida mirata e'
         // la prima cosa da sapere: senza, questa e' una missione con un premio
         // a zero e un partecipante solo, cioe' una gara che non si capisce.
@@ -854,9 +859,13 @@ class _BottomAction extends ConsumerWidget {
             ),
           ],
         ),
-        (false, false, null) => CrasyButton(
-          label: 'Partecipa',
-          onPressed: () => context.push(AppRoutes.participateOf(challenge.id)),
+        (false, false, null) => context.stagione.decoraTasto(
+          CrasyButton(
+            label: 'Partecipa',
+            onPressed: () =>
+                context.push(AppRoutes.participateOf(challenge.id)),
+          ),
+          seme: challenge.id,
         ),
       },
     );

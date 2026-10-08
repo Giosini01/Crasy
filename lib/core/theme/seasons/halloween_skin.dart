@@ -4,7 +4,7 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/seasons/season_skin.dart';
 import 'package:flutter/material.dart';
 
-/// **Halloween: due ragnatele e un ragno.**
+/// **Halloween: ragnatele, ragni e zucche.**
 ///
 /// ## Il rosso non si tocca
 ///
@@ -31,54 +31,17 @@ import 'package:flutter/material.dart';
 class HalloweenSkin extends SeasonSkin {
   const HalloweenSkin();
 
-  /// **L'apertura: la fiamma al centro della tela.**
+  /// **L'apertura: solo la fiamma.**
   ///
-  /// La fiamma resta quella che e' sempre stata, intera e in primo piano: e' il
-  /// marchio, e per un mese non si mette da parte. La ragnatela le si apre
-  /// **dietro, centrata**, e la fiamma finisce dove in una tela sta il ragno.
-  ///
-  /// ## Il mozzo non e' disegnato, perche' il mozzo e' lei
-  ///
-  /// Prima la tela stava di fianco, spostata in diagonale, e il motivo era che una
-  /// ragnatela intera dietro una fiamma e' una fiamma spezzata in dodici pezzi: i
-  /// raggi convergono tutti dove c'e' lei e le passano sopra.
-  ///
-  /// Il problema era il mozzo, non la posizione. Qui i raggi **cominciano oltre**
-  /// la fiamma e il centro resta vuoto: la tela e' centrata e nessun filo la
-  /// taglia. Ed e' anche piu' vero di una tela completa — in una ragnatela vera il
-  /// centro e' il buco in cui sta chi l'ha tessuta, non un nodo di fili.
-  ///
-  /// La tela e' tenuta piu' tenue della fiamma. Allo stesso peso si guarderebbe
-  /// lei: e' larga il doppio, e fra due segni vince sempre il piu' grande.
+  /// C'e' stata una tela dietro, centrata. Si e' tolta: l'apertura e' il
+  /// momento in cui l'app dice come si chiama, e lo dice la fiamma da sola.
+  /// Halloween comincia appena dentro.
   @override
   Widget accompagnaApertura(
     Widget fiamma, {
     required double misura,
     required Color colore,
-  }) {
-    final lato = misura * 2.4;
-
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
-      children: [
-        SizedBox(
-          width: lato,
-          height: lato,
-          child: CustomPaint(
-            painter: _RagnatelaPiena(
-              colore: colore.withValues(alpha: 0.28),
-              // Il buco in cui sta la fiamma. Poco piu' di meta' del raggio: la
-              // fiamma e' alta quanto [misura] e il raggio e' circa `misura`,
-              // quindi sotto il mezzo i raggi le toccherebbero le punte.
-              vuoto: 0.58,
-            ),
-          ),
-        ),
-        fiamma,
-      ],
-    );
-  }
+  }) => fiamma;
 
   /// **L'attesa: la fiamma dov'era.**
   ///
@@ -93,37 +56,70 @@ class HalloweenSkin extends SeasonSkin {
     required Color colore,
   }) => fiamma;
 
-  /// **Un segno su qualche tasto, non su tutti.**
+  /// **Una ragnatela su ogni PARTECIPA, e su uno su tre anche una zucca.**
   ///
-  /// Uno su tre ha qualcosa addosso, e meta' di quelli e' una zucca invece di una
-  /// ragnatela: a tre gare per schermata ne capita in media una, che e' la
-  /// quantita' giusta perche' sembri che ottobre sia passato di qui e non che
-  /// qualcuno abbia aggiunto un elemento grafico al bottone.
-  ///
-  /// Il segno sta nell'angolo in alto a sinistra, **fuori dalla parola**:
-  /// l'etichetta e' centrata, e un disegno al centro di un tasto rosso con
-  /// scritto PARTECIPA sopra e' un disegno che toglie leggibilita' all'unica
-  /// cosa che quel tasto deve dire.
+  /// La ragnatela sta nell'angolo in alto a sinistra e la zucca in quello a
+  /// destra, **fuori dalla parola**: l'etichetta e' centrata, e un disegno al
+  /// centro di un tasto rosso con scritto PARTECIPA sopra toglie leggibilita'
+  /// all'unica cosa che quel tasto deve dire.
   ///
   /// Bianco al 22%, perche' il tasto e' rosso pieno: il nero sparirebbe e il
   /// bianco pieno diventerebbe un secondo elemento da leggere.
   @override
   Widget decoraTasto(Widget tasto, {required String seme}) {
-    final sorte = _sorte(seme);
-
-    if (sorte % 3 != 0) {
-      return tasto;
-    }
+    final zucca = _sorte(seme) % 3 == 0;
 
     return Stack(
       children: [
         tasto,
         Positioned.fill(
           // I tocchi passano: il tasto sotto e' l'unica cosa che qui conta.
-          child: IgnorePointer(
-            child: CustomPaint(
-              painter: sorte % 6 == 0 ? _ZuccaSulTasto() : _RagnatelaSulTasto(),
+          // La tela ondeggia piano, come mossa da uno spiffero.
+          child: _Vivo(
+            periodo: const Duration(milliseconds: 4200),
+            fase: _sorte(seme) / 997,
+            disegno: (tempo) => _RagnatelaSulTasto(tempo: tempo),
+          ),
+        ),
+        if (zucca)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(painter: _ZuccaSulTasto(aDestra: true)),
             ),
+          ),
+      ],
+    );
+  }
+
+  /// **Una ragnatela nell'angolo della missione, e a volte il suo ragno.**
+  ///
+  /// In alto a destra, ancorata al vertice del blocco come se continuasse oltre
+  /// il bordo. Una missione su quattro ha anche il ragno, fermo, appeso al suo
+  /// filo: le altre hanno la tela vuota. Tutte con il ragno sarebbe una fila di
+  /// ragni uguali, e smetterebbe di far sobbalzare.
+  @override
+  Widget decoraMissione(Widget missione, {required String seme}) {
+    final ragno = _sorte(seme) % 4 == 0;
+
+    return Stack(
+      // **La larghezza di chi sta fuori, non quella del testo.** Con quella
+      // del testo la tela si attaccherebbe alla fine del titolo, a meta' riga,
+      // invece che al bordo della pagina.
+      fit: StackFit.passthrough,
+      clipBehavior: Clip.none,
+      children: [
+        missione,
+        Positioned(
+          top: 0,
+          right: 0,
+          width: 96,
+          height: 140,
+          // Ogni missione ha il suo tempo: il ragno di una scende mentre
+          // quello della successiva risale, e l'elenco non batte all'unisono.
+          child: _Vivo(
+            periodo: const Duration(milliseconds: 6400),
+            fase: _sorte(seme) / 997,
+            disegno: (tempo) => _RagnatelaMissione(ragno: ragno, tempo: tempo),
           ),
         ),
       ],
@@ -162,7 +158,10 @@ class HalloweenSkin extends SeasonSkin {
         // ne fermasse uno, per due settimane l'angolo in alto a sinistra di ogni
         // pagina — dove c'e' la freccia indietro — sarebbe morto.
         Positioned.fill(
-          child: IgnorePointer(child: CustomPaint(painter: _RagnatelePagina())),
+          child: _Vivo(
+            periodo: const Duration(seconds: 9),
+            disegno: (tempo) => _RagnatelePagina(tempo: tempo),
+          ),
         ),
       ],
     );
@@ -175,6 +174,94 @@ Paint _filo(Color colore, double spessore) => Paint()
   ..strokeWidth = spessore
   ..strokeCap = StrokeCap.round
   ..color = colore;
+
+/// **Il tempo che fa muovere le tele.**
+///
+/// Un giro che ricomincia all'infinito, e il disegno se lo legge da solo a ogni
+/// fotogramma (`repaint`): la pagina sotto non si ricostruisce mai, si ridisegna
+/// solo il velo. [fase] sposta l'inizio del giro, cosi' due tele uguali una
+/// accanto all'altra non si muovono insieme come soldatini.
+///
+/// **Con le animazioni ridotte, sta ferma.** Chi le ha spente nelle
+/// impostazioni del telefono le ha spente per un motivo, e un ragno che va su
+/// e giu' in ogni pagina e' esattamente quel motivo.
+class _Vivo extends StatefulWidget {
+  const _Vivo({required this.disegno, required this.periodo, this.fase = 0});
+
+  final CustomPainter Function(Animation<double> tempo) disegno;
+  final Duration periodo;
+  final double fase;
+
+  @override
+  State<_Vivo> createState() => _VivoState();
+}
+
+class _VivoState extends State<_Vivo> with SingleTickerProviderStateMixin {
+  late final AnimationController _giro = AnimationController(
+    vsync: this,
+    duration: widget.periodo,
+    value: widget.fase % 1,
+  )..repeat();
+
+  @override
+  void dispose() {
+    _giro.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fermo = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+
+    return RepaintBoundary(
+      child: IgnorePointer(
+        child: CustomPaint(
+          painter: widget.disegno(
+            fermo ? const AlwaysStoppedAnimation(0.25) : _giro,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Disegna ruotando di [angolo] attorno a [perno]: e' cosi' che una tela
+/// appesa a un angolo ondeggia, imperniata dove e' attaccata.
+void _ondeggiando(
+  Canvas canvas,
+  Offset perno,
+  double angolo,
+  void Function() disegna,
+) {
+  canvas
+    ..save()
+    ..translate(perno.dx, perno.dy)
+    ..rotate(angolo)
+    ..translate(-perno.dx, -perno.dy);
+  disegna();
+  canvas.restore();
+}
+
+/// Un ragno appeso: il filo da [attacco] lungo [lunghezza], e lui in fondo.
+///
+/// **Fermo.** Si e' provato a farlo scendere e risalire, e dava fastidio: un
+/// ragno che va avanti e indietro in un angolo tira l'occhio di continuo. Si
+/// muovono le tele, piano; i ragni stanno dove sono.
+void _ragnoAppeso(
+  Canvas canvas,
+  Offset attacco,
+  double lunghezza,
+  double misura,
+  Color filo,
+  Color corpo,
+) {
+  final fondo = attacco + Offset(0, lunghezza);
+
+  canvas.drawLine(attacco, fondo, _filo(filo, 1));
+  _Ragno(
+    colore: corpo,
+  ).disegna(canvas, fondo + Offset(0, misura * 0.85), misura);
+}
 
 /// I cerchi concentrici di una tela, che **non sono cerchi**.
 ///
@@ -215,81 +302,74 @@ void _anelli(
   }
 }
 
-/// La tela intera della schermata d'apertura, con il ragno appeso.
-class _RagnatelaPiena extends CustomPainter {
-  const _RagnatelaPiena({required this.colore, this.vuoto = 0});
+/// La ragnatela nell'angolo in alto a destra di una missione.
+///
+/// Un quarto di tela con il centro **sul vertice**, piu' scura di quelle della
+/// pagina: sta accanto al titolo, e al 7% di nero li' sparirebbe. Con [ragno]
+/// dal fondo della tela scende un filo, e in fondo al filo c'e' lui.
+class _RagnatelaMissione extends CustomPainter {
+  _RagnatelaMissione({required this.ragno, required this.tempo})
+    : super(repaint: tempo);
 
-  final Color colore;
+  final bool ragno;
+  final Animation<double> tempo;
 
-  /// Quanta parte del raggio, dal centro in fuori, resta **senza fili**.
-  ///
-  /// A zero la tela e' intera e ha il suo mozzo. Sopra zero il mozzo non si
-  /// disegna: i raggi cominciano da qui, e quel buco e' il posto di quello che la
-  /// tela ha dentro — la fiamma, nell'apertura.
-  final double vuoto;
+  /// Nero al 16%: si vede, e non si legge insieme al premio rosso accanto.
+  static const _inchiostro = Color(0x290A0A0B);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final centro = Offset(size.width / 2, size.height / 2);
-    final raggio = size.width / 2 * 0.86;
-    final penna = _filo(colore, size.width * 0.009);
+    final t = tempo.value;
+    final penna = _filo(_inchiostro, 1.1);
+    final angolo = Offset(size.width, 0);
+    final raggio = size.width * 0.92;
 
-    // Dodici raggi. Con meno la tela sembra uno spartito, con molti di piu'
-    // diventa un disco pieno alla misura a cui si guarda qui.
-    const raggi = 12;
+    const raggi = 5;
     final angoli = [
-      for (var i = 0; i <= raggi; i++) -math.pi / 2 + i * 2 * math.pi / raggi,
+      for (var i = 0; i <= raggi; i++) math.pi / 2 + i * (math.pi / 2) / raggi,
     ];
 
-    final dentro = vuoto.clamp(0.0, 0.9);
+    // La tela ondeggia di un paio di gradi, imperniata sull'angolo.
+    _ondeggiando(canvas, angolo, 0.04 * math.sin(2 * math.pi * t), () {
+      for (final a in angoli) {
+        canvas.drawLine(
+          angolo,
+          angolo + Offset(math.cos(a) * raggio, math.sin(a) * raggio),
+          penna,
+        );
+      }
 
-    for (var i = 0; i < raggi; i++) {
-      final a = angoli[i];
-      final direzione = Offset(math.cos(a), math.sin(a));
-
-      canvas.drawLine(
-        centro + direzione * raggio * dentro,
-        centro + direzione * raggio,
+      _anelli(
+        canvas,
+        angolo,
+        raggio,
+        angoli,
         penna,
+        quote: const [0.32, 0.6, 0.86],
       );
+    });
+
+    if (!ragno) {
+      return;
     }
 
-    // Gli anelli si distribuiscono in quello che resta fuori dal buco: con il
-    // mozzo vuoto, le quote fisse della tela intera finirebbero tre su quattro
-    // dentro il buco e ne resterebbe uno.
-    _anelli(
-      canvas,
-      centro,
-      raggio,
-      angoli,
-      penna,
-      quote: [
-        for (final passo in const [0.0, 0.3, 0.62, 1.0])
-          dentro + (1 - dentro) * (0.04 + passo * 0.92),
-      ],
-    );
+    // Il ragno, fermo a meta' del suo filo.
+    final attacco = angolo + Offset(-raggio * 0.5, raggio * 0.5);
+    final corsa = size.height - 20 - attacco.dy;
 
-    // **Il filo che scende e il ragno in fondo.** Senza di lui la tela e' un
-    // ornamento geometrico; con lui c'e' qualcuno dentro, ed e' tutta la
-    // differenza fra un disegno e una scena.
-    //
-    // Attaccato **fuori dal buco**: appeso al mozzo starebbe addosso alla fiamma,
-    // e il ragno sotto la fiamma si legge come una macchia nera sul marchio.
-    final su = math.max(dentro, 0.45);
-    final attacco = centro + Offset(raggio * su * 0.72, raggio * su * 0.62);
-    final appeso = attacco + Offset(0, raggio * 0.3);
-    canvas.drawLine(attacco, appeso, penna);
-
-    _Ragno(colore: colore).disegna(
+    _ragnoAppeso(
       canvas,
-      appeso + Offset(0, size.width * 0.045),
-      size.width * 0.07,
+      attacco,
+      corsa * 0.55,
+      7,
+      _inchiostro,
+      const Color(0x8C0A0A0B),
     );
   }
 
   @override
-  bool shouldRepaint(_RagnatelaPiena altro) =>
-      altro.colore != colore || altro.vuoto != vuoto;
+  bool shouldRepaint(_RagnatelaMissione altro) =>
+      altro.ragno != ragno || altro.tempo != tempo;
 }
 
 /// Un ragno, piccolo: due corpi tondi e otto zampe piegate.
@@ -423,10 +503,21 @@ const _sulRosso = Color(0x38FFFFFF);
 
 /// Un quarto di ragnatela nell'angolo in alto a sinistra di un tasto.
 class _RagnatelaSulTasto extends CustomPainter {
-  _RagnatelaSulTasto();
+  _RagnatelaSulTasto({required this.tempo}) : super(repaint: tempo);
+
+  final Animation<double> tempo;
 
   @override
   void paint(Canvas canvas, Size size) {
+    _ondeggiando(
+      canvas,
+      Offset.zero,
+      0.06 * math.sin(2 * math.pi * tempo.value),
+      () => _tela(canvas, size),
+    );
+  }
+
+  void _tela(Canvas canvas, Size size) {
     final penna = _filo(_sulRosso, 1.1);
     // Il centro sul vertice del tasto: la tela entra dall'angolo come se
     // continuasse oltre il bordo, invece di stare appoggiata dentro.
@@ -455,22 +546,28 @@ class _RagnatelaSulTasto extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RagnatelaSulTasto altro) => false;
+  bool shouldRepaint(_RagnatelaSulTasto altro) => altro.tempo != tempo;
 }
 
-/// Una zucca piccola nell'angolo in alto a sinistra di un tasto.
+/// Una zucca piccola sul bordo di un tasto, a sinistra o a destra.
 ///
 /// **A costine, non una palla con il gambo.** Una zucca si riconosce dai solchi
 /// verticali: il cerchio con il rametto sopra, a quattordici pixel, si legge come
 /// una mela — e una mela su un tasto non dice niente a nessuno.
 class _ZuccaSulTasto extends CustomPainter {
-  _ZuccaSulTasto();
+  _ZuccaSulTasto({this.aDestra = false});
+
+  /// Dal lato opposto alla ragnatela, quando sul tasto ci sono tutte e due.
+  final bool aDestra;
 
   @override
   void paint(Canvas canvas, Size size) {
     final alta = size.height * 0.42;
     final larga = alta * 1.22;
-    final centro = Offset(larga * 0.78, size.height * 0.5);
+    final centro = Offset(
+      aDestra ? size.width - larga * 0.78 : larga * 0.78,
+      size.height * 0.5,
+    );
     final penna = _filo(_sulRosso, 1.3);
 
     // Il corpo: piu' largo che alto, com'e' una zucca vera.
@@ -510,7 +607,7 @@ class _ZuccaSulTasto extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ZuccaSulTasto altro) => false;
+  bool shouldRepaint(_ZuccaSulTasto altro) => altro.aDestra != aDestra;
 }
 
 /// Le due ragnatele d'angolo che stanno su ogni pagina.
@@ -519,7 +616,9 @@ class _ZuccaSulTasto extends CustomPainter {
 /// dallo schermo. A destra e' piu' piccola: due tele identiche e simmetriche si
 /// leggono come una cornice, e una cornice e' un elemento dell'interfaccia.
 class _RagnatelePagina extends CustomPainter {
-  _RagnatelePagina();
+  _RagnatelePagina({required this.tempo}) : super(repaint: tempo);
+
+  final Animation<double> tempo;
 
   /// Nero al 7%. **Non il rosso**: il rosso qui significa "tocca" e "si vince",
   /// e una ragnatela rossa negli angoli lo direbbe a vuoto su ogni schermata.
@@ -527,11 +626,34 @@ class _RagnatelePagina extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final t = tempo.value;
     final penna = _filo(_inchiostro, 1.1);
     final lato = size.shortestSide;
+    final destra = Offset(size.width, 0);
 
-    _quarto(canvas, Offset.zero, lato * 0.34, 0, penna);
-    _quarto(canvas, Offset(size.width, 0), lato * 0.22, math.pi / 2, penna);
+    // Le due tele ondeggiano ognuna per conto suo: la piccola piu' svelta e
+    // in controtempo, come due tele mosse dalla stessa corrente d'aria.
+    _ondeggiando(canvas, Offset.zero, 0.03 * math.sin(2 * math.pi * t), () {
+      _quarto(canvas, Offset.zero, lato * 0.34, 0, penna);
+    });
+    _ondeggiando(
+      canvas,
+      destra,
+      -0.045 * math.sin(2 * math.pi * (t * 2 + 0.3)),
+      () => _quarto(canvas, destra, lato * 0.22, math.pi / 2, penna),
+    );
+
+    // **Un ragno solo, fermo, sotto la tela grande.** Quella piccola a destra
+    // resta vuota: un ragno su ogni tela diventa una regola, e smette di
+    // sorprendere.
+    _ragnoAppeso(
+      canvas,
+      Offset(lato * 0.2, lato * 0.24),
+      lato * 0.14,
+      6,
+      _inchiostro,
+      const Color(0x400A0A0B),
+    );
   }
 
   /// Un quarto di tela con il centro **sul vertice** dello schermo.
@@ -562,5 +684,5 @@ class _RagnatelePagina extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RagnatelePagina altro) => false;
+  bool shouldRepaint(_RagnatelePagina altro) => altro.tempo != tempo;
 }

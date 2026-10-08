@@ -25,6 +25,17 @@ abstract final class ErrorMessageMapper {
       return 'Hai gia mandato la tua foto per questa challenge.';
     }
 
+    // Questi tre il loro messaggio ce l'hanno gia', scritto per chi legge:
+    // nasconderlo dietro "si e' verificato un problema" buttava via l'unica
+    // frase che spiegava cosa fare.
+    if (error is OutOfLivesException || error is DuelDeclinedException) {
+      return error.toString();
+    }
+
+    if (error is StateError) {
+      return error.message;
+    }
+
     if (error is FirebaseAuthException) {
       return _mapAuthError(error);
     }

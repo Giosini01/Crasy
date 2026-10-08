@@ -1,5 +1,6 @@
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/services/refresh/auto_refresh.dart';
+import 'package:crasy/core/services/update/update_gate.dart';
 import 'package:crasy/core/theme/app_theme.dart';
 import 'package:crasy/core/widgets/keyboard_closer.dart';
 import 'package:crasy/core/widgets/opening_curtain.dart';
@@ -226,7 +227,12 @@ class _CrasyAppState extends ConsumerState<CrasyApp> {
           ),
           child: AutoRefresh(
             child: KeyboardCloser(
-              child: OpeningCurtain(child: child ?? const SizedBox.shrink()),
+              // Il muro dell'aggiornamento sta **dentro** il sipario: prima
+              // si vede la fiamma, poi — se la versione e' troppo vecchia —
+              // la richiesta di aggiornare. Vedi `UpdateGate`.
+              child: OpeningCurtain(
+                child: UpdateGate(child: child ?? const SizedBox.shrink()),
+              ),
             ),
           ),
         );

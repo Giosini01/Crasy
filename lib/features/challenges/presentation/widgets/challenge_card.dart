@@ -61,81 +61,85 @@ class ChallengeCard extends ConsumerWidget {
         GestureDetector(
           onTap: onOpen,
           behavior: HitTestBehavior.opaque,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  // Il premio in rosso, ed e' la cosa piu' grande della
-                  // schermata. Se non lo fosse, questa sarebbe un'app di foto
-                  // qualunque.
-                  // **Si rimpicciolisce invece di andare a capo.**
-                  //
-                  // "GRATIS" e' sei caratteri dove un premio ne ha due o tre:
-                  // dove ci sta "5 EUR" non ci sta la parola, e su Android —
-                  // caratteri piu' larghi, schermi piu' stretti — finiva
-                  // spezzata su due righe, con "GRA" sopra e "TIS" sotto.
-                  //
-                  // `BoxFit.scaleDown` non tocca niente finche' la riga ci
-                  // sta: le cifre restano grandi come sono sempre state, e
-                  // solo la parola lunga scende quel tanto che basta. Il
-                  // premio resta la cosa piu' grande della schermata, che e'
-                  // il punto di tutta questa riga.
-                  Expanded(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        challenge.prizeLabel,
-                        maxLines: 1,
-                        softWrap: false,
-                        style: texts.displayLarge?.copyWith(
-                          color: palette.accent,
+          // Di stagione, una ragnatela nell'angolo della missione.
+          child: context.stagione.decoraMissione(
+            seme: challenge.id,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    // Il premio in rosso, ed e' la cosa piu' grande della
+                    // schermata. Se non lo fosse, questa sarebbe un'app di foto
+                    // qualunque.
+                    // **Si rimpicciolisce invece di andare a capo.**
+                    //
+                    // "GRATIS" e' sei caratteri dove un premio ne ha due o tre:
+                    // dove ci sta "5 EUR" non ci sta la parola, e su Android —
+                    // caratteri piu' larghi, schermi piu' stretti — finiva
+                    // spezzata su due righe, con "GRA" sopra e "TIS" sotto.
+                    //
+                    // `BoxFit.scaleDown` non tocca niente finche' la riga ci
+                    // sta: le cifre restano grandi come sono sempre state, e
+                    // solo la parola lunga scende quel tanto che basta. Il
+                    // premio resta la cosa piu' grande della schermata, che e'
+                    // il punto di tutta questa riga.
+                    Expanded(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          challenge.prizeLabel,
+                          maxLines: 1,
+                          softWrap: false,
+                          style: texts.displayLarge?.copyWith(
+                            color: palette.accent,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  // **Qui c'era GLOBAL, in grigio, su quasi ogni gara.**
-                  //
-                  // Una parola che compariva sempre uguale su tutto, e che non
-                  // cambiava niente a chi la leggeva: le gare sono quasi tutte
-                  // globali, quindi non distingueva una scheda dall'altra —
-                  // occupava un angolo e basta. Una scritta che c'e' sempre
-                  // smette di essere un'informazione.
-                  //
-                  // Al suo posto c'e' l'unica cosa che in quell'angolo cambia
-                  // davvero cosa si deve fare: **ARCHIVIO**, quando la gara
-                  // chiede una cosa che uno ha gia'. Sulle istantanee non c'e'
-                  // niente, ed e' voluto — marcare la norma la annacqua.
-                  if (challenge.source.isArchive) ...[
-                    const SizedBox(width: AppSpacing.sm),
-                    Padding(
-                      padding: const EdgeInsets.only(top: AppSpacing.xs),
-                      child: ArchiveBadge(challenge: challenge, compact: true),
-                    ),
+                    // **Qui c'era GLOBAL, in grigio, su quasi ogni gara.**
+                    //
+                    // Una parola che compariva sempre uguale su tutto, e che non
+                    // cambiava niente a chi la leggeva: le gare sono quasi tutte
+                    // globali, quindi non distingueva una scheda dall'altra —
+                    // occupava un angolo e basta. Una scritta che c'e' sempre
+                    // smette di essere un'informazione.
+                    //
+                    // Al suo posto c'e' l'unica cosa che in quell'angolo cambia
+                    // davvero cosa si deve fare: **ARCHIVIO**, quando la gara
+                    // chiede una cosa che uno ha gia'. Sulle istantanee non c'e'
+                    // niente, ed e' voluto — marcare la norma la annacqua.
+                    if (challenge.source.isArchive) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.xs),
+                        child: ArchiveBadge(challenge: challenge, compact: true),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(challenge.title.toUpperCase(), style: texts.displayMedium),
-              if (challenge.brief.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.xs),
-                // La consegna, non un riassunto: due righe bastano a dire cosa
-                // bisogna fare, e chi ne vuole di piu' apre la challenge.
-                Text(
-                  challenge.brief,
-                  style: texts.bodyMedium,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: AppSpacing.md),
+                Text(challenge.title.toUpperCase(), style: texts.displayMedium),
+                if (challenge.brief.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  // La consegna, non un riassunto: due righe bastano a dire cosa
+                  // bisogna fare, e chi ne vuole di piu' apre la challenge.
+                  Text(
+                    challenge.brief,
+                    style: texts.bodyMedium,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.md),
+                ChallengeMetaRow(challenge: challenge),
+                if (challenge.hasCreator) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  ChallengeAuthor(challenge: challenge),
+                ],
               ],
-              const SizedBox(height: AppSpacing.md),
-              ChallengeMetaRow(challenge: challenge),
-              if (challenge.hasCreator) ...[
-                const SizedBox(height: AppSpacing.xs),
-                ChallengeAuthor(challenge: challenge),
-              ],
-            ],
+            ),
           ),
         ),
         if (leader != null) ...[
