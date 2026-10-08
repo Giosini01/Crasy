@@ -145,7 +145,10 @@ enum CommissionedFilter {
 /// senza figurina non ha niente da mostrare. Si tolgono **prima** di decidere se
 /// la mensola e' vuota: altrimenti chi ha lanciato solo gare gratis vedeva uno
 /// spazio bianco invece della scritta che spiega cosa ci andra'.
-List<Challenge> visibleCommissions(List<Challenge> challenges, {DateTime? now}) {
+List<Challenge> visibleCommissions(
+  List<Challenge> challenges, {
+  DateTime? now,
+}) {
   final adesso = now ?? DateTime.now();
 
   return [

@@ -105,7 +105,10 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
   }
 
   @override
-  Future<void> savePhone({required String userId, required String phone}) async {
+  Future<void> savePhone({
+    required String userId,
+    required String phone,
+  }) async {
     // **Il numero non sta nel profilo, e questa e' la riga che lo decide.**
     //
     // Il profilo lo puo' leggere chiunque abbia fatto l'accesso — deve, perche'

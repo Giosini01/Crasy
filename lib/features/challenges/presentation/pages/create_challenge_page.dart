@@ -56,13 +56,20 @@ class CreateChallengePage extends ConsumerStatefulWidget {
 
 /// Le durate che si possono scegliere, in minuti.
 ///
-/// Le prime due sono per provare e spariranno; le altre sono il prodotto. Il
-/// tetto e' **un giorno**, e non e' un limite tecnico: una gara che dura una
+/// Il tetto e' **un giorno**, e non e' un limite tecnico: una gara che dura una
 /// settimana non ha nessuna urgenza, e l'urgenza e' meta' del motivo per cui
 /// uno esce di casa a fare una foto assurda.
+///
+/// **Il pavimento e' un'ora, e prima non c'era.** C'erano un minuto e cinque
+/// minuti, messi per provare l'app quando le gare bisognava vederle nascere e
+/// morire in fretta. Erano in cima alla fila, cioe' i primi su cui cade il dito,
+/// e una gara da un minuto non e' una gara: nasce, nessuno fa in tempo a
+/// vederla, e muore senza partecipanti. Chi la lanciava per sbaglio concludeva
+/// che l'app non funziona.
+///
+/// Erano uno strumento di sviluppo lasciato in mano alla gente, ed e' il tipo di
+/// cosa che non si nota finche' qualcuno non la tocca.
 const _durations = <(int, String)>[
-  (1, '1 MIN'),
-  (5, '5 MIN'),
   (60, '1 ORA'),
   (120, '2 ORE'),
   (180, '3 ORE'),

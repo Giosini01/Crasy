@@ -65,6 +65,22 @@ enum Season {
   /// In produzione resta `null` e decide il calendario.
   static Season? fissata;
 
+  /// **L'interruttore generale delle stagioni: spento.**
+  ///
+  /// Ragnatele, zucche e fiocchi restano scritti e funzionanti, ma non si
+  /// vedono: CRASY e' tornata com'e' sempre stata, bianca nera e rossa.
+  ///
+  /// Si spegne qui e non cancellando i file perche' il lavoro e' buono e
+  /// servira': il prossimo ottobre — o il prossimo dicembre — si rimette `true`
+  /// e torna tutto, senza riscrivere niente. Cancellare adesso vorrebbe dire
+  /// rifarlo da capo fra undici mesi.
+  ///
+  /// **E' una riga sola di proposito.** Un vestito di stagione deve potersi
+  /// togliere in fretta quanto si mette: il giorno in cui non piace piu', o
+  /// cade nel momento sbagliato, nessuno deve mettersi a smontare dieci file.
+  static const bool accese = false;
+
   /// La stagione di adesso.
-  static Season get corrente => fissata ?? of(DateTime.now());
+  static Season get corrente =>
+      accese ? (fissata ?? of(DateTime.now())) : Season.base;
 }

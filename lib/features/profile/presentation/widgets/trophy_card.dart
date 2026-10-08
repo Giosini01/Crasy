@@ -679,7 +679,6 @@ class TrophyGrid extends StatelessWidget {
   /// si riducono.
   static const double _misuraDiDisegno = 168;
 
-
   final List<Challenge> challenges;
   final TrophyKind kind;
 
@@ -691,7 +690,6 @@ class TrophyGrid extends StatelessWidget {
     // diversi non e' una collezione: e' un disordine.
     final targhe = kind == TrophyKind.commissioned;
 
-
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -701,9 +699,7 @@ class TrophyGrid extends StatelessWidget {
       // guardano in coppia, ed e' giusto cosi' — ma con un margine in piu' ai
       // lati, che e' quello che le fa leggere come oggetti appoggiati a una
       // parete invece che stampati sopra.
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.page + 24,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page + 24),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: AppSpacing.sm,
@@ -1156,7 +1152,6 @@ class CommissionedTrophy extends StatelessWidget {
   }
 }
 
-
 /// **La coppa, disegnata.**
 ///
 /// Non e' un'immagine e non e' un'emoji: e' una forma costruita a mano. Un'
@@ -1479,7 +1474,14 @@ class _CupPainter extends CustomPainter {
     canvas.drawPath(
       Path()
         ..moveTo(w * 0.425, h * 0.60)
-        ..cubicTo(w * 0.435, h * 0.66, w * 0.435, h * 0.70, w * 0.415, h * 0.745)
+        ..cubicTo(
+          w * 0.435,
+          h * 0.66,
+          w * 0.435,
+          h * 0.70,
+          w * 0.415,
+          h * 0.745,
+        )
         ..lineTo(w * 0.585, h * 0.745)
         ..cubicTo(w * 0.565, h * 0.70, w * 0.565, h * 0.66, w * 0.575, h * 0.60)
         ..close(),
@@ -1872,7 +1874,12 @@ class _CasePainter extends CustomPainter {
             // legge come una parete **illuminata da qualcosa**.
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF26262A), _fondoAlto, Color(0xFF111113), _fondoBasso],
+            colors: [
+              Color(0xFF26262A),
+              _fondoAlto,
+              Color(0xFF111113),
+              _fondoBasso,
+            ],
             stops: [0, 0.35, 0.72, 1],
           ).createShader(faccia.area),
       );

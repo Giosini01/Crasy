@@ -3,6 +3,7 @@ import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
 import 'package:crasy/features/legal/presentation/widgets/privacy_settings.dart';
 import 'package:crasy/features/moderation/presentation/widgets/blocked_people.dart';
+import 'package:crasy/features/notifications/presentation/widgets/notifications_setting.dart';
 import 'package:crasy/features/profile/presentation/widgets/delete_account.dart';
 import 'package:flutter/material.dart';
 
@@ -52,13 +53,14 @@ Future<void> showProfileSettings(BuildContext context) async {
   }
 
   await switch (scelta) {
+    _SettingsChoice.notifiche => showNotificationsSetting(context),
     _SettingsChoice.privacy => showPrivacySettings(context),
     _SettingsChoice.blocked => showBlockedPeople(context),
     _SettingsChoice.deleteAccount => showDeleteAccount(context),
   };
 }
 
-enum _SettingsChoice { privacy, blocked, deleteAccount }
+enum _SettingsChoice { notifiche, privacy, blocked, deleteAccount }
 
 class _ProfileSettings extends StatelessWidget {
   const _ProfileSettings({required this.onPick});
@@ -73,6 +75,18 @@ class _ProfileSettings extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
+        // **Per prima, e non e' una questione di ordine alfabetico.**
+        //
+        // E' l'unica voce di questo foglio che ripara qualcosa di rotto: chi ha
+        // le notifiche spente non lo sa — la campanella dentro l'app si riempie
+        // lo stesso — e non ha nessun altro posto da cui accorgersene. Le altre
+        // tre si cercano quando servono; questa deve farsi trovare.
+        _SettingsRow(
+          label: 'Notifiche',
+          note: 'Se non ti arriva niente sul telefono, da qui si riaccendono.',
+          onTap: () => onPick(_SettingsChoice.notifiche),
+        ),
+        Divider(color: palette.line, height: 1),
         _SettingsRow(
           label: 'Privacy e consensi',
           note:

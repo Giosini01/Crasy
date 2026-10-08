@@ -32,7 +32,8 @@ abstract final class UserProfileMapper {
       // l'app li rimanderebbe a verificarlo: una schermata in faccia a chi
       // aveva gia' fatto tutto. La riga si toglie quando la migrazione ha
       // girato su tutti.
-      phoneVerified: data['phoneVerified'] as bool? ??
+      phoneVerified:
+          data['phoneVerified'] as bool? ??
           (data['phone'] as String? ?? '').isNotEmpty,
     );
   }
