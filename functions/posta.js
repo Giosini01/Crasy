@@ -388,3 +388,11 @@ exports.mandaIlRecupero = onCall(
     return { fatto: true };
   }
 );
+
+// Per gli annunci a tutti — vedi `annunciaAggiornamento` in index.js: lo
+// stesso postino e lo stesso vestito, invece di una seconda copia che si
+// separa da questa al primo cambiamento.
+exports.SMTP_PASSWORD = SMTP_PASSWORD;
+exports.CASELLA = CASELLA;
+exports.spedisci = spedisci;
+exports.vestito = vestito;

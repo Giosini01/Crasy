@@ -98,12 +98,24 @@ void main() {
   });
 
   group('di stagione', () {
-    testWidgets('**la fiamma non sparisce**: la tela le sta attorno', (
+    test('a ottobre l apertura e solo la fiamma', () {
+      const fiamma = Icon(Icons.local_fire_department_rounded);
+
+      // Halloween comincia dentro l'app: all'apertura non si aggiunge niente.
+      expect(
+        SeasonSkin.perStagione(
+          Season.halloween,
+        ).accompagnaApertura(fiamma, misura: 100, colore: Colors.red),
+        same(fiamma),
+      );
+    });
+
+    testWidgets('**la fiamma non sparisce**: la stagione le sta attorno', (
       tester,
     ) async {
       const fiamma = Icon(Icons.local_fire_department_rounded);
 
-      for (final stagione in [Season.halloween, Season.natale]) {
+      for (final stagione in [Season.natale]) {
         final pelle = SeasonSkin.perStagione(stagione);
         final attorno = pelle.accompagnaApertura(
           fiamma,
@@ -138,31 +150,20 @@ void main() {
       );
     });
 
-    test('i segni stanno su qualche tasto, non su tutti', () {
+    test('a ottobre ogni PARTECIPA ha la sua ragnatela', () {
       final pelle = SeasonSkin.perStagione(Season.halloween);
       const tasto = Text('PARTECIPA');
 
-      final semi = [for (var i = 0; i < 60; i++) 'gara-$i'];
-      final decorati = [
-        for (final seme in semi)
-          if (pelle.decoraTasto(tasto, seme: seme) != tasto) seme,
-      ];
-
-      // **Qualcuno si', qualcuno no.** I due casi che contano sono gli estremi:
-      // nessun tasto decorato vuol dire che la stagione non si vede, tutti
-      // decorati vuol dire una cornice — e una cornice e' un elemento
-      // dell'interfaccia, non un dettaglio di ottobre.
-      expect(decorati, isNotEmpty);
-      expect(decorati.length, lessThan(semi.length));
-
-      // **E sempre lo stesso verdetto per lo stesso tasto.** A caso, il segno
-      // salterebbe da una card all'altra a ogni scorrimento dell'elenco.
-      for (final seme in semi) {
-        expect(
-          pelle.decoraTasto(tasto, seme: seme) != tasto,
-          decorati.contains(seme),
-        );
+      for (var i = 0; i < 60; i++) {
+        expect(pelle.decoraTasto(tasto, seme: 'gara-$i'), isNot(same(tasto)));
       }
+    });
+
+    test('a ottobre il titolo della missione ha le lettere horror', () {
+      final pelle = SeasonSkin.perStagione(Season.halloween);
+
+      expect(pelle.titolo(const TextStyle())?.fontFamily, 'Creepster');
+      expect(SeasonSkin.nessuna.titolo(null), isNull);
     });
 
     testWidgets('il tasto decorato resta un tasto che si preme', (

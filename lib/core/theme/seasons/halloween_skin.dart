@@ -4,7 +4,7 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/seasons/season_skin.dart';
 import 'package:flutter/material.dart';
 
-/// **Halloween: due ragnatele e un ragno.**
+/// **Halloween: ragnatele, ragni, zucche e lettere che colano.**
 ///
 /// ## Il rosso non si tocca
 ///
@@ -31,54 +31,17 @@ import 'package:flutter/material.dart';
 class HalloweenSkin extends SeasonSkin {
   const HalloweenSkin();
 
-  /// **L'apertura: la fiamma al centro della tela.**
+  /// **L'apertura: solo la fiamma.**
   ///
-  /// La fiamma resta quella che e' sempre stata, intera e in primo piano: e' il
-  /// marchio, e per un mese non si mette da parte. La ragnatela le si apre
-  /// **dietro, centrata**, e la fiamma finisce dove in una tela sta il ragno.
-  ///
-  /// ## Il mozzo non e' disegnato, perche' il mozzo e' lei
-  ///
-  /// Prima la tela stava di fianco, spostata in diagonale, e il motivo era che una
-  /// ragnatela intera dietro una fiamma e' una fiamma spezzata in dodici pezzi: i
-  /// raggi convergono tutti dove c'e' lei e le passano sopra.
-  ///
-  /// Il problema era il mozzo, non la posizione. Qui i raggi **cominciano oltre**
-  /// la fiamma e il centro resta vuoto: la tela e' centrata e nessun filo la
-  /// taglia. Ed e' anche piu' vero di una tela completa — in una ragnatela vera il
-  /// centro e' il buco in cui sta chi l'ha tessuta, non un nodo di fili.
-  ///
-  /// La tela e' tenuta piu' tenue della fiamma. Allo stesso peso si guarderebbe
-  /// lei: e' larga il doppio, e fra due segni vince sempre il piu' grande.
+  /// C'e' stata una tela dietro, centrata. Si e' tolta: l'apertura e' il
+  /// momento in cui l'app dice come si chiama, e lo dice la fiamma da sola.
+  /// Halloween comincia appena dentro.
   @override
   Widget accompagnaApertura(
     Widget fiamma, {
     required double misura,
     required Color colore,
-  }) {
-    final lato = misura * 2.4;
-
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
-      children: [
-        SizedBox(
-          width: lato,
-          height: lato,
-          child: CustomPaint(
-            painter: _RagnatelaPiena(
-              colore: colore.withValues(alpha: 0.28),
-              // Il buco in cui sta la fiamma. Poco piu' di meta' del raggio: la
-              // fiamma e' alta quanto [misura] e il raggio e' circa `misura`,
-              // quindi sotto il mezzo i raggi le toccherebbero le punte.
-              vuoto: 0.58,
-            ),
-          ),
-        ),
-        fiamma,
-      ],
-    );
-  }
+  }) => fiamma;
 
   /// **L'attesa: la fiamma dov'era.**
   ///
@@ -93,27 +56,18 @@ class HalloweenSkin extends SeasonSkin {
     required Color colore,
   }) => fiamma;
 
-  /// **Un segno su qualche tasto, non su tutti.**
+  /// **Una ragnatela su ogni PARTECIPA, e su uno su tre anche una zucca.**
   ///
-  /// Uno su tre ha qualcosa addosso, e meta' di quelli e' una zucca invece di una
-  /// ragnatela: a tre gare per schermata ne capita in media una, che e' la
-  /// quantita' giusta perche' sembri che ottobre sia passato di qui e non che
-  /// qualcuno abbia aggiunto un elemento grafico al bottone.
-  ///
-  /// Il segno sta nell'angolo in alto a sinistra, **fuori dalla parola**:
-  /// l'etichetta e' centrata, e un disegno al centro di un tasto rosso con
-  /// scritto PARTECIPA sopra e' un disegno che toglie leggibilita' all'unica
-  /// cosa che quel tasto deve dire.
+  /// La ragnatela sta nell'angolo in alto a sinistra e la zucca in quello a
+  /// destra, **fuori dalla parola**: l'etichetta e' centrata, e un disegno al
+  /// centro di un tasto rosso con scritto PARTECIPA sopra toglie leggibilita'
+  /// all'unica cosa che quel tasto deve dire.
   ///
   /// Bianco al 22%, perche' il tasto e' rosso pieno: il nero sparirebbe e il
   /// bianco pieno diventerebbe un secondo elemento da leggere.
   @override
   Widget decoraTasto(Widget tasto, {required String seme}) {
-    final sorte = _sorte(seme);
-
-    if (sorte % 3 != 0) {
-      return tasto;
-    }
+    final zucca = _sorte(seme) % 3 == 0;
 
     return Stack(
       children: [
@@ -121,14 +75,60 @@ class HalloweenSkin extends SeasonSkin {
         Positioned.fill(
           // I tocchi passano: il tasto sotto e' l'unica cosa che qui conta.
           child: IgnorePointer(
-            child: CustomPaint(
-              painter: sorte % 6 == 0 ? _ZuccaSulTasto() : _RagnatelaSulTasto(),
+            child: CustomPaint(painter: _RagnatelaSulTasto()),
+          ),
+        ),
+        if (zucca)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(painter: _ZuccaSulTasto(aDestra: true)),
             ),
+          ),
+      ],
+    );
+  }
+
+  /// **Una ragnatela nell'angolo della missione, e a volte il suo ragno.**
+  ///
+  /// In alto a destra, ancorata al vertice del blocco come se continuasse oltre
+  /// il bordo. Una missione su due ha anche il ragno appeso al suo filo: tutte
+  /// con il ragno sarebbe una fila di ragni uguali, e smetterebbe di far
+  /// sobbalzare.
+  @override
+  Widget decoraMissione(Widget missione, {required String seme}) {
+    final ragno = _sorte(seme).isEven;
+
+    return Stack(
+      // **La larghezza di chi sta fuori, non quella del testo.** Con quella
+      // del testo la tela si attaccherebbe alla fine del titolo, a meta' riga,
+      // invece che al bordo della pagina.
+      fit: StackFit.passthrough,
+      clipBehavior: Clip.none,
+      children: [
+        missione,
+        Positioned(
+          top: 0,
+          right: 0,
+          width: 96,
+          height: 140,
+          child: IgnorePointer(
+            child: CustomPaint(painter: _RagnatelaMissione(ragno: ragno)),
           ),
         ),
       ],
     );
   }
+
+  /// **Le lettere che colano**, sui titoli delle missioni.
+  ///
+  /// Creepster ha un peso solo: il grassetto dei titoli si toglie, o il
+  /// telefono lo inventa ingrossando le lettere e le gocce diventano macchie.
+  @override
+  TextStyle? titolo(TextStyle? stile) => stile?.copyWith(
+    fontFamily: 'Creepster',
+    fontWeight: FontWeight.w400,
+    letterSpacing: 1.2,
+  );
 
   /// Un numero stabile a partire da una parola.
   ///
@@ -215,81 +215,65 @@ void _anelli(
   }
 }
 
-/// La tela intera della schermata d'apertura, con il ragno appeso.
-class _RagnatelaPiena extends CustomPainter {
-  const _RagnatelaPiena({required this.colore, this.vuoto = 0});
+/// La ragnatela nell'angolo in alto a destra di una missione.
+///
+/// Un quarto di tela con il centro **sul vertice**, piu' scura di quelle della
+/// pagina: sta accanto al titolo, e al 7% di nero li' sparirebbe. Con [ragno]
+/// dal fondo della tela scende un filo, e in fondo al filo c'e' lui.
+class _RagnatelaMissione extends CustomPainter {
+  const _RagnatelaMissione({required this.ragno});
 
-  final Color colore;
+  final bool ragno;
 
-  /// Quanta parte del raggio, dal centro in fuori, resta **senza fili**.
-  ///
-  /// A zero la tela e' intera e ha il suo mozzo. Sopra zero il mozzo non si
-  /// disegna: i raggi cominciano da qui, e quel buco e' il posto di quello che la
-  /// tela ha dentro — la fiamma, nell'apertura.
-  final double vuoto;
+  /// Nero al 16%: si vede, e non si legge insieme al premio rosso accanto.
+  static const _inchiostro = Color(0x290A0A0B);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final centro = Offset(size.width / 2, size.height / 2);
-    final raggio = size.width / 2 * 0.86;
-    final penna = _filo(colore, size.width * 0.009);
+    final penna = _filo(_inchiostro, 1.1);
+    final angolo = Offset(size.width, 0);
+    final raggio = size.width * 0.92;
 
-    // Dodici raggi. Con meno la tela sembra uno spartito, con molti di piu'
-    // diventa un disco pieno alla misura a cui si guarda qui.
-    const raggi = 12;
+    const raggi = 5;
     final angoli = [
-      for (var i = 0; i <= raggi; i++) -math.pi / 2 + i * 2 * math.pi / raggi,
+      for (var i = 0; i <= raggi; i++) math.pi / 2 + i * (math.pi / 2) / raggi,
     ];
 
-    final dentro = vuoto.clamp(0.0, 0.9);
-
-    for (var i = 0; i < raggi; i++) {
-      final a = angoli[i];
-      final direzione = Offset(math.cos(a), math.sin(a));
-
+    for (final a in angoli) {
       canvas.drawLine(
-        centro + direzione * raggio * dentro,
-        centro + direzione * raggio,
+        angolo,
+        angolo + Offset(math.cos(a) * raggio, math.sin(a) * raggio),
         penna,
       );
     }
 
-    // Gli anelli si distribuiscono in quello che resta fuori dal buco: con il
-    // mozzo vuoto, le quote fisse della tela intera finirebbero tre su quattro
-    // dentro il buco e ne resterebbe uno.
     _anelli(
       canvas,
-      centro,
+      angolo,
       raggio,
       angoli,
       penna,
-      quote: [
-        for (final passo in const [0.0, 0.3, 0.62, 1.0])
-          dentro + (1 - dentro) * (0.04 + passo * 0.92),
-      ],
+      quote: const [0.32, 0.6, 0.86],
     );
 
-    // **Il filo che scende e il ragno in fondo.** Senza di lui la tela e' un
-    // ornamento geometrico; con lui c'e' qualcuno dentro, ed e' tutta la
-    // differenza fra un disegno e una scena.
-    //
-    // Attaccato **fuori dal buco**: appeso al mozzo starebbe addosso alla fiamma,
-    // e il ragno sotto la fiamma si legge come una macchia nera sul marchio.
-    final su = math.max(dentro, 0.45);
-    final attacco = centro + Offset(raggio * su * 0.72, raggio * su * 0.62);
-    final appeso = attacco + Offset(0, raggio * 0.3);
-    canvas.drawLine(attacco, appeso, penna);
+    if (!ragno) {
+      return;
+    }
 
-    _Ragno(colore: colore).disegna(
+    // Il filo parte da dentro la tela, sulla diagonale, e scende diritto.
+    final attacco = angolo + Offset(-raggio * 0.5, raggio * 0.5);
+    final appeso = Offset(attacco.dx, size.height - 14);
+    canvas.drawLine(attacco, appeso, _filo(_inchiostro, 1));
+
+    const _Ragno(colore: Color(0x8C0A0A0B)).disegna(
       canvas,
-      appeso + Offset(0, size.width * 0.045),
-      size.width * 0.07,
+      appeso + const Offset(0, 6),
+      7,
     );
   }
 
   @override
-  bool shouldRepaint(_RagnatelaPiena altro) =>
-      altro.colore != colore || altro.vuoto != vuoto;
+  bool shouldRepaint(_RagnatelaMissione altro) => altro.ragno != ragno;
 }
 
 /// Un ragno, piccolo: due corpi tondi e otto zampe piegate.
@@ -458,19 +442,25 @@ class _RagnatelaSulTasto extends CustomPainter {
   bool shouldRepaint(_RagnatelaSulTasto altro) => false;
 }
 
-/// Una zucca piccola nell'angolo in alto a sinistra di un tasto.
+/// Una zucca piccola sul bordo di un tasto, a sinistra o a destra.
 ///
 /// **A costine, non una palla con il gambo.** Una zucca si riconosce dai solchi
 /// verticali: il cerchio con il rametto sopra, a quattordici pixel, si legge come
 /// una mela — e una mela su un tasto non dice niente a nessuno.
 class _ZuccaSulTasto extends CustomPainter {
-  _ZuccaSulTasto();
+  _ZuccaSulTasto({this.aDestra = false});
+
+  /// Dal lato opposto alla ragnatela, quando sul tasto ci sono tutte e due.
+  final bool aDestra;
 
   @override
   void paint(Canvas canvas, Size size) {
     final alta = size.height * 0.42;
     final larga = alta * 1.22;
-    final centro = Offset(larga * 0.78, size.height * 0.5);
+    final centro = Offset(
+      aDestra ? size.width - larga * 0.78 : larga * 0.78,
+      size.height * 0.5,
+    );
     final penna = _filo(_sulRosso, 1.3);
 
     // Il corpo: piu' largo che alto, com'e' una zucca vera.
@@ -510,7 +500,7 @@ class _ZuccaSulTasto extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ZuccaSulTasto altro) => false;
+  bool shouldRepaint(_ZuccaSulTasto altro) => altro.aDestra != aDestra;
 }
 
 /// Le due ragnatele d'angolo che stanno su ogni pagina.
@@ -532,6 +522,18 @@ class _RagnatelePagina extends CustomPainter {
 
     _quarto(canvas, Offset.zero, lato * 0.34, 0, penna);
     _quarto(canvas, Offset(size.width, 0), lato * 0.22, math.pi / 2, penna);
+
+    // **Il ragno che scende dalla tela grande.** Un filo dal bordo della tela
+    // e lui in fondo, poco piu' in basso della barra in alto: si incontra
+    // entrando nella pagina, e non sta sopra niente da leggere.
+    final attacco = Offset(lato * 0.2, lato * 0.24);
+    final appeso = attacco + Offset(0, lato * 0.16);
+    canvas.drawLine(attacco, appeso, _filo(_inchiostro, 1));
+    const _Ragno(colore: Color(0x400A0A0B)).disegna(
+      canvas,
+      appeso + const Offset(0, 6),
+      6,
+    );
   }
 
   /// Un quarto di tela con il centro **sul vertice** dello schermo.
