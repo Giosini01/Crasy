@@ -3,6 +3,7 @@ import 'package:crasy/core/utils/combina_flussi.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/payments/data/payments_service.dart';
 import 'package:crasy/features/payments/data/wallet_repository.dart';
+import 'package:crasy/features/payments/domain/entities/ledger_entry.dart';
 import 'package:crasy/features/payments/domain/entities/payout_details.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 import 'package:crasy/features/payments/domain/entities/wallet.dart';
@@ -55,6 +56,19 @@ final payoutDetailsProvider = StreamProvider<PayoutDetails?>((ref) {
   }
 
   return repository.watchPayoutDetails(userId);
+});
+
+/// **L'estratto conto: tutti i movimenti di denaro, anche quelli fuori dal
+/// portafoglio.**
+final ledgerProvider = StreamProvider<List<LedgerEntry>>((ref) {
+  final repository = ref.watch(walletRepositoryProvider);
+  final userId = ref.watch(currentUserIdProvider);
+
+  if (repository == null || userId == null) {
+    return Stream.value(const <LedgerEntry>[]);
+  }
+
+  return repository.watchLedger(userId);
 });
 
 /// Il mio portafoglio: quanto c'e' dentro e da dove viene.

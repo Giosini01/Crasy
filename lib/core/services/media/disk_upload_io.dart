@@ -68,7 +68,8 @@ Future<String> mettiAlSicuro(String origine) async {
   }
 
   final casa = await getApplicationSupportDirectory();
-  final nome = 'crasy-${DateTime.now().microsecondsSinceEpoch}'
+  final nome =
+      'crasy-${DateTime.now().microsecondsSinceEpoch}'
       '${origine.contains('.') ? origine.substring(origine.lastIndexOf('.')) : '.mp4'}';
   final salvo = File('${casa.path}${Platform.pathSeparator}$nome');
 

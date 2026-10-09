@@ -151,9 +151,7 @@ class _Muro extends StatelessWidget {
                         'Aggiornala per continuare a giocare: apri TestFlight '
                         'e tocca AGGIORNA.',
                 textAlign: TextAlign.center,
-                style: texts.bodyMedium?.copyWith(
-                  color: palette.textSecondary,
-                ),
+                style: texts.bodyMedium?.copyWith(color: palette.textSecondary),
               ),
               const SizedBox(height: AppSpacing.xl),
               CrasyButton(label: 'Aggiorna', onPressed: _apri),

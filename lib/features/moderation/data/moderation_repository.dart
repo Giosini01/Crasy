@@ -14,7 +14,6 @@ class ModerationRepository {
 
   final FirebaseFirestore _firestore;
 
-
   CollectionReference<Map<String, dynamic>> get _reports =>
       _firestore.collection('reports');
 

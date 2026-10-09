@@ -85,6 +85,10 @@ abstract final class AppRoutes {
   /// aprirsi.
   static const wallet = '/portafoglio';
 
+  /// L'estratto conto: tutti i movimenti, anche quelli che il portafoglio non
+  /// vede perche' passati dalla carta.
+  static const ledger = '/movimenti';
+
   /// La mancia: sostiene CRASY e, da dieci euro, da' il verificato.
   static const tip = '/mancia';
 

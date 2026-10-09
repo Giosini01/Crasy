@@ -89,10 +89,11 @@ class _PrivacySettings extends ConsumerWidget {
         // altri cercano. Chi lo spegne ne esce, e non compare piu' a nessuno.
         _RigaInterruttore(
           titolo: 'Fatti trovare dai contatti',
-          spiegazione: 'Chi ha il tuo numero in rubrica ti vede fra i '
+          spiegazione:
+              'Chi ha il tuo numero in rubrica ti vede fra i '
               'suggeriti. Il numero non lo mostriamo mai a nessuno.',
-          valore: ref.watch(contactSettingsProvider).valueOrNull
-                  ?.findableByPhone ??
+          valore:
+              ref.watch(contactSettingsProvider).valueOrNull?.findableByPhone ??
               true,
           attivo: !saving,
           cambia: (value) {

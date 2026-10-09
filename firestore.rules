@@ -185,6 +185,16 @@ service cloud.firestore {
       // Nessun telefono le puo' scrivere: a scriverle e' il server, che con
       // l'SDK di amministrazione non passa da qui. Una ricevuta che il
       // destinatario puo' creare o modificare non e' una ricevuta.
+      // **Il registro dei movimenti: lo legge solo chi lo possiede.**
+      //
+      // Append-only per davvero: nessun telefono puo' scriverci, nemmeno il
+      // proprietario. Un estratto conto in cui una riga di ieri puo' cambiare
+      // oggi non e' un estratto conto.
+      match /ledger/{movimento} {
+        allow read: if signedIn() && request.auth.uid == userId;
+        allow write: if false;
+      }
+
       match /refunds/{challengeId} {
         allow read: if signedIn() && request.auth.uid == userId;
         allow write: if false;

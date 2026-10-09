@@ -173,6 +173,21 @@ class _WalletPageState extends ConsumerState<WalletPage> {
       appBar: AppBar(
         leading: const BackButton(),
         title: const Text('Portafoglio'),
+        actions: [
+          // **La porta per l'estratto conto sta qui**, e non in fondo alla
+          // pagina: il portafoglio mostra solo i soldi che passano dentro
+          // CRASY, e chi cerca un pagamento fatto con la carta lo cerca da
+          // questa schermata — e' l'unico posto dove gli viene in mente.
+          TextButton(
+            onPressed: () => context.push(AppRoutes.ledger),
+            child: Text(
+              'TUTTI I MOVIMENTI',
+              style: context.texts.labelSmall?.copyWith(
+                color: context.palette.accent,
+              ),
+            ),
+          ),
+        ],
       ),
       body: AppBackground(
         child: SafeArea(

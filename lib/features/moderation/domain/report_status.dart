@@ -42,7 +42,8 @@ enum ReportStatus {
   final String label;
 
   /// Se c'e' ancora una decisione da prendere.
-  bool get isOpen => this == ReportStatus.fresh || this == ReportStatus.reviewing;
+  bool get isOpen =>
+      this == ReportStatus.fresh || this == ReportStatus.reviewing;
 
   /// Come si legge dal database.
   ///

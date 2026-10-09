@@ -107,9 +107,10 @@ class _PermissionsPageState extends ConsumerState<PermissionsPage> {
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.page),
             children: [
-              Text('PRIMA DI ENTRARE', style: texts.labelSmall?.copyWith(
-                color: palette.textFaint,
-              )),
+              Text(
+                'PRIMA DI ENTRARE',
+                style: texts.labelSmall?.copyWith(color: palette.textFaint),
+              ),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Tre permessi, e a cosa servono',
@@ -125,7 +126,8 @@ class _PermissionsPageState extends ConsumerState<PermissionsPage> {
               _Riga(
                 icona: Icons.notifications_active_rounded,
                 titolo: 'Notifiche',
-                perche: 'Per sapere quando un amico ti sfida, quando qualcuno '
+                perche:
+                    'Per sapere quando un amico ti sfida, quando qualcuno '
                     'mette una fiamma sulla tua foto e quando vinci. Senza, '
                     'le sfide scadono prima che tu le veda.',
                 esito: _notifiche,
@@ -133,7 +135,8 @@ class _PermissionsPageState extends ConsumerState<PermissionsPage> {
               _Riga(
                 icona: Icons.contacts_rounded,
                 titolo: 'Contatti',
-                perche: 'Per trovare gli amici che sono già su CRASY. Dalla '
+                perche:
+                    'Per trovare gli amici che sono già su CRASY. Dalla '
                     'rubrica prendiamo solo i numeri, per confrontarli: non '
                     'li salviamo e non scriviamo a nessuno.',
                 esito: _contatti,
@@ -141,7 +144,8 @@ class _PermissionsPageState extends ConsumerState<PermissionsPage> {
               const _Riga(
                 icona: Icons.photo_camera_rounded,
                 titolo: 'Fotocamera e foto',
-                perche: 'Per partecipare alle missioni. Te la chiede il '
+                perche:
+                    'Per partecipare alle missioni. Te la chiede il '
                     'telefono la prima volta che scatti o scegli una foto.',
               ),
               const SizedBox(height: AppSpacing.xl),
@@ -205,7 +209,9 @@ class _Riga extends StatelessWidget {
                     if (esito != null) ...[
                       const SizedBox(width: AppSpacing.xs),
                       Icon(
-                        esito! ? Icons.check_circle_rounded : Icons.remove_circle_outline_rounded,
+                        esito!
+                            ? Icons.check_circle_rounded
+                            : Icons.remove_circle_outline_rounded,
                         size: 16,
                         color: esito! ? palette.accent : palette.textFaint,
                       ),
@@ -215,7 +221,9 @@ class _Riga extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
                   perche,
-                  style: texts.bodySmall?.copyWith(color: palette.textSecondary),
+                  style: texts.bodySmall?.copyWith(
+                    color: palette.textSecondary,
+                  ),
                 ),
               ],
             ),

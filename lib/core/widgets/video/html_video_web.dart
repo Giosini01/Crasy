@@ -142,9 +142,7 @@ Widget? buildHtmlVideo(
   // due elementi diversi — uno resta fermo, l'altro parte — e con lo stesso
   // nome il secondo riuserebbe la fabbrica del primo e ne erediterebbe il
   // comportamento.
-  final quale = immersive
-      ? 'full'
-      : (autoplay ? 'feed' : 'grid');
+  final quale = immersive ? 'full' : (autoplay ? 'feed' : 'grid');
   final viewType = 'crasy-video-$quale-${url.hashCode}';
 
   _onTap[viewType] = onTap;

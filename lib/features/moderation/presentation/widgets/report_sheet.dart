@@ -24,6 +24,7 @@ Future<void> showReportSheet(
   String challengeId = '',
   String entryId = '',
   String commentId = '',
+
   /// La foto segnalata e il titolo della gara, quando ci sono.
   ///
   /// Viaggiano dentro la segnalazione perche' la dashboard deve poter mostrare

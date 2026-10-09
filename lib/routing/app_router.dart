@@ -21,6 +21,7 @@ import 'package:crasy/features/legal/presentation/pages/consent_page.dart';
 import 'package:crasy/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:crasy/features/onboarding/presentation/pages/onboarding_page.dart';
 import 'package:crasy/features/onboarding/presentation/pages/permissions_page.dart';
+import 'package:crasy/features/payments/presentation/pages/ledger_page.dart';
 import 'package:crasy/features/payments/presentation/pages/payout_details_page.dart';
 import 'package:crasy/features/payments/presentation/pages/tip_page.dart';
 import 'package:crasy/features/payments/presentation/pages/wallet_page.dart';
@@ -383,6 +384,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         (state) => const RecentlyEndedPage(),
       ),
       _pushedRoute(AppRoutes.wallet, (state) => const WalletPage()),
+      _pushedRoute(AppRoutes.ledger, (state) => const LedgerPage()),
       _pushedRoute(AppRoutes.tip, (state) => const TipPage()),
       _pushedRoute(
         AppRoutes.payoutDetails,

@@ -760,6 +760,24 @@ async function accendiLaGara(challengeId, paymentIntentId) {
     });
   });
 
+  // Il registro si scrive **dopo** la transazione, non dentro: una
+  // transazione tocca solo il database e deve restare la piu' corta possibile,
+  // e questa riga ha un identificativo fisso — riscriverla non crea doppioni.
+  const dopo = await ref.get();
+
+  await scriviNelRegistro(
+    dopo.get('createdByUserId'),
+    `pagamento_${challengeId}`,
+    {
+      kind: 'challengePayment',
+      amountCents: -(dopo.get('prizeCents') || 0),
+      challengeId,
+      challengeTitle: dopo.get('title') || '',
+      source: dopo.get('paidFromWallet') === true ? 'wallet' : 'card',
+      note: 'Premio messo in palio',
+    }
+  );
+
   logger.info(`Challenge ${challengeId}: premio incassato, gara aperta.`);
 }
 
@@ -1036,12 +1054,21 @@ async function payWinner(challengeId) {
       paidOutAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    return { winnerUserId, amount };
+    return { winnerUserId, amount, title: snapshot.get("title") || "" };
   });
 
   if (!paid) {
     return { paid: false, reason: 'non-pagabile' };
   }
+
+  await scriviNelRegistro(paid.winnerUserId, `premio_${challengeId}`, {
+    kind: 'prize',
+    amountCents: paid.amount,
+    challengeId,
+    challengeTitle: paid.title || '',
+    source: 'crasy',
+    note: 'Premio vinto',
+  });
 
   logger.info(
     `Challenge ${challengeId}: ${paid.amount} centesimi nel portafoglio di ` +
@@ -1049,6 +1076,60 @@ async function payWinner(challengeId) {
   );
 
   return { paid: true, amountCents: paid.amount };
+}
+
+/**
+ * **Il registro: ogni movimento di denaro, scritto una volta e mai toccato.**
+ *
+ * ## Perche' non bastava il portafoglio
+ *
+ * `users/{uid}/wallet` racconta solo i soldi che passano **dentro** CRASY: i
+ * premi vinti, i prelievi, le missioni pagate col saldo. Chi paga con la carta
+ * non ci compare — quei soldi dalla carta vanno a Stripe e non toccano il
+ * portafoglio — e infatti undici pagamenti parzialmente rimborsati erano
+ * visibili solo a noi, sulla dashboard di Stripe. Per chi li aveva fatti non
+ * esisteva nessun posto dove leggerli.
+ *
+ * E le gare non possono farne le veci: annullandole si cancellano, e con loro
+ * la prova di cosa era stato pagato.
+ *
+ * ## Append-only, e non e' una parola grossa
+ *
+ * Una riga non si modifica e non si cancella mai. Un estratto conto in cui una
+ * riga di ieri puo' cambiare oggi non e' un estratto conto: e' uno schermo. Se
+ * un movimento era sbagliato si scrive quello che lo corregge, come si fa in
+ * contabilita' da seicento anni.
+ *
+ * Il segno e' sempre **dal punto di vista di chi legge**: positivo quello che
+ * entra, negativo quello che esce. Senza questa regola scritta qui, ogni
+ * chiamante la indovina a modo suo e l'estratto conto non torna.
+ *
+ * L'identificativo e' prevedibile — `tipo_gara` — perche' queste funzioni
+ * possono girare due volte: Stripe rimanda gli eventi, e una chiusura si puo'
+ * riprovare. Con un nome fisso la seconda scrittura sovrascrive la prima
+ * invece di diventare una riga doppia su un estratto conto.
+ */
+async function scriviNelRegistro(userId, id, riga) {
+  if (!userId) {
+    return;
+  }
+
+  try {
+    await db
+      .collection('users')
+      .doc(userId)
+      .collection('ledger')
+      .doc(id)
+      .set(
+        {
+          ...riga,
+          at: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+  } catch (error) {
+    logger.error(`Registro non scritto per ${userId}/${id}.`, error);
+  }
 }
 
 /** Sotto questa cifra non si preleva: dieci euro. */
@@ -1303,6 +1384,17 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
     } catch (error) {
       logger.error(`Prova del rimborso non scritta per ${challengeId}.`, error);
     }
+
+    await scriviNelRegistro(haPagato, `rimborso_${challengeId}`, {
+      kind: 'refund',
+      amountCents: restituito,
+      challengeId,
+      challengeTitle: snapshot.get('title') || '',
+      source: dove === 'portafoglio' ? 'wallet' : 'card',
+      note: soloIlPremio
+        ? 'Rimborso: hai annullato la missione'
+        : 'Rimborso: non ha partecipato nessuno',
+    });
   }
 
   // **Un premio restituito non conta fra quelli messi in palio.**
@@ -1396,6 +1488,7 @@ exports.cancelChallenge = onCall(
   }
 );
 
+module.exports.scriviNelRegistro = scriviNelRegistro;
 module.exports.payWinner = payWinner;
 module.exports.refundChallenge = refundChallenge;
 module.exports.commissionCents = commissionCents;
@@ -1634,6 +1727,13 @@ exports.requestPayout = onCall(async (request) => {
   if (quanto < 0) {
     return { ok: false, reason: 'gia-in-corso' };
   }
+
+  await scriviNelRegistro(userId, `prelievo_${richiestaRef.id}`, {
+    kind: 'withdrawal',
+    amountCents: -quanto,
+    source: 'bank',
+    note: 'Prelievo chiesto: in arrivo sul tuo conto',
+  });
 
   logger.info(`Prelievo chiesto da ${userId}: ${quanto} centesimi.`);
 

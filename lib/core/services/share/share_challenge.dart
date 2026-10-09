@@ -65,7 +65,10 @@ abstract final class ShareChallenge {
         ? 'una missione'
         : '"${challengeTitle.trim().toUpperCase()}"';
 
-    final link = linkTo(challengeId: challengeId, challengeTitle: challengeTitle);
+    final link = linkTo(
+      challengeId: challengeId,
+      challengeTitle: challengeTitle,
+    );
 
     // A missione chiusa non c'e' piu' niente da proporre: chiedere di entrare
     // in una gara finita manda chi riceve a cercare un comando che non c'e', e

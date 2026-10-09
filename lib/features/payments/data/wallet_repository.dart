@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crasy/features/payments/domain/entities/ledger_entry.dart';
 import 'package:crasy/features/payments/domain/entities/payout_details.dart';
 import 'package:crasy/features/payments/domain/entities/wallet.dart';
 
@@ -36,6 +37,59 @@ class WalletRepository {
     return _user(userId).snapshots().map(
       (snapshot) => (snapshot.data()?['walletCents'] as num?)?.toInt() ?? 0,
     );
+  }
+
+  /// **L'estratto conto: tutti i movimenti di denaro, anche quelli che il
+  /// portafoglio non vede.**
+  ///
+  /// Una missione pagata con la carta non passa dal portafoglio — quei soldi
+  /// vanno dalla carta a Stripe — quindi nei movimenti del portafoglio non
+  /// c'era. Qui c'e'.
+  ///
+  /// L'ordine si fa in memoria e non con un `orderBy`: le righe appena scritte
+  /// non hanno ancora l'ora del server, e una query ordinata le salterebbe —
+  /// cioe' farebbe sparire dall'elenco proprio il movimento che uno sta
+  /// andando a cercare.
+  Stream<List<LedgerEntry>> watchLedger(String userId) {
+    return _user(userId).collection('ledger').limit(100).snapshots().map((
+      snapshot,
+    ) {
+      final righe = [
+        for (final documento in snapshot.docs)
+          LedgerEntry(
+            id: documento.id,
+            kind: documento.data()['kind'] as String? ?? '',
+            amountCents:
+                (documento.data()['amountCents'] as num?)?.toInt() ?? 0,
+            challengeId: documento.data()['challengeId'] as String? ?? '',
+            challengeTitle: documento.data()['challengeTitle'] as String? ?? '',
+            source: documento.data()['source'] as String? ?? '',
+            note: documento.data()['note'] as String? ?? '',
+            at: (documento.data()['at'] as Timestamp?)?.toDate(),
+          ),
+      ];
+
+      righe.sort((a, b) {
+        final quandoA = a.at;
+        final quandoB = b.at;
+
+        if (quandoA == null && quandoB == null) {
+          return 0;
+        }
+
+        if (quandoA == null) {
+          return -1;
+        }
+
+        if (quandoB == null) {
+          return 1;
+        }
+
+        return quandoB.compareTo(quandoA);
+      });
+
+      return righe;
+    });
   }
 
   Stream<List<WalletMovement>> watchMovements(String userId) {

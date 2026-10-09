@@ -114,7 +114,10 @@ class ChallengeCard extends ConsumerWidget {
                       const SizedBox(width: AppSpacing.sm),
                       Padding(
                         padding: const EdgeInsets.only(top: AppSpacing.xs),
-                        child: ArchiveBadge(challenge: challenge, compact: true),
+                        child: ArchiveBadge(
+                          challenge: challenge,
+                          compact: true,
+                        ),
                       ),
                     ],
                   ],
