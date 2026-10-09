@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:crasy/core/theme/app_palette.dart';
@@ -188,80 +189,101 @@ class _PhotoEditorState extends State<PhotoEditor> {
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.page,
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(
-                              AppRadius.media,
-                            ),
-                            child: AspectRatio(
-                              aspectRatio: widget.aspectRatio,
-                              // **Il confine di cio' che verra' catturato.** Tutto quello
-                              // che sta dentro questo riquadro finisce nel file; tutto
-                              // quello che sta fuori non esiste. E' la stessa cosa che
-                              // vede chi guarda, ed e' il punto: non c'e' nessuna
-                              // sorpresa fra l'anteprima e quello che parte.
-                              child: RepaintBoundary(
-                                key: _riquadro,
-                                child: Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    if (widget.inquadrabile &&
-                                        _proporzioni != null)
-                                      _DaInquadrare(
-                                        bytes: widget.bytes,
-                                        proporzioniFoto: _proporzioni!,
-                                        proporzioniRiquadro: widget.aspectRatio,
-                                        controller: _inquadratura,
-                                        // Al secondo passo la foto si ferma: le dita da
-                                        // li' in poi parlano alla frase, e un visore che
-                                        // risponde ancora e' esattamente l'ambiguita'
-                                        // che i due passi esistono per togliere.
-                                        gesti: !_scrivendo,
-                                      )
-                                    else
-                                      Image.memory(
-                                        widget.bytes,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    if (_scritte.isNotEmpty)
-                                      // **Un solo `Positioned.fill` per tutte le
-                                      // frasi.** Prima ogni frase era un `LayoutBuilder`
-                                      // che restituiva un `Positioned`, e un
-                                      // `Positioned` deve stare attaccato allo `Stack`:
-                                      // messo dentro qualunque altra cosa fa cadere
-                                      // l'app nell'istante in cui si mette la scritta.
-                                      // Qui la misura del riquadro la si legge una volta
-                                      // e lo `Stack` interno ha i suoi `Positioned` come
-                                      // figli diretti.
-                                      Positioned.fill(
-                                        child: IgnorePointer(
-                                          // Al primo passo le frasi si vedono — serve a
-                                          // sapere cosa si sta inquadrando — ma non
-                                          // prendono i tocchi, che sono della foto.
-                                          ignoring: !_scrivendo,
-                                          child: LayoutBuilder(
-                                            builder: (context, vincoli) =>
-                                                Stack(
-                                                  children: [
-                                                    for (final scritta
-                                                        in _scritte)
-                                                      _ScrittaSopra(
-                                                        scritta: scritta,
-                                                        riquadro: Size(
-                                                          vincoli.maxWidth,
-                                                          vincoli.maxHeight,
-                                                        ),
-                                                        onCambia: () =>
-                                                            setState(() {}),
-                                                      ),
-                                                  ],
-                                                ),
+                          child: Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.media,
+                                ),
+                                child: AspectRatio(
+                                  aspectRatio: widget.aspectRatio,
+                                  // **Il confine di cio' che verra' catturato.** Tutto quello
+                                  // che sta dentro questo riquadro finisce nel file; tutto
+                                  // quello che sta fuori non esiste. E' la stessa cosa che
+                                  // vede chi guarda, ed e' il punto: non c'e' nessuna
+                                  // sorpresa fra l'anteprima e quello che parte.
+                                  child: RepaintBoundary(
+                                    key: _riquadro,
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        if (widget.inquadrabile &&
+                                            _proporzioni != null)
+                                          _DaInquadrare(
+                                            bytes: widget.bytes,
+                                            proporzioniFoto: _proporzioni!,
+                                            proporzioniRiquadro:
+                                                widget.aspectRatio,
+                                            controller: _inquadratura,
+                                            // Al secondo passo la foto si ferma: le dita da
+                                            // li' in poi parlano alla frase, e un visore che
+                                            // risponde ancora e' esattamente l'ambiguita'
+                                            // che i due passi esistono per togliere.
+                                            gesti: !_scrivendo,
+                                          )
+                                        else
+                                          Image.memory(
+                                            widget.bytes,
+                                            fit: BoxFit.cover,
                                           ),
-                                        ),
-                                      ),
-                                  ],
+                                        if (_scritte.isNotEmpty)
+                                          // **Un solo `Positioned.fill` per tutte le
+                                          // frasi.** Prima ogni frase era un `LayoutBuilder`
+                                          // che restituiva un `Positioned`, e un
+                                          // `Positioned` deve stare attaccato allo `Stack`:
+                                          // messo dentro qualunque altra cosa fa cadere
+                                          // l'app nell'istante in cui si mette la scritta.
+                                          // Qui la misura del riquadro la si legge una volta
+                                          // e lo `Stack` interno ha i suoi `Positioned` come
+                                          // figli diretti.
+                                          Positioned.fill(
+                                            child: IgnorePointer(
+                                              // Al primo passo le frasi si vedono — serve a
+                                              // sapere cosa si sta inquadrando — ma non
+                                              // prendono i tocchi, che sono della foto.
+                                              ignoring: !_scrivendo,
+                                              child: LayoutBuilder(
+                                                builder: (context, vincoli) =>
+                                                    Stack(
+                                                      children: [
+                                                        for (final scritta
+                                                            in _scritte)
+                                                          _ScrittaSopra(
+                                                            scritta: scritta,
+                                                            riquadro: Size(
+                                                              vincoli.maxWidth,
+                                                              vincoli.maxHeight,
+                                                            ),
+                                                            area: areaSempreVisibile(
+                                                              widget
+                                                                  .aspectRatio,
+                                                            ),
+                                                            onCambia: () =>
+                                                                setState(() {}),
+                                                          ),
+                                                      ],
+                                                    ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
+                              // **Fuori dal riquadro che viene fotografato**,
+                              // quindi queste righe non finiscono nella foto:
+                              // sono un aiuto per chi scrive, non un segno
+                              // sull'immagine.
+                              if (_scrivendo)
+                                Positioned.fill(
+                                  child: _SegnaIlBordo(
+                                    area: areaSempreVisibile(
+                                      widget.aspectRatio,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ),
@@ -309,7 +331,9 @@ class _PhotoEditorState extends State<PhotoEditor> {
     return _scritte.isEmpty
         ? 'Se vuoi, aggiungi una frase sopra la foto. Oppure manda la foto '
               'così com\'è.'
-        : 'Trascinala dove vuoi. Due dita per farla più grande o più piccola.';
+        : 'Trascinala dove vuoi, due dita per cambiarle misura. Resta dentro '
+              'le righe tratteggiate: più in alto o più in basso, nelle '
+              'anteprime quadrate verrebbe tagliata via.';
   }
 
   Widget get _tastoAvanti => CrasyButton(
@@ -509,6 +533,85 @@ class _DaInquadrareState extends State<_DaInquadrare> {
   }
 }
 
+/// **La parte della foto che si vede sempre, in frazioni del riquadro.**
+///
+/// ## Il difetto che questa funzione esiste per togliere
+///
+/// Si scrive su un riquadro quattro quinti, ma la foto in giro per l'app non
+/// si vede quasi mai cosi': nelle griglie delle partecipazioni, nella
+/// rivelazione del vincitore e fra i vincitori recenti e' **quadrata**, e un
+/// quadrato ritagliato da un quattro quinti butta via un decimo di altezza
+/// sopra e un decimo sotto.
+///
+/// Una frase messa in cima — che e' il posto in cui la mette chiunque — nella
+/// griglia **non c'era piu'**. Chi l'aveva scritta la vedeva a schermo intero
+/// e dava per scontato che ci fosse ovunque.
+///
+/// ## Come si calcola
+///
+/// Dal ritaglio **piu' largo** viene il limite sopra e sotto, da quello **piu'
+/// stretto** il limite ai lati. Non sono numeri scritti a mano: cambiando la
+/// misura di una griglia cambia questa, e la frase si sposta di conseguenza
+/// invece di sparire di nuovo.
+Rect areaSempreVisibile(double riquadro) {
+  // Le griglie, la rivelazione del vincitore, i vincitori recenti.
+  const piuLargo = 1.0;
+
+  // Le figurine dei trofei, piu' alte che larghe.
+  const piuStretto = 0.72;
+
+  final altezza = riquadro < piuLargo ? riquadro / piuLargo : 1.0;
+  final larghezza = piuStretto < riquadro ? piuStretto / riquadro : 1.0;
+
+  final lato = (1 - larghezza) / 2;
+  final sopra = (1 - altezza) / 2;
+
+  return Rect.fromLTRB(lato, sopra, 1 - lato, 1 - sopra);
+}
+
+/// Le due righe che segnano dove la frase non puo' andare.
+///
+/// **Si disegnano fuori dal `RepaintBoundary`**, quindi non finiscono nella
+/// foto: sono un aiuto per chi scrive, non un segno sull'immagine. Senza, il
+/// limite si sentirebbe come una frase che si incolla a meta' strada per un
+/// motivo che non si vede — cioe' come un difetto.
+class _SegnaIlBordo extends StatelessWidget {
+  const _SegnaIlBordo({required this.area});
+
+  final Rect area;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: CustomPaint(painter: _BordoSicuro(area: area)),
+    );
+  }
+}
+
+class _BordoSicuro extends CustomPainter {
+  const _BordoSicuro({required this.area});
+
+  final Rect area;
+
+  @override
+  void paint(Canvas tela, Size misura) {
+    final pennello = Paint()
+      ..color = Colors.white.withValues(alpha: 0.45)
+      ..strokeWidth = 1;
+
+    for (final y in [area.top * misura.height, area.bottom * misura.height]) {
+      // Tratteggiata: una riga piena si legge come una cornice della foto, e
+      // chi guarda si chiede se finira' nel file.
+      for (var x = 0.0; x < misura.width; x += 12) {
+        tela.drawLine(Offset(x, y), Offset(x + 6, y), pennello);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_BordoSicuro vecchio) => vecchio.area != area;
+}
+
 /// Una frase scritta sopra la foto: cosa dice, dove sta, quanto e' grande.
 class _Scritta {
   _Scritta({required this.testo, required this.posizione});
@@ -535,6 +638,7 @@ class _ScrittaSopra extends StatefulWidget {
   const _ScrittaSopra({
     required this.scritta,
     required this.riquadro,
+    required this.area,
     required this.onCambia,
   });
 
@@ -544,11 +648,34 @@ class _ScrittaSopra extends StatefulWidget {
   /// trascinati in frazioni.
   final Size riquadro;
 
+  /// La parte di foto che si vede sempre. La frase non ne esce.
+  final Rect area;
+
   final VoidCallback onCambia;
 
   @override
   State<_ScrittaSopra> createState() => _ScrittaSopraState();
 }
+
+/// Come si vede una frase sulla foto.
+///
+/// Sta fuori dal widget perche' lo usano in due: chi la disegna e chi la
+/// misura per sapere quanto spazio occupa. Due copie della stessa cosa
+/// vorrebbero dire una frase misurata con un carattere e disegnata con un
+/// altro, e un limite che casca fuori posto.
+TextStyle _stile(double scala) => TextStyle(
+  color: Colors.white,
+  fontSize: 22 * scala,
+  fontWeight: FontWeight.w800,
+  height: 1.15,
+  // **L'ombra non e' decorazione: e' l'unica cosa che tiene il bianco
+  // leggibile.** Una frase bianca su una foto chiara — neve, un muro, il
+  // cielo — sparisce, e chi la scrive se ne accorge solo dopo averla mandata.
+  shadows: const [
+    Shadow(blurRadius: 12, color: Colors.black54),
+    Shadow(blurRadius: 3, color: Colors.black87),
+  ],
+);
 
 class _ScrittaSopraState extends State<_ScrittaSopra> {
   /// Quanto era grande quando le dita si sono appoggiate.
@@ -558,29 +685,73 @@ class _ScrittaSopraState extends State<_ScrittaSopra> {
   /// uno e la frase tornerebbe alla misura iniziale.
   double _scalaAllInizio = 1;
 
-  /// La misura di partenza della frase, in punti.
-  static const double _misuraBase = 22;
+  /// Meta' della frase, in frazioni del riquadro.
+  ///
+  /// Si misurano a ogni ridisegno e si tengono qui perche' servono **durante
+  /// il gesto**, quando non c'e' nessun riquadro da interrogare: senza, il
+  /// limite si potrebbe mettere solo al centro della frase, e una frase larga
+  /// uscirebbe comunque dai lati con mezza parola.
+  double _mezzaLarghezza = 0;
+  double _mezzaAltezza = 0;
+
+  /// Tiene il centro della frase dentro l'area, frase intera compresa.
+  ///
+  /// Il `min` e il `max` contro il mezzo non sono prudenza inutile: una frase
+  /// piu' grande dell'area sicura — tre righe al triplo della misura — darebbe
+  /// un limite basso sopra a quello alto, e `clamp` su quello solleva. In quel
+  /// caso l'unica posizione sensata e' il centro, e la si da'.
+  Offset _dentro(Offset dove) {
+    final area = widget.area;
+
+    return Offset(
+      dove.dx.clamp(
+        math.min(area.left + _mezzaLarghezza, 0.5),
+        math.max(area.right - _mezzaLarghezza, 0.5),
+      ),
+      dove.dy.clamp(
+        math.min(area.top + _mezzaAltezza, 0.5),
+        math.max(area.bottom - _mezzaAltezza, 0.5),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final scritta = widget.scritta;
     final riquadro = widget.riquadro;
+    final stile = _stile(scritta.scala);
+    final largoAlMassimo = riquadro.width * 0.9;
+
+    // **Quanto occupa davvero la frase**, battuta a mano invece di chiederlo
+    // al riquadro dopo: serve adesso, per sapere di quanto tenerla lontana dal
+    // bordo.
+    final misurato = TextPainter(
+      text: TextSpan(text: scritta.testo, style: stile),
+      textAlign: TextAlign.center,
+      textDirection: Directionality.of(context),
+    )..layout(maxWidth: largoAlMassimo);
+
+    _mezzaLarghezza = misurato.width / 2 / riquadro.width;
+    _mezzaAltezza = misurato.height / 2 / riquadro.height;
+
+    // Il posto in cui si disegna e' gia' dentro i limiti anche se quello
+    // salvato non lo e' piu': ingrandendo la frase l'area le sta stretta, e
+    // deve rientrare da sola invece di sbordare finche' qualcuno la trascina.
+    final dove = _dentro(scritta.posizione);
 
     return Positioned(
-      left: scritta.posizione.dx * riquadro.width,
-      top: scritta.posizione.dy * riquadro.height,
+      left: dove.dx * riquadro.width,
+      top: dove.dy * riquadro.height,
       child: FractionalTranslation(
         translation: const Offset(-0.5, -0.5),
         child: GestureDetector(
           onScaleStart: (_) => _scalaAllInizio = scritta.scala,
           onScaleUpdate: (dettagli) {
-            scritta.posizione = Offset(
-              (scritta.posizione.dx +
-                      dettagli.focalPointDelta.dx / riquadro.width)
-                  .clamp(0.0, 1.0),
-              (scritta.posizione.dy +
-                      dettagli.focalPointDelta.dy / riquadro.height)
-                  .clamp(0.0, 1.0),
+            scritta.posizione = _dentro(
+              Offset(
+                dove.dx + dettagli.focalPointDelta.dx / riquadro.width,
+                dove.dy + dettagli.focalPointDelta.dy / riquadro.height,
+              ),
             );
 
             // **Fra meta' e tre volte.** Sotto la meta' non si legge piu' —
@@ -592,24 +763,11 @@ class _ScrittaSopraState extends State<_ScrittaSopra> {
             widget.onCambia();
           },
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: riquadro.width * 0.9),
+            constraints: BoxConstraints(maxWidth: largoAlMassimo),
             child: Text(
               scritta.testo,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: _misuraBase * scritta.scala,
-                fontWeight: FontWeight.w800,
-                height: 1.15,
-                // **L'ombra non e' decorazione: e' l'unica cosa che tiene
-                // il bianco leggibile.** Una frase bianca su una foto
-                // chiara — neve, un muro, il cielo — sparisce, e chi la
-                // scrive se ne accorge solo dopo averla mandata.
-                shadows: const [
-                  Shadow(blurRadius: 12, color: Colors.black54),
-                  Shadow(blurRadius: 3, color: Colors.black87),
-                ],
-              ),
+              style: stile,
             ),
           ),
         ),

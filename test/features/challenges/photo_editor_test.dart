@@ -81,7 +81,10 @@ void main() {
       await tester.drag(find.text('spostami'), const Offset(0, -60));
       await tester.pumpAndSettle();
 
-      expect(tester.getRect(find.text('spostami')).center.dy, lessThan(partenza.dy));
+      expect(
+        tester.getRect(find.text('spostami')).center.dy,
+        lessThan(partenza.dy),
+      );
       expect(tester.takeException(), isNull);
     });
 
@@ -100,6 +103,64 @@ void main() {
 
       expect(find.text('questa va via'), findsNothing);
       expect(find.text('TOGLI'), findsNothing);
+    });
+  });
+
+  group('la frase resta dove si vede sempre', () {
+    test("l'area si calcola dai ritagli veri, non a mano", () {
+      // Il riquadro e' quattro quinti; le griglie mostrano la foto quadrata e
+      // le figurine a 0,72. Sopra e sotto comanda il quadrato, ai lati la
+      // figurina.
+      final area = areaSempreVisibile(4 / 5);
+
+      expect(area.top, moreOrLessEquals(0.1, epsilon: 0.001));
+      expect(area.bottom, moreOrLessEquals(0.9, epsilon: 0.001));
+      expect(area.left, moreOrLessEquals(0.05, epsilon: 0.001));
+      expect(area.right, moreOrLessEquals(0.95, epsilon: 0.001));
+    });
+
+    test('un riquadro gia quadrato non perde niente sopra e sotto', () {
+      final area = areaSempreVisibile(1);
+
+      expect(area.top, 0);
+      expect(area.bottom, 1);
+    });
+
+    testWidgets('trascinandola in cima non esce dal quadrato', (tester) async {
+      // **E' il difetto per cui questo esiste.** La frase si scriveva in cima,
+      // si vedeva a schermo intero, e nella griglia delle partecipazioni —
+      // quadrata — non c'era piu'.
+      await _apri(tester, inquadrabile: false);
+      await _scrivi(tester, 'ROMPIPALLE');
+
+      final foto = tester.getRect(find.byType(RepaintBoundary).last);
+
+      // Una trascinata ben oltre il bordo di sopra.
+      await tester.drag(find.text('ROMPIPALLE'), const Offset(0, -2000));
+      await tester.pumpAndSettle();
+
+      final frase = tester.getRect(find.text('ROMPIPALLE'));
+      final limite = foto.top + foto.height * 0.1;
+
+      expect(
+        frase.top,
+        greaterThanOrEqualTo(limite - 1),
+        reason: 'la frase intera deve restare sotto il taglio del quadrato',
+      );
+    });
+
+    testWidgets('e nemmeno in fondo', (tester) async {
+      await _apri(tester, inquadrabile: false);
+      await _scrivi(tester, 'ROMPIPALLE');
+
+      final foto = tester.getRect(find.byType(RepaintBoundary).last);
+
+      await tester.drag(find.text('ROMPIPALLE'), const Offset(0, 2000));
+      await tester.pumpAndSettle();
+
+      final frase = tester.getRect(find.text('ROMPIPALLE'));
+
+      expect(frase.bottom, lessThanOrEqualTo(foto.top + foto.height * 0.9 + 1));
     });
   });
 
