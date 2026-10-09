@@ -42,6 +42,19 @@ class PickedMedia {
 
   final Uint8List bytes;
 
+  /// Gli stessi dati con un'immagine nuova al posto della vecchia.
+  ///
+  /// Serve dopo il riquadro che inquadra e fa scrivere: quello restituisce dei
+  /// byte, e il resto — se e' un video, che tipo di file e' — non cambia.
+  ///
+  /// **Il percorso del file si perde apposta.** Dopo il ritaglio quel file sul
+  /// disco non e' piu' la foto che si sta mandando: tenerlo vorrebbe dire che
+  /// un passaggio piu' avanti, trovandolo, caricherebbe l'originale — cioe'
+  /// quello senza ritaglio e senza scritte. E' esattamente il tipo di errore
+  /// che si scopre guardando una gara.
+  PickedMedia conNuoviByte(Uint8List nuovi) =>
+      PickedMedia(bytes: nuovi, contentType: 'image/png', isVideo: isVideo);
+
   /// Quanto pesa.
   ///
   /// Dal file quando c'e' — i video non si leggono piu' in memoria, quindi i

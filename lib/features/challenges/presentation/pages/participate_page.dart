@@ -18,7 +18,9 @@ import 'package:crasy/features/challenges/domain/entities/challenge_source.dart'
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/presentation/controllers/participation_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/challenges/presentation/widgets/photo_editor.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 
@@ -281,7 +283,43 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
         return;
       }
 
-      setState(() => _media = media);
+      // **Prima di tenerla, la si sistema.**
+      //
+      // Dalla galleria arrivano foto di tutte le forme, e il riquadro della
+      // gara ne taglia una parte senza che nessuno abbia scelto quale: una
+      // foto orizzontale perde meta' di cio' che conta, e chi l'ha mandata lo
+      // scopre vedendola in gara. Qui si decide cosa resta dentro.
+      //
+      // E si puo' scriverci sopra, scatto o archivio che sia.
+      var definitiva = media;
+
+      if (!kind.isVideo && mounted) {
+        final sistemata = await Navigator.of(context).push<Uint8List>(
+          MaterialPageRoute(
+            builder: (_) => PhotoEditor(
+              bytes: definitiva.bytes,
+              aspectRatio: 4 / 5,
+              // Su una foto presa dalla galleria si inquadra; su uno scatto
+              // appena fatto il taglio lo ha gia' deciso chi guardava nello
+              // schermo un secondo fa, e rimetterglielo in discussione e' un
+              // passaggio in piu' per niente.
+              inquadrabile: challenge.source.isArchive,
+            ),
+          ),
+        );
+
+        if (!mounted) {
+          return;
+        }
+
+        // Tornato indietro senza confermare: la foto scelta resta quella, senza
+        // ritaglio e senza scritte. Non e' un errore e non si dice niente.
+        if (sistemata != null) {
+          definitiva = definitiva.conNuoviByte(sistemata);
+        }
+      }
+
+      setState(() => _media = definitiva);
     } on Object catch (error) {
       if (mounted) {
         setState(() => _error = ErrorMessageMapper.map(error));
