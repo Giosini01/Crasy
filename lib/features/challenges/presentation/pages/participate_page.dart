@@ -122,108 +122,110 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
     // bloccata. Una freccia che non c'e' non si prova.
     final occupato = submitting || _preparando;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Partecipa'),
-        automaticallyImplyLeading: !occupato,
-      ),
-      body: Stack(
-        children: [
-          AppBackground(
-            child: challengeState.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, _) => const _Notice(
-                title: 'Challenge non disponibile',
-                message: 'Non riusciamo a caricarla. Riprova tra poco.',
+    // **Mentre la foto sale, lo schermo e' coperto.**
+    //
+    // Un video dalla galleria puo' pesare decine di megabyte e metterci mezzo
+    // minuto: in quel mezzo minuto il bottone restava premibile e la schermata
+    // sembrava ferma. Chi non vede niente succedere ripreme, e ripremere qui
+    // vuol dire bruciare una seconda partecipazione sulla stessa gara.
+    //
+    // Il velo copre anche la **preparazione**, non solo l'invio. Scelto un
+    // video dalla galleria, fra il tocco e l'anteprima passa tutto il lavoro
+    // pesante — leggerlo, misurarlo, comprimerlo — e un video da mezzo minuto
+    // ci mette quanto l'invio. Senza niente a schermo quella e' un'app ferma:
+    // si ritocca, si torna indietro, si chiude.
+    return VeloDiAttesa(
+      acceso: occupato,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Partecipa'),
+          automaticallyImplyLeading: !occupato,
+        ),
+        body: Stack(
+          children: [
+            AppBackground(
+              child: challengeState.when(
+                loading: () => const SizedBox.shrink(),
+                error: (_, _) => const _Notice(
+                  title: 'Challenge non disponibile',
+                  message: 'Non riusciamo a caricarla. Riprova tra poco.',
+                ),
+                data: (challenge) {
+                  if (challenge == null) {
+                    return const _Notice(
+                      title: 'Challenge non trovata',
+                      message: 'Questa challenge non esiste più.',
+                    );
+                  }
+
+                  if (challenge.hasEndedAt(DateTime.now())) {
+                    return const _Notice(
+                      title: 'Tempo scaduto',
+                      message:
+                          'Questa challenge si è chiusa. Guarda chi ha vinto o '
+                          'scegline un\'altra.',
+                    );
+                  }
+
+                  // Chi ha lanciato la challenge non ci partecipa: mette lui i soldi
+                  // del premio, e una gara in cui chi paga puo' anche vincere non e'
+                  // una gara.
+                  if (ref.watch(isMyChallengeProvider(widget.challengeId))) {
+                    return const _Notice(
+                      title: 'È la tua challenge',
+                      message:
+                          'Il premio lo metti tu, quindi non puoi correre per '
+                          'vincerlo. Guarda cosa manda la gente e chi sta in testa.',
+                    );
+                  }
+
+                  // Chi ha gia' mandato la sua foto non vede nemmeno la fotocamera:
+                  // il limite si spiega prima, non dopo lo scatto.
+                  if (myEntry != null) {
+                    return const _Notice(
+                      title: 'Hai già partecipato',
+                      message:
+                          'Si manda una foto sola per challenge, e la tua è già '
+                          'in gara. La trovi nel feed insieme a quelle degli altri.',
+                    );
+                  }
+
+                  return _Form(
+                    challenge: challenge,
+                    media: _media,
+                    fotocameraAperta: _fotocameraAperta,
+                    error: _error,
+                    submitting: submitting,
+                    // Sulla sfida del giorno il bottone non si spegne mai: non
+                    // costa una delle cinque, quindi non c'e' niente da finire.
+                    outOfLives:
+                        !challenge.isDaily &&
+                        // Una sfida mirata non pesa sulla giornata: vedi
+                        // `livesLeftProvider`. Il bottone deve dire la stessa
+                        // cosa, o si arriva a scattare per sentirsi dire di no.
+                        !challenge.isDuel &&
+                        ref.watch(livesLeftProvider) <= 0,
+                    caption: _caption,
+                    muto: _muto,
+                    onMuto: (acceso) => setState(() => _muto = acceso),
+                    onCapture: () => _capture(challenge),
+                    onSubmit: () => _submit(challenge),
+                    // **Rifare lo scatto riapre la fotocamera, non svuota la
+                    // pagina.** Prima si tornava a una schermata vuota con il
+                    // bottone da premere di nuovo: due tocchi per rifare una cosa
+                    // che si rifa' perche' la prima non andava bene — e nel mezzo
+                    // la foto scompariva prima che ce ne fosse un'altra.
+                    //
+                    // Adesso si riapre direttamente, e quella di prima resta finche'
+                    // non ne arriva una nuova: chiudere la fotocamera senza scattare
+                    // non fa perdere niente.
+                    onRetake: () => _capture(challenge),
+                  );
+                },
               ),
-              data: (challenge) {
-                if (challenge == null) {
-                  return const _Notice(
-                    title: 'Challenge non trovata',
-                    message: 'Questa challenge non esiste più.',
-                  );
-                }
-
-                if (challenge.hasEndedAt(DateTime.now())) {
-                  return const _Notice(
-                    title: 'Tempo scaduto',
-                    message:
-                        'Questa challenge si è chiusa. Guarda chi ha vinto o '
-                        'scegline un\'altra.',
-                  );
-                }
-
-                // Chi ha lanciato la challenge non ci partecipa: mette lui i soldi
-                // del premio, e una gara in cui chi paga puo' anche vincere non e'
-                // una gara.
-                if (ref.watch(isMyChallengeProvider(widget.challengeId))) {
-                  return const _Notice(
-                    title: 'È la tua challenge',
-                    message:
-                        'Il premio lo metti tu, quindi non puoi correre per '
-                        'vincerlo. Guarda cosa manda la gente e chi sta in testa.',
-                  );
-                }
-
-                // Chi ha gia' mandato la sua foto non vede nemmeno la fotocamera:
-                // il limite si spiega prima, non dopo lo scatto.
-                if (myEntry != null) {
-                  return const _Notice(
-                    title: 'Hai già partecipato',
-                    message:
-                        'Si manda una foto sola per challenge, e la tua è già '
-                        'in gara. La trovi nel feed insieme a quelle degli altri.',
-                  );
-                }
-
-                return _Form(
-                  challenge: challenge,
-                  media: _media,
-                  fotocameraAperta: _fotocameraAperta,
-                  error: _error,
-                  submitting: submitting,
-                  // Sulla sfida del giorno il bottone non si spegne mai: non
-                  // costa una delle cinque, quindi non c'e' niente da finire.
-                  outOfLives:
-                      !challenge.isDaily &&
-                      // Una sfida mirata non pesa sulla giornata: vedi
-                      // `livesLeftProvider`. Il bottone deve dire la stessa
-                      // cosa, o si arriva a scattare per sentirsi dire di no.
-                      !challenge.isDuel &&
-                      ref.watch(livesLeftProvider) <= 0,
-                  caption: _caption,
-                  muto: _muto,
-                  onMuto: (acceso) => setState(() => _muto = acceso),
-                  onCapture: () => _capture(challenge),
-                  onSubmit: () => _submit(challenge),
-                  // **Rifare lo scatto riapre la fotocamera, non svuota la
-                  // pagina.** Prima si tornava a una schermata vuota con il
-                  // bottone da premere di nuovo: due tocchi per rifare una cosa
-                  // che si rifa' perche' la prima non andava bene — e nel mezzo
-                  // la foto scompariva prima che ce ne fosse un'altra.
-                  //
-                  // Adesso si riapre direttamente, e quella di prima resta finche'
-                  // non ne arriva una nuova: chiudere la fotocamera senza scattare
-                  // non fa perdere niente.
-                  onRetake: () => _capture(challenge),
-                );
-              },
             ),
-          ),
-          // **Mentre la foto sale, lo schermo e' coperto.**
-          //
-          // Un video dalla galleria puo' pesare decine di megabyte e metterci
-          // mezzo minuto: in quel mezzo minuto il bottone restava premibile e
-          // la schermata sembrava ferma. Chi non vede niente succedere ripreme,
-          // e ripremere qui vuol dire bruciare una seconda partecipazione sulla
-          // stessa gara.
-          // Il velo copre anche la **preparazione**, non solo l'invio. Scelto
-          // un video dalla galleria, fra il tocco e l'anteprima passa tutto il
-          // lavoro pesante — leggerlo, misurarlo, comprimerlo — e un video da
-          // mezzo minuto ci mette quanto l'invio. Senza niente a schermo quella
-          // e' un'app ferma: si ritocca, si torna indietro, si chiude.
-          if (occupato) const VeloDiAttesa(),
-        ],
+          ],
+        ),
       ),
     );
   }

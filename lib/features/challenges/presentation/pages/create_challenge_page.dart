@@ -186,301 +186,303 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     final texts = context.texts;
     final creating = ref.watch(createChallengeControllerProvider).isLoading;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.forFriends ? 'Sfida i tuoi amici' : 'Crea'),
-      ),
-      body: Stack(
-        children: [
-          AppBackground(
-            child: Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.page,
-                  AppSpacing.xs,
-                  AppSpacing.page,
-                  AppSpacing.xxl,
-                ),
-                children: [
-                  DisplayTitle(
-                    widget.forFriends
-                        ? 'SFIDA\nI TUOI AMICI'
-                        : 'DAI UN ORDINE\nAL MONDO',
+    // **Mentre si paga, lo schermo e' coperto.**
+    //
+    // Non e' solo per dire che sta lavorando: e' per togliere i tasti da sotto
+    // le dita. Fra il tocco e il foglio di Stripe passano dei secondi, e in
+    // quei secondi un bottone ancora premibile significa due pagamenti aperti
+    // per la stessa gara.
+    return VeloDiAttesa(
+      acceso: _passo != null && _error == null,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.forFriends ? 'Sfida i tuoi amici' : 'Crea'),
+        ),
+        body: Stack(
+          children: [
+            AppBackground(
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.page,
+                    AppSpacing.xs,
+                    AppSpacing.page,
+                    AppSpacing.xxl,
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  // Chi apre questa schermata deve capire in tre secondi che qui
-                  // non si racconta una cosa propria: **si dice agli altri cosa
-                  // fare**. E' il rovescio esatto della home, dove uno riceve un
-                  // ordine e decide se eseguirlo. Se le due schermate si
-                  // somigliassero, nessuno capirebbe di essere passato dall'altra
-                  // parte del tavolo.
-                  if (widget.forFriends)
-                    const HighlightedText(
-                      'La vedono soltanto i tuoi amici. Nessun altro, nemmeno con '
-                      'il link.',
-                      highlight: 'soltanto i tuoi amici',
-                    )
-                  else
-                    const HighlightedText(
-                      'Metti un premio e decidi tu cosa deve fare la gente. Chi lo '
-                      'fa meglio si prende i soldi.',
-                      highlight: 'decidi tu cosa deve fare la gente',
+                  children: [
+                    DisplayTitle(
+                      widget.forFriends
+                          ? 'SFIDA\nI TUOI AMICI'
+                          : 'DAI UN ORDINE\nAL MONDO',
                     ),
-                  const SizedBox(height: AppSpacing.xl),
-                  // **Fra amici la scelta e' secca: gratis, oppure da un euro in
-                  // su.** Non c'e' una terza strada, e non e' una dimenticanza:
-                  // lasciato libero, quel campo si riempie di dieci centesimi — che
-                  // non sono un premio ne' uno scherzo, e fanno sembrare piccola
-                  // tutta l'app. Due tasti tolgono la domanda invece di lasciarla
-                  // aperta.
-                  if (widget.forFriends) ...[
-                    _SectionLabel('Il premio'),
-                    Row(
+                    const SizedBox(height: AppSpacing.sm),
+                    // Chi apre questa schermata deve capire in tre secondi che qui
+                    // non si racconta una cosa propria: **si dice agli altri cosa
+                    // fare**. E' il rovescio esatto della home, dove uno riceve un
+                    // ordine e decide se eseguirlo. Se le due schermate si
+                    // somigliassero, nessuno capirebbe di essere passato dall'altra
+                    // parte del tavolo.
+                    if (widget.forFriends)
+                      const HighlightedText(
+                        'La vedono soltanto i tuoi amici. Nessun altro, nemmeno con '
+                        'il link.',
+                        highlight: 'soltanto i tuoi amici',
+                      )
+                    else
+                      const HighlightedText(
+                        'Metti un premio e decidi tu cosa deve fare la gente. Chi lo '
+                        'fa meglio si prende i soldi.',
+                        highlight: 'decidi tu cosa deve fare la gente',
+                      ),
+                    const SizedBox(height: AppSpacing.xl),
+                    // **Fra amici la scelta e' secca: gratis, oppure da un euro in
+                    // su.** Non c'e' una terza strada, e non e' una dimenticanza:
+                    // lasciato libero, quel campo si riempie di dieci centesimi — che
+                    // non sono un premio ne' uno scherzo, e fanno sembrare piccola
+                    // tutta l'app. Due tasti tolgono la domanda invece di lasciarla
+                    // aperta.
+                    if (widget.forFriends) ...[
+                      _SectionLabel('Il premio'),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _Choice(
+                              label: 'GRATIS',
+                              selected: _gratis,
+                              onTap: () => setState(() => _gratis = true),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Expanded(
+                            child: _Choice(
+                              label: 'CON PREMIO',
+                              selected: !_gratis,
+                              onTap: () => setState(() => _gratis = false),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        _gratis
+                            ? 'Si gioca per la figurina e per il gusto di farlo.'
+                            : 'Da un euro in su. I soldi li dai tu a chi vince.',
+                        style: texts.bodySmall?.copyWith(
+                          color: palette.textFaint,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
+                    if (!widget.forFriends || !_gratis)
+                      _Field(
+                        label: 'Premio in euro',
+                        controller: _prize,
+                        focusNode: _prizeFocus,
+                        // Il suggerimento porta i centesimi apposta: e' l'unico posto
+                        // in cui il campo dice di accettarli. Un `500` li' dentro
+                        // lascerebbe credere che si scrivano solo cifre tonde.
+                        hint: '10,50',
+                        // `decimal: true` e' quello che mette il tasto della virgola
+                        // sulla tastiera dell'iPhone. Senza, i centesimi si possono
+                        // accettare quanto si vuole: non c'e' modo di digitarli.
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        // Passano cifre, virgola e punto. Il punto perche' la tastiera
+                        // di un telefono in inglese offre quello, e un campo che
+                        // rifiuta il tasto che la tastiera stessa suggerisce sembra
+                        // rotto. A dire se quello che ne esce e' un importo valido ci
+                        // pensa il controllo, non il filtro: qui si decide solo cosa
+                        // si puo' battere.
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                        ],
+                        // **Il minimo e' un euro anche qui dentro.** Lo zero non si
+                        // scrive: si sceglie con il tasto GRATIS. Cosi' non esiste la
+                        // via di mezzo — dieci centesimi — che era il motivo per cui
+                        // queste due schermate sono diventate due.
+                        validator: ChallengeDraftValidators.validatePrize,
+                      ),
+                    // **La regola si legge prima, non dopo.** Un minimo che si scopre
+                    // premendo "pubblica" e' un errore rosso preso in faccia dopo
+                    // aver riempito tutto il resto; scritto qui e' un'informazione.
+                    if (!widget.forFriends || !_gratis)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                        child: Text(
+                          'Almeno ${AppMoney.format(ChallengeDraftValidators.prizeMinCents)}.',
+                          style: context.texts.bodySmall?.copyWith(
+                            color: context.palette.textFaint,
+                          ),
+                        ),
+                      ),
+                    _Field(
+                      label: 'Come si chiama',
+                      controller: _title,
+                      // Il suggerimento e' nella stessa lingua e nello stesso tono
+                      // della consegna qui sotto: due esempi che si leggono di fila
+                      // devono sembrare scritti dalla stessa persona.
+                      hint: 'Foto con uno sconosciuto',
+                      maxLength: ChallengeDraftValidators.titleMaxLength,
+                      validator: ChallengeDraftValidators.validateTitle,
+                    ),
+                    _Field(
+                      label: 'Cosa devono fare',
+                      controller: _brief,
+                      hint:
+                          'Fermate uno sconosciuto per strada e fatevi fotografare '
+                          'insieme.',
+                      maxLines: 3,
+                      maxLength: ChallengeDraftValidators.briefMaxLength,
+                      validator: ChallengeDraftValidators.validateBrief,
+                    ),
+                    _Consiglio(seme: _semeDelConsiglio),
+                    const SizedBox(height: AppSpacing.sm),
+                    _SectionLabel('Cosa devono mandare'),
+                    Wrap(
+                      spacing: AppSpacing.xs,
                       children: [
-                        Expanded(
-                          child: _Choice(
-                            label: 'GRATIS',
-                            selected: _gratis,
-                            onTap: () => setState(() => _gratis = true),
+                        for (final kind in MediaKind.values)
+                          _Choice(
+                            label: kind.label,
+                            selected: _mediaKind == kind,
+                            onTap: () => setState(() => _mediaKind = kind),
                           ),
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Expanded(
-                          child: _Choice(
-                            label: 'CON PREMIO',
-                            selected: !_gratis,
-                            onTap: () => setState(() => _gratis = false),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    // **Da dove lo devono prendere.**
+                    //
+                    // E' la seconda regola della gara, dopo cosa mandare, e la decide
+                    // chi mette i soldi. Non e' una comodita' lasciata al
+                    // partecipante: lasciandola a lui, davanti a "scatta adesso"
+                    // oppure "prendi quella che hai gia'" vincerebbe sempre la
+                    // seconda, e la gara istantanea morirebbe da sola. Vedi
+                    // `ChallengeSource`.
+                    _SectionLabel('Da dove lo prendono'),
+                    Wrap(
+                      spacing: AppSpacing.xs,
+                      children: [
+                        for (final source in ChallengeSource.values)
+                          _Choice(
+                            label: source.label,
+                            selected: _source == source,
+                            onTap: () => setState(() => _source = source),
                           ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      _gratis
-                          ? 'Si gioca per la figurina e per il gusto di farlo.'
-                          : 'Da un euro in su. I soldi li dai tu a chi vince.',
-                      style: texts.bodySmall?.copyWith(
-                        color: palette.textFaint,
-                      ),
-                    ),
+                    Text(_comeSiPartecipa(), style: texts.bodySmall),
                     const SizedBox(height: AppSpacing.lg),
-                  ],
-                  if (!widget.forFriends || !_gratis)
-                    _Field(
-                      label: 'Premio in euro',
-                      controller: _prize,
-                      focusNode: _prizeFocus,
-                      // Il suggerimento porta i centesimi apposta: e' l'unico posto
-                      // in cui il campo dice di accettarli. Un `500` li' dentro
-                      // lascerebbe credere che si scrivano solo cifre tonde.
-                      hint: '10,50',
-                      // `decimal: true` e' quello che mette il tasto della virgola
-                      // sulla tastiera dell'iPhone. Senza, i centesimi si possono
-                      // accettare quanto si vuole: non c'e' modo di digitarli.
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      // Passano cifre, virgola e punto. Il punto perche' la tastiera
-                      // di un telefono in inglese offre quello, e un campo che
-                      // rifiuta il tasto che la tastiera stessa suggerisce sembra
-                      // rotto. A dire se quello che ne esce e' un importo valido ci
-                      // pensa il controllo, non il filtro: qui si decide solo cosa
-                      // si puo' battere.
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                    const SizedBox(height: AppSpacing.lg),
+                    // **Quanti possono entrare.** E' la scelta che decide se la gara
+                    // e' un gioco o una folla: con cinquecento foto nessuno le guarda
+                    // tutte, si vota fra le prime che capitano, e vince la posizione
+                    // nella lista invece di quello che uno ha fatto.
+                    _SectionLabel('Quanti possono partecipare'),
+                    Wrap(
+                      spacing: AppSpacing.xs,
+                      children: [
+                        for (final quanti in Challenge.participantCaps)
+                          _Choice(
+                            label: '$quanti',
+                            selected: _maxPartecipanti == quanti,
+                            onTap: () =>
+                                setState(() => _maxPartecipanti = quanti),
+                          ),
                       ],
-                      // **Il minimo e' un euro anche qui dentro.** Lo zero non si
-                      // scrive: si sceglie con il tasto GRATIS. Cosi' non esiste la
-                      // via di mezzo — dieci centesimi — che era il motivo per cui
-                      // queste due schermate sono diventate due.
-                      validator: ChallengeDraftValidators.validatePrize,
                     ),
-                  // **La regola si legge prima, non dopo.** Un minimo che si scopre
-                  // premendo "pubblica" e' un errore rosso preso in faccia dopo
-                  // aver riempito tutto il resto; scritto qui e' un'informazione.
-                  if (!widget.forFriends || !_gratis)
                     Padding(
                       padding: const EdgeInsets.only(top: AppSpacing.xxs),
                       child: Text(
-                        'Almeno ${AppMoney.format(ChallengeDraftValidators.prizeMinCents)}.',
-                        style: context.texts.bodySmall?.copyWith(
-                          color: context.palette.textFaint,
+                        'Una possibilità su $_maxPartecipanti. Quando i posti '
+                        'finiscono, non si entra più.',
+                        style: texts.bodySmall?.copyWith(
+                          color: palette.textFaint,
                         ),
                       ),
                     ),
-                  _Field(
-                    label: 'Come si chiama',
-                    controller: _title,
-                    // Il suggerimento e' nella stessa lingua e nello stesso tono
-                    // della consegna qui sotto: due esempi che si leggono di fila
-                    // devono sembrare scritti dalla stessa persona.
-                    hint: 'Foto con uno sconosciuto',
-                    maxLength: ChallengeDraftValidators.titleMaxLength,
-                    validator: ChallengeDraftValidators.validateTitle,
-                  ),
-                  _Field(
-                    label: 'Cosa devono fare',
-                    controller: _brief,
-                    hint:
-                        'Fermate uno sconosciuto per strada e fatevi fotografare '
-                        'insieme.',
-                    maxLines: 3,
-                    maxLength: ChallengeDraftValidators.briefMaxLength,
-                    validator: ChallengeDraftValidators.validateBrief,
-                  ),
-                  _Consiglio(seme: _semeDelConsiglio),
-                  const SizedBox(height: AppSpacing.sm),
-                  _SectionLabel('Cosa devono mandare'),
-                  Wrap(
-                    spacing: AppSpacing.xs,
-                    children: [
-                      for (final kind in MediaKind.values)
-                        _Choice(
-                          label: kind.label,
-                          selected: _mediaKind == kind,
-                          onTap: () => setState(() => _mediaKind = kind),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  // **Da dove lo devono prendere.**
-                  //
-                  // E' la seconda regola della gara, dopo cosa mandare, e la decide
-                  // chi mette i soldi. Non e' una comodita' lasciata al
-                  // partecipante: lasciandola a lui, davanti a "scatta adesso"
-                  // oppure "prendi quella che hai gia'" vincerebbe sempre la
-                  // seconda, e la gara istantanea morirebbe da sola. Vedi
-                  // `ChallengeSource`.
-                  _SectionLabel('Da dove lo prendono'),
-                  Wrap(
-                    spacing: AppSpacing.xs,
-                    children: [
-                      for (final source in ChallengeSource.values)
-                        _Choice(
-                          label: source.label,
-                          selected: _source == source,
-                          onTap: () => setState(() => _source = source),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(_comeSiPartecipa(), style: texts.bodySmall),
-                  const SizedBox(height: AppSpacing.lg),
-                  const SizedBox(height: AppSpacing.lg),
-                  // **Quanti possono entrare.** E' la scelta che decide se la gara
-                  // e' un gioco o una folla: con cinquecento foto nessuno le guarda
-                  // tutte, si vota fra le prime che capitano, e vince la posizione
-                  // nella lista invece di quello che uno ha fatto.
-                  _SectionLabel('Quanti possono partecipare'),
-                  Wrap(
-                    spacing: AppSpacing.xs,
-                    children: [
-                      for (final quanti in Challenge.participantCaps)
-                        _Choice(
-                          label: '$quanti',
-                          selected: _maxPartecipanti == quanti,
-                          onTap: () =>
-                              setState(() => _maxPartecipanti = quanti),
-                        ),
-                    ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.xxs),
-                    child: Text(
-                      'Una possibilità su $_maxPartecipanti. Quando i posti '
-                      'finiscono, non si entra più.',
-                      style: texts.bodySmall?.copyWith(
-                        color: palette.textFaint,
-                      ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _SectionLabel('Quanto dura'),
+                    // **Solo caselle, niente campo da riempire.**
+                    //
+                    // La durata non e' un numero qualunque: e' una delle tre cose che
+                    // decidono se una gara funziona. Un campo libero fa scrivere 37
+                    // minuti — che non e' sbagliato, e' solo una scelta che nessuno
+                    // aveva motivo di fare — e costringe a battere dei numeri su una
+                    // tastiera per una cosa che si sceglie in un colpo d'occhio.
+                    //
+                    // Le prime due sono per provare: un minuto e' il tempo che ci
+                    // vuole a vedere il giro intero — si lancia, si partecipa, si
+                    // vota, si chiude — senza restare seduti ad aspettare.
+                    Wrap(
+                      spacing: AppSpacing.xs,
+                      runSpacing: AppSpacing.xs,
+                      children: [
+                        for (final choice in _durations)
+                          _Choice(
+                            label: choice.$2,
+                            selected: _minutes == choice.$1,
+                            onTap: () => setState(() => _minutes = choice.$1),
+                          ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  _SectionLabel('Quanto dura'),
-                  // **Solo caselle, niente campo da riempire.**
-                  //
-                  // La durata non e' un numero qualunque: e' una delle tre cose che
-                  // decidono se una gara funziona. Un campo libero fa scrivere 37
-                  // minuti — che non e' sbagliato, e' solo una scelta che nessuno
-                  // aveva motivo di fare — e costringe a battere dei numeri su una
-                  // tastiera per una cosa che si sceglie in un colpo d'occhio.
-                  //
-                  // Le prime due sono per provare: un minuto e' il tempo che ci
-                  // vuole a vedere il giro intero — si lancia, si partecipa, si
-                  // vota, si chiude — senza restare seduti ad aspettare.
-                  Wrap(
-                    spacing: AppSpacing.xs,
-                    runSpacing: AppSpacing.xs,
-                    children: [
-                      for (final choice in _durations)
-                        _Choice(
-                          label: choice.$2,
-                          selected: _minutes == choice.$1,
-                          onTap: () => setState(() => _minutes = choice.$1),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  if (_error != null) ...[
                     const SizedBox(height: AppSpacing.md),
-                    InlineBanner(message: _error!),
-                  ],
-                  const SizedBox(height: AppSpacing.xl),
-                  // Il conto, prima del bottone.
-                  //
-                  // Chi sta per pagare deve vedere **la cifra esatta che gli
-                  // uscira' dalla carta** mentre ha ancora il dito lontano dal
-                  // bottone. Una schermata che dice "500" e una carta addebitata di
-                  // "507,75" e' il tipo di sorpresa che, in un'app che maneggia
-                  // soldi, non si recupera piu'.
-                  if (paymentsEnabled) _PaymentSummary(prize: _prize),
-                  CrasyButton(
-                    label: paymentsEnabled
-                        ? 'Paga e lancia la challenge'
-                        : 'Lancia la challenge',
-                    loading: creating,
-                    onPressed: _submit,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  // Detto prima, non dopo. E' l'unica riga di questa schermata che
-                  // parla di soldi veri, e chi la legge deve poterci ripensare
-                  // mentre ha ancora il dito lontano dal bottone.
-                  Text(
-                    paymentsEnabled
-                        // **Detto prima di pagare, non dopo.**
-                        //
-                        // Sono le due cose che uno scopre nel momento sbagliato se
-                        // non gliele dici adesso: che cancellando **non torna
-                        // tutto** — restano fuori le spese di pagamento, gia'
-                        // uscite — e che i soldi non rientrano in tempo reale.
-                        // Chi lo legge qui non ha sorprese; chi lo scopre dopo
-                        // pensa di essere stato fregato, ed e' la stessa cosa
-                        // vista da due momenti diversi.
-                        ? 'Il premio lo trattiene CRASY fino alla fine della '
-                              'challenge, poi lo gira a chi vince. Se non '
-                              'partecipa nessuno ti torna indietro intero. Se '
-                              'invece la cancelli tu, ti torna il premio ma non '
-                              'le spese di pagamento — e la banca ci mette 5-10 '
-                              'giorni a rimettertelo sulla carta.'
-                        : 'Il premio lo paghi tu. CRASY non fa da garante e non '
-                              'trattiene i soldi: mettine uno che puoi davvero '
-                              'dare.',
-                    style: texts.bodySmall?.copyWith(
-                      color: palette.textSecondary,
+                    if (_error != null) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      InlineBanner(message: _error!),
+                    ],
+                    const SizedBox(height: AppSpacing.xl),
+                    // Il conto, prima del bottone.
+                    //
+                    // Chi sta per pagare deve vedere **la cifra esatta che gli
+                    // uscira' dalla carta** mentre ha ancora il dito lontano dal
+                    // bottone. Una schermata che dice "500" e una carta addebitata di
+                    // "507,75" e' il tipo di sorpresa che, in un'app che maneggia
+                    // soldi, non si recupera piu'.
+                    if (paymentsEnabled) _PaymentSummary(prize: _prize),
+                    CrasyButton(
+                      label: paymentsEnabled
+                          ? 'Paga e lancia la challenge'
+                          : 'Lancia la challenge',
+                      loading: creating,
+                      onPressed: _submit,
                     ),
-                  ),
-                ],
+                    const SizedBox(height: AppSpacing.sm),
+                    // Detto prima, non dopo. E' l'unica riga di questa schermata che
+                    // parla di soldi veri, e chi la legge deve poterci ripensare
+                    // mentre ha ancora il dito lontano dal bottone.
+                    Text(
+                      paymentsEnabled
+                          // **Detto prima di pagare, non dopo.**
+                          //
+                          // Sono le due cose che uno scopre nel momento sbagliato se
+                          // non gliele dici adesso: che cancellando **non torna
+                          // tutto** — restano fuori le spese di pagamento, gia'
+                          // uscite — e che i soldi non rientrano in tempo reale.
+                          // Chi lo legge qui non ha sorprese; chi lo scopre dopo
+                          // pensa di essere stato fregato, ed e' la stessa cosa
+                          // vista da due momenti diversi.
+                          ? 'Il premio lo trattiene CRASY fino alla fine della '
+                                'challenge, poi lo gira a chi vince. Se non '
+                                'partecipa nessuno ti torna indietro intero. Se '
+                                'invece la cancelli tu, ti torna il premio ma non '
+                                'le spese di pagamento — e la banca ci mette 5-10 '
+                                'giorni a rimettertelo sulla carta.'
+                          : 'Il premio lo paghi tu. CRASY non fa da garante e non '
+                                'trattiene i soldi: mettine uno che puoi davvero '
+                                'dare.',
+                      style: texts.bodySmall?.copyWith(
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          // **Mentre si paga, lo schermo e' coperto.**
-          //
-          // Non e' solo per dire che sta lavorando: e' per togliere i tasti da
-          // sotto le dita. Fra il tocco e il foglio di Stripe passano dei
-          // secondi, e in quei secondi un bottone ancora premibile significa
-          // due pagamenti aperti per la stessa gara.
-          if (_passo != null && _error == null) const VeloDiAttesa(),
-        ],
+          ],
+        ),
       ),
     );
   }

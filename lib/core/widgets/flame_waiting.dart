@@ -122,92 +122,63 @@ class _FlameWaitingState extends State<FlameWaiting>
   }
 }
 
-/// **Il velo di attesa, sopra tutto lo schermo.**
+/// **Il velo di attesa, sopra tutta la pagina.**
 ///
-/// ## Il difetto che questo widget esiste per togliere
+/// Si avvolge intorno allo `Scaffold`:
 ///
-/// [FlameWaiting] veniva messo dentro la schermata — un `Positioned.fill`
-/// nello `Stack` del corpo — e copriva **soltanto il corpo**. Sopra restavano
-/// scoperti la barra in cima con la freccia indietro, la barra delle schede in
-/// fondo, e su una gara il tasto PARTECIPA che vive fuori dal corpo: chiari,
-/// toccabili, come se non stesse succedendo niente. Durante un caricamento
-/// lungo — un video dalla galleria, un pagamento — quei tasti si toccano, e
-/// ognuno fa partire una seconda volta una cosa che e' gia' in corso.
+/// ```dart
+/// return VeloDiAttesa(acceso: occupato, child: Scaffold(...));
+/// ```
+///
+/// ## Perche' intorno alla pagina e non dentro il corpo
+///
+/// [FlameWaiting] veniva messo dentro lo `Stack` del corpo, e copriva
+/// **soltanto il corpo**. Sopra restavano scoperti la barra in cima con la
+/// freccia indietro, la barra delle schede in fondo, e su una gara il tasto
+/// PARTECIPA che vive fuori dal corpo: chiari, toccabili, come se non stesse
+/// succedendo niente. Durante un caricamento lungo — un video dalla galleria,
+/// un pagamento — quei tasti si toccano, e ognuno fa ripartire una cosa che e'
+/// gia' in corso.
 ///
 /// Un velo che copre tre quarti di schermo e' peggio di nessun velo: dice che
 /// l'app sta lavorando **e** lascia credere che si possa fare altro.
 ///
-/// ## Come fa a stare sopra la barra in cima
+/// ## Perche' non nel sipario dell'app
 ///
-/// Si mette nel sipario piu' esterno dell'app, quello sopra al quale non c'e'
-/// piu' niente, invece che dentro la schermata. Da li' copre tutto: le barre,
-/// le schede, i fogli aperti.
+/// Ci e' stato, per un'ora, ed era peggio. Dal sipario piu' esterno il velo
+/// copre davvero tutto — comprese **le schermate che si aprono sopra**. Chi
+/// scegliendo una foto dalla galleria arrivava all'editor se lo trovava
+/// coperto dalla fiamma che girava: la pagina sotto e' ancora occupata finche'
+/// l'editor non si chiude, quindi il velo restava li' e la foto non si poteva
+/// piu' inquadrare. Un caricamento che non finisce mai, su una cosa che non
+/// stava caricando niente.
 ///
-/// Si usa come prima — `if (occupato) const VeloDiAttesa()` — e il widget non
-/// occupa spazio dove lo si scrive: quello che si vede lo disegna il sipario.
+/// Avvolgendo la pagina il velo copre tutto quello che c'e' **in questa
+/// pagina**, e una schermata aperta sopra le sta sopra, come dovuto.
 ///
-/// ## Perche' il tasto indietro resta bloccato da qui
-///
-/// Il blocco deve stare **dentro la schermata**, non nel sipario: il tasto
-/// indietro lo intercetta chi conosce la propria pagina, e il sipario non sta
-/// dentro nessuna pagina. Percio' qui resta la sola cosa che occupa il posto in
-/// cui lo si scrive: il divieto di tornare indietro. Senza, si esce con il
-/// gesto laterale e il caricamento va avanti su una schermata che non c'e'
-/// piu'.
-class VeloDiAttesa extends StatefulWidget {
-  const VeloDiAttesa({super.key});
+/// Dentro c'e' anche il divieto di tornare indietro: senza, si esce con il
+/// gesto laterale e il caricamento va avanti su una pagina che non c'e' piu'.
+class VeloDiAttesa extends StatelessWidget {
+  const VeloDiAttesa({required this.acceso, required this.child, super.key});
 
-  @override
-  State<VeloDiAttesa> createState() => _VeloDiAttesaState();
-}
+  /// Se c'e' qualcosa in corso.
+  final bool acceso;
 
-class _VeloDiAttesaState extends State<VeloDiAttesa> {
-  OverlayEntry? _velo;
-
-  @override
-  void initState() {
-    super.initState();
-
-    // **Dopo il fotogramma, non durante.** Infilare qualcosa nel sipario
-    // mentre lo schermo si sta costruendo vuol dire chiedere un ridisegno a
-    // ridisegno in corso, che e' l'errore "markNeedsBuild durante build".
-    WidgetsBinding.instance.addPostFrameCallback((_) => _apri());
-  }
-
-  void _apri() {
-    if (!mounted || _velo != null) {
-      return;
-    }
-
-    final sipario = Overlay.maybeOf(context, rootOverlay: true);
-
-    if (sipario == null) {
-      return;
-    }
-
-    _velo = OverlayEntry(
-      // **Assorbe i tocchi, tutti.** E' la meta' che conta: oscurare senza
-      // fermare le dita lascia che si tocchi PARTECIPA attraverso il velo, e
-      // chi aspetta lo tocca — proprio perche' non vede che e' cambiato
-      // qualcosa.
-      builder: (_) => const AbsorbPointer(child: FlameWaiting()),
-    );
-
-    sipario.insert(_velo!);
-  }
-
-  @override
-  void dispose() {
-    _velo?.remove();
-    _velo = null;
-    super.dispose();
-  }
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    // Niente a schermo: il velo lo disegna il sipario. Qui resta il divieto di
-    // tornare indietro, che per funzionare deve stare dentro la pagina.
-    return const PopScope(canPop: false, child: SizedBox.shrink());
+    return Stack(
+      children: [
+        child,
+        if (acceso)
+          // **Assorbe i tocchi, tutti.** E' la meta' che conta: oscurare senza
+          // fermare le dita lascia che si tocchi PARTECIPA attraverso il velo,
+          // e chi aspetta lo tocca — proprio perche' non vede che e' cambiato
+          // qualcosa.
+          const Positioned.fill(child: AbsorbPointer(child: FlameWaiting())),
+      ],
+    );
   }
 }
 
