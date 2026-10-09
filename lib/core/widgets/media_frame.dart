@@ -30,6 +30,7 @@ class MediaFrame extends StatelessWidget {
     this.video = false,
     this.autoplay = true,
     this.muted = false,
+    this.soundOnTap = false,
     this.mine = false,
     super.key,
   });
@@ -38,6 +39,9 @@ class MediaFrame extends StatelessWidget {
 
   /// Se il video va guardato senza audio: lo decide chi l'ha mandato.
   final bool muted;
+
+  /// Se il tocco sul video accende e spegne l'audio invece di aprire i comandi.
+  final bool soundOnTap;
 
   /// Se questa e' **la mia** partecipazione.
   ///

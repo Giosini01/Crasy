@@ -97,6 +97,7 @@ class VideoFrame extends StatefulWidget {
     this.immersive = false,
     this.autoplay = true,
     this.muted = false,
+    this.soundOnTap = false,
     super.key,
   });
 
@@ -113,6 +114,18 @@ class VideoFrame extends StatefulWidget {
   /// condizione di chi ha filmato, e lasciarla scavalcare da un tocco vorrebbe
   /// dire non averla mai data.
   final bool muted;
+
+  /// **Il tocco accende e spegne l'audio, e non fa nient'altro.**
+  ///
+  /// Lo usano le figurine dei trofei. Li' il comportamento normale — il primo
+  /// tocco accende l'audio e fa comparire i comandi, il secondo mette in pausa
+  /// — e' sbagliato due volte: una figurina non e' un lettore, e mettere in
+  /// pausa un video di sei secondi che gira in tondo non e' una cosa che
+  /// qualcuno voglia fare. Quello che si vuole e' sentirlo, e poi non sentirlo
+  /// piu'.
+  ///
+  /// **Vale anche a figurina ferma**, perche' quel video non si ferma mai.
+  final bool soundOnTap;
 
   /// Se il video deve **partire da solo**.
   ///
@@ -255,9 +268,7 @@ class _VideoFrameState extends State<VideoFrame> {
     // sul primo fotogramma, e non parte da solo. E' esattamente quello che i
     // browser dei telefoni si aspettano.
     try {
-      await controller.setVolume(
-        widget.muted || !widget.immersive ? 0 : 1,
-      );
+      await controller.setVolume(widget.muted || !widget.immersive ? 0 : 1);
 
       // Nelle griglie si resta sul primo fotogramma: c'e' gia' il play in
       // mezzo, e chi vuole vedere il video tocca e lo apre grande.
@@ -321,6 +332,16 @@ class _VideoFrameState extends State<VideoFrame> {
       return;
     }
 
+    if (widget.soundOnTap) {
+      // Niente comandi, niente pausa: si alza o si abbassa, e basta. Su un
+      // video che chi l'ha mandato ha chiesto muto non succede niente —
+      // `_toggleVolume` lo sa gia', ed e' il posto giusto perche' lo sappia
+      // una volta sola.
+      await _toggleVolume();
+
+      return;
+    }
+
     if (!_controls) {
       if (!widget.muted) {
         await controller.setVolume(1);
@@ -354,7 +375,14 @@ class _VideoFrameState extends State<VideoFrame> {
     }
 
     await controller.setVolume(controller.value.volume > 0 ? 0 : 1);
-    _keepControls();
+
+    // Nella figurina i comandi non si mostrano: il tocco li' vuol dire
+    // soltanto audio, e far comparire pausa e barra sarebbe una risposta a una
+    // domanda che nessuno ha fatto. Resta il tondo con l'altoparlante, che del
+    // resto c'era gia' e adesso dice anche cosa fara' il prossimo tocco.
+    if (!widget.soundOnTap) {
+      _keepControls();
+    }
   }
 
   @override
@@ -533,7 +561,9 @@ class _VideoFrameState extends State<VideoFrame> {
     // lettore che se li mangia per mostrare una barra di comandi in una
     // miniatura toglie due gesti veri per darne uno che li' non serve.
     if (!widget.immersive) {
-      return content;
+      return widget.soundOnTap
+          ? GestureDetector(onTap: _tap, child: content)
+          : content;
     }
 
     return GestureDetector(onTap: _tap, child: content);

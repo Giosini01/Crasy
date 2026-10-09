@@ -62,10 +62,28 @@ enum TrophyKind {
 /// Il bordo e' rosso CRASY perche' e' il colore dei premi, e il riflesso e'
 /// tenuto basso: deve leggersi come plastica, non come uno specchio.
 class TrophyFront extends StatelessWidget {
-  const TrophyFront({required this.challenge, required this.kind, super.key});
+  const TrophyFront({
+    required this.challenge,
+    required this.kind,
+    this.soundOnTap = false,
+    super.key,
+  });
 
   final Challenge challenge;
   final TrophyKind kind;
+
+  /// Nella figurina grande, il tocco sul video accende e spegne l'audio.
+  ///
+  /// I video partono muti e in ciclo, perche' una figurina che si mette a
+  /// parlare appena si apre e' una sorpresa, non una comodita'. Ma un video
+  /// muto e' meta' di quello che qualcuno ha girato per vincere, e finora non
+  /// c'era modo di sentirlo: il tocco girava la figurina, e basta. Adesso
+  /// dentro il riquadro del video quel tocco vuol dire audio; fuori continua a
+  /// girare la carta.
+  ///
+  /// Nel riquadro piccolo resta spento: li' il tocco apre la figurina, che e'
+  /// la cosa che ci si aspetta da una griglia.
+  final bool soundOnTap;
 
   /// Le proporzioni di una figurina vera, non un quadrato.
   ///
@@ -103,6 +121,7 @@ class TrophyFront extends StatelessWidget {
               video: challenge.winnerMediaKind.isVideo,
               aspectRatio: ratio,
               radius: AppRadius.sm,
+              soundOnTap: soundOnTap,
             )
           else
             const _NoPhoto(),
@@ -563,7 +582,11 @@ class _FlippableTrophyState extends State<FlippableTrophy>
 
           final faccia = davanti
               ? widget.fronte ??
-                    TrophyFront(challenge: widget.challenge, kind: widget.kind)
+                    TrophyFront(
+                      challenge: widget.challenge,
+                      kind: widget.kind,
+                      soundOnTap: true,
+                    )
               : Transform(
                   alignment: Alignment.center,
                   // Il retro va rigirato su se stesso, o si vedrebbe
