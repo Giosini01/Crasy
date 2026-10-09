@@ -1656,7 +1656,25 @@ exports.payChallengeFromWallet = onCall(async (request) => {
     return { ok: true, amountCents: premio };
   });
 
-  if (esito.ok) {
+  if (esito.ok && !esito.giaPagata) {
+    // **Il registro anche di qui.** Una gara pagata col portafoglio non passa
+    // dal webhook di Stripe — e' quello a scrivere la riga per i pagamenti con
+    // la carta — quindi senza questa chiamata l'estratto conto avrebbe avuto un
+    // buco proprio sul modo di pagare piu' nuovo.
+    //
+    // `giaPagata` la esclude: quella e' la seconda pressione del tasto su una
+    // gara gia' aperta, e non e' un movimento nuovo.
+    const gara = await challengeRef.get();
+
+    await scriviNelRegistro(userId, `pagamento_${challengeId}`, {
+      kind: 'challengePayment',
+      amountCents: -(esito.amountCents || 0),
+      challengeId,
+      challengeTitle: gara.get('title') || '',
+      source: 'wallet',
+      note: 'Premio messo in palio, pagato col portafoglio',
+    });
+
     logger.info(
       `${userId} ha pagato la challenge ${challengeId} col portafoglio.`
     );
