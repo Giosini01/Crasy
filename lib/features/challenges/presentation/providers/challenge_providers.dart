@@ -349,9 +349,13 @@ final currentUserIdProvider = Provider<String?>((ref) {
 
 /// Vero se questa challenge l'ho lanciata io.
 ///
-/// Chi la lancia **non ci partecipa**: mette lui i soldi del premio, e una gara
-/// in cui chi paga puo' anche vincere non e' una gara. La regola vale anche
-/// dalla parte del database, non solo qui.
+/// Se questa gara l'ho lanciata io.
+///
+/// **Non vuol piu' dire "non ci posso partecipare".** Nelle gare pubbliche chi
+/// lancia scende in gara come tutti — a decidere sono le fiamme degli altri —
+/// e la cosa da chiedere e' `challenge.apertaAlCreatore`, non questa. Qui
+/// resta cio' che il nome dice: di chi e' la gara. Serve al tasto che la
+/// cancella e alla riga che dice chi ci ha messo i soldi.
 final isMyChallengeProvider = Provider.autoDispose.family<bool, String>((
   ref,
   challengeId,

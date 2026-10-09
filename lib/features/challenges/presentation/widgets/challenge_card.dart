@@ -55,6 +55,11 @@ class ChallengeCard extends ConsumerWidget {
         challenge.createdByUserId.isNotEmpty &&
         challenge.createdByUserId == ref.watch(currentUserIdProvider);
 
+    // In una gara pubblica chi l'ha lanciata ci partecipa, quindi sulla scheda
+    // vede il tasto come tutti invece della riga "l'hai lanciata tu". Quella
+    // riga resta dove serve davvero: fra amici, dove il tasto non ci sarebbe.
+    final miaEChiusaAMe = isMine && !challenge.apertaAlCreatore;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -157,7 +162,7 @@ class ChallengeCard extends ConsumerWidget {
         // vincendo si sa cosa bisogna battere, ed e' quello il momento in cui
         // uno decide se partecipare — non prima.
         const SizedBox(height: AppSpacing.md),
-        if (isMine)
+        if (miaEChiusaAMe)
           const OwnChallengeNote()
         else if (myEntry != null)
           const AlreadyJoinedNote()

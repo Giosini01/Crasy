@@ -1387,6 +1387,35 @@ async function closeChallenge(challenge, { giudizio, scelta } = {}) {
     return;
   }
 
+  // **In gara c'e' solo chi l'ha lanciata: non ha vinto nessuno.**
+  //
+  // Nelle gare pubbliche chi lancia ci partecipa, e va bene: a decidere sono
+  // le fiamme degli altri. Con **una foto sola** quelle fiamme non contano
+  // piu' niente — la regola qui sotto chiede a chi ha lanciato se quell'unica
+  // foto vale — e quella domanda fatta a chi ha mandato la foto e' un bonifico
+  // con dei passaggi in piu'.
+  //
+  // Quindi la gara si chiude come se non ci fosse stato nessuno, perche' di
+  // fatto non c'e' stato nessuno: il premio torna a chi l'aveva messo. Le spese
+  // del lancio restano, come in tutti gli altri casi in cui una gara si chiude
+  // senza vincitore.
+  if (
+    eligible.length === 1 &&
+    eligible[0].get('userId') === challenge.get('createdByUserId')
+  ) {
+    await challenge.ref.update({ winnerEntryId: '', attesaGiudizio: false });
+
+    if (payments) {
+      await payments.refundChallenge(challenge.id);
+    }
+
+    logger.info(
+      `Challenge ${challenge.id} chiusa: in gara solo chi l'ha lanciata.`
+    );
+
+    return;
+  }
+
   // **Un partecipante solo: decide chi ha lanciato la missione.**
   //
   // Con una foto sola in gara la regola delle fiamme proclama vincitore

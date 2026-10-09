@@ -800,6 +800,12 @@ class _BottomAction extends ConsumerWidget {
     final isMine = ref.watch(isMyChallengeProvider(challenge.id));
     final meId = ref.watch(currentUserIdProvider);
 
+    // **Mia e chiusa a me**: e' il solo caso in cui chi ha lanciato non vede il
+    // tasto per partecipare. Succede fra amici e nelle private, dove il
+    // vincitore lo scegli lui. In una gara pubblica la gara e' mia e ci
+    // partecipo, e le due cose stanno insieme senza problemi.
+    final miaEChiusaAMe = isMine && !challenge.apertaAlCreatore;
+
     // **Chi e' stato sfidato ha un comando diverso da tutti gli altri.**
     //
     // Prima di rispondere non c'e' niente da fotografare: davanti a una sfida
@@ -831,7 +837,7 @@ class _BottomAction extends ConsumerWidget {
         AppSpacing.page,
         AppSpacing.sm + MediaQuery.paddingOf(context).bottom,
       ),
-      child: switch ((ended, isMine, myEntry)) {
+      child: switch ((ended, miaEChiusaAMe, myEntry)) {
         (true, _, _) => ChallengeMetaRow(challenge: challenge),
         (false, true, _) => Row(
           children: [
@@ -871,13 +877,28 @@ class _BottomAction extends ConsumerWidget {
             _RitiraLaFoto(challenge: challenge, entry: entry),
           ],
         ),
-        (false, false, null) => context.stagione.decoraTasto(
-          CrasyButton(
-            label: 'Partecipa',
-            onPressed: () =>
-                context.push(AppRoutes.participateOf(challenge.id)),
-          ),
-          seme: challenge.id,
+        (false, false, null) => Row(
+          children: [
+            Expanded(
+              child: context.stagione.decoraTasto(
+                CrasyButton(
+                  label: 'Partecipa',
+                  onPressed: () =>
+                      context.push(AppRoutes.participateOf(challenge.id)),
+                ),
+                seme: challenge.id,
+              ),
+            ),
+            // **Il tasto che la cancella non si perde** perche' adesso chi ha
+            // lanciato vede anche "Partecipa". Senza questo, in una gara
+            // pubblica appena lanciata e ancora vuota non ci sarebbe nessun
+            // modo di tornare indietro: si e' sbagliato il titolo, si cancella.
+            // Dalla prima foto in poi sparisce, come prima.
+            if (isMine && challenge.participantsCount == 0) ...[
+              const SizedBox(width: AppSpacing.sm),
+              _DeleteChallenge(challenge: challenge),
+            ],
+          ],
         ),
       },
     );

@@ -1055,15 +1055,41 @@ service cloud.firestore {
                       // invece di dieci. Chiuderla davvero vorrebbe dire una
                       // transazione sul server, e a questa scala non vale il
                       // prezzo — undici in gara non rovina niente, mille si'.
-                      // Chi ha lanciato la challenge non ci partecipa: mette
-                      // lui i soldi del premio, e una gara in cui chi paga
-                      // puo' anche vincere non e' una gara.
                       && (
                            challenge().get('maxParticipants', 0) == 0
                            || challenge().get('participantsCount', 0)
                               < challenge().get('maxParticipants', 0)
                          )
-                      && challenge().createdByUserId != request.auth.uid
+                      // **Chi ha lanciato la gara ci partecipa, se e'
+                      // pubblica.**
+                      //
+                      // Prima non poteva mai: mette lui i soldi del premio, e
+                      // una gara in cui chi paga puo' anche vincere non e' una
+                      // gara. In una gara **pubblica** quel ragionamento non
+                      // tiene, perche' a dire chi ha vinto sono le fiamme degli
+                      // altri: chi lancia e poi ci partecipa non si sta dando
+                      // niente, si sta mettendo in mezzo agli altri col proprio
+                      // nome. E le fiamme sulla propria foto non se le puo'
+                      // dare: quello lo vieta la regola sui voti.
+                      //
+                      // Resta vietato dove il vincitore **lo scegli chi ha
+                      // lanciato** — fra amici e nelle private — perche' li'
+                      // partecipare vorrebbe dire assegnarsi il premio da solo.
+                      // E nelle sfide mirate, che sono una domanda fatta a
+                      // un'altra persona.
+                      //
+                      // Il caso della foto **unica** in gara — dove a decidere
+                      // tornerebbe a essere chi l'ha mandata — lo chiude il
+                      // server: la gara finisce senza vincitore e il premio
+                      // torna indietro. Vedi `closeChallenge`.
+                      && (
+                           challenge().createdByUserId != request.auth.uid
+                           || (
+                                challenge().get('scope', 'global') != 'friends'
+                                && challenge().get('scope', 'global') != 'private'
+                                && challenge().get('targetUserId', '') == ''
+                              )
+                         )
                       && request.resource.data.mediaUrl is string
                       && request.resource.data.mediaUrl.size() > 0
                       // Il vincolo si rispetta: a una challenge di video non si

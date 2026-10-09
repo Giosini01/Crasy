@@ -314,6 +314,37 @@ class Challenge {
   /// Vero se questa missione e' una sfida lanciata a una persona sola.
   bool get isDuel => targetUserId.isNotEmpty;
 
+  /// **Se chi l'ha lanciata puo' anche scendere in gara.**
+  ///
+  /// Prima non poteva mai, e la regola era scritta in cinque posti: mette lui i
+  /// soldi del premio, e una gara in cui chi paga puo' anche vincere non e' una
+  /// gara.
+  ///
+  /// Nelle **gare pubbliche** quel ragionamento non tiene, e il motivo e' chi
+  /// decide: a dire chi ha vinto sono le fiamme degli altri. Chi lancia una
+  /// gara aperta a tutti e poi ci partecipa non si sta dando niente — si sta
+  /// mettendo in mezzo agli altri, con il proprio nome, a farsi giudicare. Ed
+  /// e' la cosa che chi lancia una gara vuole fare per prima: *provateci voi*
+  /// detto senza provarci e' una gara che nessuno ha voglia di giocare.
+  ///
+  /// **Dove resta vietato, e non per simmetria.**
+  ///
+  /// - Le **missioni fra amici** e quelle **private**: li' il vincitore lo
+  ///   scegli chi l'ha lanciata (vedi `closeChallenge`), quindi partecipare
+  ///   vorrebbe dire assegnarsi il premio da solo. Non e' una gara, e' un
+  ///   bonifico con dei passaggi in piu'.
+  /// - Le **sfide mirate**: una sfida e' una domanda fatta a una persona, e chi
+  ///   la fa non e' fra quelli a cui e' stata fatta.
+  ///
+  /// C'e' un caso che il server tratta a parte: se **l'unica** foto in gara e'
+  /// quella di chi ha lanciato, la gara si chiude senza vincitore e il premio
+  /// torna indietro. Con una foto sola a decidere sarebbe chi l'ha mandata, e
+  /// quello e' il bonifico di sopra.
+  bool get apertaAlCreatore =>
+      !isDuel &&
+      scope != ChallengeScope.friends &&
+      scope != ChallengeScope.private;
+
   /// Cosa ha risposto chi l'ha ricevuta.
   ///
   /// Lo scrive **solo il destinatario**, e le regole di Firestore non lasciano

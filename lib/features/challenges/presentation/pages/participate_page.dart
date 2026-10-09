@@ -167,15 +167,20 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
                     );
                   }
 
-                  // Chi ha lanciato la challenge non ci partecipa: mette lui i soldi
-                  // del premio, e una gara in cui chi paga puo' anche vincere non e'
-                  // una gara.
-                  if (ref.watch(isMyChallengeProvider(widget.challengeId))) {
+                  // **Nelle gare fra amici chi lancia non partecipa**, perche'
+                  // li' il vincitore lo scegli lui: partecipare vorrebbe dire
+                  // assegnarsi il premio da solo. Nelle gare pubbliche invece
+                  // scende in gara come tutti — a decidere sono le fiamme degli
+                  // altri — e il divieto non c'e' piu'.
+                  if (ref.watch(
+                        isMyChallengeProvider(widget.challengeId),
+                      ) &&
+                      !challenge.apertaAlCreatore) {
                     return const _Notice(
-                      title: 'È la tua challenge',
+                      title: 'È la tua missione',
                       message:
-                          'Il premio lo metti tu, quindi non puoi correre per '
-                          'vincerlo. Guarda cosa manda la gente e chi sta in testa.',
+                          'Qui il vincitore lo scegli tu, quindi non puoi anche '
+                          'correre per vincere. Guarda cosa mandano i tuoi amici.',
                     );
                   }
 
