@@ -1,4 +1,5 @@
 import 'package:crasy/core/services/firebase/firebase_providers.dart';
+import 'package:crasy/core/utils/combina_flussi.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/payments/data/payments_service.dart';
 import 'package:crasy/features/payments/data/wallet_repository.dart';
@@ -68,17 +69,26 @@ final walletProvider = StreamProvider<Wallet>((ref) {
   // Saldo e movimenti arrivano da due documenti diversi e vanno guardati
   // insieme: un saldo che cambia senza la riga che lo spiega, anche solo per
   // mezzo secondo, e' un numero che compare dal nulla.
-  return repository.watchBalance(userId).asyncExpand((balance) {
-    return repository.watchWithdrawing(userId).asyncExpand((inViaggio) {
-      return repository
-          .watchMovements(userId)
-          .map(
-            (movements) => Wallet(
-              balanceCents: balance,
-              withdrawingCents: inViaggio,
-              movements: movements,
-            ),
-          );
-    });
-  });
+  //
+  // **Prima erano annidati con `asyncExpand`, e il saldo si fermava.** Quel
+  // metodo aspetta che il flusso interno finisca prima di leggere un altro
+  // valore dall'esterno, e un ascolto su Firestore non finisce mai: il saldo
+  // veniva letto una volta sola, all'apertura, e restava quello.
+  //
+  // Si vedeva pagando una missione col portafoglio: la riga del pagamento
+  // compariva nell'elenco — il flusso interno era vivo — e il numero sopra non
+  // si muoveva fino alla riapertura dell'app. Da fuori non e' un difetto
+  // dell'interfaccia: sono soldi spesi che non vengono scalati.
+  //
+  // Vedi `combinaDue`, che li ascolta davvero tutti e due.
+  return combinaTre(
+    repository.watchBalance(userId),
+    repository.watchWithdrawing(userId),
+    repository.watchMovements(userId),
+    (balance, inViaggio, movements) => Wallet(
+      balanceCents: balance,
+      withdrawingCents: inViaggio,
+      movements: movements,
+    ),
+  );
 });

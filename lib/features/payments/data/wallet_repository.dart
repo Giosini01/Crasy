@@ -47,6 +47,7 @@ class WalletRepository {
           WalletMovement(
             id: document.id,
             amountCents: (document.data()['amountCents'] as num?)?.toInt() ?? 0,
+            kind: document.data()['kind'] as String? ?? '',
             challengeTitle: document.data()['challengeTitle'] as String? ?? '',
             createdAt: (document.data()['createdAt'] as Timestamp?)?.toDate(),
           ),

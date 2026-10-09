@@ -359,7 +359,15 @@ class _Movimento extends StatelessWidget {
                 if (movement.createdAt case final quando?) ...[
                   const SizedBox(height: 1),
                   Text(
-                    AppDateUtils.shortTimeAgo(quando),
+                    // **Cosa e', accanto a quando.** Una missione pagata col
+                    // portafoglio ha il titolo della gara in testa, come un
+                    // premio vinto: senza questa riga si leggerebbe come una
+                    // vittoria con l'importo negativo, che non vuol dire
+                    // niente.
+                    movement.note.isEmpty
+                        ? AppDateUtils.shortTimeAgo(quando)
+                        : '${movement.note} · '
+                              '${AppDateUtils.shortTimeAgo(quando)}',
                     style: texts.labelSmall?.copyWith(color: palette.textFaint),
                   ),
                 ],

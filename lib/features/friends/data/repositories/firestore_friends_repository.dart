@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crasy/core/utils/combina_flussi.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/profile/data/mappers/user_profile_mapper.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
@@ -368,22 +369,26 @@ class FirestoreFriendsRepository {
     final iSent = _requests(otherId).doc(meId).snapshots();
     final iReceived = _requests(meId).doc(otherId).snapshots();
 
-    return areFriends.asyncExpand((friend) {
+    // **Tutti e tre ascoltati davvero, non annidati.**
+    //
+    // Erano dentro due `asyncExpand`, e quel metodo aspetta che il flusso
+    // interno finisca prima di rileggere l'esterno: un ascolto su Firestore non
+    // finisce mai, quindi imboccata la strada "non siamo amici" il primo
+    // documento non veniva piu' guardato. Si accettava una richiesta e il tasto
+    // restava quello di prima fino alla riapertura dell'app.
+    //
+    // E' lo stesso difetto che teneva fermo il saldo del portafoglio. Vedi
+    // `combinaTre`.
+    return combinaTre(areFriends, iReceived, iSent, (friend, received, sent) {
       if (friend.exists) {
-        return Stream.value(FriendshipStatus.friends);
+        return FriendshipStatus.friends;
       }
 
-      return iReceived.asyncExpand((received) {
-        if (received.exists) {
-          return Stream.value(FriendshipStatus.requestReceived);
-        }
+      if (received.exists) {
+        return FriendshipStatus.requestReceived;
+      }
 
-        return iSent.map(
-          (sent) => sent.exists
-              ? FriendshipStatus.requestSent
-              : FriendshipStatus.none,
-        );
-      });
+      return sent.exists ? FriendshipStatus.requestSent : FriendshipStatus.none;
     });
   }
 

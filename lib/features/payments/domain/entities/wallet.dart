@@ -52,11 +52,25 @@ class WalletMovement {
   const WalletMovement({
     required this.id,
     required this.amountCents,
+    this.kind = '',
     this.challengeTitle = '',
     this.createdAt,
   });
 
   final String id;
+
+  /// Che movimento e': `prize`, `withdrawal`, `challengePayment`.
+  ///
+  /// **Serve perche' i negativi non sono piu' una cosa sola.** Finche' l'unico
+  /// modo di far scendere il saldo era prelevare, bastava il segno: meno vuol
+  /// dire prelievo. Da quando si puo' pagare una missione col portafoglio i
+  /// negativi sono due, e il segno non li distingue piu' — ogni missione pagata
+  /// compariva nell'elenco come "Prelievo", cioe' come soldi andati sul conto
+  /// quando invece erano rimasti qui dentro.
+  ///
+  /// Vuoto sulle righe scritte prima che questo campo esistesse: li' si torna a
+  /// decidere con il segno, che per quelle e' ancora giusto.
+  final String kind;
 
   /// Positivo per i premi, negativo per i prelievi.
   final int amountCents;
@@ -66,7 +80,32 @@ class WalletMovement {
 
   bool get isPrize => amountCents > 0;
 
-  String get label => isPrize
-      ? (challengeTitle.isEmpty ? 'Premio vinto' : challengeTitle.toUpperCase())
-      : 'Prelievo';
+  /// Se questa riga e' una missione pagata col portafoglio.
+  bool get isChallengePayment => kind == 'challengePayment';
+
+  String get label {
+    if (isPrize) {
+      return challengeTitle.isEmpty
+          ? 'Premio vinto'
+          : challengeTitle.toUpperCase();
+    }
+
+    if (isChallengePayment) {
+      // Il titolo della missione, come per i premi: chi guarda il portafoglio
+      // cerca **per quale gara** sono usciti quei soldi, non la parola
+      // "pagamento". La riga sotto dira' che e' un premio messo in palio.
+      return challengeTitle.isEmpty
+          ? 'Premio messo in palio'
+          : challengeTitle.toUpperCase();
+    }
+
+    return 'Prelievo';
+  }
+
+  /// La riga piccola sotto il titolo, dove serve a distinguere.
+  ///
+  /// Sui premi vinti non c'e': il titolo in maiuscolo e il segno piu' dicono
+  /// gia' tutto. Su una missione pagata serve, perche' senza si legge come una
+  /// gara vinta con l'importo negativo — che non vuol dire niente.
+  String get note => isChallengePayment ? 'Premio messo in palio' : '';
 }
