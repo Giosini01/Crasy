@@ -176,6 +176,20 @@ service cloud.firestore {
     // non nascosta con una regola — **le regole non filtrano i campi, filtrano
     // i documenti**.
     match /users/{userId} {
+      // **Le prove dei rimborsi: le legge solo chi li ha ricevuti.**
+      //
+      // Restano qui perche' la gara a cui si riferiscono viene cancellata
+      // nell'istante dopo il rimborso: se la traccia stesse sulla gara,
+      // sparirebbe con lei — ed e' esattamente cio' che succedeva.
+      //
+      // Nessun telefono le puo' scrivere: a scriverle e' il server, che con
+      // l'SDK di amministrazione non passa da qui. Una ricevuta che il
+      // destinatario puo' creare o modificare non e' una ricevuta.
+      match /refunds/{challengeId} {
+        allow read: if signedIn() && request.auth.uid == userId;
+        allow write: if false;
+      }
+
       // **Su CRASY si entra da maggiorenni.**
       //
       // Il conto in giorni e' un'approssimazione — le regole di Firestore non

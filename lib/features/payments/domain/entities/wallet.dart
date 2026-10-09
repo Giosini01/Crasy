@@ -83,8 +83,20 @@ class WalletMovement {
   /// Se questa riga e' una missione pagata col portafoglio.
   bool get isChallengePayment => kind == 'challengePayment';
 
+  /// Se e' un premio tornato indietro: gara annullata, o nessun partecipante.
+  bool get isRefund => kind == 'refund';
+
   String get label {
     if (isPrize) {
+      // **Un rimborso e' positivo come un premio, ma non e' una vittoria.**
+      // Senza questa riga una gara annullata comparirebbe nel portafoglio
+      // scritta uguale a una vinta, e la bacheca direbbe una cosa falsa.
+      if (isRefund) {
+        return challengeTitle.isEmpty
+            ? 'Premio restituito'
+            : challengeTitle.toUpperCase();
+      }
+
       return challengeTitle.isEmpty
           ? 'Premio vinto'
           : challengeTitle.toUpperCase();
@@ -107,5 +119,15 @@ class WalletMovement {
   /// Sui premi vinti non c'e': il titolo in maiuscolo e il segno piu' dicono
   /// gia' tutto. Su una missione pagata serve, perche' senza si legge come una
   /// gara vinta con l'importo negativo — che non vuol dire niente.
-  String get note => isChallengePayment ? 'Premio messo in palio' : '';
+  String get note {
+    if (isChallengePayment) {
+      return 'Premio messo in palio';
+    }
+
+    if (isRefund) {
+      return "Rimborso: la gara è stata annullata";
+    }
+
+    return '';
+  }
 }

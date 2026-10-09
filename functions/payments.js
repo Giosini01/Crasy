@@ -1190,8 +1190,14 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
   }
 
   const paymentIntentId = snapshot.get('stripePaymentIntentId');
+  const dalPortafoglio = snapshot.get('paidFromWallet') === true;
 
-  if (!paymentIntentId) {
+  // **Una gara pagata col portafoglio non ha nessun pagamento su Stripe**, e
+  // qui si usciva senza fare niente. Annullandola, i soldi non tornavano ne'
+  // sulla carta ne' nel portafoglio: restavano scritti da nessuna parte,
+  // perche' subito dopo la gara viene cancellata. Erano soldi persi, e
+  // l'unico a saperlo era chi li aveva messi.
+  if (!paymentIntentId && !dalPortafoglio) {
     return;
   }
 
@@ -1213,17 +1219,91 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
   // fatto: la gara e' nata, e' stata annunciata, e a chiuderla e' stata una
   // scelta. Senza questa riga, aprire e cancellare in continuazione svuotava
   // il conto di CRASY qualche centesimo alla volta.
-  const quanto = soloIlPremio ? snapshot.get('prizeCents') || 0 : undefined;
+  const premio = snapshot.get('prizeCents') || 0;
+  const quanto = soloIlPremio ? premio : undefined;
+  const haPagato = snapshot.get('createdByUserId');
 
-  await stripe.refunds.create(
-    {
-      payment_intent: paymentIntentId,
-      ...(quanto ? { amount: quanto } : {}),
-    },
-    { idempotencyKey: `challenge-refund-${challengeId}` }
-  );
+  // **Dal portafoglio torna nel portafoglio, e torna intero.**
+  //
+  // Le spese si trattengono perche' sono uscite davvero: su un pagamento col
+  // portafoglio non ne e' uscita nessuna — nessun incasso, nessuna commissione
+  // — quindi non c'e' niente da trattenere, nemmeno quando a cancellare e'
+  // stato lui.
+  let restituito = 0;
+  let dove = '';
+
+  if (dalPortafoglio) {
+    restituito = premio;
+    dove = 'portafoglio';
+
+    if (haPagato) {
+      await db
+        .collection('users')
+        .doc(haPagato)
+        .update({
+          walletCents: admin.firestore.FieldValue.increment(premio),
+        });
+
+      await db
+        .collection('users')
+        .doc(haPagato)
+        .collection('wallet')
+        .doc(`rimborso_${challengeId}`)
+        .set({
+          kind: 'refund',
+          amountCents: premio,
+          challengeId,
+          challengeTitle: snapshot.get('title') || '',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    }
+  } else {
+    const rimborso = await stripe.refunds.create(
+      {
+        payment_intent: paymentIntentId,
+        ...(quanto ? { amount: quanto } : {}),
+      },
+      { idempotencyKey: `challenge-refund-${challengeId}` }
+    );
+
+    restituito = rimborso.amount || quanto || 0;
+    dove = 'carta';
+  }
 
   await ref.update({ prizeStatus: 'refunded' });
+
+  // **La prova resta anche quando la gara non c'e' piu'.**
+  //
+  // Annullare una missione la cancella subito dopo questo rimborso: senza
+  // questa riga, dell'intera operazione non restava **niente** nel database.
+  // Per sapere cosa era stato restituito bisognava andare su Stripe — e il
+  // giorno che qualcuno scrive "mi avete tenuto dei soldi", non c'era niente
+  // da mostrargli.
+  //
+  // Sta sotto l'utente e non sotto la gara, proprio perche' la gara sparisce.
+  if (haPagato) {
+    try {
+      await db
+        .collection('users')
+        .doc(haPagato)
+        .collection('refunds')
+        .doc(challengeId)
+        .set({
+          challengeId,
+          challengeTitle: snapshot.get('title') || '',
+          // Quanto aveva messo in palio, quanto gli e' tornato, e dove.
+          prizeCents: premio,
+          refundedCents: restituito,
+          destinazione: dove,
+          // Perche': cancellata da lui, o nessuno ha partecipato.
+          motivo: soloIlPremio ? 'annullata' : 'nessun-partecipante',
+          stripePaymentIntentId: paymentIntentId || null,
+          at: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    } catch (error) {
+      logger.error(`Prova del rimborso non scritta per ${challengeId}.`, error);
+    }
+  }
 
   // **Un premio restituito non conta fra quelli messi in palio.**
   //
@@ -1235,8 +1315,6 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
   // Senza, scalare la classifica di chi fa giocare sarebbe gratis: si lancia
   // una gara da cento euro, non partecipa nessuno, il rimborso torna indietro
   // intero e in cima all'elenco resta scritto che hai fatto giocare la gente.
-  const haPagato = snapshot.get('createdByUserId');
-
   if (haPagato) {
     try {
       await db
