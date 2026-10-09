@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:crasy/core/theme/app_palette.dart';
@@ -65,6 +66,46 @@ class PhotoEditor extends StatefulWidget {
 class _PhotoEditorState extends State<PhotoEditor> {
   final _riquadro = GlobalKey();
   final _scritte = <_Scritta>[];
+  final _inquadratura = TransformationController();
+
+  /// Le proporzioni vere della foto, lette dal file.
+  ///
+  /// **Senza, non si puo' spostare niente.** Finche' l'immagine veniva
+  /// semplicemente stretta dentro il riquadro con `cover`, a ingrandimento uno
+  /// non c'era nessuna parte fuori da far entrare: la foto era gia' tutta li',
+  /// tagliata, e l'unico modo di muoverla era ingrandirla — cioe' tagliarne
+  /// ancora di piu'. Su una verticale era il caso peggiore: non si poteva
+  /// scegliere se tenere la testa o i piedi.
+  ///
+  /// Sapendo quanto e' alta davvero, la si mette nel riquadro alla sua misura
+  /// e cio' che avanza si sposta.
+  double? _proporzioni;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_misura());
+  }
+
+  @override
+  void dispose() {
+    _inquadratura.dispose();
+    super.dispose();
+  }
+
+  Future<void> _misura() async {
+    final decodificata = await decodeImageFromList(widget.bytes);
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _proporzioni = decodificata.width / decodificata.height;
+    });
+
+    decodificata.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,19 +148,12 @@ class _PhotoEditorState extends State<PhotoEditor> {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        if (widget.inquadrabile)
-                          InteractiveViewer(
-                            // Sotto l'uno la foto si staccherebbe dai bordi
-                            // lasciando vedere il fondo: quello che esce dal
-                            // riquadro e' tagliato, ma il riquadro deve
-                            // restare pieno.
-                            minScale: 1,
-                            maxScale: 4,
-                            clipBehavior: Clip.none,
-                            child: Image.memory(
-                              widget.bytes,
-                              fit: BoxFit.cover,
-                            ),
+                        if (widget.inquadrabile && _proporzioni != null)
+                          _DaInquadrare(
+                            bytes: widget.bytes,
+                            proporzioniFoto: _proporzioni!,
+                            proporzioniRiquadro: widget.aspectRatio,
+                            controller: _inquadratura,
                           )
                         else
                           Image.memory(widget.bytes, fit: BoxFit.cover),
@@ -138,8 +172,9 @@ class _PhotoEditorState extends State<PhotoEditor> {
             const SizedBox(height: AppSpacing.sm),
             Text(
               widget.inquadrabile
-                  ? 'Due dita per ingrandire e spostare. Quello che resta '
-                        'dentro il riquadro è quello che mandi.'
+                  ? 'Trascina per scegliere cosa tenere, due dita per '
+                        'ingrandire. Quello che resta dentro il riquadro è '
+                        'quello che mandi.'
                   : 'Quello che resta dentro il riquadro è quello che mandi.',
               textAlign: TextAlign.center,
               style: context.texts.bodySmall?.copyWith(
@@ -230,6 +265,114 @@ class _PhotoEditorState extends State<PhotoEditor> {
     }
 
     Navigator.of(context).pop(dati?.buffer.asUint8List());
+  }
+}
+
+/// **La foto dentro il riquadro, alla sua misura vera e spostabile.**
+///
+/// ## Il difetto che questa classe esiste per togliere
+///
+/// Prima la foto veniva stretta nel riquadro con `cover` e data in pasto a un
+/// `InteractiveViewer`. A ingrandimento uno non si muoveva di un pixel, e il
+/// motivo e' che non c'era **niente fuori**: l'immagine era gia' tagliata alla
+/// misura del riquadro, e quello che avanzava era stato buttato prima che
+/// qualcuno potesse sceglierlo. L'unico modo di spostarla era ingrandirla,
+/// cioe' tagliare ancora di piu' per vedere una parte diversa.
+///
+/// Su una foto verticale era il caso peggiore e il piu' comune: in un riquadro
+/// quattro quinti una foto da telefono perde un quarto della sua altezza, e non
+/// si poteva decidere se perderla in cima o in fondo.
+///
+/// ## Come funziona adesso
+///
+/// La foto entra alla sua **misura intera** — piu' alta del riquadro se e'
+/// verticale, piu' larga se e' orizzontale — e `constrained: false` dice al
+/// visore di non stringerla. Quello che avanza esce dai bordi e si trascina
+/// dentro.
+///
+/// I bordi li tiene il visore stesso: con un margine nullo non lascia che il
+/// bordo della foto entri nel riquadro, quindi non si puo' scoprire il fondo.
+/// Non c'e' nessun calcolo da fare e nessun conto che possa sbagliare.
+///
+/// Parte **centrata**: il taglio predefinito resta quello di prima, e chi non
+/// tocca niente ottiene esattamente cio' che otteneva. Si sposta chi vuole.
+class _DaInquadrare extends StatefulWidget {
+  const _DaInquadrare({
+    required this.bytes,
+    required this.proporzioniFoto,
+    required this.proporzioniRiquadro,
+    required this.controller,
+  });
+
+  final Uint8List bytes;
+  final double proporzioniFoto;
+  final double proporzioniRiquadro;
+  final TransformationController controller;
+
+  @override
+  State<_DaInquadrare> createState() => _DaInquadrareState();
+}
+
+class _DaInquadrareState extends State<_DaInquadrare> {
+  Size? _ultimoRiquadro;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, vincoli) {
+        final larghezza = vincoli.maxWidth;
+        final altezza = vincoli.maxHeight;
+
+        // La misura con cui la foto copre il riquadro: il lato corto combacia,
+        // l'altro avanza. E' lo stesso conto che fa `BoxFit.cover` — qui pero'
+        // quello che avanza resta, invece di essere tagliato via subito.
+        final piuAlta = widget.proporzioniFoto < widget.proporzioniRiquadro;
+        final fotoLarga = piuAlta
+            ? larghezza
+            : altezza * widget.proporzioniFoto;
+        final fotoAlta = piuAlta ? larghezza / widget.proporzioniFoto : altezza;
+
+        final riquadro = Size(larghezza, altezza);
+
+        if (_ultimoRiquadro != riquadro) {
+          _ultimoRiquadro = riquadro;
+
+          // Centrata di partenza, **dopo questo fotogramma**: scrivere sul
+          // controller durante la costruzione vuol dire chiedere un ridisegno
+          // mentre il ridisegno e' in corso, ed e' l'errore che si legge come
+          // "setState durante build" senza nessun legame con la causa.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              widget.controller.value = Matrix4.identity()
+                ..translateByDouble(
+                  -(fotoLarga - larghezza) / 2,
+                  -(fotoAlta - altezza) / 2,
+                  0,
+                  1,
+                );
+            }
+          });
+        }
+
+        return InteractiveViewer(
+          transformationController: widget.controller,
+          // **Non stringere la foto nel riquadro.** E' questa riga a rendere
+          // possibile lo spostamento: senza, il visore ridimensiona il figlio
+          // alla propria misura e non resta niente fuori da far entrare.
+          constrained: false,
+          minScale: 1,
+          maxScale: 4,
+          // Margine nullo: il bordo della foto non puo' entrare nel riquadro,
+          // quindi il fondo non si scopre mai.
+          boundaryMargin: EdgeInsets.zero,
+          child: SizedBox(
+            width: fotoLarga,
+            height: fotoAlta,
+            child: Image.memory(widget.bytes, fit: BoxFit.fill),
+          ),
+        );
+      },
+    );
   }
 }
 
