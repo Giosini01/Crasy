@@ -6,7 +6,6 @@ import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
-import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/leaderboard.dart';
 import 'package:crasy/features/challenges/domain/leaderboard_showcase.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
@@ -75,9 +74,12 @@ class WinnersPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final challenges = ref.watch(endedChallengesProvider);
+    // **L'elenco delle gare chiuse non serve piu' a questa schermata.** Era la
+    // sorgente della classifica, ed era il difetto: una lettura di tutte le
+    // gare finite per costruire due elenchi di venti righe, che per giunta
+    // dimenticavano tutto cio' che aveva piu' di due giorni. Adesso i totali
+    // stanno sui profili e si leggono venti documenti in tutto.
     final view = ref.watch(trendViewProvider);
-    final chiuse = challenges.valueOrNull ?? const <Challenge>[];
     final trovati =
         ref.watch(_accountVetrinaProvider).valueOrNull ??
         const <String, String>{};
@@ -118,16 +120,34 @@ class WinnersPage extends ConsumerWidget {
                     const SizedBox(height: AppSpacing.lg),
                     _Switch(selected: view),
                     const SizedBox(height: AppSpacing.xl),
+                    // **I totali di sempre, non le gare di adesso.**
+                    //
+                    // Prima questa classifica sommava le gare chiuse nelle
+                    // ultime quarantotto ore, e percio' calava da sola: un
+                    // premio di tre giorni fa usciva dalla finestra e il totale
+                    // di quella persona scendeva, mentre il suo profilo
+                    // continuava a dire la cifra giusta. Sulla stessa persona
+                    // si leggevano 5,85 e 6,75, e dei soldi che calano da soli
+                    // si leggono come un ammanco anche quando non lo sono.
+                    //
+                    // Con le gare non si poteva fare meglio: vengono svuotate
+                    // dopo due giorni e quelle cancellate spariscono del tutto.
+                    // Adesso il totale vive sul profilo di chi ha vinto, lo
+                    // scrive il server quando il premio entra, e sopravvive
+                    // alla fine della gara, alla sua cancellazione e al
+                    // prelievo.
                     _Classifica(
                       righe: view == TrendView.winners
                           ? conVetrina(
-                              Leaderboard.winners(chiuse),
+                              ref.watch(topWinnersProvider).valueOrNull ??
+                                  const <LeaderRow>[],
                               vincitoriVetrina,
                               trovati,
                               accesa: vetrina,
                             )
                           : conVetrina(
-                              Leaderboard.launchers(chiuse),
+                              ref.watch(topStakersProvider).valueOrNull ??
+                                  const <LeaderRow>[],
                               chiFaGiocareVetrina,
                               trovati,
                               accesa: vetrina,

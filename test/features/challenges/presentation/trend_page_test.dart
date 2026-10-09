@@ -1,6 +1,7 @@
 import 'package:crasy/core/theme/app_theme.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
+import 'package:crasy/features/challenges/domain/leaderboard.dart';
 import 'package:crasy/features/challenges/presentation/pages/winners_page.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
@@ -51,11 +52,75 @@ void main() {
     chiusa(id: 'piccina', euro: 5, lancia: 'spilorcio', vince: 'quarto'),
   ];
 
+  /// **Le due classifiche, come le legge adesso la schermata.**
+  ///
+  /// Prima questa prova dava alla pagina un elenco di gare chiuse e si
+  /// aspettava che la classifica se la calcolasse da sola. Non lo fa piu', e
+  /// non per un ritocco: sommare le gare voleva dire una classifica che
+  /// dimentica — le gare si svuotano dopo due giorni e quelle cancellate
+  /// spariscono — e sulla stessa persona si leggevano due totali diversi, uno
+  /// in classifica e uno sul profilo.
+  ///
+  /// Adesso i totali stanno sui profili, li scrive il server quando il premio
+  /// entra, e la pagina li legge. Qui si costruiscono a mano dalle stesse gare
+  /// di prima, cosi' i casi che la prova difende restano gli stessi: dieci
+  /// vittorie da un euro contro una da cento.
+  List<LeaderRow> classificaDa(
+    List<Challenge> gare, {
+    required bool vincitori,
+  }) {
+    final soldi = <String, int>{};
+    final volte = <String, int>{};
+    final nomi = <String, String>{};
+
+    for (final gara in gare) {
+      final chi = vincitori ? gara.winnerUserId : gara.createdByUserId;
+      final quanto = vincitori ? gara.payoutCents : gara.prizeCents;
+
+      if (chi.isEmpty || quanto <= 0) {
+        continue;
+      }
+
+      soldi[chi] = (soldi[chi] ?? 0) + quanto;
+      volte[chi] = (volte[chi] ?? 0) + 1;
+      nomi[chi] = vincitori ? gara.winnerUsername : gara.createdByUsername;
+    }
+
+    final righe = [
+      for (final chi in soldi.keys)
+        LeaderRow(
+          userId: chi,
+          username: nomi[chi] ?? '',
+          cents: soldi[chi]!,
+          count: volte[chi] ?? 0,
+        ),
+    ];
+
+    righe.sort((a, b) {
+      final diSoldi = b.cents.compareTo(a.cents);
+
+      if (diSoldi != 0) {
+        return diSoldi;
+      }
+
+      final diVolte = b.count.compareTo(a.count);
+
+      return diVolte != 0 ? diVolte : a.username.compareTo(b.username);
+    });
+
+    return righe;
+  }
+
   Future<void> apri(WidgetTester tester, {String? io}) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          endedChallengesProvider.overrideWith((ref) => Stream.value(chiuse)),
+          topWinnersProvider.overrideWith(
+            (ref) => Stream.value(classificaDa(chiuse, vincitori: true)),
+          ),
+          topStakersProvider.overrideWith(
+            (ref) => Stream.value(classificaDa(chiuse, vincitori: false)),
+          ),
           currentUserIdProvider.overrideWithValue(io),
           // Le facce non c'entrano con la classifica, e senza database non
           // arriverebbero comunque: restano le iniziali.
@@ -152,8 +217,11 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          endedChallengesProvider.overrideWith(
-            (ref) => Stream.value(const <Challenge>[]),
+          topWinnersProvider.overrideWith(
+            (ref) => Stream.value(const <LeaderRow>[]),
+          ),
+          topStakersProvider.overrideWith(
+            (ref) => Stream.value(const <LeaderRow>[]),
           ),
           currentUserIdProvider.overrideWithValue(null),
           publicProfileProvider.overrideWith((ref, id) => Stream.value(null)),
@@ -167,10 +235,7 @@ void main() {
 
     // Tre gradini vuoti si leggono come un errore di caricamento. Meglio dire
     // che non e' ancora successo niente.
-    expect(
-      find.textContaining('il podio si riempie da solo'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('il podio si riempie da solo'), findsOneWidget);
     expect(find.textContaining('@'), findsNothing);
   });
 }

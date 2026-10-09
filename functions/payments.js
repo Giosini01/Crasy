@@ -730,6 +730,25 @@ async function accendiLaGara(challengeId, paymentIntentId) {
     const durataScelta =
       durationMs >= 60 * 1000 ? durationMs : 60 * 60 * 1000;
 
+    // **Quanto ha messo in palio, da sempre.** Il gemello di `totalWonCents`,
+    // per l'altra meta' dell'app: si conta nell'istante in cui il premio e'
+    // davvero incassato, non quando la gara viene scritta. Una gara dichiarata
+    // e mai pagata non ha fatto giocare nessuno.
+    const diChi = snapshot.get('createdByUserId');
+
+    if (diChi) {
+      transaction.set(
+        db.collection('users').doc(diChi),
+        {
+          totalStakedCents: admin.firestore.FieldValue.increment(
+            snapshot.get('prizeCents') || 0
+          ),
+          totalStakedCount: admin.firestore.FieldValue.increment(1),
+        },
+        { merge: true }
+      );
+    }
+
     transaction.update(ref, {
       prizeStatus: 'held',
       stripePaymentIntentId: paymentIntentId || null,
@@ -980,7 +999,25 @@ async function payWinner(challengeId) {
 
     transaction.set(
       userRef,
-      { walletCents: admin.firestore.FieldValue.increment(amount) },
+      {
+        walletCents: admin.firestore.FieldValue.increment(amount),
+        // **Quanto ha vinto in tutto, da sempre. Non scende mai.**
+        //
+        // Il saldo dice quanto ha **adesso**, e cala quando preleva o quando
+        // paga una missione con quei soldi: non puo' dire quanto ha vinto. Le
+        // gare nemmeno — vengono svuotate quarantotto ore dopo la fine, e una
+        // classifica costruita su quelle fa sparire i premi vecchi mentre la
+        // gente guarda. E' il motivo per cui il profilo diceva 6,75 e la
+        // classifica 5,85 sulla stessa persona.
+        //
+        // Questo numero si scrive una volta, qui, nello stesso istante in cui
+        // il premio entra nel portafoglio, e da li' non si tocca piu'.
+        totalWonCents: admin.firestore.FieldValue.increment(amount),
+        // Quante gare, non solo quanti soldi: la classifica lo scrive sotto il
+        // nome, e serve a sciogliere i pari — a parita' di soldi sta sopra chi
+        // l'ha fatto piu' volte.
+        totalWonCount: admin.firestore.FieldValue.increment(1),
+      },
       { merge: true }
     );
 
@@ -1188,6 +1225,34 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
 
   await ref.update({ prizeStatus: 'refunded' });
 
+  // **Un premio restituito non conta fra quelli messi in palio.**
+  //
+  // E' l'unica sottrazione che questi due contatori ammettono, e non e' una
+  // contraddizione: `totalStakedCents` dice quanti soldi uno ha messo a
+  // disposizione degli altri, e dei soldi tornati in tasca non sono stati
+  // messi a disposizione di nessuno.
+  //
+  // Senza, scalare la classifica di chi fa giocare sarebbe gratis: si lancia
+  // una gara da cento euro, non partecipa nessuno, il rimborso torna indietro
+  // intero e in cima all'elenco resta scritto che hai fatto giocare la gente.
+  const haPagato = snapshot.get('createdByUserId');
+
+  if (haPagato) {
+    try {
+      await db
+        .collection('users')
+        .doc(haPagato)
+        .update({
+          totalStakedCents: admin.firestore.FieldValue.increment(
+            -(snapshot.get('prizeCents') || 0)
+          ),
+          totalStakedCount: admin.firestore.FieldValue.increment(-1),
+        });
+    } catch (error) {
+      logger.warn(`Messo in palio non scalato per ${haPagato}.`, error);
+    }
+  }
+
   logger.info(
     `Challenge ${challengeId}: ` +
       (soloIlPremio ? 'cancellata, premio reso.' : 'nessun partecipante, reso tutto.')
@@ -1384,6 +1449,15 @@ exports.payChallengeFromWallet = onCall(async (request) => {
 
     transaction.update(userRef, {
       walletCents: admin.firestore.FieldValue.increment(-premio),
+      // Lo stesso conteggio del webhook di Stripe: il premio e' incassato,
+      // anche se i soldi non sono entrati da fuori ma erano gia' dentro.
+      //
+      // **In una scrittura sola con il saldo**, non in due sullo stesso
+      // documento: due mutazioni sulla stessa riga dentro una transazione
+      // funzionano, ma chi legge questo codice fra sei mesi deve poter vedere
+      // in un colpo tutto quello che succede a questo utente.
+      totalStakedCents: admin.firestore.FieldValue.increment(premio),
+      totalStakedCount: admin.firestore.FieldValue.increment(1),
     });
 
     transaction.update(challengeRef, {

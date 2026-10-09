@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crasy/core/utils/combina_flussi.dart';
+import 'package:crasy/features/challenges/domain/leaderboard.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/profile/data/mappers/user_profile_mapper.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
@@ -235,6 +236,46 @@ class FirestoreFriendsRepository {
     } on FirebaseException catch (_) {
       // Vedi sopra.
     }
+  }
+
+  /// **La classifica storica, letta dai contatori sul profilo.**
+  ///
+  /// Prima si costruiva sommando le gare chiuse di recente — quarantotto ore —
+  /// e per questo calava da sola: un premio di tre giorni fa usciva dalla
+  /// finestra e il totale di quella persona scendeva, mentre il suo profilo
+  /// continuava a dire la cifra giusta. Sulla stessa persona si leggevano due
+  /// numeri diversi, e un totale di soldi che scende da solo sembra un ammanco
+  /// anche quando non lo e'.
+  ///
+  /// Non si poteva fare altrimenti con le gare: **vengono svuotate dopo
+  /// quarantotto ore e quelle cancellate spariscono**, quindi una classifica
+  /// costruita su di esse dimentica per forza. Adesso il totale sta
+  /// sull'utente, lo scrive il server nell'istante in cui il premio entra, e
+  /// sopravvive alla fine della gara, alla sua cancellazione e al prelievo.
+  ///
+  /// Costa anche molto meno: una lettura di venti profili invece di tutte le
+  /// gare chiuse.
+  Stream<List<LeaderRow>> watchTopBy(String campo, {int quanti = 20}) {
+    return _users
+        .orderBy(campo, descending: true)
+        .limit(quanti)
+        .snapshots()
+        .map((snapshot) {
+          final conteggio = campo == 'totalWonCents'
+              ? 'totalWonCount'
+              : 'totalStakedCount';
+
+          return [
+            for (final documento in snapshot.docs)
+              if (((documento.data()[campo] as num?)?.toInt() ?? 0) > 0)
+                LeaderRow(
+                  userId: documento.id,
+                  username: documento.data()['username'] as String? ?? '',
+                  cents: (documento.data()[campo] as num?)?.toInt() ?? 0,
+                  count: (documento.data()[conteggio] as num?)?.toInt() ?? 0,
+                ),
+          ];
+        });
   }
 
   /// Il profilo di chiunque. Emette `null` se non esiste.

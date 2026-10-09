@@ -2,6 +2,7 @@ import 'package:crasy/core/services/firebase/firebase_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
+import 'package:crasy/features/challenges/domain/leaderboard.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/data/repositories/contacts_repository.dart';
 import 'package:crasy/features/friends/data/repositories/firestore_friends_repository.dart';
@@ -11,7 +12,6 @@ import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 // Le gare riservate vivono con le altre gare, in `challenge_providers`: il
 // conto delle cinque partecipazioni del giorno deve poterle saltare, e quel
 // conto sta li'. Si riesporta perche' la scheda degli amici e' il posto da cui
@@ -210,6 +210,39 @@ final friendshipStatusProvider = StreamProvider.autoDispose
 
       return repository.watchStatus(meId: meId, otherId: otherId);
     });
+
+/// **Chi ha vinto di piu' su CRASY, da sempre.**
+///
+/// Legge i contatori sul profilo invece di sommare le gare: quelle vengono
+/// svuotate dopo quarantotto ore e cancellate del tutto, quindi una classifica
+/// costruita su di esse dimentica da sola — ed e' il motivo per cui la stessa
+/// persona compariva con 5,85 in classifica e 6,75 sul profilo.
+final topWinnersProvider = StreamProvider<List<LeaderRow>>((ref) {
+  final repository = ref.watch(friendsRepositoryProvider);
+
+  if (repository == null) {
+    return Stream.value(const <LeaderRow>[]);
+  }
+
+  return repository.watchTopBy('totalWonCents');
+});
+
+/// Chi ha messo piu' soldi in palio, da sempre.
+///
+/// Stesso conto dall'altra parte dell'app. I premi rimborsati non ci sono: dei
+/// soldi tornati in tasca non hanno fatto giocare nessuno, e senza quella
+/// sottrazione scalare questa classifica sarebbe gratis — si lancia una gara,
+/// non partecipa nessuno, il rimborso torna indietro intero e in cima resta
+/// scritto che hai fatto giocare la gente.
+final topStakersProvider = StreamProvider<List<LeaderRow>>((ref) {
+  final repository = ref.watch(friendsRepositoryProvider);
+
+  if (repository == null) {
+    return Stream.value(const <LeaderRow>[]);
+  }
+
+  return repository.watchTopBy('totalStakedCents');
+});
 
 /// Le partecipazioni di una persona, per il suo profilo pubblico.
 ///
