@@ -93,6 +93,9 @@ abstract class ChallengeRepository {
     MediaKind mediaKind = MediaKind.photo,
     String? contentType,
     String caption = '',
+
+    /// Se il video va guardato senza audio: lo decide chi lo manda.
+    bool muted = false,
   });
 
   /// I commenti sotto una foto, dal piu' vecchio.

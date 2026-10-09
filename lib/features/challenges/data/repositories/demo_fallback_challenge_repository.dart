@@ -142,6 +142,7 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
     MediaKind mediaKind = MediaKind.photo,
     String? contentType,
     String caption = '',
+    bool muted = false,
   }) {
     return _forChallenge(challengeId).submitEntry(
       challengeId: challengeId,
@@ -155,6 +156,7 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
       mediaKind: mediaKind,
       contentType: contentType,
       caption: caption,
+    muted: muted,
     );
   }
 

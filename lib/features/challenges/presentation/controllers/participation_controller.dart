@@ -355,6 +355,7 @@ class ParticipationController extends AsyncNotifier<void> {
     required String challengeId,
     required PickedMedia media,
     String caption = '',
+    bool muted = false,
     bool daily = false,
   }) async {
     final authState = ref.read(authStateProvider);
@@ -423,6 +424,7 @@ class ParticipationController extends AsyncNotifier<void> {
         // partecipazione, quindi non si potrebbe aggiungere dopo nemmeno
         // volendo.
         caption: caption,
+        muted: muted,
       ),
     );
 

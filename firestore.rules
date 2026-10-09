@@ -1109,6 +1109,12 @@ service cloud.firestore {
                       // "non hai accesso" incomprensibile.
                       && request.resource.data.get('caption', '') is string
                       && request.resource.data.get('caption', '').size() <= 140
+                      // Il silenzio lo chiede chi manda, e puo' essere solo si'
+                      // o no: si legge con `get` perche' le app gia' installate
+                      // non lo mandano, e una condizione che i telefoni vecchi
+                      // non sanno soddisfare fa rifiutare le loro foto con un
+                      // "non hai accesso" incomprensibile.
+                      && request.resource.data.get('muted', false) is bool
                       // **A una gara con un premio si partecipa solo se quel
                       // premio e' stato incassato.**
                       //

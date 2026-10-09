@@ -204,6 +204,7 @@ class SampleChallengeRepository implements ChallengeRepository {
     MediaKind mediaKind = MediaKind.photo,
     String? contentType,
     String caption = '',
+    bool muted = false,
   }) async {
     final challenge = _challenges[challengeId];
 

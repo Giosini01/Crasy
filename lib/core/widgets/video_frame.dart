@@ -96,6 +96,7 @@ class VideoFrame extends StatefulWidget {
     this.caption,
     this.immersive = false,
     this.autoplay = true,
+    this.muted = false,
     super.key,
   });
 
@@ -104,6 +105,14 @@ class VideoFrame extends StatefulWidget {
   /// Se il video e' **la cosa che si sta guardando** e non una riga di un
   /// elenco: a schermo intero arrivano audio e comandi, nell'elenco no.
   final bool immersive;
+
+  /// **Chi ha mandato questo video ha chiesto che si guardi in silenzio.**
+  ///
+  /// Vince su tutto il resto: anche aprendolo a schermo intero, anche toccando
+  /// il tasto dell'audio. Non e' una preferenza di chi guarda — e' una
+  /// condizione di chi ha filmato, e lasciarla scavalcare da un tocco vorrebbe
+  /// dire non averla mai data.
+  final bool muted;
 
   /// Se il video deve **partire da solo**.
   ///
@@ -246,7 +255,9 @@ class _VideoFrameState extends State<VideoFrame> {
     // sul primo fotogramma, e non parte da solo. E' esattamente quello che i
     // browser dei telefoni si aspettano.
     try {
-      await controller.setVolume(widget.immersive ? 1 : 0);
+      await controller.setVolume(
+        widget.muted || !widget.immersive ? 0 : 1,
+      );
 
       // Nelle griglie si resta sul primo fotogramma: c'e' gia' il play in
       // mezzo, e chi vuole vedere il video tocca e lo apre grande.
@@ -311,7 +322,9 @@ class _VideoFrameState extends State<VideoFrame> {
     }
 
     if (!_controls) {
-      await controller.setVolume(1);
+      if (!widget.muted) {
+        await controller.setVolume(1);
+      }
       await controller.play();
       _keepControls();
 
@@ -331,6 +344,12 @@ class _VideoFrameState extends State<VideoFrame> {
     final controller = _controller;
 
     if (controller == null) {
+      return;
+    }
+
+    // Su un video muto il tasto non alza niente: chi l'ha mandato ha chiesto
+    // il silenzio, e un comando che scavalca quella richiesta la rende finta.
+    if (widget.muted) {
       return;
     }
 

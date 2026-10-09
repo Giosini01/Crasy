@@ -172,6 +172,9 @@ abstract final class ChallengeEntryMapper {
       isWinner: data['isWinner'] as bool? ?? false,
       moderation: EntryModeration.fromName(data['moderation'] as String?),
       mediaKind: MediaKind.fromName(data['mediaKind'] as String?),
+      // Le partecipazioni scritte prima che questo campo esistesse hanno
+      // l'audio: e' cosi' che erano state mandate.
+      muted: data['muted'] as bool? ?? false,
       // Le partecipazioni scritte prima che la didascalia esistesse non ce
       // l'hanno, ed e' giusto che si leggano come foto senza didascalia invece
       // che come dati rotti.
@@ -200,6 +203,7 @@ abstract final class ChallengeEntryMapper {
       'thumbUrl': entry.thumbUrl,
       'storagePath': entry.storagePath,
       'mediaKind': entry.mediaKind.name,
+      'muted': entry.muted,
       // La didascalia si scrive alla nascita e non si tocca piu': le regole non
       // danno all'autore nessun permesso di aggiornamento sulla propria
       // partecipazione, e questa riga ci va sotto come la foto.

@@ -19,6 +19,7 @@ class ChallengeEntry {
     this.thumbUrl = '',
     this.mediaKind = MediaKind.photo,
     this.caption = '',
+    this.muted = false,
     this.isDuel = false,
   });
 
@@ -135,6 +136,25 @@ class ChallengeEntry {
   /// Se e' una foto o un video. Lo decide la challenge, non chi partecipa.
   final MediaKind mediaKind;
 
+  /// **Il video si guarda senza audio, per tutti.**
+  ///
+  /// Lo decide chi lo manda, prima di mandarlo, e vale per chiunque lo apra.
+  /// Serve al caso piu' comune che c'e': si riprende qualcosa in giro e dentro
+  /// finisce una voce, una canzone, un discorso fra altri — roba che non
+  /// c'entra con la gara e che chi filma non si accorge di aver registrato
+  /// finche' non la risente.
+  ///
+  /// **L'audio resta dentro il file.** Toglierlo davvero vorrebbe dire
+  /// riscrivere il video, e per farlo serve una libreria di montaggio che pesa
+  /// decine di megabyte — su un'app che si scarica, quel prezzo lo pagherebbero
+  /// tutti per una funzione che usa qualcuno. Qui il lettore semplicemente non
+  /// lo apre mai.
+  ///
+  /// E' una differenza che conta solo in un caso: chi scarica il file fuori
+  /// dall'app lo sente. Vale la pena saperlo — ma dentro CRASY, che e' dove
+  /// quel video si guarda, non lo sente nessuno.
+  final bool muted;
+
   bool get isVideo => mediaKind.isVideo;
 
   /// Se la foto ha passato il controllo sui contenuti.
@@ -211,6 +231,7 @@ class ChallengeEntry {
     List<String>? reporters,
     String? thumbUrl,
     MediaKind? mediaKind,
+    bool? muted,
     String? caption,
     bool? isDuel,
   }) {
@@ -229,6 +250,7 @@ class ChallengeEntry {
       reporters: reporters ?? this.reporters,
       thumbUrl: thumbUrl ?? this.thumbUrl,
       mediaKind: mediaKind ?? this.mediaKind,
+      muted: muted ?? this.muted,
       caption: caption ?? this.caption,
       isDuel: isDuel ?? this.isDuel,
     );

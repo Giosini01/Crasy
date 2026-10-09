@@ -29,11 +29,15 @@ class MediaFrame extends StatelessWidget {
     this.overlay,
     this.video = false,
     this.autoplay = true,
+    this.muted = false,
     this.mine = false,
     super.key,
   });
 
   final String? url;
+
+  /// Se il video va guardato senza audio: lo decide chi l'ha mandato.
+  final bool muted;
 
   /// Se questa e' **la mia** partecipazione.
   ///
@@ -87,7 +91,12 @@ class MediaFrame extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (video)
-              VideoFrame(url: url!, caption: caption, autoplay: autoplay)
+              VideoFrame(
+                url: url!,
+                caption: caption,
+                autoplay: autoplay,
+                muted: muted,
+              )
             else
               _Surface(url: url!, caption: caption),
             ?overlay,

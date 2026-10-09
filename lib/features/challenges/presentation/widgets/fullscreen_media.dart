@@ -212,7 +212,10 @@ class _Slide extends ConsumerWidget {
     // scritta diventerebbe una cornice messa fra l'occhio e l'immagine, nel
     // momento esatto in cui l'immagine e' l'unica cosa che si voleva vedere.
     final media = entry.isVideo
-        ? VideoFrame(url: url, immersive: true)
+        // Muto se chi l'ha mandato l'ha chiesto, **anche qui**: a schermo
+        // intero l'audio si accende da solo, ed e' proprio il momento in cui
+        // una voce di sottofondo che non c'entra con la gara si sente.
+        ? VideoFrame(url: url, immersive: true, muted: entry.muted)
         : _Photo(url: url);
 
     return GestureDetector(

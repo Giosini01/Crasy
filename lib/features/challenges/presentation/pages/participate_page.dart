@@ -63,6 +63,14 @@ class ParticipatePage extends ConsumerStatefulWidget {
 class _ParticipatePageState extends ConsumerState<ParticipatePage> {
   PickedMedia? _media;
   final _caption = TextEditingController();
+
+  /// **Se il video parte senza audio, per tutti.**
+  ///
+  /// Spento di partenza: la maggior parte dei video l'audio ce l'ha per un
+  /// motivo. Si accende quando dentro e' finito qualcosa che non c'entra — una
+  /// voce, una canzone, un discorso fra altri — che e' la cosa che chi filma in
+  /// giro non si accorge di aver registrato finche' non la risente.
+  bool _muto = false;
   String? _error;
 
   /// Se la fotocamera e' aperta in questo momento.
@@ -182,6 +190,8 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
                       !challenge.isDuel &&
                       ref.watch(livesLeftProvider) <= 0,
                   caption: _caption,
+                  muto: _muto,
+                  onMuto: (acceso) => setState(() => _muto = acceso),
                   onCapture: () => _capture(challenge),
                   onSubmit: () => _submit(challenge),
                   // **Rifare lo scatto riapre la fotocamera, non svuota la
@@ -445,6 +455,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
           challengeId: challenge.id,
           media: media,
           caption: didascalia,
+          muted: _muto,
           daily: challenge.isDaily || challenge.isDuel,
         );
 
@@ -498,10 +509,17 @@ class _Form extends StatelessWidget {
     required this.submitting,
     required this.outOfLives,
     required this.caption,
+    required this.muto,
+    required this.onMuto,
     required this.onCapture,
     required this.onSubmit,
     required this.onRetake,
   });
+
+  /// Se il video partira' senza audio.
+  final bool muto;
+
+  final ValueChanged<bool> onMuto;
 
   final Challenge challenge;
   final PickedMedia? media;
@@ -577,6 +595,15 @@ class _Form extends StatelessWidget {
             caption: caption,
             onRetake: onRetake,
           ),
+        // **L'interruttore del silenzio, e solo dove ha senso.**
+        //
+        // Compare quando c'e' davvero un video scelto: su una foto non vuol
+        // dire niente, e prima di sceglierlo e' una domanda su una cosa che
+        // non esiste ancora.
+        if (picked != null && challenge.mediaKind.isVideo) ...[
+          const SizedBox(height: AppSpacing.md),
+          _Muto(acceso: muto, onCambia: onMuto),
+        ],
         if (error != null) ...[
           const SizedBox(height: AppSpacing.md),
           InlineBanner(message: error!),
@@ -893,6 +920,58 @@ class _VideoReadyState extends State<_VideoReady> {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// **"Manda senza audio": una riga con un interruttore.**
+///
+/// Non e' una preferenza di chi guarda, e' una condizione di chi manda: una
+/// volta spedito, quel video resta muto per chiunque lo apra, anche a schermo
+/// intero, anche premendo il tasto dell'audio. Un comando che la scavalca la
+/// renderebbe finta.
+///
+/// Spento di partenza. La maggior parte dei video l'audio ce l'ha per un
+/// motivo, e accendere il silenzio per tutti sarebbe togliere meta' di quello
+/// che qualcuno ha filmato senza che l'abbia chiesto.
+class _Muto extends StatelessWidget {
+  const _Muto({required this.acceso, required this.onCambia});
+
+  final bool acceso;
+  final ValueChanged<bool> onCambia;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return GestureDetector(
+      onTap: () => onCambia(!acceso),
+      behavior: HitTestBehavior.opaque,
+      child: Row(
+        children: [
+          Icon(
+            acceso ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+            size: 18,
+            color: acceso ? palette.accent : palette.textFaint,
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              acceso
+                  ? "Lo manderai senza audio: non lo sentira' nessuno."
+                  : 'Manda senza audio',
+              style: context.texts.bodySmall?.copyWith(
+                color: acceso ? palette.textPrimary : palette.textSecondary,
+              ),
+            ),
+          ),
+          Switch.adaptive(
+            value: acceso,
+            onChanged: onCambia,
+            activeThumbColor: palette.accent,
+          ),
+        ],
       ),
     );
   }

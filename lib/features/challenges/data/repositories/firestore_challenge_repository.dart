@@ -366,6 +366,7 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     MediaKind mediaKind = MediaKind.photo,
     String? contentType,
     String caption = '',
+    bool muted = false,
   }) async {
     final challengeRef = _challenges.doc(challengeId);
     final challengeSnapshot = await challengeRef.get();
@@ -520,6 +521,10 @@ class FirestoreChallengeRepository implements ChallengeRepository {
       storagePath: storagePath,
       mediaKind: mediaKind,
       caption: caption.trim(),
+      // Vale solo sui video: su una foto non vuol dire niente, e un campo che
+      // su meta' delle righe non significa nulla prima o poi viene letto come
+      // se significasse qualcosa.
+      muted: muted && mediaKind.isVideo,
       // Se questa gara e' una sfida mirata, la foto se lo porta scritto
       // dentro: e' quel segno a far si' che una sfida non consumi una delle
       // cinque partecipazioni del giorno, anche molto dopo che la sfida e'
