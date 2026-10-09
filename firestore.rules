@@ -985,6 +985,19 @@ service cloud.firestore {
                     && request.resource.data.endsAt <= request.time
                     && winnerPhotoIsReal();
 
+      // **La lapide di chi si e' ritirato da questa gara.**
+      //
+      // La scrive il server quando una partecipazione viene cancellata, e
+      // nessun telefono la puo' toccare: scritta dall'app sarebbe un documento
+      // che chi si ritira puo' anche non scrivere, e chi non lo scrive rientra.
+      //
+      // Si legge perche' l'app deve saperlo prima: un tasto "partecipa" offerto
+      // a chi poi il database rifiuta e' un errore annunciato.
+      match /withdrawn/{chi} {
+        allow read: if signedIn();
+        allow write: if false;
+      }
+
       match /entries/{entryId} {
 
         // L'identificativo della partecipazione **e'** l'identificativo di chi
@@ -1047,6 +1060,14 @@ service cloud.firestore {
                       // condizione che i client vecchi non sanno soddisfare e'
                       // sbagliata anche quando e' piu' pulita.
                       && request.resource.data.get('votes', 0) == 0
+                      // **Chi si e' ritirato non rientra in questa gara.** La
+                      // lapide la scrive il server quando la foto viene tolta;
+                      // qui si guarda che non ci sia. E' una lettura in piu' per
+                      // ogni partecipazione, e si paga volentieri: senza, il
+                      // ritiro diventa il modo di rifare il tiro.
+                      && !exists(
+                           /databases/$(database)/documents/challenges/$(challengeId)/withdrawn/$(request.auth.uid)
+                         )
                       // Lo stato del controllo lo puo' scrivere solo cosi': in
                       // attesa, o ammessa quando il controllo automatico non e'
                       // acceso. **Rifiutata non la si puo' scrivere da qui**, e
@@ -1183,10 +1204,26 @@ service cloud.firestore {
         // A gara chiusa quel rischio non esiste piu' e resta solo il diritto di
         // portarsi via le proprie cose, che e' la strada su cui passa la
         // cancellazione dell'account.
+        // **La propria foto si toglie, anche a gara aperta.**
+        //
+        // Prima si poteva solo a gara finita, cioe' quando non serve piu' a
+        // niente: chi si pentiva mentre la gara correva — una foto venuta male,
+        // un posto che non voleva piu' far vedere — non aveva nessuna strada.
+        //
+        // Quello che non si puo' fare e' **rientrare**: il server scrive una
+        // lapide in `withdrawn` e la regola di creazione qui sopra la guarda.
+        // Senza, ritirarsi e ripartecipare sarebbe cambiare la mano dopo aver
+        // visto le carte — mandi, guardi le fiamme, togli, rimandi — ed e'
+        // esattamente cio' che l'assenza del permesso di aggiornamento impedisce.
+        //
+        // **Una foto che ha gia' vinto non si toglie.** Li' non c'e' piu' solo
+        // una foto: c'e' un premio assegnato e dei soldi che si muovono, e
+        // togliere il vincitore da sotto una gara chiusa lascia una gara pagata
+        // senza nessuno a cui pagarla.
         allow delete: if signedIn()
                       && request.auth.uid == entryId
                       && resource.data.userId == request.auth.uid
-                      && !challengeIsLive();
+                      && resource.data.get('isWinner', false) == false;
 
         // I commenti sotto una foto.
         //

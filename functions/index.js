@@ -4,6 +4,7 @@ const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const {
   onDocumentCreated,
+  onDocumentDeleted,
   onDocumentWritten,
 } = require('firebase-functions/v2/firestore');
 const { setGlobalOptions } = require('firebase-functions/v2');
@@ -2695,6 +2696,80 @@ exports.countVote = onDocumentWritten(
  * La sottrazione, quando una foto viene rifiutata dal controllo, sta gia' in
  * `moderateEntryPhoto`: le due si compensano.
  */
+/**
+ * **Chi si ritira libera il posto, e lascia una lapide.**
+ *
+ * Togliere la propria foto da una gara in corso era vietato: le regole lo
+ * permettevano solo a gara finita, cioe' quando non serve piu' a niente. Chi si
+ * pentiva — una foto venuta male, un posto che non voleva piu' far vedere, un
+ * ripensamento — non aveva nessuna strada.
+ *
+ * Aprirlo pero' tocca due cose che la cancellazione da sola non sistema.
+ *
+ * **Il conteggio.** `countParticipant` sale alla creazione e non scendeva mai:
+ * senza questa funzione, ogni ritiro bruciava un posto per sempre. Una gara da
+ * dieci con tre ritiri ne accetterebbe sette.
+ *
+ * **La foto.** Resterebbe su Storage: un file che nessuno vede piu', che
+ * continuiamo a pagare, e soprattutto che continua a esistere dopo che qualcuno
+ * ha chiesto di toglierlo. Quando uno dice "non voglio piu' che ci sia", il
+ * minimo e' che non ci sia.
+ *
+ * **E la lapide, che e' la parte meno ovvia.** Senza, ritirarsi e ripartecipare
+ * diventa cambiare la mano dopo aver visto le carte: mandi una foto, guardi
+ * quante fiamme prende, la togli e ne mandi un'altra. E' esattamente la cosa
+ * che l'app impedisce non lasciando sostituire la foto. Qui resta scritto chi
+ * si e' ritirato, e le regole non lo fanno rientrare in quella gara.
+ *
+ * Il diritto di andarsene resta intero. Quello di rigiocare il turno no.
+ */
+exports.freeSlotOnEntryRemoved = onDocumentDeleted(
+  'challenges/{challengeId}/entries/{entryId}',
+  async (event) => {
+    const { challengeId, entryId } = event.params;
+    const dati = event.data?.data() || {};
+
+    try {
+      await db
+        .collection('challenges')
+        .doc(challengeId)
+        .update({
+          participantsCount: admin.firestore.FieldValue.increment(-1),
+        });
+    } catch (error) {
+      logger.warn(`Posto non liberato su ${challengeId}.`, error);
+    }
+
+    // **La lapide la scrive il server, non il telefono.** Scritta dall'app
+    // sarebbe un documento che chi si ritira puo' anche non scrivere — e chi
+    // non la scrive rientra.
+    try {
+      await db
+        .collection('challenges')
+        .doc(challengeId)
+        .collection('withdrawn')
+        .doc(entryId)
+        .set({
+          at: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    } catch (error) {
+      logger.error(`Lapide non scritta su ${challengeId}/${entryId}.`, error);
+    }
+
+    const path = dati.storagePath;
+
+    if (!path) {
+      return;
+    }
+
+    try {
+      await admin.storage().bucket().file(path).delete({ ignoreNotFound: true });
+    } catch (error) {
+      logger.warn(`Foto di ${entryId} non cancellata.`, error);
+    }
+  }
+);
+
 exports.countParticipant = onDocumentCreated(
   'challenges/{challengeId}/entries/{entryId}',
   async (event) => {

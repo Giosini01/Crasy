@@ -261,6 +261,25 @@ class SampleChallengeRepository implements ChallengeRepository {
   }
 
   @override
+  Future<void> withdrawEntry({
+    required String challengeId,
+    required String entryId,
+  }) async {
+    _entries[challengeId]?.removeWhere((entry) => entry.id == entryId);
+    _ritirati.add('$challengeId/$entryId');
+  }
+
+  @override
+  Future<bool> hasWithdrawn({
+    required String challengeId,
+    required String userId,
+  }) async => _ritirati.contains('$challengeId/$userId');
+
+  /// Chi si e' ritirato, nella versione dimostrativa: in memoria, come tutto il
+  /// resto di questa classe.
+  final _ritirati = <String>{};
+
+  @override
   Future<EntryComment> addComment({
     required String challengeId,
     required String entryId,

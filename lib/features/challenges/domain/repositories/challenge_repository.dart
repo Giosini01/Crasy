@@ -107,6 +107,29 @@ abstract class ChallengeRepository {
 
   /// Scrive un commento. Torna quello scritto, cosi' chi chiama sa com'e'
   /// venuto senza aspettare il giro del flusso.
+  /// **Toglie la propria foto da una gara.**
+  ///
+  /// Il posto torna libero e la foto sparisce da Storage: le due cose le fa il
+  /// server, che reagisce alla cancellazione. Qui si cancella e basta.
+  ///
+  /// **Non si rientra.** Il server segna chi si e' ritirato, e le regole non
+  /// lasciano ripartecipare a quella gara: il diritto di andarsene e' intero,
+  /// quello di rigiocare il turno no — altrimenti bastava mandare una foto,
+  /// guardare quante fiamme prende, toglierla e rimandarne un'altra.
+  Future<void> withdrawEntry({
+    required String challengeId,
+    required String entryId,
+  });
+
+  /// Se questa persona si e' gia' ritirata da questa gara.
+  ///
+  /// Serve a non mostrare un tasto che il database poi rifiuta: un "partecipa"
+  /// che da' errore e' peggio di un "partecipa" che non c'e'.
+  Future<bool> hasWithdrawn({
+    required String challengeId,
+    required String userId,
+  });
+
   Future<EntryComment> addComment({
     required String challengeId,
     required String entryId,

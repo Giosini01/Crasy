@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:crasy/core/constants/app_routes.dart';
+import 'package:crasy/core/errors/error_message_mapper.dart';
 import 'package:crasy/core/services/firebase/firebase_providers.dart';
 import 'package:crasy/core/services/share/share_challenge.dart';
 import 'package:crasy/core/theme/app_palette.dart';
@@ -13,6 +14,7 @@ import 'package:crasy/core/widgets/countdown_text.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
+import 'package:crasy/core/widgets/modal_sheet.dart';
 import 'package:crasy/features/challenges/data/reveal_seen_store.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
@@ -857,6 +859,16 @@ class _BottomAction extends ConsumerWidget {
                 Text('${entry.votes}', style: context.texts.titleMedium),
               ],
             ),
+            // **E il modo di tirarsi indietro.** Finora chi aveva mandato una
+            // foto non poteva piu' toglierla finche' la gara correva: ci si
+            // pente — e' venuta male, c'e' dentro un posto che non si vuole
+            // far vedere — e non c'era nessuna strada.
+            //
+            // Sta in fondo e in piccolo, dopo le fiamme: e' una via d'uscita,
+            // non un'azione da offrire. Chi la cerca la trova, chi non la cerca
+            // non la vede.
+            const SizedBox(width: AppSpacing.sm),
+            _RitiraLaFoto(challenge: challenge, entry: entry),
           ],
         ),
         (false, false, null) => context.stagione.decoraTasto(
@@ -1029,6 +1041,99 @@ class _Verdict extends StatelessWidget {
 /// non si capisce. Senza, quella gara resta in home fino alla scadenza e chi
 /// l'ha scritta la guarda senza poterci fare niente — e la seconda, quella
 /// giusta, si somma alla prima invece di sostituirla.
+/// **Togliere la propria foto da una gara in corso.**
+///
+/// ## Perche' si chiede conferma
+///
+/// Non e' prudenza generica: e' che **non si torna indietro**. La foto viene
+/// cancellata anche da Storage, e chi si ritira non puo' ripartecipare a quella
+/// gara — altrimenti ritirarsi diventerebbe il modo di guardare quante fiamme
+/// ha preso una foto e poi rifare il tiro con un'altra.
+///
+/// Un gesto irreversibile che costa un tocco e' un gesto che prima o poi si fa
+/// per sbaglio, e qui per sbaglio vuol dire fuori dalla gara per sempre.
+///
+/// ## Perche' e' una parola e non un tasto
+///
+/// Sta dopo il conteggio delle fiamme, piccola e grigia. Chi ha appena mandato
+/// una foto sta guardando quante ne prende, non sta cercando il modo di
+/// toglierla: mettere un tasto rosso accanto al numero vorrebbe dire proporre
+/// di andarsene a chi sta giocando.
+class _RitiraLaFoto extends ConsumerStatefulWidget {
+  const _RitiraLaFoto({required this.challenge, required this.entry});
+
+  final Challenge challenge;
+  final ChallengeEntry entry;
+
+  @override
+  ConsumerState<_RitiraLaFoto> createState() => _RitiraLaFotoState();
+}
+
+class _RitiraLaFotoState extends ConsumerState<_RitiraLaFoto> {
+  bool _lavorando = false;
+
+  Future<void> _chiedi() async {
+    final certo = await ModalSheet.show<bool>(
+      context: context,
+      builder: (sheetContext) => ModalSheet(
+        title: 'TOGLIERE LA TUA FOTO',
+        confirmLabel: 'Togli la foto',
+        onConfirm: () => Navigator.of(sheetContext).pop(true),
+        child: Text(
+          "Esce dalla gara e viene cancellata. Il posto torna libero per "
+          "qualcun altro.\n\n"
+          "Non potrai ripartecipare a questa gara: è una sola foto a "
+          "testa, e vale anche dopo averla tolta.",
+          style: context.texts.bodyMedium,
+        ),
+      ),
+    );
+
+    if (certo != true || !mounted) {
+      return;
+    }
+
+    setState(() => _lavorando = true);
+
+    try {
+      await ref
+          .read(challengeRepositoryProvider)
+          .withdrawEntry(
+            challengeId: widget.challenge.id,
+            entryId: widget.entry.id,
+          );
+    } on Object catch (errore) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() => _lavorando = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(ErrorMessageMapper.map(errore))));
+
+      return;
+    }
+
+    if (mounted) {
+      setState(() => _lavorando = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return TextButton(
+      onPressed: _lavorando ? null : _chiedi,
+      child: Text(
+        _lavorando ? 'TOLGO…' : 'TOGLI',
+        style: context.texts.labelSmall?.copyWith(color: palette.textFaint),
+      ),
+    );
+  }
+}
+
 class _DeleteChallenge extends ConsumerStatefulWidget {
   const _DeleteChallenge({required this.challenge});
 

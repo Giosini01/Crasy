@@ -169,6 +169,22 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
   }
 
   @override
+  Future<void> withdrawEntry({
+    required String challengeId,
+    required String entryId,
+  }) => _forChallenge(
+    challengeId,
+  ).withdrawEntry(challengeId: challengeId, entryId: entryId);
+
+  @override
+  Future<bool> hasWithdrawn({
+    required String challengeId,
+    required String userId,
+  }) => _forChallenge(
+    challengeId,
+  ).hasWithdrawn(challengeId: challengeId, userId: userId);
+
+  @override
   Future<EntryComment> addComment({
     required String challengeId,
     required String entryId,

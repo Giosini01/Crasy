@@ -580,6 +580,33 @@ class FirestoreChallengeRepository implements ChallengeRepository {
   }
 
   @override
+  Future<void> withdrawEntry({
+    required String challengeId,
+    required String entryId,
+  }) {
+    // Si cancella il documento e basta. Il posto liberato, la foto buttata e la
+    // lapide di chi si e' ritirato li scrive il server reagendo a questa
+    // cancellazione: sono tre scritture che un telefono non deve poter fare —
+    // potrebbe farne due su tre, e la terza e' proprio quella che impedisce di
+    // rientrare.
+    return _entries(challengeId).doc(entryId).delete();
+  }
+
+  @override
+  Future<bool> hasWithdrawn({
+    required String challengeId,
+    required String userId,
+  }) async {
+    final lapide = await _challenges
+        .doc(challengeId)
+        .collection('withdrawn')
+        .doc(userId)
+        .get();
+
+    return lapide.exists;
+  }
+
+  @override
   Future<EntryComment> addComment({
     required String challengeId,
     required String entryId,
