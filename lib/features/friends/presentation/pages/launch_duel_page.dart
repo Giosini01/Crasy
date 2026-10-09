@@ -307,7 +307,7 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
                     ),
                   ),
           ),
-          if (_pagando) const Positioned.fill(child: FlameWaiting()),
+          if (_pagando) const VeloDiAttesa(),
         ],
       ),
     );

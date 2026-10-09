@@ -122,6 +122,95 @@ class _FlameWaitingState extends State<FlameWaiting>
   }
 }
 
+/// **Il velo di attesa, sopra tutto lo schermo.**
+///
+/// ## Il difetto che questo widget esiste per togliere
+///
+/// [FlameWaiting] veniva messo dentro la schermata — un `Positioned.fill`
+/// nello `Stack` del corpo — e copriva **soltanto il corpo**. Sopra restavano
+/// scoperti la barra in cima con la freccia indietro, la barra delle schede in
+/// fondo, e su una gara il tasto PARTECIPA che vive fuori dal corpo: chiari,
+/// toccabili, come se non stesse succedendo niente. Durante un caricamento
+/// lungo — un video dalla galleria, un pagamento — quei tasti si toccano, e
+/// ognuno fa partire una seconda volta una cosa che e' gia' in corso.
+///
+/// Un velo che copre tre quarti di schermo e' peggio di nessun velo: dice che
+/// l'app sta lavorando **e** lascia credere che si possa fare altro.
+///
+/// ## Come fa a stare sopra la barra in cima
+///
+/// Si mette nel sipario piu' esterno dell'app, quello sopra al quale non c'e'
+/// piu' niente, invece che dentro la schermata. Da li' copre tutto: le barre,
+/// le schede, i fogli aperti.
+///
+/// Si usa come prima — `if (occupato) const VeloDiAttesa()` — e il widget non
+/// occupa spazio dove lo si scrive: quello che si vede lo disegna il sipario.
+///
+/// ## Perche' il tasto indietro resta bloccato da qui
+///
+/// Il blocco deve stare **dentro la schermata**, non nel sipario: il tasto
+/// indietro lo intercetta chi conosce la propria pagina, e il sipario non sta
+/// dentro nessuna pagina. Percio' qui resta la sola cosa che occupa il posto in
+/// cui lo si scrive: il divieto di tornare indietro. Senza, si esce con il
+/// gesto laterale e il caricamento va avanti su una schermata che non c'e'
+/// piu'.
+class VeloDiAttesa extends StatefulWidget {
+  const VeloDiAttesa({super.key});
+
+  @override
+  State<VeloDiAttesa> createState() => _VeloDiAttesaState();
+}
+
+class _VeloDiAttesaState extends State<VeloDiAttesa> {
+  OverlayEntry? _velo;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // **Dopo il fotogramma, non durante.** Infilare qualcosa nel sipario
+    // mentre lo schermo si sta costruendo vuol dire chiedere un ridisegno a
+    // ridisegno in corso, che e' l'errore "markNeedsBuild durante build".
+    WidgetsBinding.instance.addPostFrameCallback((_) => _apri());
+  }
+
+  void _apri() {
+    if (!mounted || _velo != null) {
+      return;
+    }
+
+    final sipario = Overlay.maybeOf(context, rootOverlay: true);
+
+    if (sipario == null) {
+      return;
+    }
+
+    _velo = OverlayEntry(
+      // **Assorbe i tocchi, tutti.** E' la meta' che conta: oscurare senza
+      // fermare le dita lascia che si tocchi PARTECIPA attraverso il velo, e
+      // chi aspetta lo tocca — proprio perche' non vede che e' cambiato
+      // qualcosa.
+      builder: (_) => const AbsorbPointer(child: FlameWaiting()),
+    );
+
+    sipario.insert(_velo!);
+  }
+
+  @override
+  void dispose() {
+    _velo?.remove();
+    _velo = null;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Niente a schermo: il velo lo disegna il sipario. Qui resta il divieto di
+    // tornare indietro, che per funzionare deve stare dentro la pagina.
+    return const PopScope(canPop: false, child: SizedBox.shrink());
+  }
+}
+
 /// Il cerchio che gira intorno alla fiamma.
 ///
 /// E' un arco corto, non un anello intero: un anello pieno che ruota sembra

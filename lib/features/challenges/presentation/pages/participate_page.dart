@@ -222,7 +222,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
           // lavoro pesante — leggerlo, misurarlo, comprimerlo — e un video da
           // mezzo minuto ci mette quanto l'invio. Senza niente a schermo quella
           // e' un'app ferma: si ritocca, si torna indietro, si chiude.
-          if (occupato) const Positioned.fill(child: FlameWaiting()),
+          if (occupato) const VeloDiAttesa(),
         ],
       ),
     );

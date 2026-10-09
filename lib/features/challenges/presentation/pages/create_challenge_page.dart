@@ -479,8 +479,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
           // sotto le dita. Fra il tocco e il foglio di Stripe passano dei
           // secondi, e in quei secondi un bottone ancora premibile significa
           // due pagamenti aperti per la stessa gara.
-          if (_passo != null && _error == null)
-            const Positioned.fill(child: FlameWaiting()),
+          if (_passo != null && _error == null) const VeloDiAttesa(),
         ],
       ),
     );
