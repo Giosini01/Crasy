@@ -84,6 +84,25 @@ void main() {
       expect(dove.apri, AppRoutes.entryCommentsOf('gara-3', 'foto-3'));
     });
 
+    test('chi prova a batterti porta alla sua foto', () {
+      final dove = tocco({
+        'kind': 'rival',
+        'challengeId': 'gara-4',
+        'entryId': 'foto-4',
+      });
+
+      expect(dove.apri, AppRoutes.entryCommentsOf('gara-4', 'foto-4'));
+    });
+
+    test('senza la foto, chi prova a batterti porta in campanella', () {
+      // Le notizie scritte prima che il server portasse dentro la foto: la
+      // gara intera non dice quale sia quella nuova, e in campanella la riga
+      // accesa la trova da sola.
+      final dove = tocco({'kind': 'rival', 'challengeId': 'gara-4'});
+
+      expect(dove.apri, AppRoutes.notifications);
+    });
+
     test('una gara nuova non apre niente sopra la scheda', () {
       final dove = tocco({'kind': 'newChallenge'});
 

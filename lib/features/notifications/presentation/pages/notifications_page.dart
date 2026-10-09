@@ -804,6 +804,11 @@ class _Face extends StatelessWidget {
         Icons.photo_camera_rounded,
         palette.textPrimary,
       ),
+      // **Rosso, come le notizie che chiedono qualcosa.** La macchina
+      // fotografica grigia della riga sopra dice "e' arrivata una foto"; questa
+      // riga dice "il premio adesso te lo giochi con uno in piu'", ed e' una
+      // cosa su cui si puo' ancora agire finche' la gara e' aperta.
+      NotificationKind.rival => (Icons.sports_mma_rounded, palette.accent),
       NotificationKind.friendRequest => (
         Icons.person_add_alt_1_rounded,
         palette.textPrimary,
@@ -940,7 +945,12 @@ class _Thumb extends ConsumerWidget {
       return null;
     }
 
-    if (notification.kind == NotificationKind.participation) {
+    // La foto di chi e' arrivato: toccando la riga si apre quella, non
+    // l'elenco. E' la sola cosa che chi legge vuole vedere — tanto per sapere
+    // chi e' entrato nella propria gara quanto per sapere con cosa prova a
+    // batterti.
+    if (notification.kind == NotificationKind.participation ||
+        notification.kind == NotificationKind.rival) {
       final entries =
           ref.watch(challengeEntriesProvider(challengeId)).valueOrNull ??
           const <ChallengeEntry>[];

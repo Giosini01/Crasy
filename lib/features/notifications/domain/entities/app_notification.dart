@@ -10,6 +10,18 @@ enum NotificationKind {
   /// Qualcuno ha mandato una foto alla challenge che hai lanciato.
   participation,
 
+  /// **E' scesa in gara un'altra persona in una missione in cui ci sei tu.**
+  ///
+  /// Non e' [participation] vista da un'altra parte: quella la riceve chi ha
+  /// lanciato la missione, e per lui e' una buona notizia — la sua gara si
+  /// riempie. Questa la riceve chi **ha gia' mandato la foto**, e la notizia e'
+  /// l'opposto: da adesso il premio se lo gioca con una persona in piu'.
+  ///
+  /// E' l'unica notizia dell'app che arriva **mentre la gara e' ancora
+  /// aperta**, quando tornare a guardare serve ancora a qualcosa. Tutte le
+  /// altre raccontano una cosa chiusa.
+  rival,
+
   /// **Un amico ti ha sfidato di persona.**
   ///
   /// E' l'unica notizia dell'app che chiede una risposta: le altre raccontano
@@ -217,6 +229,9 @@ class AppNotification {
   String get message => switch (kind) {
     NotificationKind.participation =>
       '@$actorUsername ha partecipato alla tua challenge',
+    // Niente "e' entrato" o "e' entrata": una riga che indovina il genere di
+    // chi ha mandato la foto lo sbaglia a meta' dell'app.
+    NotificationKind.rival => '@$actorUsername prova a batterti',
     NotificationKind.fire => '@$actorUsername ha dato una fiamma alla tua foto',
     NotificationKind.mention => '@$actorUsername ti ha nominato in un commento',
     NotificationKind.friendRequest => '@$actorUsername ha iniziato a seguirti',
@@ -280,6 +295,9 @@ class AppNotification {
     NotificationKind.ended ||
     NotificationKind.comeback => NotificationGroup.wins,
     NotificationKind.participation ||
+    // **Sta con le partecipazioni**: parla di una gara a cui si partecipa, ed
+    // e' li' che uno andrebbe a cercarla.
+    NotificationKind.rival ||
     NotificationKind.friendRequest ||
     // **Sta con le partecipazioni, non con le vittorie.** E' la propria
     // partecipazione che non c'e' piu': trovarla sotto l'insegna VITTORIE

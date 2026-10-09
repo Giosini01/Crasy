@@ -4,6 +4,7 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/notifications/domain/entities/notification_topic.dart';
 import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -103,11 +104,40 @@ class _NotificheState extends ConsumerState<_Notifiche> {
     }
   }
 
+  /// Sposta un interruttore e lo salva.
+  ///
+  /// **Si salva al tocco, senza nessun tasto "Conferma".** Un foglio di
+  /// interruttori con un tasto da premere alla fine e' un foglio da cui si esce
+  /// convinti di aver cambiato qualcosa: lo si chiude con la X, e il telefono
+  /// continua a squillare come prima.
+  Future<void> _cambia(NotificationTopic topic, {required bool accesa}) async {
+    final userId = ref.read(currentUserIdProvider);
+    final repository = ref.read(notificationsRepositoryProvider);
+    final adesso =
+        ref.read(notificationPrefsProvider).valueOrNull ??
+        NotificationPrefs.tutte;
+
+    if (userId == null || repository == null) {
+      return;
+    }
+
+    try {
+      await repository.savePrefs(userId, adesso.con(topic, accesa: accesa));
+    } on Object {
+      // Non si scrive niente a schermo: l'interruttore lo disegna quello che
+      // c'e' sul database, quindi se la scrittura non passa torna da solo dov'era
+      // — che e' l'unica cosa onesta da mostrare.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
     final texts = context.texts;
     final stato = _stato;
+    final prefs =
+        ref.watch(notificationPrefsProvider).valueOrNull ??
+        NotificationPrefs.tutte;
     final accese =
         stato == AuthorizationStatus.authorized ||
         stato == AuthorizationStatus.provisional;
@@ -117,50 +147,140 @@ class _NotificheState extends ConsumerState<_Notifiche> {
       title: 'NOTIFICHE',
       confirmLabel: 'Chiudi',
       onConfirm: () => Navigator.of(context).pop(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            accese
-                ? 'Sono accese. Ti avvisiamo quando qualcuno mette una fiamma '
-                      'sulla tua foto, ti commenta, ti sfida o ti chiede '
-                      'l\'amicizia.'
-                : rifiutate
-                ? 'Sono spente, e da qui non possiamo riaccenderle: il telefono '
-                      'non ripropone la domanda a chi ha già risposto di no.'
-                : 'Sono spente. Senza, una sfida arriva e non lo sai: la scopri '
-                      'riaprendo l\'app, spesso quando è già scaduta.',
-            style: texts.bodyMedium,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          if (rifiutate)
+      // Scorrevole: con il permesso, la spiegazione e otto interruttori, su un
+      // telefono piccolo l'ultima riga finirebbe sotto il bordo.
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
             Text(
-              'Si riaccendono dalle impostazioni del telefono: cerca CRASY '
-              'nell\'elenco delle app, apri Notifiche e consenti.',
-              style: texts.bodySmall?.copyWith(color: palette.textSecondary),
-            )
-          else if (!accese)
-            FilledButton(
-              onPressed: _lavorando ? null : _accendi,
-              style: FilledButton.styleFrom(
-                backgroundColor: palette.accentDeep,
-                foregroundColor: palette.onAccent,
-              ),
-              child: Text(_lavorando ? 'Un attimo…' : 'Accendi le notifiche'),
-            )
-          else
-            // **Anche con il permesso acceso c'e' un tasto**, e non e' inutile:
-            // il permesso sta sul telefono, il recapito sta sul nostro server, e
-            // i due si possono separare — app reinstallata, telefono cambiato,
-            // registrazione fallita in silenzio. Questo rimette il recapito.
-            TextButton(
-              onPressed: _lavorando ? null : _accendi,
-              child: Text(
-                _lavorando ? 'Un attimo…' : 'NON ARRIVANO? TOCCA QUI',
-                style: texts.labelSmall?.copyWith(color: palette.accent),
-              ),
+              accese
+                  ? 'Sono accese. Ti avvisiamo quando qualcuno mette una fiamma '
+                        'sulla tua foto, ti commenta, ti sfida o ti chiede '
+                        'l\'amicizia.'
+                  : rifiutate
+                  ? 'Sono spente, e da qui non possiamo riaccenderle: il telefono '
+                        'non ripropone la domanda a chi ha già risposto di no.'
+                  : 'Sono spente. Senza, una sfida arriva e non lo sai: la scopri '
+                        'riaprendo l\'app, spesso quando è già scaduta.',
+              style: texts.bodyMedium,
             ),
+            const SizedBox(height: AppSpacing.md),
+            if (rifiutate)
+              Text(
+                'Si riaccendono dalle impostazioni del telefono: cerca CRASY '
+                'nell\'elenco delle app, apri Notifiche e consenti.',
+                style: texts.bodySmall?.copyWith(color: palette.textSecondary),
+              )
+            else if (!accese)
+              FilledButton(
+                onPressed: _lavorando ? null : _accendi,
+                style: FilledButton.styleFrom(
+                  backgroundColor: palette.accentDeep,
+                  foregroundColor: palette.onAccent,
+                ),
+                child: Text(_lavorando ? 'Un attimo…' : 'Accendi le notifiche'),
+              )
+            else
+              // **Anche con il permesso acceso c'e' un tasto**, e non e' inutile:
+              // il permesso sta sul telefono, il recapito sta sul nostro server, e
+              // i due si possono separare — app reinstallata, telefono cambiato,
+              // registrazione fallita in silenzio. Questo rimette il recapito.
+              TextButton(
+                onPressed: _lavorando ? null : _accendi,
+                child: Text(
+                  _lavorando ? 'Un attimo…' : 'NON ARRIVANO? TOCCA QUI',
+                  style: texts.labelSmall?.copyWith(color: palette.accent),
+                ),
+              ),
+            // **Gli interruttori si mostrano anche con le notifiche spente.**
+            //
+            // Sembra inutile — non arriva niente comunque — e invece e' il caso
+            // in cui servono di piu': chi le aveva spente perche' una specie di
+            // notizia lo infastidiva puo' spegnere quella e riaccendere il resto,
+            // nello stesso foglio e nello stesso momento in cui decide di
+            // riprovare. Nascondendoli, l'unica scelta sarebbe di nuovo tutto o
+            // niente.
+            const SizedBox(height: AppSpacing.lg),
+            Divider(color: palette.line, height: 1),
+            const SizedBox(height: AppSpacing.md),
+            Text('COSA TI ARRIVA', style: texts.labelSmall),
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              'Quello che spegni non ti fa più squillare il telefono. In '
+              'campanella lo trovi comunque: qui si decide se farsi disturbare, '
+              'non cosa sapere.',
+              style: texts.bodySmall?.copyWith(color: palette.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            for (final topic in NotificationTopic.values)
+              _Interruttore(
+                topic: topic,
+                accesa: prefs.vuole(topic),
+                onChanged: (accesa) =>
+                    unawaited(_cambia(topic, accesa: accesa)),
+              ),
+            const SizedBox(height: AppSpacing.md),
+            // **Una cosa che non si spegne, e si dice invece di nasconderla.**
+            // Chi cerca l'interruttore di questa e non lo trova deve leggere
+            // perche' non c'e', o pensera' che sia una dimenticanza.
+            Text(
+              'Se una tua foto viene tolta da una gara te lo diciamo sempre: hai '
+              'dei soldi in gioco, e restare dentro una gara senza esserci '
+              'davvero non è una cosa che possiamo lasciarti scoprire da solo.',
+              style: texts.bodySmall?.copyWith(color: palette.textFaint),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Una riga con il nome dell'argomento, cosa spegne, e l'interruttore.
+class _Interruttore extends StatelessWidget {
+  const _Interruttore({
+    required this.topic,
+    required this.accesa,
+    required this.onChanged,
+  });
+
+  final NotificationTopic topic;
+  final bool accesa;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(topic.label, style: texts.titleSmall),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  topic.note,
+                  style: texts.bodySmall?.copyWith(
+                    color: palette.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Switch.adaptive(
+            value: accesa,
+            onChanged: onChanged,
+            activeThumbColor: palette.onAccent,
+            activeTrackColor: palette.accentDeep,
+          ),
         ],
       ),
     );

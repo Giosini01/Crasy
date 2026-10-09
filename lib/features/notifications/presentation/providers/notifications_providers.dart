@@ -7,6 +7,7 @@ import 'package:crasy/features/notifications/data/icon_badge.dart';
 import 'package:crasy/features/notifications/data/push_registry.dart';
 import 'package:crasy/features/notifications/data/repositories/firestore_notifications_repository.dart';
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
+import 'package:crasy/features/notifications/domain/entities/notification_topic.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:crasy/routing/app_router.dart' show mostraIPermessi;
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
@@ -37,6 +38,22 @@ final storedNotificationsProvider = StreamProvider<List<AppNotification>>((
   }
 
   return repository.watch(userId);
+});
+
+/// Quali notifiche questa persona vuole ricevere sul telefono.
+///
+/// Senza nessuna scelta salvata sono **tutte accese**, che e' il caso di
+/// chiunque non abbia mai aperto quella schermata. Vedi [NotificationPrefs] per
+/// il perche' si tenga l'elenco di quelle spente e non di quelle accese.
+final notificationPrefsProvider = StreamProvider<NotificationPrefs>((ref) {
+  final repository = ref.watch(notificationsRepositoryProvider);
+  final userId = ref.watch(currentUserIdProvider);
+
+  if (repository == null || userId == null) {
+    return Stream.value(NotificationPrefs.tutte);
+  }
+
+  return repository.watchPrefs(userId);
 });
 
 /// Quando si e' aperta la campanella l'ultima volta.
@@ -476,6 +493,25 @@ PushTap pushTapOf(
   // garantisce una foto sola a testa — quindi la foto che ha preso la fiamma e'
   // quella di chi riceve la notizia, in quella gara. E' lo stesso ragionamento
   // che il ramo dei commenti fa gia' per le notizie vecchie.
+  // **Chi prova a batterti: si apre la sua foto.** La domanda di chi riceve
+  // questa notizia e' una sola — con cosa prova a battermi — e la campanella
+  // sarebbe un passaggio in piu' per arrivare alla stessa foto.
+  if (kind == 'rival') {
+    final gara = dati['challengeId'] ?? '';
+    final foto = dati['entryId'] ?? '';
+
+    if (gara.isNotEmpty && foto.isNotEmpty) {
+      return (
+        scheda: AppRoutes.challenges,
+        apri: AppRoutes.entryCommentsOf(gara, foto),
+        evidenzia: null,
+        notificationId: dati['notificationId'],
+        daFermo: daFermo,
+        quando: DateTime.now().microsecondsSinceEpoch,
+      );
+    }
+  }
+
   if (kind == 'fire') {
     final gara = dati['challengeId'] ?? '';
     final foto = (dati['entryId'] as String?)?.isNotEmpty == true

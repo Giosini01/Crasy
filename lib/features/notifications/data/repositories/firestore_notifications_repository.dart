@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
+import 'package:crasy/features/notifications/domain/entities/notification_topic.dart';
 
 /// Le notifiche su Firestore.
 ///
@@ -31,6 +32,35 @@ class FirestoreNotificationsRepository {
 
   CollectionReference<Map<String, dynamic>> _inbox(String userId) =>
       _firestore.collection('users').doc(userId).collection('notifications');
+
+  /// Il documento con gli interruttori. Vedi [NotificationPrefs].
+  ///
+  /// **Nella stanza privata**: le regole di Firestore la aprono a una persona e
+  /// basta, mentre il profilo lo legge chiunque. Che qualcuno abbia spento le
+  /// fiamme non e' un'informazione che riguarda gli altri.
+  DocumentReference<Map<String, dynamic>> _scelte(String userId) => _firestore
+      .collection('users')
+      .doc(userId)
+      .collection('private')
+      .doc('notifiche');
+
+  /// Quali notifiche questa persona vuole ricevere sul telefono.
+  ///
+  /// Un documento che non c'e' vuol dire **tutte accese**: e' il caso di
+  /// chiunque non abbia mai aperto quella schermata, cioe' di tutti.
+  Stream<NotificationPrefs> watchPrefs(String userId) {
+    return _scelte(userId)
+        .snapshots()
+        .map((documento) => NotificationPrefs.fromMap(documento.data()))
+        // Senza permessi o senza rete si risponde "tutte accese" invece di
+        // lasciare la schermata a girare a vuoto: e' anche quello che fa il
+        // server quando non riesce a leggerle.
+        .handleError((Object _) {});
+  }
+
+  Future<void> savePrefs(String userId, NotificationPrefs prefs) {
+    return _scelte(userId).set(prefs.toMap());
+  }
 
   /// Le ultime notifiche ricevute, dalla piu' recente.
   ///

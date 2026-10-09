@@ -83,7 +83,9 @@ class _ProfileSettings extends StatelessWidget {
         // tre si cercano quando servono; questa deve farsi trovare.
         _SettingsRow(
           label: 'Notifiche',
-          note: 'Se non ti arriva niente sul telefono, da qui si riaccendono.',
+          note:
+              'Scegli cosa ti arriva sul telefono. E se non ti arriva niente, '
+              'da qui si riaccendono.',
           onTap: () => onPick(_SettingsChoice.notifiche),
         ),
         Divider(color: palette.line, height: 1),

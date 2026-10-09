@@ -304,7 +304,96 @@ exports.adminImpostaVerificato = amministrazione.adminImpostaVerificato;
  * dire due versioni della stessa cosa che si separano al primo cambiamento: si
  * corregge il suono in una e resta vecchio nell'altra.
  */
+/**
+ * **A quale interruttore risponde ogni tipo di notifica.**
+ *
+ * Gli interruttori sono otto, non venti: uno per ogni specie di notizia che
+ * qualcuno potrebbe non voler sentire. Raggrupparli non e' pigrizia — una
+ * schermata con un interruttore per ogni `kind` sarebbe un pannello di
+ * controllo, e un pannello di controllo non lo configura nessuno: si scorre,
+ * si chiude, e si finisce per spegnere tutto dalle impostazioni del telefono,
+ * che e' l'unica cosa da cui non si torna piu' indietro.
+ *
+ * Questa tabella e' la copia di `NotificationTopic` nell'app. Sono due perche'
+ * una sta sul telefono e l'altra sul server e non c'e' modo di averne una
+ * sola; se si aggiunge un `kind` va aggiunto in tutti e due, e un `kind` che
+ * manca qui vuol dire una notifica che **non si puo' spegnere**.
+ *
+ * `removed` non c'e' di proposito: non e' una notizia che si sceglie di
+ * ricevere. Dice che una propria foto e' stata tolta da una gara con dei soldi
+ * in palio, e lasciare che si possa zittire vorrebbe dire lasciare che
+ * qualcuno resti dentro una gara in cui non e' piu' in corsa senza saperlo.
+ */
+const ARGOMENTO = {
+  win: 'vittorie',
+  ended: 'vittorie',
+  soloJudge: 'vittorie',
+  pickWinner: 'vittorie',
+  duel: 'sfide',
+  duelAccepted: 'sfide',
+  duelDeclined: 'sfide',
+  duelCompleted: 'sfide',
+  duelApproved: 'sfide',
+  duelRejected: 'sfide',
+  duelNoVerdict: 'sfide',
+  partyMission: 'sfide',
+  rival: 'rivali',
+  participation: 'partecipazioni',
+  fire: 'fiamme',
+  comment: 'commenti',
+  mention: 'commenti',
+  friendRequest: 'amicizie',
+  comeback: 'promemoria',
+};
+
+/**
+ * Se questa persona ha chiesto di non ricevere notizie di questa specie.
+ *
+ * **Si guarda qui e non sul telefono**, e non e' un dettaglio: una scelta
+ * applicata dall'app sarebbe una notifica che arriva, squilla, e viene nascosta
+ * dopo. Il telefono squilla comunque, e la scelta non e' stata rispettata.
+ *
+ * Nel dubbio si manda. Se la lettura della preferenza non va a buon fine —
+ * rete, permessi, qualunque cosa — l'errore meno grave e' una notifica di
+ * troppo, non una vittoria che nessuno viene a sapere.
+ */
+async function vuoleSentire(userId, kind) {
+  const argomento = ARGOMENTO[kind];
+
+  if (!argomento) {
+    return true;
+  }
+
+  try {
+    const scelte = await db
+      .collection('users')
+      .doc(userId)
+      .collection('private')
+      .doc('notifiche')
+      .get();
+
+    return scelte.get(argomento) !== false;
+  } catch (error) {
+    logger.warn('preferenze non lette, si manda comunque', { userId, error });
+
+    return true;
+  }
+}
+
 async function mandaAUnaPersona(userId, corpo, dati) {
+  // **Il filtro sta qui, davanti a tutto.** E' il punto da cui passa ogni
+  // notifica di CRASY: metterlo dentro ogni singola funzione che ne scrive una
+  // vorrebbe dire che la prossima funzione, quella che ancora non esiste, si
+  // dimentichera' di chiederlo.
+  if (!(await vuoleSentire(userId, dati.kind))) {
+    logger.info('notifica non mandata: spenta dalle impostazioni', {
+      userId,
+      kind: dati.kind,
+    });
+
+    return;
+  }
+
   // Gli indirizzi dei telefoni di questa persona. Senza nessun dispositivo
   // registrato non c'e' niente da fare: la notizia resta nel database e si
   // vedra' riaprendo l'app.
@@ -1800,6 +1889,14 @@ exports.sendPushOnNotification = onDocumentCreated(
       participation: gara
         ? `Qualcuno è sceso in gara: ${gara}`
         : 'Qualcuno è sceso in gara nella tua missione',
+      // **Non e' la stessa cosa di `participation`, e la differenza e' chi
+      // legge.** Quella la riceve chi ha lanciato la missione, ed e' una buona
+      // notizia: la sua gara si sta riempiendo. Questa la riceve chi **e'
+      // dentro la gara**, e la notizia e' l'opposto — da adesso il premio se
+      // lo gioca con una persona in piu'.
+      rival: gara
+        ? `Qualcuno prova a batterti: ${gara}`
+        : 'Qualcuno prova a batterti',
       // **Non dice chi ha vinto, e non e' una dimenticanza.** Chi tocca
       // questa notifica atterra sulla missione, dove la vittoria si scopre con
       // il rullo di tamburi. Scriverla qui vorrebbe dire raccontare il finale
@@ -2786,6 +2883,130 @@ exports.countParticipant = onDocumentCreated(
         `Partecipante non contato su ${event.params.challengeId}.`,
         error
       );
+    }
+  }
+);
+
+/**
+ * **Dice a chi e' gia' in gara che e' scesa un'altra persona.**
+ *
+ * ## Perche' non bastava quella che c'era
+ *
+ * Di partecipazioni l'app ne annunciava una sola, e andava a chi **ha lanciato
+ * la missione**: la sua gara si riempie, ed e' una buona notizia. Chi invece
+ * aveva mandato la foto e stava aspettando il risultato non riceveva niente —
+ * e per lui la notizia e' l'opposto: da quel momento il premio se lo gioca con
+ * una persona in piu', e la foto che un'ora prima era la migliore delle tre
+ * magari adesso non lo e'.
+ *
+ * E' l'unica notizia dell'app che riporta indietro chi aveva gia' fatto la sua
+ * mossa. Tutte le altre arrivano a cose fatte: questa arriva mentre la gara e'
+ * ancora aperta, quando tornare a guardare serve ancora a qualcosa.
+ *
+ * ## Perche' la scrive il server
+ *
+ * Perche' chi partecipa non ha, e non deve avere, l'elenco di chi altro
+ * partecipa: gliene servirebbero i nomi per scrivere a ognuno, e quello e' un
+ * elenco di persone che si legge dalla gara e non da un telefono. E perche'
+ * una ventina di scritture lanciate da un telefono che puo' morire a meta'
+ * avvisano mezza gara e l'altra meta' no.
+ *
+ * ## Le tre volte in cui non parte
+ *
+ * **Nelle sfide a due.** Li' di rivali ce n'e' uno, lo si conosce per nome, e
+ * la sua mossa ha gia' una notifica sua (`duelCompleted`).
+ *
+ * **A chi ha lanciato la missione.** Riceve gia' `participation` per la stessa
+ * cosa, e due notifiche per un fatto solo sono una notifica rotta.
+ *
+ * **Oltre i trenta in gara.** Non e' un limite tecnico ma una soglia di senso:
+ * in una gara da sei persone una in piu' cambia davvero le probabilita', in una
+ * da duecento non cambia niente e il telefono squillerebbe tutto il giorno per
+ * nulla. Una notifica che arriva sempre e' una notifica che non si legge mai.
+ */
+exports.avvisaIRivali = onDocumentCreated(
+  'challenges/{challengeId}/entries/{entryId}',
+  async (event) => {
+    const { challengeId } = event.params;
+    const entry = event.data;
+    const sfidante = entry && entry.get('userId');
+
+    if (!sfidante) {
+      return;
+    }
+
+    try {
+      const gara = await db.collection('challenges').doc(challengeId).get();
+
+      if (!gara.exists || gara.get('targetUserId')) {
+        return;
+      }
+
+      const padrone = gara.get('createdByUserId') || '';
+
+      // Si leggono trentuno partecipazioni e non trenta: con la trentunesima in
+      // mano si sa di essere oltre la soglia senza dover contare tutto.
+      const dentro = await db
+        .collection('challenges')
+        .doc(challengeId)
+        .collection('entries')
+        .limit(31)
+        .get();
+
+      if (dentro.size > 30) {
+        return;
+      }
+
+      const rivali = new Set();
+
+      dentro.forEach((foto) => {
+        const chi = foto.get('userId');
+
+        if (chi && chi !== sfidante && chi !== padrone) {
+          rivali.add(chi);
+        }
+      });
+
+      if (rivali.size === 0) {
+        return;
+      }
+
+      // **Il nome del documento porta dentro chi e' scesa in gara**, quindi un
+      // secondo passaggio sulla stessa partecipazione riscrive la stessa riga
+      // invece di aggiungerne una: la push si aggancia alla nascita di un
+      // documento, e riscriverne uno che esiste non fa squillare niente.
+      const riga = {
+        kind: 'rival',
+        actorId: sfidante,
+        actorUsername: entry.get('authorName') || '',
+        challengeId,
+        challengeTitle: gara.get('title') || '',
+        // **La foto, cosi' il tocco atterra su quella e non sulla gara.** La
+        // domanda di chi legge questa notifica e' una sola — *con cosa prova a
+        // battermi?* — e farla finire su una griglia da cui cercare la foto
+        // nuova e' farle fare il lavoro che il server ha gia' fatto.
+        entryId: event.params.entryId,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      const mazzo = db.batch();
+
+      rivali.forEach((chi) => {
+        mazzo.set(
+          db
+            .collection('users')
+            .doc(chi)
+            .collection('notifications')
+            .doc(`rivale_${challengeId}_${sfidante}`),
+          riga
+        );
+      });
+
+      await mazzo.commit();
+
+      logger.info('rivali avvisati', { challengeId, quanti: rivali.size });
+    } catch (error) {
+      logger.warn(`Rivali non avvisati su ${challengeId}.`, error);
     }
   }
 );
