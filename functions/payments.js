@@ -1759,6 +1759,43 @@ exports.requestPayout = onCall(async (request) => {
 });
 
 /** L'elenco dei bonifici da fare. Solo per chi tiene CRASY. */
+/**
+ * **Le mance, e si vedono solo da qui.**
+ *
+ * Sono soldi che arrivano a CRASY, non agli utenti: in app non hanno nessun
+ * posto dove stare — una classifica dei piu' generosi sarebbe una gara a parte
+ * che nessuno ha chiesto, e il saldo di chi le manda non le riguarda.
+ *
+ * Chi le manda le ritrova nel proprio estratto conto, perche' sono soldi
+ * usciti dalla sua carta. Qui invece ci sono **tutte**, ed e' l'unico posto da
+ * cui si vede quanto entra da questa strada.
+ */
+exports.adminListMance = onCall(async (request) => {
+  if (!request.auth || request.auth.token.admin !== true) {
+    throw new HttpsError('permission-denied', 'Non sei un amministratore.');
+  }
+
+  const mance = await db.collection('mance').limit(200).get();
+
+  const righe = mance.docs.map((d) => ({
+    id: d.id,
+    userId: d.get('userId') || '',
+    username: d.get('username') || '',
+    beneficiarioUsername: d.get('beneficiarioUsername') || '',
+    amountCents: d.get('amountCents') || 0,
+    verificato: d.get('verificato') === true,
+    createdAt: d.get('createdAt') ? d.get('createdAt').toMillis() : null,
+  }));
+
+  // Le piu' recenti in cima: al contrario dei prelievi, qui non c'e' niente da
+  // fare — si guarda, e cio' che si guarda per primo e' cosa e' appena entrato.
+  righe.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+  const totale = righe.reduce((somma, riga) => somma + riga.amountCents, 0);
+
+  return { mance: righe, totaleCents: totale };
+});
+
 exports.adminListPayouts = onCall(async (request) => {
   if (!request.auth || request.auth.token.admin !== true) {
     throw new HttpsError('permission-denied', 'Non sei un amministratore.');
@@ -2051,6 +2088,23 @@ async function registraMancia(metadata, paymentIntentId) {
   });
 
   if (nuova) {
+    // **La mancia nell'estratto conto di chi l'ha data.** Sono soldi usciti
+    // dalla sua carta come quelli di una missione, e un estratto conto che
+    // salta una voce e' un estratto conto che non si puo' usare per far
+    // tornare i conti — cioe' l'unica cosa per cui serve.
+    await scriviNelRegistro(
+      metadata.userId || '',
+      `mancia_${paymentIntentId}`,
+      {
+        kind: 'tip',
+        amountCents: -cents,
+        source: 'card',
+        note: metadata.beneficiarioUsername
+          ? `Mancia a CRASY per @${metadata.beneficiarioUsername}`
+          : 'Mancia a CRASY',
+      }
+    );
+
     logger.info(`Mancia di ${cents} centesimi per @${metadata.beneficiarioUsername}.`);
   }
 }

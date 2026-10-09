@@ -261,6 +261,7 @@ exports.createPayoutOnboarding = payments.createPayoutOnboarding;
 exports.withdrawWallet = payments.withdrawWallet;
 exports.requestPayout = payments.requestPayout;
 exports.payChallengeFromWallet = payments.payChallengeFromWallet;
+exports.adminListMance = payments.adminListMance;
 exports.adminListPayouts = payments.adminListPayouts;
 exports.adminMarkPayoutPaid = payments.adminMarkPayoutPaid;
 exports.cancelChallenge = payments.cancelChallenge;

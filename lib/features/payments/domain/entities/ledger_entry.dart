@@ -25,7 +25,7 @@ class LedgerEntry {
 
   final String id;
 
-  /// `prize`, `challengePayment`, `refund`, `withdrawal`.
+  /// `prize`, `challengePayment`, `refund`, `withdrawal`, `tip`.
   final String kind;
 
   /// **Dal punto di vista di chi legge**: positivo quello che entra, negativo
@@ -59,6 +59,7 @@ class LedgerEntry {
       'challengePayment' => 'PREMIO MESSO IN PALIO',
       'refund' => 'RIMBORSO',
       'withdrawal' => 'PRELIEVO',
+      'tip' => 'MANCIA A CRASY',
       _ => 'MOVIMENTO',
     };
   }

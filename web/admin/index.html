@@ -246,6 +246,16 @@
       <div id="prelievi"></div>
     </div>
 
+    <!-- **Le mance si vedono solo qui.** Sono soldi che arrivano a CRASY, non
+         agli utenti: in app non hanno nessun posto dove stare, e chi le manda
+         le ritrova nel proprio estratto conto perche' sono uscite dalla sua
+         carta. Questo e' l'unico posto da cui si vede quanto entra da questa
+         strada. -->
+    <div class="scatola">
+      <h2>Mance <span class="quanti" id="totaleMance">—</span></h2>
+      <div id="mance"></div>
+    </div>
+
     <!-- **Il verificato si da' da qui.** Si cerca la persona per nome, e un
          tasto accende o spegne la spunta. La scrive il server: da nessun
          telefono si puo'. -->
@@ -305,6 +315,7 @@ const chiediChiSono = httpsCallable(functions, 'adminWhoAmI');
 const chiediElenco = httpsCallable(functions, 'adminListReports');
 const decidi = httpsCallable(functions, 'adminResolveReport');
 const chiediPrelievi = httpsCallable(functions, 'adminListPayouts');
+const chiediMance = httpsCallable(functions, 'adminListMance');
 const chiediPresenze = httpsCallable(functions, 'adminOnline');
 const segnaPagato = httpsCallable(functions, 'adminMarkPayoutPaid');
 const cercaUtenti = httpsCallable(functions, 'adminCercaUtenti');
@@ -638,6 +649,54 @@ async function caricaPrelievi() {
   }
 }
 
+async function caricaMance() {
+  const dove = document.getElementById('mance');
+  const totale = document.getElementById('totaleMance');
+
+  dove.innerHTML = '<p class="nota">Carico…</p>';
+
+  try {
+    const esito = await chiediMance();
+    const righe = esito.data.mance || [];
+
+    totale.textContent = euro(esito.data.totaleCents || 0);
+    dove.innerHTML = '';
+
+    if (righe.length === 0) {
+      dove.innerHTML = '<p class="nota">Nessuna mancia, per ora.</p>';
+
+      return;
+    }
+
+    for (const mancia of righe) {
+      const riga = document.createElement('p');
+      riga.className = 'nota';
+      riga.style.cssText = 'padding:6px 0;border-top:1px solid #eee';
+
+      // Il "per" c'e' solo quando la mancia e' stata mandata a nome di
+      // qualcuno: scriverlo sempre, con il campo vuoto, lascerebbe una riga
+      // che finisce con "per" e basta.
+      const per = mancia.beneficiarioUsername
+        ? ' per @' + testo(mancia.beneficiarioUsername)
+        : '';
+      const bollino = mancia.verificato
+        ? ' · <strong>verificato</strong>'
+        : '';
+      const quando = mancia.createdAt
+        ? ' · ' + new Date(mancia.createdAt).toLocaleDateString('it-IT')
+        : '';
+
+      riga.innerHTML =
+        '<strong>' + euro(mancia.amountCents) + '</strong> da @' +
+        testo(mancia.username || mancia.userId) + per + bollino + quando;
+      dove.appendChild(riga);
+    }
+  } catch (errore) {
+    dove.innerHTML = '';
+    dillo(errore.message || 'Non riusciamo a leggere le mance.');
+  }
+}
+
 function rigaUtente(u) {
   const div = document.createElement('div');
   div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #eee';
@@ -781,6 +840,7 @@ onAuthStateChanged(auth, async (utente) => {
   mostra(tavolo, true);
   carica();
   caricaPrelievi();
+  caricaMance();
   caricaPresenze();
 });
 </script>
