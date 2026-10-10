@@ -356,21 +356,23 @@ function vestito({ titolo, testo, tasto, link, nota, a }) {
           ' perche&#39; e&#39; l&#39;indirizzo di un account CRASY. ' +
           'Se non hai un account CRASY, questa email si butta.<br>'
         : '') +
-      // **Chi c'e' dietro, con un nome e un numero verificabili.**
+      // **Chi c'e' dietro, con un numero verificabile.**
       //
       // E' un segnale di legittimita' fra i piu' pesanti: chi manda truffe non
-      // firma con una partita IVA, perche' quella porta a una persona vera che
+      // firma con una partita IVA, perche' quella porta a qualcuno che
       // risponde. Vale per i filtri e vale per chi legge — su un'app dove si
       // mettono soldi veri, sapere **a chi** si stanno dando e' una domanda
-      // legittima, e questa riga la risponde senza che nessuno debba cercarla.
+      // legittima, e questa riga da' il modo di scoprirlo.
       //
-      // **Non c'e' l'indirizzo di casa**, e non e' una dimenticanza: CRASY e'
-      // una ditta individuale, quindi la sede e' un'abitazione privata. Per le
-      // email di servizio la legge non lo chiede — lo chiede per quelle
-      // pubblicitarie — e mandarlo a ogni persona che si registra e' un prezzo
-      // che non vale il punto in piu' di reputazione.
-      'CRASY &egrave; un servizio di Siniscalchi Giovanni &middot; ' +
-      'P.IVA 03259440646 &middot; crasyapp.com</td></tr>',
+      // **C'e' il numero e basta: niente nome, niente indirizzo.** CRASY e'
+      // una ditta individuale, quindi il nome e' quello di una persona e la
+      // sede e' un'abitazione privata. Per le email di servizio la legge non
+      // chiede ne' l'uno ne' l'altra — li chiede per quelle pubblicitarie — e
+      // mandare i dati di casa di qualcuno a ogni persona che si registra e'
+      // un prezzo che non vale il punto in piu' di reputazione. Chi ha un
+      // motivo serio per sapere chi c'e' dietro parte dalla partita IVA e ci
+      // arriva in trenta secondi.
+      'CRASY &middot; P.IVA 03259440646 &middot; crasyapp.com</td></tr>',
     '</table></td></tr></table></body></html>',
   ].join('');
 }
