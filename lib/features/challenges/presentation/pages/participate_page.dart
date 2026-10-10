@@ -172,9 +172,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
                   // assegnarsi il premio da solo. Nelle gare pubbliche invece
                   // scende in gara come tutti — a decidere sono le fiamme degli
                   // altri — e il divieto non c'e' piu'.
-                  if (ref.watch(
-                        isMyChallengeProvider(widget.challengeId),
-                      ) &&
+                  if (ref.watch(isMyChallengeProvider(widget.challengeId)) &&
                       !challenge.apertaAlCreatore) {
                     return const _Notice(
                       title: 'È la tua missione',
@@ -303,15 +301,15 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
       if (!kind.isVideo && mounted) {
         final sistemata = await Navigator.of(context).push<Uint8List>(
           MaterialPageRoute(
-            builder: (_) => PhotoEditor(
-              bytes: definitiva.bytes,
-              aspectRatio: 4 / 5,
-              // Su una foto presa dalla galleria si inquadra; su uno scatto
-              // appena fatto il taglio lo ha gia' deciso chi guardava nello
-              // schermo un secondo fa, e rimetterglielo in discussione e' un
-              // passaggio in piu' per niente.
-              inquadrabile: challenge.source.isArchive,
-            ),
+            // **Vale per l'archivio e per gli scatti, allo stesso modo.**
+            //
+            // Prima lo scatto appena fatto saltava l'inquadratura, col
+            // ragionamento che il taglio l'aveva gia' deciso chi guardava nel
+            // mirino un secondo prima. E' vero a meta': il mirino mostra tutto
+            // il fotogramma, il riquadro della gara ne tiene quattro quinti, e
+            // quel quinto che se ne va non l'ha scelto nessuno.
+            builder: (_) =>
+                PhotoEditor(bytes: definitiva.bytes, aspectRatio: 4 / 5),
           ),
         );
 

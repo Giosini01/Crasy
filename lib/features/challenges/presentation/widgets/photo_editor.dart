@@ -11,23 +11,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
-/// **La foto come sara': prima si inquadra, poi ci si scrive sopra.**
+/// **La foto come sara': si inquadra e ci si scrive sopra, in una schermata.**
 ///
-/// ## Due passi, e non una schermata sola
+/// ## Una sola, e prima erano due
 ///
-/// All'inizio erano insieme: si pizzicava la foto e si scriveva sopra nello
-/// stesso momento. Non funzionava, e il motivo e' che **le dita sono le
-/// stesse**. Un dito che trascina sulla foto puo' voler dire due cose — sposto
-/// l'inquadratura, sposto la frase — e due dita che si allargano altre due:
-/// ingrandisco la foto, ingrandisco la frase. Chiunque scriva qualcosa si
-/// ritrova a spostare la foto provando a spostare la scritta.
+/// C'e' stato un passaggio in mezzo — *inquadra*, poi **Avanti**, poi *scrivi*
+/// — ed e' durato poco: chi scatta vuole mandare, e un tasto che non fa altro
+/// che portare alla schermata dopo e' un tasto che chiede permesso per niente.
 ///
-/// Divisi in due passi la domanda non si pone piu': nel primo le dita parlano
-/// alla foto, nel secondo alla frase. Si va avanti con un tasto e si torna
-/// indietro con la freccia, senza perdere niente di quello che si era fatto.
+/// I due passi erano nati per un problema vero, pero': **le dita sono le
+/// stesse**. Un dito che trascina puo' voler dire due cose, sposto la foto o
+/// sposto la frase. La risposta non era separare i momenti, era separare i
+/// gesti:
 ///
-/// Chi fa lo scatto adesso parte dal secondo: l'inquadratura l'ha appena
-/// scelta col mirino, e un passo che chiede di rifarla e' un passo di troppo.
+/// - **un dito sulla frase** la sposta;
+/// - **un dito altrove** sposta la foto dentro il riquadro;
+/// - **due dita** ingrandiscono: la frase se partono da li' sopra, la foto se
+///   partono dal resto.
+///
+/// Nessuna ambiguita' da risolvere, perche' il punto in cui appoggi il dito
+/// dice gia' di cosa stai parlando. E' lo stesso modo di tutte le app in cui
+/// si scrive sopra una foto, ed e' il motivo per cui non ha bisogno di
+/// istruzioni.
 ///
 /// ## Come finisce nel file
 ///
@@ -55,7 +60,6 @@ class PhotoEditor extends StatefulWidget {
   const PhotoEditor({
     required this.bytes,
     required this.aspectRatio,
-    this.inquadrabile = true,
     super.key,
   });
 
@@ -63,14 +67,6 @@ class PhotoEditor extends StatefulWidget {
 
   /// Le proporzioni del riquadro in cui la foto andra' a finire.
   final double aspectRatio;
-
-  /// Se si puo' muovere e ingrandire.
-  ///
-  /// Acceso sulle foto prese dalla galleria, che arrivano di tutte le forme e
-  /// vengono tagliate dal riquadro senza che nessuno abbia scelto **dove**.
-  /// Su uno scatto fatto adesso il taglio lo ha gia' deciso chi inquadrava, e
-  /// il primo passo si salta.
-  final bool inquadrabile;
 
   @override
   State<PhotoEditor> createState() => _PhotoEditorState();
@@ -80,12 +76,6 @@ class _PhotoEditorState extends State<PhotoEditor> {
   final _riquadro = GlobalKey();
   final _scritte = <_Scritta>[];
   final _inquadratura = TransformationController();
-
-  /// A che passo si e': inquadrare, o scrivere.
-  ///
-  /// Chi arriva da uno scatto comincia dal secondo: l'inquadratura l'ha scelta
-  /// col mirino un istante prima.
-  late bool _scrivendo = !widget.inquadrabile;
 
   /// Le proporzioni vere della foto, lette dal file.
   ///
@@ -126,242 +116,190 @@ class _PhotoEditorState extends State<PhotoEditor> {
     decodificata.dispose();
   }
 
-  /// Se la freccia indietro deve tornare al primo passo invece di uscire.
-  bool get _tornaIndietroAlPrimoPasso => _scrivendo && widget.inquadrabile;
-
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final area = areaSempreVisibile(widget.aspectRatio);
 
-    // **Il gesto laterale di Android porta indietro di un passo, non fuori.**
-    // Senza, chi al secondo passo fa il gesto che si fa cento volte al giorno
-    // perde anche l'inquadratura che aveva scelto al primo.
-    return PopScope(
-      canPop: !_tornaIndietroAlPrimoPasso,
-      onPopInvokedWithResult: (fatto, _) {
-        if (!fatto) {
-          setState(() => _scrivendo = false);
-        }
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          leading: BackButton(
-            onPressed: () {
-              if (_tornaIndietroAlPrimoPasso) {
-                setState(() => _scrivendo = false);
-
-                return;
-              }
-
-              Navigator.of(context).pop();
-            },
-          ),
-          title: Text(_scrivendo ? 'Scrivici sopra' : 'Inquadrala'),
-          actions: [
-            if (_scrivendo && _scritte.isNotEmpty)
-              TextButton(
-                onPressed: () => setState(_scritte.removeLast),
-                child: Text(
-                  'TOGLI',
-                  style: context.texts.labelSmall?.copyWith(
-                    color: palette.textFaint,
-                  ),
+    return Scaffold(
+      appBar: AppBar(
+        leading: const BackButton(),
+        title: const Text('La tua foto'),
+        actions: [
+          if (_scritte.isNotEmpty)
+            TextButton(
+              onPressed: () => setState(_scritte.removeLast),
+              child: Text(
+                'TOGLI',
+                style: context.texts.labelSmall?.copyWith(
+                  color: palette.textFaint,
                 ),
               ),
-          ],
-        ),
-        body: AppBackground(
-          child: Column(
-            children: [
-              // **Il riquadro prende lo spazio che c'e', non quello che
-              // vorrebbe.** Con due `Spacer` e una misura libera, su uno
-              // schermo basso — orizzontale, un tablet — un riquadro quattro
-              // quinti largo quanto lo schermo diventa piu' alto dello schermo
-              // stesso, e la colonna sfonda: la spiegazione e i tasti finiscono
-              // sotto il bordo, cioe' spariscono.
-              Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.page,
-                          ),
-                          child: Stack(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.media,
-                                ),
-                                child: AspectRatio(
-                                  aspectRatio: widget.aspectRatio,
-                                  // **Il confine di cio' che verra' catturato.** Tutto quello
-                                  // che sta dentro questo riquadro finisce nel file; tutto
-                                  // quello che sta fuori non esiste. E' la stessa cosa che
-                                  // vede chi guarda, ed e' il punto: non c'e' nessuna
-                                  // sorpresa fra l'anteprima e quello che parte.
-                                  child: RepaintBoundary(
-                                    key: _riquadro,
-                                    child: Stack(
-                                      fit: StackFit.expand,
-                                      children: [
-                                        if (widget.inquadrabile &&
-                                            _proporzioni != null)
-                                          _DaInquadrare(
-                                            bytes: widget.bytes,
-                                            proporzioniFoto: _proporzioni!,
-                                            proporzioniRiquadro:
-                                                widget.aspectRatio,
-                                            controller: _inquadratura,
-                                            // Al secondo passo la foto si ferma: le dita da
-                                            // li' in poi parlano alla frase, e un visore che
-                                            // risponde ancora e' esattamente l'ambiguita'
-                                            // che i due passi esistono per togliere.
-                                            gesti: !_scrivendo,
-                                          )
-                                        else
-                                          Image.memory(
-                                            widget.bytes,
-                                            fit: BoxFit.cover,
-                                          ),
-                                        if (_scritte.isNotEmpty)
-                                          // **Un solo `Positioned.fill` per tutte le
-                                          // frasi.** Prima ogni frase era un `LayoutBuilder`
-                                          // che restituiva un `Positioned`, e un
-                                          // `Positioned` deve stare attaccato allo `Stack`:
-                                          // messo dentro qualunque altra cosa fa cadere
-                                          // l'app nell'istante in cui si mette la scritta.
-                                          // Qui la misura del riquadro la si legge una volta
-                                          // e lo `Stack` interno ha i suoi `Positioned` come
-                                          // figli diretti.
-                                          Positioned.fill(
-                                            child: IgnorePointer(
-                                              // Al primo passo le frasi si vedono — serve a
-                                              // sapere cosa si sta inquadrando — ma non
-                                              // prendono i tocchi, che sono della foto.
-                                              ignoring: !_scrivendo,
-                                              child: LayoutBuilder(
-                                                builder: (context, vincoli) =>
-                                                    Stack(
-                                                      children: [
-                                                        for (final scritta
-                                                            in _scritte)
-                                                          _ScrittaSopra(
-                                                            scritta: scritta,
-                                                            riquadro: Size(
-                                                              vincoli.maxWidth,
-                                                              vincoli.maxHeight,
-                                                            ),
-                                                            area: areaSempreVisibile(
-                                                              widget
-                                                                  .aspectRatio,
-                                                            ),
-                                                            onCambia: () =>
-                                                                setState(() {}),
-                                                          ),
-                                                      ],
-                                                    ),
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // **Fuori dal riquadro che viene fotografato**,
-                              // quindi queste righe non finiscono nella foto:
-                              // sono un aiuto per chi scrive, non un segno
-                              // sull'immagine.
-                              if (_scrivendo)
-                                Positioned.fill(
-                                  child: _SegnaIlBordo(
-                                    area: areaSempreVisibile(
-                                      widget.aspectRatio,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Padding(
+            ),
+          // **"Aa", e non "SCRIVI SULLA FOTO".**
+          //
+          // Due lettere che tutti hanno gia' imparato altrove: nessuno deve
+          // leggerle per capire cosa fanno, si riconoscono come si riconosce
+          // il cestino. Stanno in cima e non in fondo perche' il fondo e' del
+          // tasto che chiude il lavoro, e un comando che apre una tastiera
+          // appiccicato a quello e' il tipo di vicinanza che fa sbagliare.
+          IconButton(
+            onPressed: _scrivi,
+            tooltip: 'Scrivi sulla foto',
+            icon: Text(
+              'Aa',
+              style: context.texts.titleMedium?.copyWith(
+                color: palette.accent,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: AppBackground(
+        child: Column(
+          children: [
+            // **Il riquadro prende lo spazio che c'e', non quello che
+            // vorrebbe.** Con una misura libera, su uno schermo basso — un
+            // tablet, l'orizzontale — un riquadro quattro quinti largo quanto
+            // lo schermo diventa piu' alto dello schermo stesso, e la colonna
+            // sfonda: la spiegazione e il tasto finiscono sotto il bordo.
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.page,
                         ),
-                        child: Text(
-                          _spiegazione,
-                          textAlign: TextAlign.center,
-                          style: context.texts.bodySmall?.copyWith(
-                            color: palette.textFaint,
-                          ),
+                        child: Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.media,
+                              ),
+                              child: AspectRatio(
+                                aspectRatio: widget.aspectRatio,
+                                // **Il confine di cio' che verra' catturato.**
+                                // Tutto quello che sta dentro questo riquadro
+                                // finisce nel file; tutto quello che sta fuori
+                                // non esiste. E' la stessa cosa che vede chi
+                                // guarda, ed e' il punto: nessuna sorpresa fra
+                                // l'anteprima e quello che parte.
+                                child: RepaintBoundary(
+                                  key: _riquadro,
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      if (_proporzioni != null)
+                                        _DaInquadrare(
+                                          bytes: widget.bytes,
+                                          proporzioniFoto: _proporzioni!,
+                                          proporzioniRiquadro:
+                                              widget.aspectRatio,
+                                          controller: _inquadratura,
+                                        )
+                                      else
+                                        Image.memory(
+                                          widget.bytes,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      if (_scritte.isNotEmpty)
+                                        // **Un solo `Positioned.fill` per
+                                        // tutte le frasi.** Prima ogni frase
+                                        // era un `LayoutBuilder` che
+                                        // restituiva un `Positioned`, e un
+                                        // `Positioned` deve stare attaccato
+                                        // allo `Stack`: messo dentro
+                                        // qualunque altra cosa faceva cadere
+                                        // l'app nell'istante in cui si
+                                        // metteva la scritta.
+                                        Positioned.fill(
+                                          child: LayoutBuilder(
+                                            builder: (context, vincoli) =>
+                                                Stack(
+                                                  children: [
+                                                    for (final scritta
+                                                        in _scritte)
+                                                      _ScrittaSopra(
+                                                        scritta: scritta,
+                                                        riquadro: Size(
+                                                          vincoli.maxWidth,
+                                                          vincoli.maxHeight,
+                                                        ),
+                                                        area: area,
+                                                        onCambia: () =>
+                                                            setState(() {}),
+                                                      ),
+                                                  ],
+                                                ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // **Fuori dal riquadro che viene fotografato**,
+                            // quindi queste righe non finiscono nella foto:
+                            // sono un aiuto per chi scrive, non un segno
+                            // sull'immagine. Compaiono solo quando c'e' una
+                            // frase: senza, segnerebbero un limite che non
+                            // riguarda nessuno.
+                            if (_scritte.isNotEmpty)
+                              Positioned.fill(child: _SegnaIlBordo(area: area)),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.page,
+                      ),
+                      child: Text(
+                        _spiegazione,
+                        textAlign: TextAlign.center,
+                        style: context.texts.bodySmall?.copyWith(
+                          color: palette.textFaint,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.page,
-                  0,
-                  AppSpacing.page,
-                  AppSpacing.lg,
-                ),
-                child: _scrivendo ? _tastiDelloScrivere(context) : _tastoAvanti,
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.page,
+                0,
+                AppSpacing.page,
+                AppSpacing.lg,
               ),
-            ],
-          ),
+              child: CrasyButton(label: 'Fatto', onPressed: _conferma),
+            ),
+          ],
         ),
       ),
     );
   }
 
+  /// La riga sotto la foto: dice cosa fanno le dita, adesso.
+  ///
+  /// Cambia quando compare la prima frase, perche' da quel momento cambiano i
+  /// gesti. Elencarli tutti da subito farebbe un manuale, e un manuale non lo
+  /// legge nessuno.
   String get _spiegazione {
-    if (!_scrivendo) {
-      return widget.inquadrabile
-          ? 'Trascina per scegliere cosa tenere, due dita per ingrandire. '
-                'Quello che resta dentro il riquadro è quello che mandi.'
-          : 'Quello che resta dentro il riquadro è quello che mandi.';
+    if (_scritte.isEmpty) {
+      return 'Trascina per scegliere cosa tenere, due dita per ingrandire. '
+          'Con Aa ci scrivi sopra.';
     }
 
-    return _scritte.isEmpty
-        ? 'Se vuoi, aggiungi una frase sopra la foto. Oppure manda la foto '
-              'così com\'è.'
-        : 'Trascinala dove vuoi, due dita per cambiarle misura. Resta dentro '
-              'le righe tratteggiate: più in alto o più in basso, nelle '
-              'anteprime quadrate verrebbe tagliata via.';
-  }
-
-  Widget get _tastoAvanti => CrasyButton(
-    label: 'Avanti',
-    onPressed: () => setState(() => _scrivendo = true),
-  );
-
-  Widget _tastiDelloScrivere(BuildContext context) {
-    final palette = context.palette;
-
-    return Column(
-      children: [
-        TextButton.icon(
-          onPressed: _scrivi,
-          icon: Icon(
-            Icons.text_fields_rounded,
-            size: 18,
-            color: palette.accent,
-          ),
-          label: Text(
-            _scritte.isEmpty ? 'SCRIVI SULLA FOTO' : 'SCRIVI UN\'ALTRA FRASE',
-            style: context.texts.labelSmall?.copyWith(color: palette.accent),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        CrasyButton(label: 'Va bene così', onPressed: _conferma),
-      ],
-    );
+    return 'La frase si sposta con un dito e si ridimensiona con due. Resta '
+        'dentro le righe tratteggiate: piu su o piu giu, nelle anteprime '
+        'quadrate verrebbe tagliata.';
   }
 
   Future<void> _scrivi() async {
@@ -450,19 +388,12 @@ class _DaInquadrare extends StatefulWidget {
     required this.proporzioniFoto,
     required this.proporzioniRiquadro,
     required this.controller,
-    this.gesti = true,
   });
 
   final Uint8List bytes;
   final double proporzioniFoto;
   final double proporzioniRiquadro;
   final TransformationController controller;
-
-  /// Se le dita muovono ancora la foto.
-  ///
-  /// Spento al secondo passo: l'inquadratura resta quella scelta — il
-  /// controller non si tocca — ma le dita da li' in poi sono della frase.
-  final bool gesti;
 
   @override
   State<_DaInquadrare> createState() => _DaInquadrareState();
@@ -515,8 +446,6 @@ class _DaInquadrareState extends State<_DaInquadrare> {
           // possibile lo spostamento: senza, il visore ridimensiona il figlio
           // alla propria misura e non resta niente fuori da far entrare.
           constrained: false,
-          panEnabled: widget.gesti,
-          scaleEnabled: widget.gesti,
           minScale: 1,
           maxScale: 4,
           // Margine nullo: il bordo della foto non puo' entrare nel riquadro,
