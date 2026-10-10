@@ -26,6 +26,24 @@ class ChallengeEntry {
   final String id;
   final String challengeId;
 
+  /// **Cosa distingue questa partecipazione da tutte le altre.**
+  ///
+  /// `id` da solo **non basta**, e la ragione e' che non e' un numero di serie:
+  /// l'identificativo di una partecipazione e' l'uid di chi l'ha mandata — e'
+  /// cosi' che il database garantisce una foto sola a testa per gara. Quindi
+  /// tutte le foto della stessa persona, in gare diverse, hanno **lo stesso**
+  /// `id`.
+  ///
+  /// Sembra un dettaglio e non lo e': sul profilo di una persona le foto in
+  /// gara vengono da gare diverse, e una mappa che le teneva per `id` le
+  /// faceva collassare in una sola. Si apriva la prima, scriveva "1 / 4", e
+  /// scorrendo si vedeva quattro volte la stessa foto.
+  ///
+  /// Dove le partecipazioni vengono tutte dalla stessa gara gli `id` sono gia'
+  /// diversi fra loro e questa chiave non cambia niente. Dove non lo sono,
+  /// e' l'unica cosa che tiene.
+  String get chiave => '$challengeId/$id';
+
   /// Il titolo della challenge, copiato qui dentro.
   ///
   /// E' una duplicazione voluta: nel feed si vedono le partecipazioni a

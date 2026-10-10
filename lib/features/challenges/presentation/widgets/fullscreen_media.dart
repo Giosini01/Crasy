@@ -76,6 +76,34 @@ class FullscreenMedia extends ConsumerStatefulWidget {
   ConsumerState<FullscreenMedia> createState() => _FullscreenMediaState();
 }
 
+/// **Le partecipazioni da scorrere: l'ordine di prima, i numeri di adesso.**
+///
+/// Sta fuori dalla vista perche' e' la riga in cui il difetto viveva, e una
+/// riga che ha gia' sbagliato una volta va messa dove si puo' provare.
+///
+/// Il difetto: si teneva una mappa delle partecipazioni **per `id`**, e l'`id`
+/// di una partecipazione e' l'uid di chi l'ha mandata. Sul profilo di una
+/// persona le foto vengono da gare diverse e hanno tutte lo stesso `id`: la
+/// mappa le faceva collassare in una sola, si apriva la prima, c'era scritto
+/// "1 / 4" e scorrendo si vedeva quattro volte la stessa foto.
+///
+/// Si tengono per `chiave`, che porta dentro anche la gara.
+List<ChallengeEntry> nellOrdineDiPrima({
+  required List<String> ordine,
+  required List<ChallengeEntry> aperte,
+  required List<ChallengeEntry> vive,
+}) {
+  final perChiave = <String, ChallengeEntry>{
+    for (final entry in aperte) entry.chiave: entry,
+    for (final entry in vive) entry.chiave: entry,
+  };
+
+  return [
+    for (final chiave in ordine)
+      if (perChiave[chiave] != null) perChiave[chiave]!,
+  ];
+}
+
 class _FullscreenMediaState extends ConsumerState<FullscreenMedia> {
   /// L'ordine in cui si scorre, deciso all'apertura e **mai piu' toccato**.
   ///
@@ -84,15 +112,34 @@ class _FullscreenMediaState extends ConsumerState<FullscreenMedia> {
   /// lo schermo salterebbe su un'altra, come punizione per aver votato. Qui
   /// l'ordine resta quello di quando si e' aperto; i numeri, quelli si', si
   /// aggiornano.
+  /// **Per chiave, non per `id`.** L'identificativo di una partecipazione e'
+  /// l'uid di chi l'ha mandata, quindi le foto della stessa persona in gare
+  /// diverse hanno tutte lo stesso `id`: sul profilo di qualcuno questo elenco
+  /// era quattro volte la stessa stringa, e si scorrevano quattro copie della
+  /// stessa foto. Vedi `ChallengeEntry.chiave`.
   late final List<String> _order = [
-    for (final entry in widget.initialEntries) entry.id,
+    for (final entry in widget.initialEntries) entry.chiave,
   ];
 
   late final PageController _pages = PageController(
-    initialPage: _order.indexOf(widget.entryId).clamp(0, _order.length - 1),
+    initialPage: _order
+        .indexOf('${widget.challengeId}/${widget.entryId}')
+        .clamp(0, _order.length - 1),
   );
 
   late int _index = _pages.initialPage;
+
+  /// La gara della foto che si sta guardando adesso.
+  ///
+  /// Sul profilo di una persona ogni foto viene da una gara diversa, quindi
+  /// non e' sempre quella da cui si e' aperto.
+  String get _garaCorrente {
+    if (_order.isEmpty) {
+      return widget.challengeId;
+    }
+
+    return _order[_index.clamp(0, _order.length - 1)].split('/').first;
+  }
 
   @override
   void dispose() {
@@ -108,17 +155,21 @@ class _FullscreenMediaState extends ConsumerState<FullscreenMedia> {
   /// valore vecchio, con la fiamma rimasta rossa. Sembrava un voto che non
   /// veniva contato, e invece era la lista a non essere piu' quella vera.
   List<ChallengeEntry> _entries() {
-    final live = ref.watch(challengeEntriesProvider(widget.challengeId));
-    final byId = {
-      for (final entry in widget.initialEntries) entry.id: entry,
-      for (final entry in live.valueOrNull ?? const <ChallengeEntry>[])
-        entry.id: entry,
-    };
-
-    return [
-      for (final id in _order)
-        if (byId[id] != null) byId[id]!,
+    // I numeri di adesso per le gare che stiamo guardando: quella da cui si e'
+    // aperto e quella della foto sotto le dita. Sul profilo di una persona
+    // sono due gare diverse, e seguire solo la prima vorrebbe dire una fiamma
+    // che si accende e poi torna indietro su tutte le altre foto.
+    final vive = [
+      for (final gara in {widget.challengeId, _garaCorrente})
+        ...ref.watch(challengeEntriesProvider(gara)).valueOrNull ??
+            const <ChallengeEntry>[],
     ];
+
+    return nellOrdineDiPrima(
+      ordine: _order,
+      aperte: widget.initialEntries,
+      vive: vive,
+    );
   }
 
   @override
