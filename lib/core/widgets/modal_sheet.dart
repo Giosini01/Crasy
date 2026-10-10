@@ -36,6 +36,21 @@ class ModalSheet extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      // **Il foglio non sale mai dietro l'orologio.**
+      //
+      // Senza questa riga un foglio pieno — gli otto interruttori delle
+      // notifiche — cresce fino al bordo superiore dello schermo, e
+      // l'intestazione con *Annulla* e il tasto di conferma ci finisce sotto:
+      // su iPhone dietro l'orologio e la batteria, su Android dietro la barra
+      // di stato o il buco della fotocamera. Si vedono a meta' e **non si
+      // toccano**, perche' quella striscia la prende il sistema. Il risultato
+      // e' un foglio da cui non si esce: ne' confermare, ne' annullare, ne'
+      // trascinarlo giu', perche' quel gesto parte proprio da li'.
+      //
+      // Non bastava calcolarselo: di suo `showModalBottomSheet` **toglie** la
+      // striscia dal conto, quindi chi la chiede da dentro il foglio legge
+      // zero. Questa riga la rimette.
+      useSafeArea: true,
       builder: builder,
     );
   }
@@ -107,19 +122,28 @@ class ModalSheet extends StatelessWidget {
             // indovinate quanti se lo ricordavano: le scritte arrivavano al
             // bordo dello schermo in mezzo foglio su due. Messo qui, chi
             // scrive un foglio nuovo non puo' piu' sbagliarlo.
+            // **Quello che non ci sta, si scorre.**
+            //
+            // Sta qui e non nei singoli fogli per la stessa ragione del
+            // margine laterale: chi scrive un foglio nuovo non deve
+            // ricordarsene. E soprattutto l'intestazione resta **fuori** dallo
+            // scorrimento, quindi i due tasti sono raggiungibili sempre,
+            // qualunque cosa ci sia dentro.
             Flexible(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.page,
-                  AppSpacing.md,
-                  AppSpacing.page,
-                  // Sotto l'ultima riga: il margine normale, e in piu' lo
-                  // spazio della lineetta di casa quando c'e'. Su un telefono
-                  // senza — o con la tastiera aperta — quel numero e' zero, e
-                  // resta il margine normale.
-                  AppSpacing.md + MediaQuery.paddingOf(context).bottom,
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.page,
+                    AppSpacing.md,
+                    AppSpacing.page,
+                    // Sotto l'ultima riga: il margine normale, e in piu' lo
+                    // spazio della lineetta di casa quando c'e'. Su un telefono
+                    // senza — o con la tastiera aperta — quel numero e' zero, e
+                    // resta il margine normale.
+                    AppSpacing.md + MediaQuery.paddingOf(context).bottom,
+                  ),
+                  child: child,
                 ),
-                child: child,
               ),
             ),
           ],
