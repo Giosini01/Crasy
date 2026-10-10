@@ -3199,7 +3199,7 @@ exports.trovaDallaRubrica = require('./rubrica').trovaDallaRubrica;
 exports.annunciaAggiornamento = onDocumentCreated(
   {
     document: 'annunci/{id}',
-    secrets: [posta.SMTP_PASSWORD],
+    secrets: [posta.SMTP_PASSWORD, posta.RESEND_API_KEY],
     timeoutSeconds: 540,
     memory: '512MiB',
   },

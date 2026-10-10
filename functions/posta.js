@@ -48,6 +48,40 @@ const nodemailer = require('nodemailer');
  */
 const SMTP_PASSWORD = defineSecret('SMTP_PASSWORD');
 
+/**
+ * **La chiave del servizio che spedisce davvero.**
+ *
+ * ## Perche' non bastava la casella di IONOS
+ *
+ * Le email di CRASY uscivano dal server di posta di IONOS, e tecnicamente era
+ * tutto giusto: firma DKIM valida, SPF e DMARC che passano, verificato
+ * leggendo le intestazioni di un messaggio arrivato davvero. Su Gmail
+ * finivano in Posta in arrivo.
+ *
+ * **Su iCloud non arrivavano affatto.** Non nello spam: proprio da nessuna
+ * parte. Nessun rimbalzo nella casella — controllata — quindi Apple prendeva
+ * in consegna il messaggio, non si lamentava con nessuno e lo buttava.
+ *
+ * Il motivo non e' nelle nostre firme ma nell'indirizzo da cui si esce:
+ * `mout.kundenserver.de`, il gruppo condiviso da cui spedisce **tutta** la
+ * clientela di IONOS. Apple pesa quel gruppo come un unico mittente, e la
+ * nostra reputazione e' la media di quella di chiunque altro. Non c'e' niente
+ * che si possa scrivere nel DNS per cambiarlo.
+ *
+ * ## Cosa cambia passando di qui
+ *
+ * Indirizzi di uscita curati, tenuti puliti da chi vende il servizio, e —
+ * cosa che conta quanto la prima — **si vede cosa succede a ogni messaggio**.
+ * Con IONOS l'unica cosa che potevamo sapere era "preso in consegna", che e'
+ * esattamente l'informazione che non serviva.
+ *
+ * Si imposta una volta sola, e finche' non c'e' non cambia niente: senza
+ * chiave si continua a spedire da IONOS.
+ *
+ *     firebase functions:secrets:set RESEND_API_KEY
+ */
+const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
+
 const CASELLA = 'register@crasyapp.com';
 const SERVER = 'smtp.ionos.it';
 
@@ -110,6 +144,77 @@ const MARCHIO = 'https://crasyapp.com/brand/crasy-wordmark.png';
 const SECONDI_FRA_DUE_INVII = 60;
 
 /**
+ * La chiave, se e' stata impostata.
+ *
+ * `defineSecret` solleva quando il segreto non esiste, e qui non deve: senza
+ * chiave non e' un guasto, e' la configurazione di prima che continua a
+ * funzionare.
+ */
+function chiaveDelServizio() {
+  try {
+    const chiave = RESEND_API_KEY.value();
+
+    // **Una chiave vera comincia per `re_`.** Il controllo c'e' perche' il
+    // segreto va creato prima di poter pubblicare le funzioni, e nel
+    // frattempo ci si mette dentro qualcosa di finto: senza questa riga, ogni
+    // email proverebbe a partire con una chiave che non vale, aspetterebbe il
+    // rifiuto, e solo allora passerebbe alla casella. Un secondo buttato per
+    // ogni messaggio, su una cosa che una persona sta aspettando a schermo.
+    return chiave && chiave.startsWith('re_') ? chiave : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Spedisce attraverso il servizio di invio.
+ *
+ * **Si parla con lui via HTTP e non via SMTP**, e non e' un dettaglio: una
+ * conversazione SMTP da dentro una funzione che vive pochi secondi vuol dire
+ * una connessione da aprire, un saluto, un'attesa e due tempi massimi da
+ * indovinare — ed e' gia' il punto in cui la posta di IONOS ci metteva piu'
+ * tempo. Una richiesta sola, con una risposta che dice si' o no, non ha
+ * nessuno di quei modi di restare appesa.
+ *
+ * La risposta porta un identificativo: e' quello che permette di andare sul
+ * pannello e vedere **cosa e' successo a quel messaggio preciso**, che e' la
+ * cosa che oggi non si puo' fare.
+ */
+async function perServizio(messaggio, chiave) {
+  const risposta = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + chiave,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: messaggio.from,
+      to: [messaggio.to],
+      subject: messaggio.subject,
+      html: messaggio.html,
+      // **Anche la versione senza grafica.** Un'email di solo HTML e' uno dei
+      // motivi piu' comuni di finire nello spam, e per chi legge da un
+      // orologio o con un lettore vocale e' l'unica che esiste.
+      text: messaggio.text,
+    }),
+    signal: AbortSignal.timeout(12000),
+  });
+
+  const corpo = await risposta.json().catch(() => ({}));
+
+  if (!risposta.ok) {
+    throw new Error(
+      'il servizio ha risposto ' +
+        risposta.status +
+        ': ' +
+        JSON.stringify(corpo).slice(0, 200)
+    );
+  }
+
+  logger.info('email spedita dal servizio', { identificativo: corpo.id });
+}
+
+/**
  * Spedisce, provando le porte una dopo l'altra.
  *
  * Serve a tutte e due le email, e sta qui una volta sola: copiarlo avrebbe
@@ -118,6 +223,27 @@ const SECONDI_FRA_DUE_INVII = 60;
  */
 async function spedisci(messaggio) {
   let ultimoGuaio = null;
+
+  // **Prima si prova il servizio di invio, se c'e' la chiave.**
+  //
+  // L'ordine non e' casuale: questa e' la strada buona, e IONOS resta sotto
+  // come rete. Se il servizio e' fermo o la chiave e' scaduta, un'email brutta
+  // e' comunque meglio di nessuna email — chi si e' appena registrato
+  // altrimenti resta davanti a un muro.
+  const chiave = chiaveDelServizio();
+
+  if (chiave) {
+    try {
+      await perServizio(messaggio, chiave);
+
+      return;
+    } catch (guaio) {
+      ultimoGuaio = guaio;
+      logger.warn('servizio di invio non ha spedito, si passa alla casella', {
+        guaio: String(guaio).slice(0, 300),
+      });
+    }
+  }
 
   for (const porta of PORTE) {
     try {
@@ -235,7 +361,7 @@ function nostroLink(modo, codice) {
  * strumento per infastidire qualcun altro.
  */
 exports.mandaLaConferma = onCall(
-  { secrets: [SMTP_PASSWORD], region: 'europe-west8' },
+  { secrets: [SMTP_PASSWORD, RESEND_API_KEY], region: 'europe-west8' },
   async (request) => {
     const userId = request.auth?.uid;
 
@@ -332,7 +458,7 @@ exports.mandaLaConferma = onCall(
  * chi ha dimenticato la password.
  */
 exports.mandaIlRecupero = onCall(
-  { secrets: [SMTP_PASSWORD], region: 'europe-west8' },
+  { secrets: [SMTP_PASSWORD, RESEND_API_KEY], region: 'europe-west8' },
   async (request) => {
     const indirizzo = String(request.data?.email || '')
       .trim()
@@ -414,6 +540,7 @@ exports.mandaIlRecupero = onCall(
 // stesso postino e lo stesso vestito, invece di una seconda copia che si
 // separa da questa al primo cambiamento.
 exports.SMTP_PASSWORD = SMTP_PASSWORD;
+exports.RESEND_API_KEY = RESEND_API_KEY;
 exports.CASELLA = CASELLA;
 exports.spedisci = spedisci;
 exports.vestito = vestito;
