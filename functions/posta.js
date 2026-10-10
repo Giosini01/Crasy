@@ -304,7 +304,7 @@ async function spedisci(messaggio) {
  * fa, e un'email che si sfascia su Outlook e' un'email che non fa il suo
  * lavoro.
  */
-function vestito({ titolo, testo, tasto, link, nota }) {
+function vestito({ titolo, testo, tasto, link, nota, a }) {
   return [
     '<!DOCTYPE html><html lang="it"><body style="margin:0;padding:0;background:#F4F4F5;">',
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F4F5;padding:32px 16px;"><tr><td align="center">',
@@ -327,10 +327,36 @@ function vestito({ titolo, testo, tasto, link, nota }) {
       '" style="display:block;background:#FA0000;color:#FFFFFF;text-decoration:none;text-align:center;font-size:15px;font-weight:700;letter-spacing:.06em;padding:16px;border-radius:12px;">' +
       tasto +
       '</a></td></tr>',
+    // **L'indirizzo scritto per esteso, sotto il tasto.**
+    //
+    // Serve a chi legge — su qualche programma di posta il tasto non si tocca,
+    // e senza questo non resta niente da copiare — ma serve soprattutto ai
+    // filtri: un tasto colorato che nasconde dove porta e' la forma esatta di
+    // una truffa, ed e' il motivo per cui un'email con un bottone solo e
+    // nient'altro viene pesata male. Scrivere l'indirizzo in chiaro dice che
+    // non c'e' niente da nascondere, e si vede che e' **lo stesso dominio da
+    // cui arriva l'email**.
+    '<tr><td style="font-size:11px;line-height:1.5;color:#A1A1A6;padding-top:14px;word-break:break-all;">' +
+      'Se il tasto non funziona, copia questo indirizzo:<br>' +
+      link +
+      '</td></tr>',
     '<tr><td style="font-size:12px;line-height:1.5;color:#A1A1A6;padding-top:22px;">' +
       nota +
       '</td></tr>',
-    '<tr><td style="font-size:12px;color:#A1A1A6;padding-top:22px;border-top:1px solid #E8E8EA;">crasyapp.com</td></tr>',
+    // **A chi e' stata mandata, e perche'.**
+    //
+    // E' la riga che distingue un'email di servizio da una mandata alla cieca:
+    // dice il nome di chi riceve e il motivo, due cose che chi spedisce a
+    // caso non sa. Vale per chi legge — "l'ho chiesta io?" — e vale per i
+    // filtri, che la cercano.
+    '<tr><td style="font-size:12px;line-height:1.5;color:#A1A1A6;padding-top:22px;border-top:1px solid #E8E8EA;">' +
+      (a
+        ? 'Mandata a ' +
+          a +
+          ' perche&#39; e&#39; l&#39;indirizzo di un account CRASY. ' +
+          'Se non hai un account CRASY, questa email si butta.<br>'
+        : '') +
+      'crasyapp.com</td></tr>',
     '</table></td></tr></table></body></html>',
   ].join('');
 }
@@ -420,6 +446,7 @@ exports.mandaLaConferma = onCall(
         nota:
           'Il link vale un&#39;ora sola. Se non ti sei registrato tu, questa ' +
           'email si butta: senza il tocco non succede niente.',
+        a: persona.email,
       }),
     });
 
@@ -529,6 +556,7 @@ exports.mandaIlRecupero = onCall(
           'Il link vale un&#39;ora sola. Se non sei stato tu a chiederlo, ' +
           'ignora questa email: la tua password resta quella di prima, e ' +
           'nessuno l&#39;ha vista.',
+        a: indirizzo,
       }),
     });
 
