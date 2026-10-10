@@ -132,8 +132,29 @@ async function spedisci(messaggio) {
         greetingTimeout: 12000,
       });
 
-      await postino.sendMail(messaggio);
-      logger.info('email spedita', { porta: porta.port });
+      const esito = await postino.sendMail(messaggio);
+
+      // **Cosa ha risposto davvero il server di posta, non solo "e' andata".**
+      //
+      // Prima qui c'era solo `email spedita`, e quella riga diceva una cosa
+      // sola: che IONOS aveva preso in consegna il messaggio. Cosa ne facesse
+      // poi — consegnato, rifiutato da chi lo riceve, buttato in silenzio —
+      // non lo sapevamo, e quando qualcuno diceva "non mi e' arrivata" non
+      // c'era niente da leggere: i registri dicevano che era partita, e
+      // finiva li'.
+      //
+      // `accepted` e `rejected` sono gli indirizzi che il server ha preso e
+      // quelli che ha rifiutato **subito**, in faccia; `response` e' la riga
+      // esatta che ha detto, codice compreso. Non ci dice ancora cosa fara'
+      // Apple dopo — quello arriva come rimbalzo nella casella — ma distingue
+      // un rifiuto immediato da una consegna presa in carico, che sono due
+      // diagnosi opposte e prima si assomigliavano.
+      logger.info('email spedita', {
+        porta: porta.port,
+        presi: (esito.accepted || []).length,
+        rifiutati: esito.rejected || [],
+        risposta: String(esito.response || '').slice(0, 200),
+      });
 
       return;
     } catch (guaio) {
