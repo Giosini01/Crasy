@@ -261,6 +261,11 @@ exports.createPayoutOnboarding = payments.createPayoutOnboarding;
 exports.withdrawWallet = payments.withdrawWallet;
 exports.requestPayout = payments.requestPayout;
 exports.payChallengeFromWallet = payments.payChallengeFromWallet;
+
+// **Le missioni che partono da sole, finche' i soldi messi da parte durano.**
+// Vedi `salvadanaio.js`: e' una spinta per far partire il motore all'inizio,
+// con un fondo e una data di fine, non una funzione dell'app.
+exports.lanciaLeMissioni = require('./salvadanaio').lanciaLeMissioni;
 exports.adminListMance = payments.adminListMance;
 exports.adminListPayouts = payments.adminListPayouts;
 exports.adminMarkPayoutPaid = payments.adminMarkPayoutPaid;

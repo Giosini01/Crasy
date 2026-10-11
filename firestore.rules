@@ -162,6 +162,21 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // **Il salvadanaio: nessun telefono lo vede, nessun telefono lo tocca.**
+    //
+    // Dentro c'e' quanto spendere, quante missioni al giorno e fino a quando
+    // (vedi `functions/salvadanaio.js`). Non e' un segreto da nascondere a
+    // qualcuno in particolare: e' che **non riguarda nessuno** — chi apre
+    // l'app vede delle missioni vere, lanciate da una persona vera, con un
+    // premio vero. Chi preme il tasto e' una faccenda di contabilita'.
+    //
+    // E soprattutto non si scrive da fuori: un documento che decide quanti
+    // soldi far uscire da un portafoglio, scrivibile da un telefono, e' un
+    // portafoglio aperto.
+    match /salvadanai/{chi} {
+      allow read, write: if false;
+    }
+
     // Il profilo.
     //
     // **Lo legge chiunque abbia fatto l'accesso, lo scrive solo il diretto
