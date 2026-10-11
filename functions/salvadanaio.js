@@ -80,75 +80,79 @@ const db = admin.firestore();
 /**
  * **Le missioni che il server lancia, in ordine.**
  *
- * Non sono quelle che l'app propone a chi scrive da se', e non e' una svista:
- * quelle sono un menu da cui scegliere, queste sono una sequenza che si
- * srotola nel tempo. Una fila da sfogliare puo' permettersi dodici cose
- * simili; una sequenza che esce tre volte al giorno deve **alternare** — una
- * da casa, una che mette in imbarazzo, una col video — o dopo due giorni
- * sembra sempre la stessa.
+ * ## La regola che conta piu' di tutte: non somigliare a quelle che ci sono
  *
- * ## Come sono scelte
+ * CRASY ha gia' **una sfida del giorno scritta per ogni giorno** fino a fine
+ * mese — la stanza, le mani, il caffe', il pigiama, il disegno peggiore, la
+ * copertina di un disco. Il primo elenco che avevo scritto ci sbatteva dentro:
+ * "la tua faccia adesso" era la stessa cosa di "fai la faccia del cattivo",
+ * "balla dieci secondi" la stessa di "balla cinque secondi dove ti trovi".
  *
- * La regola e' una: **le deve poter fare chiunque, adesso, senza prepararsi.**
- * Una missione che chiede di andare da qualche parte, di avere una cosa
- * precisa in casa o di saper fare qualcosa la fanno in tre, e una gara con tre
- * foto e' peggio di nessuna gara.
+ * Due missioni quasi uguali nello stesso giorno sono peggio di una missione in
+ * meno: chi apre l'app pensa che ci sia un errore, e chi ha gia' mandato la
+ * foto all'una non la rifa' all'altra.
  *
- * Poi, in ordine di importanza:
+ * Quindi queste stanno **lontano** da quelle: niente stanza, niente mani,
+ * niente ballo, niente canto, niente disegno, niente oggetto vecchio, niente
+ * tramonto, niente pigiama, niente travestimenti, niente schermo.
  *
+ * ## Le altre regole
+ *
+ * - **le deve poter fare chiunque, adesso, senza prepararsi.** Una missione
+ *   che chiede di andare da qualche parte o di avere una cosa precisa in casa
+ *   la fanno in tre, e una gara con tre foto e' peggio di nessuna gara;
  * - **imbarazzanti, non difficili.** Chi guarda vuole vedere qualcuno che ci
- *   ha provato, non qualcuno che e' bravo. "La tua faccia adesso" la mandano
- *   tutti; "la foto piu' bella che sai fare" la manda chi ha una reflex;
+ *   ha provato, non qualcuno che e' bravo;
  * - **si capiscono dal titolo**, che spesso e' l'unica cosa che si legge;
  * - **fanno venire voglia di vedere le altre.** E' la meta' che si dimentica:
  *   una missione riuscita non e' una a cui e' bello partecipare, e' una in cui
- *   e' bello **guardare cosa hanno fatto gli altri**.
+ *   e' bello guardare cosa hanno mandato gli altri.
  *
- * Si gira in tondo: finite, si ricomincia.
+ * Si gira in tondo: finite, si ricomincia. Si cambiano da qui, e la pagina di
+ * amministrazione fa vedere quali sono le prossime cosi' si puo' saltare
+ * quella che oggi non va.
  */
 const MISSIONI = [
   {
-    titolo: 'LA TUA FACCIA ADESSO, COM’È',
+    titolo: 'SVUOTA LE TASCHE SUL TAVOLO',
     consegna:
-      'Un selfie in questo momento. Niente filtri, niente luce buona, niente '
-      + 'secondo tentativo: il primo che viene.',
+      'Tutto quello che hai addosso adesso, fuori, e una foto. Non vale '
+      + 'togliere le cose imbarazzanti: sono quelle che fanno vincere.',
   },
   {
-    titolo: 'APRI IL FRIGO E SCATTA',
-    consegna: 'Così com’è. Vince il più disperato, non il più pieno.',
-  },
-  {
-    titolo: 'FAI LA FACCIA DI TUA MADRE QUANDO SI ARRABBIA',
-    consegna: 'Un selfie con quella faccia lì. La riconosciamo tutti.',
-  },
-  {
-    titolo: 'IL CASINO PEGGIORE CHE HAI IN CASA',
+    titolo: 'LE SCARPE CHE HAI AI PIEDI ADESSO',
     consegna:
-      'Trova l’angolo più messo male e fotografalo. Vietato sistemare '
-      + 'niente prima: si vede.',
+      'Guarda in basso e scatta. Si vede dove sei stato oggi e quanto le '
+      + 'tratti bene.',
   },
   {
-    titolo: 'DIECI SECONDI DI BALLO, DOVE SEI ADESSO',
+    titolo: 'COSA SI VEDE DALLA TUA FINESTRA',
     consegna:
-      'Non serve saper ballare, serve farlo lì dove sei. Più è fuori luogo il '
-      + 'posto, meglio è.',
+      'Apri la prima finestra che hai vicino e fotografa quello che c’è '
+      + 'fuori. Com’è adesso, con questa luce.',
+  },
+  {
+    titolo: 'DI’ UNA BUGIA GUARDANDO IN CAMERA',
+    consegna:
+      'Dieci secondi. Raccontaci una cosa falsa con la faccia più seria che '
+      + 'hai: vediamo chi ci casca.',
     mediaKind: 'video',
   },
   {
-    titolo: 'COSA C’È SOTTO IL TUO LETTO',
-    consegna: 'Guarda sotto e fotografa quello che trovi. Senza togliere niente.',
+    titolo: 'FAI VEDERE LE TUE CHIAVI',
+    consegna:
+      'Tirale fuori e fotografale. Quante sono, i portachiavi, quella che non '
+      + 'sai più di cosa è.',
   },
   {
-    titolo: 'LA COSA PIÙ VECCHIA CHE HAI ADDOSSO',
-    consegna:
-      'Una maglietta di dieci anni fa, le scarpe distrutte, il braccialetto '
-      + 'del 2015. Fotografala addosso a te.',
+    titolo: 'IL CASSETTO PIÙ DISORDINATO CHE HAI',
+    consegna: 'Aprilo e scatta. Senza sistemare, senza chiudere a metà.',
   },
   {
-    titolo: 'FATTI FOTOGRAFARE DA QUALCUNO SENZA DIRGLI PERCHÉ',
+    titolo: 'CHI C’È CON TE IN QUESTO MOMENTO',
     consegna:
-      'Chiedi a chi hai vicino di farti una foto e non spiegare niente. '
-      + 'Manda quella che ha fatto lui.',
+      'Fotografa chi hai vicino adesso. Se non c’è nessuno, fotografa il '
+      + 'posto vuoto: vale uguale.',
   },
   {
     titolo: 'IMITA QUALCUNO CHE CONOSCIAMO TUTTI',
@@ -158,10 +162,59 @@ const MISSIONI = [
     mediaKind: 'video',
   },
   {
+    titolo: 'UNA COSA CHE HAI ROTTO E MAI AGGIUSTATO',
+    consegna:
+      'Ce l’hanno tutti. Trovala, fotografala, e sappi che ti stiamo '
+      + 'giudicando.',
+  },
+  {
     titolo: 'IL TUO ANIMALE MENTRE FA UNA COSA STUPIDA',
     consegna:
       'Aspetta il momento, non metterlo in posa. Se non ne hai uno, va bene '
       + 'quello di qualcun altro.',
+  },
+  {
+    titolo: 'L’ULTIMA FOTO CHE HAI FATTO',
+    consegna:
+      'Apri la galleria e manda l’ultima, qualunque sia. Niente scelte, '
+      + 'niente ripensamenti.',
+    source: 'archive',
+  },
+  {
+    titolo: 'FATTI FOTOGRAFARE SENZA DIRE PERCHÉ',
+    consegna:
+      'Chiedi a chi hai vicino di farti una foto e non spiegare niente. Manda '
+      + 'quella che ha fatto lui.',
+  },
+  {
+    titolo: 'DIMOSTRA CHE SAI FARE UNA COSA INUTILE',
+    consegna:
+      'Dieci secondi per far vedere il tuo talento che non serve a niente. '
+      + 'Più è inutile, più vale.',
+    mediaKind: 'video',
+  },
+  {
+    titolo: 'IL TUO ZAINO O LA TUA BORSA, APERTI',
+    consegna: 'Aprila e fotografa dentro. Senza togliere niente prima.',
+  },
+  {
+    titolo: 'LA PRIMA COSA ALLA TUA DESTRA',
+    consegna:
+      'Non scegliere: guarda a destra e fotografa la prima cosa che vedi. '
+      + 'Qualunque sia.',
+  },
+  {
+    titolo: 'COSA HAI MANGIATO OGGI',
+    consegna:
+      'Fotografa quello che hai davanti, o quello che è rimasto. Soprattutto '
+      + 'se non è una cosa da far vedere.',
+  },
+  {
+    titolo: 'TU IN UNA VECCHIA FOTO DI GRUPPO',
+    consegna:
+      'Trovane una dove ci sei anche tu e si capisce poco chi sei. Vale di '
+      + 'più se è venuta male.',
+    source: 'archive',
   },
   {
     titolo: 'FA’ FINTA DI ESSERE RICCO CON QUELLO CHE HAI IN CASA',
@@ -170,57 +223,13 @@ const MISSIONI = [
       + 'quello che hai lì.',
   },
   {
-    titolo: 'COSA STAI MANGIANDO, ANCHE SE FA SCHIFO',
-    consegna:
-      'Fotografa quello che hai davanti adesso. Soprattutto se non è una cosa '
-      + 'da far vedere.',
-  },
-  {
-    titolo: 'METTITI UNA COSA DI UN TUO PARENTE',
-    consegna:
-      'Un giubbotto di tuo padre, gli occhiali di tua nonna, una felpa di tuo '
-      + 'fratello. Addosso a te, e si vede che non è tua.',
-  },
-  {
     titolo: 'IL POSTO PIÙ BRUTTO DOVE SEI STATO OGGI',
-    consegna: 'Una foto di adesso o di oggi. Più è squallido più vale.',
+    consegna: 'Una foto fatta oggi. Più è squallido più vale.',
   },
   {
-    titolo: 'DI’ UNA BUGIA GUARDANDO IN CAMERA',
+    titolo: 'FAI UNA FOTO AI PIEDI DI CHI È CON TE',
     consegna:
-      'Dieci secondi. Raccontaci una cosa falsa con la faccia più seria che '
-      + 'hai: vediamo chi ci crede.',
-    mediaKind: 'video',
-  },
-  {
-    titolo: 'LA TUA SCRIVANIA O IL TUO TAVOLO, ADESSO',
-    consegna:
-      'Scatta senza spostare niente. La prima cosa che si vede è quanto ci '
-      + 'hai provato a non sistemare.',
-  },
-  {
-    titolo: 'FATTI UNA FOTO COME SE FOSSE UNA COPERTINA DI UN DISCO',
-    consegna:
-      'Posa seria, sguardo lontano, quello che hai intorno. Il titolo lo '
-      + 'immaginiamo noi.',
-  },
-  {
-    titolo: 'LA FOTO PIÙ BRUTTA CHE HAI IN GALLERIA',
-    consegna:
-      'Cercala davvero: quella che non hai mai fatto vedere a nessuno e che '
-      + 'non hai mai avuto il coraggio di cancellare.',
-    source: 'archive',
-  },
-  {
-    titolo: 'TU DA PICCOLO',
-    consegna: 'Una foto di quando eri bambino. Più è imbarazzante più vale.',
-    source: 'archive',
-  },
-  {
-    titolo: 'LE SCARPE CHE HAI AI PIEDI ADESSO',
-    consegna:
-      'Guarda in basso e scatta. Si vede tutto: dove sei stato e quanto le '
-      + 'tieni bene.',
+      'Non ai tuoi: a quelli di qualcun altro. Chiediglielo, o rischia.',
   },
 ];
 
@@ -321,7 +330,7 @@ async function scriviLaGara(chi, missione, scelte) {
  * riempiano davvero.
  */
 exports.lanciaLeMissioni = onSchedule(
-  { schedule: '0 10,14,19 * * *', timeZone: 'Europe/Rome' },
+  { schedule: '0 10,14,19,20 * * *', timeZone: 'Europe/Rome' },
   async () => {
     const oggi = oggiInItalia();
     const salvadanai = await db
@@ -420,7 +429,9 @@ async function lanciaPerUno(salvadanaio, oggi) {
     return { ok: false, reason: 'fondo-finito' };
   }
 
-  const quante = scelte.lanciate || 0;
+  // Le saltate contano nell'indice: saltarne una vuol dire passare alla
+  // successiva, non rifare la stessa al giro dopo.
+  const quante = (scelte.lanciate || 0) + (scelte.saltate || 0);
   const missione = MISSIONI[quante % MISSIONI.length];
 
   const gara = await scriviLaGara(
@@ -630,5 +641,97 @@ async function lanciaOra(salvadanaio) {
 }
 
 exports.lanciaOra = lanciaOra;
+
+/**
+ * **Quali saranno le prossime, e a che ora.**
+ *
+ * Serve alla pagina di amministrazione, e serve a una cosa precisa: potersi
+ * accorgere **prima** che la missione di domani alle dieci e' la stessa cosa
+ * della sfida del giorno. E' gia' successo — "la tua faccia adesso" e "fai la
+ * faccia del cattivo" lo stesso giorno — e dopo e' tardi: la gara e' pubblica,
+ * qualcuno ha gia' mandato la foto, annullarla vuol dire togliergli una delle
+ * sue cinque di oggi.
+ *
+ * Gli orari li calcola con le stesse ore della funzione a orario. Se quelle
+ * cambiano, va cambiato anche qui: e' una copia, ed e' l'unica cosa di questo
+ * file che puo' andare fuori sincrono senza che nessuno se ne accorga.
+ */
+const ORE_DI_LANCIO = [10, 14, 19, 20];
+
+function prossime(salvadanaio, quante) {
+  const dati = salvadanaio.data() || {};
+  const oggi = oggiInItalia();
+  const fatteOggi = dati.giorno === oggi ? dati.fatte || 0 : 0;
+  const alGiorno = dati.alGiorno || 1;
+  const saltate = dati.saltate || 0;
+
+  // Da che ora in poi si puo' ancora lanciare oggi.
+  const adesso = new Date(
+    new Date().toLocaleString('en-US', { timeZone: 'Europe/Rome' })
+  );
+
+  const elenco = [];
+  let indice = (dati.lanciate || 0) + saltate;
+  let rimaste = alGiorno - fatteOggi;
+  let giorno = 0;
+
+  while (elenco.length < quante && giorno < 14) {
+    for (const ora of ORE_DI_LANCIO) {
+      if (elenco.length >= quante) {
+        break;
+      }
+
+      if (giorno === 0 && (ora <= adesso.getHours() || rimaste <= 0)) {
+        continue;
+      }
+
+      if (giorno > 0 && elenco.filter((e) => e.giorno === giorno).length >= alGiorno) {
+        continue;
+      }
+
+      const quando = new Date(adesso);
+      quando.setDate(quando.getDate() + giorno);
+      quando.setHours(ora, 0, 0, 0);
+
+      const missione = MISSIONI[indice % MISSIONI.length];
+
+      elenco.push({
+        giorno,
+        quando: quando.getTime(),
+        titolo: missione.titolo,
+        consegna: missione.consegna,
+        mediaKind: missione.mediaKind || 'photo',
+        source: missione.source || 'instant',
+      });
+
+      indice += 1;
+      rimaste -= 1;
+    }
+
+    giorno += 1;
+  }
+
+  return elenco;
+}
+
+/**
+ * Salta la prossima missione in coda.
+ *
+ * **Non la toglie dall'elenco: la rimanda in fondo al giro.** Una missione che
+ * oggi assomiglia alla sfida del giorno fra due settimane non assomigliera' a
+ * niente, e cancellarla per un'uguaglianza di un giorno vorrebbe dire perderla
+ * per sempre.
+ */
+async function salta(salvadanaio) {
+  await salvadanaio.ref.update({
+    saltate: admin.firestore.FieldValue.increment(1),
+  });
+
+  return { ok: true };
+}
+
+exports.prossime = prossime;
+exports.salta = salta;
+
 exports.MISSIONI = MISSIONI;
 exports.pagaDalFondo = pagaDalFondo;

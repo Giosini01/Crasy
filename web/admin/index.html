@@ -140,6 +140,9 @@
   .riga-piccola { font-size: 13px; opacity: .65; margin-top: 2px; }
   .vuoto { opacity: .65; }
   .acceso { color: #16a34a; font-weight: 600; }
+  .sotto { font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+           opacity: .5; margin-top: 10px; }
+  .tenue { opacity: .6; }
   .spento { color: #dc2626; font-weight: 600; }
 
   .stato {
@@ -345,6 +348,7 @@ const impostaVerificato = httpsCallable(functions, 'adminImpostaVerificato');
 const chiediFondo = httpsCallable(functions, 'adminFondo');
 const fermaIlFondo = httpsCallable(functions, 'adminFermaIlFondo');
 const lanciaDalFondo = httpsCallable(functions, 'adminLanciaDalFondo');
+const saltaLaProssima = httpsCallable(functions, 'adminSaltaLaProssima');
 
 const $ = (id) => document.getElementById(id);
 const accesso = $('accesso');
@@ -916,8 +920,39 @@ async function mostraIlFondo() {
       const oggi = new Date().toLocaleDateString('sv-SE');
       const fatteOggi = f.giorno === oggi ? f.fatte : 0;
 
+      // **Le prossime, con l'orario.** E' la parte che serve davvero: da qui
+      // ci si accorge *prima* che domani alle dieci esce una missione uguale
+      // alla sfida del giorno, e si salta. Dopo e' tardi — la gara e'
+      // pubblica e qualcuno ci ha gia' messo una foto.
+      const prossime = (f.prossime || []).length
+        ? '<div class="sotto">In arrivo</div>' +
+          f.prossime
+            .map(
+              (p) =>
+                '<div class="riga-piccola"><strong>' +
+                new Date(p.quando).toLocaleString('it-IT', {
+                  weekday: 'short',
+                  day: '2-digit',
+                  month: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }) +
+                '</strong> &middot; ' +
+                p.titolo +
+                ' <span class="tenue">(' +
+                (p.mediaKind === 'video' ? 'video' : 'foto') +
+                ', ' +
+                (p.source === 'archive' ? 'archivio' : 'adesso') +
+                ')</span><br><span class="tenue">' +
+                p.consegna +
+                '</span></div>'
+            )
+            .join('')
+        : '';
+
       const ultime = f.ultime.length
-        ? f.ultime
+        ? '<div class="sotto">Gi\u00e0 lanciate</div>' +
+          f.ultime
             .map(
               (u) =>
                 '<div class="riga-piccola">' +
@@ -973,6 +1008,9 @@ async function mostraIlFondo() {
         '<button data-lancia="' +
         f.uid +
         '">Lancia adesso</button> ' +
+        '<button data-salta="' +
+        f.uid +
+        '">Salta la prossima</button> ' +
         '<button data-ferma="' +
         f.uid +
         '" data-acceso="' +
@@ -981,6 +1019,7 @@ async function mostraIlFondo() {
         (f.acceso ? 'Ferma' : 'Riaccendi') +
         '</button>' +
         '</div>' +
+        prossime +
         ultime +
         '</div>'
       );
@@ -1004,6 +1043,20 @@ async function mostraIlFondo() {
         );
       } catch (guaio) {
         alert('Non lanciata: ' + guaio.message);
+      }
+
+      await mostraIlFondo();
+    });
+  });
+
+  dove.querySelectorAll('[data-salta]').forEach((tasto) => {
+    tasto.addEventListener('click', async () => {
+      tasto.disabled = true;
+
+      try {
+        await saltaLaProssima({ uid: tasto.dataset.salta });
+      } catch (guaio) {
+        alert(guaio.message);
       }
 
       await mostraIlFondo();

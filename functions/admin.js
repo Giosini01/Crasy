@@ -634,6 +634,10 @@ exports.adminFondo = onCall(async (request) => {
       fino: dati.fino || '',
       fatte: dati.fatte || 0,
       giorno: dati.giorno || '',
+      // Le prossime cinque, con l'orario: e' quello che permette di
+      // accorgersi **prima** che domani alle dieci esce una missione uguale
+      // alla sfida del giorno.
+      prossime: fondo.prossime(salvadanaio, 5),
       ultime: lanciate.docs.map((riga) => ({
         gara: riga.id,
         titolo: riga.get('titolo') || '',
@@ -700,4 +704,25 @@ exports.adminLanciaDalFondo = onCall(async (request) => {
   const esito = await fondo.lanciaOra(salvadanaio);
 
   return esito;
+});
+
+/**
+ * Salta la prossima missione in coda, rimandandola in fondo al giro.
+ */
+exports.adminSaltaLaProssima = onCall(async (request) => {
+  soloAdmin(request);
+
+  const uid = String((request.data && request.data.uid) || '');
+
+  if (!uid) {
+    throw new HttpsError('invalid-argument', 'Manca di chi.');
+  }
+
+  const salvadanaio = await db.collection('salvadanai').doc(uid).get();
+
+  if (!salvadanaio.exists) {
+    throw new HttpsError('not-found', 'Nessun fondo per questa persona.');
+  }
+
+  return fondo.salta(salvadanaio);
 });

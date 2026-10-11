@@ -1278,6 +1278,52 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
   // sulla carta ne' nel portafoglio: restavano scritti da nessuna parte,
   // perche' subito dopo la gara viene cancellata. Erano soldi persi, e
   // l'unico a saperlo era chi li aveva messi.
+  // **Una gara del fondo torna al fondo.** Stesso buco del portafoglio, e
+  // ci sono gia' caduto: due missioni annullate hanno portato via due euro
+  // che non sono tornati da nessuna parte. Su Stripe quei soldi ci sono
+  // ancora — il fondo e' un prepagato, non un addebito per gara — quindi
+  // l'unica cosa giusta e' rimetterli dove stavano.
+  const dalFondo = snapshot.get('pagataDalFondo') === true;
+
+  if (dalFondo) {
+    const chi = snapshot.get('createdByUserId');
+    const premio = snapshot.get('prizeCents') || 0;
+
+    if (chi && premio > 0) {
+      await db
+        .collection('salvadanai')
+        .doc(chi)
+        .update({
+          fondoCents: admin.firestore.FieldValue.increment(premio),
+          spesiCents: admin.firestore.FieldValue.increment(-premio),
+        });
+
+      // E la classifica di chi fa giocare: una gara annullata non ha fatto
+      // giocare nessuno.
+      await db
+        .collection('users')
+        .doc(chi)
+        .update({
+          totalStakedCents: admin.firestore.FieldValue.increment(-premio),
+          totalStakedCount: admin.firestore.FieldValue.increment(-1),
+        });
+
+      await scriviNelRegistro(chi, `rimborso_${challengeId}`, {
+        kind: 'refund',
+        amountCents: premio,
+        challengeId,
+        challengeTitle: snapshot.get('title') || '',
+        source: 'card',
+        note: 'Missione annullata, premio tornato nel fondo',
+      });
+    }
+
+    await ref.update({ prizeStatus: 'refunded' });
+    logger.info('premio tornato nel fondo', { challengeId, chi });
+
+    return;
+  }
+
   if (!paymentIntentId && !dalPortafoglio) {
     return;
   }

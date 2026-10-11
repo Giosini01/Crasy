@@ -299,6 +299,7 @@ exports.adminWhoAmI = amministrazione.adminWhoAmI;
 exports.adminFondo = amministrazione.adminFondo;
 exports.adminFermaIlFondo = amministrazione.adminFermaIlFondo;
 exports.adminLanciaDalFondo = amministrazione.adminLanciaDalFondo;
+exports.adminSaltaLaProssima = amministrazione.adminSaltaLaProssima;
 exports.adminListReports = amministrazione.adminListReports;
 exports.adminResolveReport = amministrazione.adminResolveReport;
 exports.adminOnline = amministrazione.adminOnline;
@@ -2471,11 +2472,25 @@ exports.announceLiveChallenge = onDocumentWritten(
     // che a passare sia una sola, e l'altra se ne vada in silenzio.
     const limite = Date.now() - ORE_FRA_UN_ANNUNCIO_E_L_ALTRO * 3600000;
 
+    // **Le missioni del fondo l'annuncio ce l'hanno sempre.**
+    //
+    // Il limite di uno ogni tre ore esiste per quando a lanciare sono le
+    // persone: in una giornata viva sono dieci gare, e dieci notifiche le
+    // spegne chiunque. Le missioni del fondo invece sono **tre al giorno, a
+    // orari decisi**, e sono li' apposta per far tornare la gente: sono
+    // esattamente le notifiche che devono arrivare.
+    //
+    // E' successo che ne partissero due e nessuno le vedesse, perche' poco
+    // prima era uscito l'annuncio di una gara di qualcun altro e il posto era
+    // gia' preso. Il posto se lo prendono lo stesso — cosi' una gara lanciata
+    // da una persona subito dopo non raddoppia l'avviso — ma non lo aspettano.
+    const dalFondo = dati.pagataDalFondo === true;
+
     const mando = await db.runTransaction(async (t) => {
       const memoria = await t.get(MEMORIA);
       const ultimo = memoria.get('ultimaGaraNuova')?.toMillis?.() || 0;
 
-      if (ultimo > limite) {
+      if (!dalFondo && ultimo > limite) {
         return false;
       }
 
