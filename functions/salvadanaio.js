@@ -269,7 +269,12 @@ async function scriviLaGara(chi, missione, scelte) {
     prizeCents: scelte.premioCents,
     scope: 'global',
     source: missione.source || 'instant',
-    audience: ['everyone'],
+    // **L'asterisco, non la parola.** Chi la puo' vedere viaggia dentro la
+    // gara, e la home chiede `audience` che contiene `'*'` — vedi
+    // `Challenge.everyone` nell'app. Scrivendoci `'everyone'` la gara nasce
+    // giusta in tutto il resto e **non compare da nessuna parte**: nessun
+    // errore, nessun avviso, semplicemente non c'e'. E' successo.
+    audience: ['*'],
     // **Dieci posti, salvo diverso.** Zero vorrebbe dire senza limite, ed e'
     // il ripiego sbagliato per queste: con dieci foto si guardano tutte e il
     // voto vale qualcosa, e un premio diviso per una possibilita' su dieci

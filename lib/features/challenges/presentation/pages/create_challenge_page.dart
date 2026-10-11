@@ -816,7 +816,13 @@ class _MissioniPronte extends StatelessWidget {
       children: [
         const _SectionLabel('Non sai cosa far fare?'),
         SizedBox(
-          height: 128,
+          // **Basse e strette.** Erano quadrati grossi, e un quadrato grosso in
+          // cima a un modulo si legge come il contenuto principale: sembrava
+          // che la cosa da fare fosse scegliere una di quelle, e che scrivere
+          // la propria fosse il ripiego. Cosi' invece e' un suggerimento di
+          // passaggio — se ne vedono tre, non due — e il modulo resta la
+          // schermata.
+          height: 84,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             // Il margine laterale lo mette la schermata, ma una fila che
@@ -832,8 +838,8 @@ class _MissioniPronte extends StatelessWidget {
                 onTap: () => onScegli(pronta),
                 behavior: HitTestBehavior.opaque,
                 child: Container(
-                  width: 190,
-                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  width: 148,
+                  padding: const EdgeInsets.all(AppSpacing.xs),
                   decoration: BoxDecoration(
                     color: palette.surfaceMuted,
                     borderRadius: BorderRadius.circular(AppRadius.md),
@@ -847,21 +853,18 @@ class _MissioniPronte extends StatelessWidget {
                           pronta.titolo,
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
-                          style: texts.titleSmall,
+                          style: texts.labelMedium,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.xxs),
+                      // **Via "LANCIA QUESTA".** In una scheda piccola erano
+                      // tre righe di cui due spiegavano come si usa una cosa
+                      // che si capisce da sola: si tocca. Resta cosa manda chi
+                      // partecipa, che invece e' una differenza vera fra una
+                      // missione e l'altra.
                       Text(
                         '${pronta.mediaKind.label} · ${pronta.source.label}',
                         style: texts.bodySmall?.copyWith(
                           color: palette.textFaint,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xxs),
-                      Text(
-                        'LANCIA QUESTA',
-                        style: texts.labelSmall?.copyWith(
-                          color: palette.accent,
                         ),
                       ),
                     ],
