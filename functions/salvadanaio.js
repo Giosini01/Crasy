@@ -145,6 +145,28 @@ const MISSIONI = [
   },
 ];
 
+/**
+ * **Chi puo' avere un salvadanaio, scritto qui e in nessun altro posto.**
+ *
+ * Due persone, per nome e cognome. Non un permesso, non un campo da
+ * accendere: un elenco chiuso dentro il codice.
+ *
+ * Sembra eccessivo visto che quella collezione nessun telefono la puo'
+ * scrivere, e infatti non difende da un telefono: difende da **noi**. Un
+ * documento scritto per sbaglio con l'identificativo sbagliato, una riga di
+ * strumento lanciata con il nome di un altro, e il server comincerebbe a
+ * lanciare missioni a nome di una persona che non ne sa niente, spendendo i
+ * suoi soldi. Non e' un attacco, e' un errore di battitura — e gli errori di
+ * battitura capitano, mentre questo elenco no.
+ *
+ * Il giorno in cui si vuole allargarlo, si allarga qui: una riga, con una
+ * decisione presa apposta invece che per inerzia.
+ */
+const PADRONI = [
+  'vlwARzcTJUO71knlvXJEc5b711y1', // giosyni
+  'zialfmbJK7XawXbBUWcXKGff2xj2', // franksy
+];
+
 /** Il giorno di oggi in Italia, come lo scrivono le sfide: `2026-10-31`. */
 function oggiInItalia() {
   return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Rome' });
@@ -191,11 +213,6 @@ async function scriviLaGara(chi, missione, scelte) {
     respondedAt: null,
     prizeStatus: 'unpaid',
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    // **Il segno che l'ha lanciata il salvadanaio.** Non si vede nell'app e
-    // non deve: la gara e' vera e l'autore e' vero. Serve a noi, per sapere
-    // quali sono partite da sole il giorno in cui i conti non tornano o
-    // bisogna fermarle tutte insieme.
-    dalSalvadanaio: true,
   });
 
   return gara;
@@ -226,6 +243,14 @@ exports.lanciaLeMissioni = onSchedule(
     }
 
     for (const salvadanaio of salvadanai.docs) {
+      if (!PADRONI.includes(salvadanaio.id)) {
+        logger.error('salvadanaio di qualcuno che non e nell elenco', {
+          chi: salvadanaio.id,
+        });
+
+        continue;
+      }
+
       try {
         await lanciaPerUno(salvadanaio, oggi);
       } catch (errore) {
@@ -323,6 +348,27 @@ async function lanciaPerUno(salvadanaio, oggi) {
     lanciate: quante + 1,
     ultima: admin.firestore.FieldValue.serverTimestamp(),
   });
+
+  // **La traccia sta qui dentro, non sulla gara.**
+  //
+  // All'inizio il segno era un campo sulla gara stessa, `dalSalvadanaio`. Era
+  // sbagliato: le gare **le legge chiunque abbia fatto l'accesso** — e' cosi'
+  // che si vedono nella home — quindi quel campo raccontava a tutti quali
+  // missioni erano partite da sole. Non lo mostrava nessuna schermata, ma il
+  // dato c'era, e un dato che c'e' prima o poi qualcuno lo legge.
+  //
+  // Qui invece sta dentro `salvadanai`, che nessun telefono puo' nemmeno
+  // aprire. Serve lo stesso scopo — sapere quali sono partite da sole quando
+  // i conti non tornano, o doverle fermare tutte insieme — senza dirlo a
+  // nessun altro.
+  await salvadanaio.ref
+      .collection('lanciate')
+      .doc(gara.id)
+      .set({
+        titolo: missione.titolo,
+        premioCents: premio,
+        quando: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
   logger.info('missione lanciata dal salvadanaio', {
     userId,
