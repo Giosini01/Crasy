@@ -9,6 +9,7 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/theme/seasons/season_skin.dart';
+import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/countdown_text.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
@@ -838,6 +839,21 @@ class _BottomAction extends ConsumerWidget {
         AppSpacing.sm + MediaQuery.paddingOf(context).bottom,
       ),
       child: switch ((ended, miaEChiusaAMe, myEntry)) {
+        // **A chi ha appena vinto si propone di rilanciare.**
+        //
+        // Il momento in cui qualcuno lancerebbe una missione non e' "quando
+        // apre l'app": e' adesso. Ha i soldi nel portafoglio, e' contento, e ha
+        // appena visto con i suoi occhi che il giro funziona. Fuori da qui la
+        // stessa proposta e' una richiesta di spendere; qui e' la cosa ovvia da
+        // fare dopo.
+        //
+        // C'e' anche una ragione che riguarda CRASY e non chi legge, e tanto
+        // vale scriverla: un euro vinto e rilanciato fa girare l'app due volte
+        // e lascia la commissione sul lancio. Un euro prelevato se ne va, e in
+        // piu' costa le spese del prelievo.
+        (true, _, _) when challenge.hoVintoIo(meId) => _FalliGiocare(
+          vinto: challenge.prizeCents,
+        ),
         (true, _, _) => ChallengeMetaRow(challenge: challenge),
         (false, true, _) => Row(
           children: [
@@ -901,6 +917,59 @@ class _BottomAction extends ConsumerWidget {
           ],
         ),
       },
+    );
+  }
+}
+
+/// L'invito a rilanciare, a chi ha appena vinto.
+///
+/// **Non dice "lancia una missione": dice cosa fare con quei soldi.** La prima
+/// e' una richiesta di spendere, e si legge come tale; la seconda racconta
+/// cosa sono diventati i soldi appena vinti. Sono la stessa azione e due cose
+/// diverse.
+///
+/// Si puo' ignorare: e' una riga in fondo a una gara finita, non un riquadro
+/// che si apre davanti. Chi vuole solo godersi la vittoria chiude e va.
+class _FalliGiocare extends StatelessWidget {
+  const _FalliGiocare({required this.vinto});
+
+  final int vinto;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                vinto > 0 ? 'Hai vinto ${AppMoney.format(vinto)}' : 'Hai vinto',
+                style: context.texts.titleSmall?.copyWith(
+                  color: palette.accent,
+                ),
+              ),
+              Text(
+                'Falli giocare: lancia tu la prossima.',
+                style: context.texts.bodySmall?.copyWith(
+                  color: palette.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        TextButton(
+          onPressed: () => context.push(AppRoutes.create),
+          child: Text(
+            'LANCIA',
+            style: context.texts.labelSmall?.copyWith(color: palette.accent),
+          ),
+        ),
+      ],
     );
   }
 }

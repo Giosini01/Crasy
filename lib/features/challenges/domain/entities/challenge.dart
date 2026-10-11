@@ -314,6 +314,19 @@ class Challenge {
   /// Vero se questa missione e' una sfida lanciata a una persona sola.
   bool get isDuel => targetUserId.isNotEmpty;
 
+  /// Se a vincerla e' stata la persona che sta guardando.
+  ///
+  /// Sta qui e non nella schermata perche' il confronto ha due trappole, e
+  /// scritte a mano in piu' posti prima o poi una si dimentica: una gara
+  /// **senza vincitore** ha il campo vuoto, e chi guarda **senza essere
+  /// entrato** non ha un identificativo. Confrontare due stringhe vuote dice
+  /// "hai vinto" a chiunque apra una gara chiusa male.
+  bool hoVintoIo(String? chiGuarda) =>
+      winnerUserId.isNotEmpty &&
+      chiGuarda != null &&
+      chiGuarda.isNotEmpty &&
+      winnerUserId == chiGuarda;
+
   /// **Se chi l'ha lanciata puo' anche scendere in gara.**
   ///
   /// Prima non poteva mai, e la regola era scritta in cinque posti: mette lui i
