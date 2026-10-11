@@ -1553,19 +1553,19 @@ module.exports.chargeCents = chargeCents;
  * prima che l'altro scriva, e scalerebbero il premio due volte per una gara
  * sola. Riletta li' dentro, la seconda trova `held` e si ferma.
  */
-/**
- * **Paga il premio di una gara col saldo di chi l'ha lanciata.**
- *
- * Sta fuori dalla funzione chiamabile perche' la chiamano in due: il tasto
- * nell'app, e la funzione a orario che lancia le missioni del salvadanaio
- * (vedi `salvadanaio.js`). Copiarla avrebbe voluto dire due contabilita' che
- * al primo cambiamento si dicono cose diverse — e sono soldi veri.
- *
- * Fa tutto quello che serve perche' la gara sia indistinguibile da una pagata
- * a mano: scala il saldo, segna la gara come pagata, fa ripartire il suo
- * orologio, scrive il movimento nel portafoglio e la riga nel registro.
- */
-async function pagaDalPortafoglio(userId, challengeId) {
+exports.payChallengeFromWallet = onCall(async (request) => {
+  const userId = request.auth && request.auth.uid;
+
+  if (!userId) {
+    throw new HttpsError('unauthenticated', 'Serve un account.');
+  }
+
+  const challengeId = String((request.data && request.data.challengeId) || '');
+
+  if (!challengeId) {
+    throw new HttpsError('invalid-argument', 'Manca la challenge.');
+  }
+
   const userRef = db.collection('users').doc(userId);
   const challengeRef = db.collection('challenges').doc(challengeId);
   const movimentoRef = userRef.collection('wallet').doc();
@@ -1681,25 +1681,7 @@ async function pagaDalPortafoglio(userId, challengeId) {
   }
 
   return esito;
-}
-
-exports.payChallengeFromWallet = onCall(async (request) => {
-  const userId = request.auth && request.auth.uid;
-
-  if (!userId) {
-    throw new HttpsError('unauthenticated', 'Serve un account.');
-  }
-
-  const challengeId = String((request.data && request.data.challengeId) || '');
-
-  if (!challengeId) {
-    throw new HttpsError('invalid-argument', 'Manca la challenge.');
-  }
-
-  return pagaDalPortafoglio(userId, challengeId);
 });
-
-exports.pagaDalPortafoglio = pagaDalPortafoglio;
 
 exports.requestPayout = onCall(async (request) => {
   const userId = request.auth && request.auth.uid;
