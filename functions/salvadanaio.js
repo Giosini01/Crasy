@@ -127,19 +127,6 @@ const MISSIONI = [
     source: 'archive',
   },
   {
-    titolo: 'IL TUO TAGLIO DI CAPELLI PEGGIORE',
-    consegna:
-      'Scorri indietro finché non lo trovi. Lo sai già qual è, e sai anche '
-      + 'che non l’hai cancellata.',
-    source: 'archive',
-  },
-  {
-    titolo: 'LE SCARPE CHE HAI AI PIEDI ADESSO',
-    consegna:
-      'Guarda in basso e scatta. Si vede dove sei stato oggi e quanto le '
-      + 'tratti bene.',
-  },
-  {
     titolo: 'TU DA PICCOLO',
     consegna:
       'Una foto di quando eri bambino. Più è brutta la stampa, più vale.',
@@ -243,6 +230,28 @@ const MISSIONI = [
     consegna:
       'Scorri fino a gennaio e manda la prima che trovi. Nessuno si ricorda '
       + 'cosa stava facendo.',
+    source: 'archive',
+  },
+  {
+    titolo: 'IL TUO ULTIMO MESSAGGIO MANDATO',
+    consegna:
+      'Apri l’ultima chat, screenshot dell’ultima cosa che hai '
+      + 'scritto tu. Senza sceglierla. Taglia via il nome di chi legge: '
+      + 'interessa cosa hai scritto, non a chi.',
+    source: 'archive',
+  },
+  {
+    titolo: 'LA CHAT PIÙ STRANA CHE HAI AVUTO',
+    consegna:
+      'Uno screenshot del pezzo migliore. Taglia via nome, numero e foto '
+      + 'dell’altra persona: quella non ha chiesto di finire in gara.',
+    source: 'archive',
+  },
+  {
+    titolo: 'L’ULTIMO CASO UMANO CHE TI HA SCRITTO',
+    consegna:
+      'Screenshot del messaggio più assurdo che hai ricevuto. Nome e numero '
+      + 'tagliati fuori: si ride di cosa ha scritto, non di chi è.',
     source: 'archive',
   },
   {
@@ -694,7 +703,7 @@ function prossime(salvadanaio, quante) {
   let rimaste = alGiorno - fatteOggi;
   let giorno = 0;
 
-  while (elenco.length < quante && giorno < 14) {
+  while (elenco.length < quante && giorno < 30) {
     for (const ora of ORE_DI_LANCIO) {
       if (elenco.length >= quante) {
         break;

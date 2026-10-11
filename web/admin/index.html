@@ -175,6 +175,14 @@
     border-radius: 999px; padding: 1px 7px; margin-left: 6px; opacity: .6;
   }
   .fondo-niente { font-size: 13px; opacity: .5; padding: 8px 0; }
+  .fondo-giorno {
+    font-size: 12px; font-weight: 800; text-transform: capitalize;
+    margin-top: 14px; padding-bottom: 2px; opacity: .8;
+  }
+  .fondo-giorno:first-child { margin-top: 0; }
+  /* La colonna delle prossime puo' essere lunga venticinque righe: si scorre
+     dentro di se', invece di allungare tutta la pagina. */
+  .fondo-colonna { max-height: 520px; overflow-y: auto; }
   .spento { color: #dc2626; font-weight: 600; }
 
   .stato {
@@ -976,20 +984,43 @@ async function mostraIlFondo() {
       const oggi = new Date().toLocaleDateString('sv-SE');
       const fatteOggi = f.giorno === oggi ? f.fatte : 0;
 
+      // **Raggruppate per giorno.** Venticinque righe di fila sono un muro:
+      // con l'intestazione del giorno si legge come un calendario, e si vede
+      // subito quante ne escono in una giornata e quali capitano insieme.
+      let giornoScritto = '';
+
       const inArrivo = (f.prossime || []).length
         ? f.prossime
-            .map(
-              (p) =>
+            .map((p) => {
+              const data = new Date(p.quando);
+              const giorno = data.toLocaleDateString('it-IT', {
+                weekday: 'long',
+                day: '2-digit',
+                month: 'long',
+              });
+              const intestazione =
+                giorno === giornoScritto
+                  ? ''
+                  : '<div class="fondo-giorno">' + giorno + '</div>';
+
+              giornoScritto = giorno;
+
+              return (
+                intestazione +
                 '<div class="fondo-voce">' +
                 '<div class="fondo-quando">' +
-                quando(p.quando) +
+                data.toLocaleTimeString('it-IT', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }) +
                 '</div>' +
                 p.titolo +
                 tag(p) +
                 '<div class="fondo-consegna">' +
                 p.consegna +
                 '</div></div>'
-            )
+              );
+            })
             .join('')
         : '<div class="fondo-niente">Niente in coda: il fondo è fermo.</div>';
 

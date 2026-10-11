@@ -637,7 +637,21 @@ exports.adminFondo = onCall(async (request) => {
       // Le prossime cinque, con l'orario: e' quello che permette di
       // accorgersi **prima** che domani alle dieci esce una missione uguale
       // alla sfida del giorno.
-      prossime: fondo.prossime(salvadanaio, 5),
+      // **Tutte, non le prime cinque.** La domanda che uno si fa aprendo
+      // questa pagina non e' "cosa esce stasera" ma "cosa ho in programma":
+      // e' guardando il piano intero che ci si accorge che giovedi' esce una
+      // missione uguale alla sfida del giorno, o che le prime sei sono tutte
+      // dall'archivio di fila. Cinque righe non bastano per vedere niente di
+      // tutto questo.
+      //
+      // Quante ne stanno nel fondo, e non una in piu': oltre quelle non c'e'
+      // nessun programma, ci sono soldi che non esistono.
+      prossime: fondo.prossime(
+        salvadanaio,
+        dati.premioCents
+          ? Math.min(40, Math.floor((dati.fondoCents || 0) / dati.premioCents))
+          : 0
+      ),
       ultime: lanciate.docs.map((riga) => ({
         gara: riga.id,
         titolo: riga.get('titolo') || '',
