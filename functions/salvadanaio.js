@@ -80,44 +80,58 @@ const db = admin.firestore();
 /**
  * **Le missioni che il server lancia, in ordine.**
  *
- * ## La regola che conta piu' di tutte: non somigliare a quelle che ci sono
+ * ## Quasi tutte dall'archivio, ed e' la scelta che conta
  *
- * CRASY ha gia' **una sfida del giorno scritta per ogni giorno** fino a fine
- * mese — la stanza, le mani, il caffe', il pigiama, il disegno peggiore, la
- * copertina di un disco. Il primo elenco che avevo scritto ci sbatteva dentro:
- * "la tua faccia adesso" era la stessa cosa di "fai la faccia del cattivo",
- * "balla dieci secondi" la stessa di "balla cinque secondi dove ti trovi".
+ * Una missione istantanea chiede di **alzarsi e fare una cosa**: trovare le
+ * chiavi, aprire un cassetto, convincere qualcuno. Una dall'archivio chiede di
+ * scorrere la galleria sul divano. La seconda la fanno tutti, la prima la
+ * fanno in quattro — e queste missioni esistono per una ragione sola: far
+ * giocare la gente nei primi giorni, quando l'app e' vuota e nessuno ha
+ * ancora l'abitudine.
  *
- * Due missioni quasi uguali nello stesso giorno sono peggio di una missione in
- * meno: chi apre l'app pensa che ci sia un errore, e chi ha gia' mandato la
- * foto all'una non la rifa' all'altra.
+ * E' una deroga a cosa CRASY e' — l'istantanea e' il suo cuore, e l'archivio
+ * esiste per le gare che altrimenti non si potrebbero fare. Ma qui la deroga
+ * dura otto giorni e ha uno scopo: **la sfida del giorno, ogni giorno, resta
+ * istantanea.** L'identita' la tiene quella; queste fanno massa.
  *
- * Quindi queste stanno **lontano** da quelle: niente stanza, niente mani,
- * niente ballo, niente canto, niente disegno, niente oggetto vecchio, niente
- * tramonto, niente pigiama, niente travestimenti, niente schermo.
+ * Sette su venti restano istantanee, perche' un elenco di sole gallerie
+ * diventa un'altra app.
  *
- * ## Le altre regole
+ * ## Non somigliare a quelle che ci sono gia'
  *
- * - **le deve poter fare chiunque, adesso, senza prepararsi.** Una missione
- *   che chiede di andare da qualche parte o di avere una cosa precisa in casa
- *   la fanno in tre, e una gara con tre foto e' peggio di nessuna gara;
- * - **imbarazzanti, non difficili.** Chi guarda vuole vedere qualcuno che ci
- *   ha provato, non qualcuno che e' bravo;
- * - **si capiscono dal titolo**, che spesso e' l'unica cosa che si legge;
- * - **fanno venire voglia di vedere le altre.** E' la meta' che si dimentica:
- *   una missione riuscita non e' una a cui e' bello partecipare, e' una in cui
- *   e' bello guardare cosa hanno mandato gli altri.
+ * CRASY ha **una sfida del giorno scritta per ogni giorno** fino a fine mese:
+ * la stanza, le mani, il caffe', il pigiama, il disegno peggiore, la copertina
+ * di un disco, la foto piu' vecchia del telefono. Due missioni quasi uguali
+ * nello stesso giorno sono peggio di una missione in meno: chi apre l'app
+ * pensa a un errore, e chi ha gia' mandato la foto all'una non la rifa'
+ * all'altra.
  *
- * Si gira in tondo: finite, si ricomincia. Si cambiano da qui, e la pagina di
- * amministrazione fa vedere quali sono le prossime cosi' si puo' saltare
- * quella che oggi non va.
+ * Queste ci stanno lontano.
+ *
+ * ## Cosa rende buona una missione d'archivio
+ *
+ * Non "cerca una bella foto": quella e' una gara fra chi ha viaggiato di piu'.
+ * Deve essere una **che ce l'hanno tutti e che nessuno cerca mai** — e
+ * trovarla deve essere mezzo divertimento: si scorre indietro, si ritrova
+ * roba, si ride da soli prima ancora di mandare.
+ *
+ * Si gira in tondo, e si alternano: una facilissima, una che mette in
+ * imbarazzo, una da fare adesso.
  */
 const MISSIONI = [
   {
-    titolo: 'SVUOTA LE TASCHE SUL TAVOLO',
+    titolo: 'L’ULTIMA FOTO CHE HAI FATTO',
     consegna:
-      'Tutto quello che hai addosso adesso, fuori, e una foto. Non vale '
-      + 'togliere le cose imbarazzanti: sono quelle che fanno vincere.',
+      'Apri la galleria e manda l’ultima, qualunque sia. Niente scelte, '
+      + 'niente ripensamenti: quella.',
+    source: 'archive',
+  },
+  {
+    titolo: 'IL TUO TAGLIO DI CAPELLI PEGGIORE',
+    consegna:
+      'Scorri indietro finché non lo trovi. Lo sai già qual è, e sai anche '
+      + 'che non l’hai cancellata.',
+    source: 'archive',
   },
   {
     titolo: 'LE SCARPE CHE HAI AI PIEDI ADESSO',
@@ -126,10 +140,17 @@ const MISSIONI = [
       + 'tratti bene.',
   },
   {
-    titolo: 'COSA SI VEDE DALLA TUA FINESTRA',
+    titolo: 'TU DA PICCOLO',
     consegna:
-      'Apri la prima finestra che hai vicino e fotografa quello che c’è '
-      + 'fuori. Com’è adesso, con questa luce.',
+      'Una foto di quando eri bambino. Più è brutta la stampa, più vale.',
+    source: 'archive',
+  },
+  {
+    titolo: 'UNA FOTO FATTA PER SBAGLIO',
+    consegna:
+      'Il dito sull’obiettivo, il soffitto, la tasca. Tutti ne hanno '
+      + 'cento e nessuno le guarda mai.',
+    source: 'archive',
   },
   {
     titolo: 'DI’ UNA BUGIA GUARDANDO IN CAMERA',
@@ -139,20 +160,56 @@ const MISSIONI = [
     mediaKind: 'video',
   },
   {
-    titolo: 'FAI VEDERE LE TUE CHIAVI',
+    titolo: 'TU E QUALCUNO CHE NON SENTI PIÙ',
     consegna:
-      'Tirale fuori e fotografale. Quante sono, i portachiavi, quella che non '
-      + 'sai più di cosa è.',
+      'Una foto vecchia con una persona sparita dalla tua vita. Nessuno ti '
+      + 'chiede perché.',
+    source: 'archive',
   },
   {
     titolo: 'IL CASSETTO PIÙ DISORDINATO CHE HAI',
     consegna: 'Aprilo e scatta. Senza sistemare, senza chiudere a metà.',
   },
   {
+    titolo: 'LA FOTO CHE USAVI COME PROFILO ANNI FA',
+    consegna:
+      'Quella che ti sembrava bellissima. Ritrovala e guardala bene prima di '
+      + 'mandarla.',
+    source: 'archive',
+  },
+  {
+    titolo: 'UNA FOTO DOVE STAI RIDENDO DAVVERO',
+    consegna:
+      'Non il sorriso da foto: quella in cui stavi ridendo e qualcuno ha '
+      + 'scattato nel momento peggiore.',
+    source: 'archive',
+  },
+  {
+    titolo: 'IL TUO ANIMALE MENTRE FA UNA COSA STUPIDA',
+    consegna:
+      'Adesso o dalla galleria, come viene meglio. Se non ne hai uno, va bene '
+      + 'quello di qualcun altro.',
+    source: 'archive',
+  },
+  {
+    titolo: 'LE TUE VACANZE PIÙ BRUTTE',
+    consegna:
+      'Una foto di quella volta che è andata male. Il posto, la stanza, la '
+      + 'faccia: una qualsiasi.',
+    source: 'archive',
+  },
+  {
     titolo: 'CHI C’È CON TE IN QUESTO MOMENTO',
     consegna:
       'Fotografa chi hai vicino adesso. Se non c’è nessuno, fotografa il '
       + 'posto vuoto: vale uguale.',
+  },
+  {
+    titolo: 'UN CAPODANNO, UNO QUALSIASI',
+    consegna:
+      'Cerca "31 dicembre" nella galleria e manda la prima che esce. Sono '
+      + 'tutte brutte, è il bello.',
+    source: 'archive',
   },
   {
     titolo: 'IMITA QUALCUNO CHE CONOSCIAMO TUTTI',
@@ -162,74 +219,36 @@ const MISSIONI = [
     mediaKind: 'video',
   },
   {
-    titolo: 'UNA COSA CHE HAI ROTTO E MAI AGGIUSTATO',
+    titolo: 'LA FOTO CHE NON HAI MAI FATTO VEDERE A NESSUNO',
     consegna:
-      'Ce l’hanno tutti. Trovala, fotografala, e sappi che ti stiamo '
-      + 'giudicando.',
-  },
-  {
-    titolo: 'IL TUO ANIMALE MENTRE FA UNA COSA STUPIDA',
-    consegna:
-      'Aspetta il momento, non metterlo in posa. Se non ne hai uno, va bene '
-      + 'quello di qualcun altro.',
-  },
-  {
-    titolo: 'L’ULTIMA FOTO CHE HAI FATTO',
-    consegna:
-      'Apri la galleria e manda l’ultima, qualunque sia. Niente scelte, '
-      + 'niente ripensamenti.',
+      'Non quella imbarazzante: quella che hai tenuto e basta, senza un '
+      + 'motivo preciso.',
     source: 'archive',
   },
   {
-    titolo: 'FATTI FOTOGRAFARE SENZA DIRE PERCHÉ',
+    titolo: 'FAI VEDERE LE TUE CHIAVI',
     consegna:
-      'Chiedi a chi hai vicino di farti una foto e non spiegare niente. Manda '
-      + 'quella che ha fatto lui.',
+      'Tirale fuori e fotografale. Quante sono, i portachiavi, quella che non '
+      + 'sai più di cosa è.',
   },
   {
-    titolo: 'DIMOSTRA CHE SAI FARE UNA COSA INUTILE',
+    titolo: 'TU VESTITO BENE',
     consegna:
-      'Dieci secondi per far vedere il tuo talento che non serve a niente. '
-      + 'Più è inutile, più vale.',
-    mediaKind: 'video',
-  },
-  {
-    titolo: 'IL TUO ZAINO O LA TUA BORSA, APERTI',
-    consegna: 'Aprila e fotografa dentro. Senza togliere niente prima.',
-  },
-  {
-    titolo: 'LA PRIMA COSA ALLA TUA DESTRA',
-    consegna:
-      'Non scegliere: guarda a destra e fotografa la prima cosa che vedi. '
-      + 'Qualunque sia.',
-  },
-  {
-    titolo: 'COSA HAI MANGIATO OGGI',
-    consegna:
-      'Fotografa quello che hai davanti, o quello che è rimasto. Soprattutto '
-      + 'se non è una cosa da far vedere.',
-  },
-  {
-    titolo: 'TU IN UNA VECCHIA FOTO DI GRUPPO',
-    consegna:
-      'Trovane una dove ci sei anche tu e si capisce poco chi sei. Vale di '
-      + 'più se è venuta male.',
+      'Una foto di una volta che ti eri messo in ordine. Matrimonio, cena, '
+      + 'quello che è.',
     source: 'archive',
   },
   {
-    titolo: 'FA’ FINTA DI ESSERE RICCO CON QUELLO CHE HAI IN CASA',
+    titolo: 'LA PRIMA FOTO DI QUEST’ANNO',
     consegna:
-      'Una foto dove sembri uno che se la passa benissimo. Si può usare solo '
-      + 'quello che hai lì.',
+      'Scorri fino a gennaio e manda la prima che trovi. Nessuno si ricorda '
+      + 'cosa stava facendo.',
+    source: 'archive',
   },
   {
-    titolo: 'IL POSTO PIÙ BRUTTO DOVE SEI STATO OGGI',
-    consegna: 'Una foto fatta oggi. Più è squallido più vale.',
-  },
-  {
-    titolo: 'FAI UNA FOTO AI PIEDI DI CHI È CON TE',
-    consegna:
-      'Non ai tuoi: a quelli di qualcun altro. Chiediglielo, o rischia.',
+    titolo: 'UNA FOTO CON TUA MADRE',
+    consegna: 'Una qualsiasi, vecchia o nuova. Vince la più tenera o la più assurda.',
+    source: 'archive',
   },
 ];
 

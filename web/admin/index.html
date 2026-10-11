@@ -134,15 +134,47 @@
   .dati dd { margin: 0; }
 
   .comandi { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
-  /* Il fondo delle missioni. La riga piccola e' per le cose che si leggono
-     solo quando si sta gia' guardando quel riquadro: le impostazioni e le
-     ultime lanciate. */
-  .riga-piccola { font-size: 13px; opacity: .65; margin-top: 2px; }
-  .vuoto { opacity: .65; }
-  .acceso { color: #16a34a; font-weight: 600; }
-  .sotto { font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
-           opacity: .5; margin-top: 10px; }
-  .tenue { opacity: .6; }
+  /* ---- Il fondo delle missioni automatiche ----------------------------
+     Un riquadro per persona. In alto il numero che conta — **quante
+     missioni restano**, non quanti euro: gli euro costringono a fare una
+     divisione a mente. Sotto, due colonne: cosa sta per uscire e cosa e'
+     gia' uscito. Affiancate perche' si guardano insieme — "oggi ne sono
+     uscite due, domani esce questa" e' una frase sola. */
+  .fondo-chi {
+    border: 1px solid var(--linea); border-radius: 12px;
+    padding: 16px; margin-bottom: 12px;
+  }
+  .fondo-testa { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .fondo-nome { font-weight: 700; font-size: 16px; }
+  .fondo-grosso { font-size: 30px; font-weight: 800; line-height: 1; }
+  .fondo-grosso small { font-size: 13px; font-weight: 600; opacity: .55; margin-left: 4px; }
+  .fondo-stato {
+    font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .06em; padding: 2px 8px; border-radius: 999px;
+  }
+  .fondo-stato.si { background: #dcfce7; color: #166534; }
+  .fondo-stato.no { background: #fee2e2; color: #991b1b; }
+  .fondo-dettagli { font-size: 13px; opacity: .6; margin-top: 6px; }
+  /* La barra: quanto ne e' andato. Si capisce in un colpo d'occhio se siamo
+     all'inizio o alla fine, cosa che un numero da solo non dice. */
+  .fondo-barra { height: 6px; background: var(--linea); border-radius: 999px; margin: 12px 0; overflow: hidden; }
+  .fondo-barra div { height: 100%; background: var(--rosso); }
+  .fondo-colonne { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; }
+  .fondo-colonna { flex: 1 1 260px; min-width: 240px; }
+  .fondo-titoletto {
+    font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .08em; opacity: .45; margin-bottom: 8px;
+  }
+  .fondo-voce { padding: 8px 0; border-top: 1px solid var(--linea); font-size: 14px; }
+  .fondo-voce:first-of-type { border-top: none; }
+  .fondo-quando { font-size: 12px; font-weight: 700; opacity: .5; }
+  .fondo-consegna { font-size: 12px; opacity: .55; margin-top: 2px; }
+  .fondo-tag {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; border: 1px solid var(--linea);
+    border-radius: 999px; padding: 1px 7px; margin-left: 6px; opacity: .6;
+  }
+  .fondo-niente { font-size: 13px; opacity: .5; padding: 8px 0; }
   .spento { color: #dc2626; font-weight: 600; }
 
   .stato {
@@ -261,7 +293,7 @@
          solo non dice se il meccanismo funziona: dodici euro possono voler
          dire che va tutto bene o che e' fermo da tre giorni. -->
     <div class="scatola">
-      <h2>Fondo missioni</h2>
+      <h2>Missioni automatiche</h2>
       <div id="fondo"></div>
     </div>
 
@@ -881,10 +913,14 @@ onAuthStateChanged(auth, async (utente) => {
 /**
  * Il fondo delle missioni automatiche.
  *
- * Il numero che conta non e' quanti euro restano ma **quante missioni**:
- * "restano 12,00 euro" costringe a fare una divisione, "restano 12 missioni"
- * si legge e basta. Gli euro ci sono lo stesso, accanto, perche' quelli vanno
- * fatti tornare con Stripe.
+ * Il numero grande e' **quante missioni restano**, non quanti euro: gli euro
+ * costringono a fare una divisione a mente ogni volta. Gli euro ci sono lo
+ * stesso, piccoli accanto, perche' quelli vanno fatti tornare con Stripe.
+ *
+ * Due colonne affiancate — in arrivo e gia' uscite — perche' si guardano
+ * insieme: "oggi ne sono uscite due, domani alle dieci esce questa" e' una
+ * frase sola, e in due riquadri separati diventerebbe un confronto da fare a
+ * mente.
  */
 async function mostraIlFondo() {
   const dove = $('fondo');
@@ -898,7 +934,7 @@ async function mostraIlFondo() {
   try {
     esito = await chiediFondo();
   } catch (guaio) {
-    dove.innerHTML = '<p class="vuoto">Non riesco a leggere il fondo.</p>';
+    dove.innerHTML = '<p class="fondo-niente">Non riesco a leggere il fondo.</p>';
 
     return;
   }
@@ -907,120 +943,134 @@ async function mostraIlFondo() {
 
   if (fondi.length === 0) {
     dove.innerHTML =
-      '<p class="vuoto">Nessun fondo. Si carica con ' +
-      '<code>tool/carica_il_salvadanaio.py</code>, dopo che i soldi sono ' +
-      'arrivati davvero su Stripe.</p>';
+      '<p class="fondo-niente">Nessun fondo attivo. Si carica con ' +
+      '<code>tool/carica_il_fondo.py</code>, dopo che i soldi sono arrivati ' +
+      'davvero su Stripe.</p>';
 
     return;
   }
 
+  const quando = (ms) =>
+    new Date(ms).toLocaleString('it-IT', {
+      weekday: 'short',
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+  const tag = (p) =>
+    '<span class="fondo-tag">' +
+    (p.mediaKind === 'video' ? 'video' : 'foto') +
+    '</span><span class="fondo-tag">' +
+    (p.source === 'archive' ? 'archivio' : 'adesso') +
+    '</span>';
+
   dove.innerHTML = fondi
     .map((f) => {
-      const restano = f.premioCents ? Math.floor(f.fondoCents / f.premioCents) : 0;
+      const restano = f.premioCents
+        ? Math.floor(f.fondoCents / f.premioCents)
+        : 0;
+      const messi = f.fondoCents + f.spesiCents;
+      const andato = messi ? Math.round((f.spesiCents / messi) * 100) : 0;
       const oggi = new Date().toLocaleDateString('sv-SE');
       const fatteOggi = f.giorno === oggi ? f.fatte : 0;
 
-      // **Le prossime, con l'orario.** E' la parte che serve davvero: da qui
-      // ci si accorge *prima* che domani alle dieci esce una missione uguale
-      // alla sfida del giorno, e si salta. Dopo e' tardi — la gara e'
-      // pubblica e qualcuno ci ha gia' messo una foto.
-      const prossime = (f.prossime || []).length
-        ? '<div class="sotto">In arrivo</div>' +
-          f.prossime
+      const inArrivo = (f.prossime || []).length
+        ? f.prossime
             .map(
               (p) =>
-                '<div class="riga-piccola"><strong>' +
-                new Date(p.quando).toLocaleString('it-IT', {
-                  weekday: 'short',
-                  day: '2-digit',
-                  month: '2-digit',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                }) +
-                '</strong> &middot; ' +
+                '<div class="fondo-voce">' +
+                '<div class="fondo-quando">' +
+                quando(p.quando) +
+                '</div>' +
                 p.titolo +
-                ' <span class="tenue">(' +
-                (p.mediaKind === 'video' ? 'video' : 'foto') +
-                ', ' +
-                (p.source === 'archive' ? 'archivio' : 'adesso') +
-                ')</span><br><span class="tenue">' +
+                tag(p) +
+                '<div class="fondo-consegna">' +
                 p.consegna +
+                '</div></div>'
+            )
+            .join('')
+        : '<div class="fondo-niente">Niente in coda: il fondo è fermo.</div>';
+
+      const uscite = f.ultime.length
+        ? f.ultime
+            .map(
+              (u) =>
+                '<div class="fondo-voce">' +
+                '<div class="fondo-quando">' +
+                (u.quando ? quando(u.quando) : '') +
+                '</div>' +
+                u.titolo +
+                '<span class="fondo-tag">' +
+                euro(u.premioCents) +
                 '</span></div>'
             )
             .join('')
-        : '';
-
-      const ultime = f.ultime.length
-        ? '<div class="sotto">Gi\u00e0 lanciate</div>' +
-          f.ultime
-            .map(
-              (u) =>
-                '<div class="riga-piccola">' +
-                (u.quando
-                  ? new Date(u.quando).toLocaleString('it-IT', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })
-                  : '') +
-                ' &middot; ' +
-                u.titolo +
-                ' &middot; ' +
-                euro(u.premioCents) +
-                '</div>'
-            )
-            .join('')
-        : '<div class="riga-piccola">Nessuna ancora.</div>';
+        : '<div class="fondo-niente">Nessuna ancora.</div>';
 
       return (
-        '<div class="riga">' +
-        '<div><strong>@' +
+        '<div class="fondo-chi">' +
+        '<div class="fondo-testa">' +
+        '<span class="fondo-nome">@' +
         f.username +
-        '</strong> &middot; ' +
-        (f.acceso
-          ? '<span class="acceso">acceso</span>'
-          : '<span class="spento">fermo' +
-            (f.spentoPerche ? ' (' + f.spentoPerche + ')' : '') +
-            '</span>') +
+        '</span>' +
+        '<span class="fondo-stato ' +
+        (f.acceso ? 'si' : 'no') +
+        '">' +
+        (f.acceso ? 'acceso' : 'fermo' + (f.spentoPerche ? ' · ' + f.spentoPerche : '')) +
+        '</span>' +
         '</div>' +
-        '<div><strong>' +
+        '<div class="fondo-grosso" style="margin-top:8px">' +
         restano +
-        ' missioni</strong> &middot; ' +
+        '<small>missioni rimaste · ' +
         euro(f.fondoCents) +
-        ' &middot; spesi ' +
-        euro(f.spesiCents) +
-        '</div>' +
-        '<div class="riga-piccola">' +
+        '</small></div>' +
+        '<div class="fondo-barra"><div style="width:' +
+        andato +
+        '%"></div></div>' +
+        '<div class="fondo-dettagli">' +
         euro(f.premioCents) +
-        ' a missione &middot; ' +
+        ' a missione · ' +
+        f.maxPartecipanti +
+        ' posti · ' +
+        f.oreDiGara +
+        ' ore · ' +
         f.alGiorno +
         ' al giorno (oggi ' +
         fatteOggi +
-        ') &middot; ' +
-        f.maxPartecipanti +
-        ' posti &middot; ' +
-        f.oreDiGara +
-        ' ore' +
-        (f.fino ? ' &middot; fino al ' + f.fino : '') +
+        ')' +
+        (f.fino ? ' · fino al ' + f.fino : '') +
+        ' · spesi ' +
+        euro(f.spesiCents) +
         '</div>' +
-        '<div class="comandi">' +
-        '<button data-lancia="' +
+        '<div class="comandi" style="margin-top:12px">' +
+        '<button class="primario" data-lancia="' +
         f.uid +
-        '">Lancia adesso</button> ' +
+        '">Lancia adesso</button>' +
         '<button data-salta="' +
         f.uid +
-        '">Salta la prossima</button> ' +
-        '<button data-ferma="' +
+        '">Salta la prossima</button>' +
+        '<button class="' +
+        (f.acceso ? 'togli' : 'tieni') +
+        '" data-ferma="' +
         f.uid +
         '" data-acceso="' +
         (f.acceso ? '1' : '0') +
         '">' +
-        (f.acceso ? 'Ferma' : 'Riaccendi') +
+        (f.acceso ? 'Ferma tutto' : 'Riaccendi') +
         '</button>' +
         '</div>' +
-        prossime +
-        ultime +
+        '<div class="fondo-colonne">' +
+        '<div class="fondo-colonna">' +
+        '<div class="fondo-titoletto">In arrivo</div>' +
+        inArrivo +
+        '</div>' +
+        '<div class="fondo-colonna">' +
+        '<div class="fondo-titoletto">Già uscite</div>' +
+        uscite +
+        '</div>' +
+        '</div>' +
         '</div>'
       );
     })
@@ -1034,13 +1084,11 @@ async function mostraIlFondo() {
       try {
         const r = await lanciaDalFondo({ uid: tasto.dataset.lancia });
 
-        // **Si dice sempre com'e' andata, anche quando non e' partita.** Un
+        // **Si dice sempre com'è andata, anche quando non è partita.** Un
         // tasto che non fa niente e non spiega si preme tre volte.
-        alert(
-          r.data && r.data.ok
-            ? 'Lanciata: ' + r.data.titolo
-            : 'Non lanciata: ' + ((r.data && r.data.reason) || 'non so perché')
-        );
+        if (!(r.data && r.data.ok)) {
+          alert('Non lanciata: ' + ((r.data && r.data.reason) || 'non so perché'));
+        }
       } catch (guaio) {
         alert('Non lanciata: ' + guaio.message);
       }
