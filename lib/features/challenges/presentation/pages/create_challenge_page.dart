@@ -2,6 +2,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/errors/error_message_mapper.dart';
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/core/widgets/app_background.dart';
@@ -13,6 +14,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
+import 'package:crasy/features/challenges/domain/entities/missione_pronta.dart';
 import 'package:crasy/features/challenges/presentation/controllers/create_challenge_controller.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 import 'package:crasy/features/payments/domain/prize_ledger.dart';
@@ -171,6 +173,22 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     );
   }
 
+  /// Riempie il modulo con una missione già scritta.
+  ///
+  /// **Il premio non lo tocca.** È l'unica decisione che resta a chi lancia, e
+  /// scriverglielo dentro vorrebbe dire far partire un pagamento con un numero
+  /// che non ha scelto lui. Le altre cose — cosa si manda, se si scatta adesso
+  /// o si pesca dall'archivio — vengono con la missione, perché fanno parte
+  /// dell'idea: "la foto più brutta che hai in galleria" non si scatta adesso.
+  void _prendiLaPronta(MissionePronta pronta) {
+    setState(() {
+      _title.text = pronta.titolo;
+      _brief.text = pronta.consegna;
+      _mediaKind = pronta.mediaKind;
+      _source = pronta.source;
+    });
+  }
+
   @override
   void dispose() {
     _title.dispose();
@@ -317,6 +335,13 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                           ),
                         ),
                       ),
+                    // **Il menù, proprio dove comincia il foglio bianco.**
+                    //
+                    // Sta qui e non in cima alla schermata di proposito: sopra
+                    // c'è il premio, che è una decisione; da questa riga in giù
+                    // comincia la parte in cui bisogna avere un'idea, ed è
+                    // quella che ferma la gente. Vedi `MissionePronta`.
+                    _MissioniPronte(onScegli: _prendiLaPronta),
                     _Field(
                       label: 'Come si chiama',
                       controller: _title,
@@ -768,6 +793,90 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
 /// dalla carta, quanto arriva a chi vince, quanto tiene CRASY. La terza in
 /// particolare: una piattaforma che non dice quanto si prende la fa sembrare
 /// piu' di quanto sia.
+
+/// **Le missioni già scritte, da sfogliare.**
+///
+/// Una fila che scorre di lato invece di un elenco in colonna: in colonna
+/// occuperebbe tutta la schermata e spingerebbe i campi veri sotto il bordo,
+/// facendo sembrare obbligatorio scegliere. Di lato è un'offerta — se ne
+/// vedono due e mezza, si capisce che ce ne sono altre, e si scorre oltre
+/// senza nemmeno guardarle se si ha già la propria idea.
+class _MissioniPronte extends StatelessWidget {
+  const _MissioniPronte({required this.onScegli});
+
+  final void Function(MissionePronta pronta) onScegli;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionLabel('Non sai cosa far fare?'),
+        SizedBox(
+          height: 128,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            // Il margine laterale lo mette la schermata, ma una fila che
+            // scorre deve poter uscire dai bordi: senza questo, le schede si
+            // fermerebbero prima del bordo e sembrerebbero finite.
+            padding: EdgeInsets.zero,
+            itemCount: MissionePronta.tutte.length,
+            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
+            itemBuilder: (context, i) {
+              final pronta = MissionePronta.tutte[i];
+
+              return GestureDetector(
+                onTap: () => onScegli(pronta),
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  width: 190,
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: palette.surfaceMuted,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(color: palette.line),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          pronta.titolo,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: texts.titleSmall,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        '${pronta.mediaKind.label} · ${pronta.source.label}',
+                        style: texts.bodySmall?.copyWith(
+                          color: palette.textFaint,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        'LANCIA QUESTA',
+                        style: texts.labelSmall?.copyWith(
+                          color: palette.accent,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+      ],
+    );
+  }
+}
+
 class _PaymentSummary extends ConsumerWidget {
   const _PaymentSummary({required this.prize});
 
