@@ -255,6 +255,61 @@ const MISSIONI = [
     source: 'archive',
   },
   {
+    titolo: 'TU CHE DORMI, FOTOGRAFATO DA QUALCUN ALTRO',
+    consegna:
+      'Ce l’hanno tutti e nessuno l’ha scelta. Cercala: bocca '
+      + 'aperta, posizione assurda, divano.',
+    source: 'archive',
+  },
+  {
+    titolo: 'UN MEME CHE TIENI IN GALLERIA DA ANNI',
+    consegna:
+      'Quello salvato chissà quando e mai cancellato. Si capisce molto di una '
+      + 'persona da quale manda.',
+    source: 'archive',
+  },
+  {
+    titolo: 'UNA FOTO DOVE VENGONO BENE TUTTI TRANNE TE',
+    consegna:
+      'Il gruppo perfetto e tu con gli occhi chiusi. Non tagliarti fuori: è '
+      + 'il motivo per cui vinci.',
+    source: 'archive',
+  },
+  {
+    titolo: 'IL TUO ULTIMO SELFIE, QUALUNQUE SIA',
+    consegna:
+      'L’ultimo in ordine di tempo, non il più bello. Senza cercare, '
+      + 'senza scegliere.',
+    source: 'archive',
+  },
+  {
+    titolo: 'UNA FOTO CON PIÙ DI DIECI PERSONE',
+    consegna:
+      'Una folla, una tavolata, una gita. Vince quella dove si capisce meno '
+      + 'cosa stava succedendo.',
+    source: 'archive',
+  },
+  {
+    titolo: 'L’ULTIMA VOLTA CHE SEI STATO AL MARE',
+    consegna:
+      'Una foto di quel giorno, anche se è di tre anni fa. Soprattutto se è '
+      + 'di tre anni fa.',
+    source: 'archive',
+  },
+  {
+    titolo: 'QUALCOSA CHE HAI CUCINATO TU',
+    consegna:
+      'Una foto di una cosa fatta da te. Riuscita o venuta malissimo, conta '
+      + 'uguale.',
+    source: 'archive',
+  },
+  {
+    titolo: 'FAI VEDERE COSA HAI NEL PORTAFOGLIO',
+    consegna:
+      'Aprilo e scatta. Scontrini di tre anni fa, tessere scadute, la foto '
+      + 'che non hai mai tolto. Copri i numeri delle carte.',
+  },
+  {
     titolo: 'UNA FOTO CON TUA MADRE',
     consegna: 'Una qualsiasi, vecchia o nuova. Vince la più tenera o la più assurda.',
     source: 'archive',

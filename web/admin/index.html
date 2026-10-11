@@ -175,14 +175,28 @@
     border-radius: 999px; padding: 1px 7px; margin-left: 6px; opacity: .6;
   }
   .fondo-niente { font-size: 13px; opacity: .5; padding: 8px 0; }
-  .fondo-giorno {
-    font-size: 12px; font-weight: 800; text-transform: capitalize;
-    margin-top: 14px; padding-bottom: 2px; opacity: .8;
+
+  /* ---- Il calendario delle missioni in arrivo -------------------------
+     Una scheda per giorno, affiancate. Un elenco in colonna dice *quando*
+     esce ogni missione; un calendario dice **com'e' fatta la settimana** —
+     e quella e' la domanda vera: giovedi' ho tre missioni d'archivio di
+     fila? sabato ne esce una uguale alla sfida del giorno?
+     Le stesse righe, messe in modo che si confrontino fra loro. */
+  .cal { display: grid; gap: 10px; margin-top: 10px;
+         grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+  .cal-giorno { border: 1px solid var(--linea); border-radius: 10px; overflow: hidden; }
+  .cal-testa {
+    background: #f4f4f5; padding: 7px 10px;
+    font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .06em;
   }
-  .fondo-giorno:first-child { margin-top: 0; }
-  /* La colonna delle prossime puo' essere lunga venticinque righe: si scorre
-     dentro di se', invece di allungare tutta la pagina. */
-  .fondo-colonna { max-height: 520px; overflow-y: auto; }
+  /* Oggi si riconosce senza leggere la data. */
+  .cal-giorno.oggi .cal-testa { background: var(--rosso); color: #fff; }
+  .cal-voce { padding: 8px 10px; border-top: 1px solid var(--linea); }
+  .cal-voce:first-of-type { border-top: none; }
+  .cal-ora { font-size: 11px; font-weight: 800; opacity: .45; }
+  .cal-titolo { font-size: 13px; font-weight: 600; line-height: 1.25; margin: 1px 0 3px; }
+  .cal-consegna { font-size: 11px; opacity: .55; line-height: 1.3; }
   .spento { color: #dc2626; font-weight: 600; }
 
   .stato {
@@ -984,44 +998,66 @@ async function mostraIlFondo() {
       const oggi = new Date().toLocaleDateString('sv-SE');
       const fatteOggi = f.giorno === oggi ? f.fatte : 0;
 
-      // **Raggruppate per giorno.** Venticinque righe di fila sono un muro:
-      // con l'intestazione del giorno si legge come un calendario, e si vede
-      // subito quante ne escono in una giornata e quali capitano insieme.
-      let giornoScritto = '';
+      // **Un calendario, non un elenco.** Un elenco dice *quando* esce ogni
+      // missione; il calendario dice **com'è fatta la settimana**, che è la
+      // domanda vera: giovedì ho tre d'archivio di fila? sabato ne esce una
+      // uguale alla sfida del giorno? Le stesse righe, messe in modo che si
+      // confrontino fra loro.
+      const giorni = [];
 
-      const inArrivo = (f.prossime || []).length
-        ? f.prossime
-            .map((p) => {
-              const data = new Date(p.quando);
-              const giorno = data.toLocaleDateString('it-IT', {
-                weekday: 'long',
-                day: '2-digit',
-                month: 'long',
-              });
-              const intestazione =
-                giorno === giornoScritto
-                  ? ''
-                  : '<div class="fondo-giorno">' + giorno + '</div>';
+      for (const p of f.prossime || []) {
+        const data = new Date(p.quando);
+        const chiave = data.toLocaleDateString('sv-SE');
+        let giorno = giorni.find((g) => g.chiave === chiave);
 
-              giornoScritto = giorno;
+        if (!giorno) {
+          giorno = {
+            chiave,
+            oggi: chiave === new Date().toLocaleDateString('sv-SE'),
+            nome: data.toLocaleDateString('it-IT', {
+              weekday: 'short',
+              day: '2-digit',
+              month: '2-digit',
+            }),
+            voci: [],
+          };
+          giorni.push(giorno);
+        }
 
-              return (
-                intestazione +
-                '<div class="fondo-voce">' +
-                '<div class="fondo-quando">' +
-                data.toLocaleTimeString('it-IT', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                }) +
+        giorno.voci.push(
+          '<div class="cal-voce">' +
+            '<div class="cal-ora">' +
+            data.toLocaleTimeString('it-IT', {
+              hour: '2-digit',
+              minute: '2-digit',
+            }) +
+            tag(p) +
+            '</div>' +
+            '<div class="cal-titolo">' +
+            p.titolo +
+            '</div>' +
+            '<div class="cal-consegna">' +
+            p.consegna +
+            '</div>' +
+            '</div>'
+        );
+      }
+
+      const inArrivo = giorni.length
+        ? '<div class="cal">' +
+          giorni
+            .map(
+              (g) =>
+                '<div class="cal-giorno' +
+                (g.oggi ? ' oggi' : '') +
+                '"><div class="cal-testa">' +
+                g.nome +
                 '</div>' +
-                p.titolo +
-                tag(p) +
-                '<div class="fondo-consegna">' +
-                p.consegna +
-                '</div></div>'
-              );
-            })
-            .join('')
+                g.voci.join('') +
+                '</div>'
+            )
+            .join('') +
+          '</div>'
         : '<div class="fondo-niente">Niente in coda: il fondo è fermo.</div>';
 
       const uscite = f.ultime.length
@@ -1092,16 +1128,10 @@ async function mostraIlFondo() {
         (f.acceso ? 'Ferma tutto' : 'Riaccendi') +
         '</button>' +
         '</div>' +
-        '<div class="fondo-colonne">' +
-        '<div class="fondo-colonna">' +
-        '<div class="fondo-titoletto">In arrivo</div>' +
+        '<div class="fondo-titoletto" style="margin-top:16px">In arrivo</div>' +
         inArrivo +
-        '</div>' +
-        '<div class="fondo-colonna">' +
-        '<div class="fondo-titoletto">Già uscite</div>' +
+        '<div class="fondo-titoletto" style="margin-top:18px">Già uscite</div>' +
         uscite +
-        '</div>' +
-        '</div>' +
         '</div>'
       );
     })
