@@ -60,6 +60,8 @@ class PhotoEditor extends StatefulWidget {
   const PhotoEditor({
     required this.bytes,
     required this.aspectRatio,
+    this.etichetta = 'Manda in gara',
+    this.nota = '',
     super.key,
   });
 
@@ -67,6 +69,23 @@ class PhotoEditor extends StatefulWidget {
 
   /// Le proporzioni del riquadro in cui la foto andra' a finire.
   final double aspectRatio;
+
+  /// Cosa c'e' scritto sul tasto in fondo.
+  ///
+  /// **Dice la verita' su cosa succede dopo.** Qui sotto c'era scritto
+  /// "Fatto", e dopo "Fatto" si tornava a una schermata con un altro tasto da
+  /// premere: due conferme per un gesto solo, e la prima che non si capisce a
+  /// cosa serva. Adesso da qui si manda, e il tasto lo dice.
+  final String etichetta;
+
+  /// La riga sotto il tasto: cosa succede alla foto, in una frase.
+  ///
+  /// **Viaggia con l'editor perche' questa e' diventata l'ultima schermata
+  /// prima dell'invio.** Prima stava sulla pagina della gara, sotto il tasto
+  /// che mandava; saltando quella pagina sarebbe sparita, e chi consegna una
+  /// cosa fatta da se' per dei soldi veri ha il diritto di sapere che ne sara'
+  /// **prima** di consegnarla, non dopo.
+  final String nota;
 
   @override
   State<PhotoEditor> createState() => _PhotoEditorState();
@@ -136,24 +155,6 @@ class _PhotoEditorState extends State<PhotoEditor> {
                 ),
               ),
             ),
-          // **"Aa", e non "SCRIVI SULLA FOTO".**
-          //
-          // Due lettere che tutti hanno gia' imparato altrove: nessuno deve
-          // leggerle per capire cosa fanno, si riconoscono come si riconosce
-          // il cestino. Stanno in cima e non in fondo perche' il fondo e' del
-          // tasto che chiude il lavoro, e un comando che apre una tastiera
-          // appiccicato a quello e' il tipo di vicinanza che fa sbagliare.
-          IconButton(
-            onPressed: _scrivi,
-            tooltip: 'Scrivi sulla foto',
-            icon: Text(
-              'Aa',
-              style: context.texts.titleMedium?.copyWith(
-                color: palette.accent,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
         ],
       ),
       body: AppBackground(
@@ -232,6 +233,7 @@ class _PhotoEditorState extends State<PhotoEditor> {
                                                         area: area,
                                                         onCambia: () =>
                                                             setState(() {}),
+                                                        onTocca: _ritocca,
                                                       ),
                                                   ],
                                                 ),
@@ -278,7 +280,42 @@ class _PhotoEditorState extends State<PhotoEditor> {
                 AppSpacing.page,
                 AppSpacing.lg,
               ),
-              child: CrasyButton(label: 'Fatto', onPressed: _conferma),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // **"Aa" sta qui, grande e al centro.**
+                  //
+                  // Era in alto a destra, nella barra, ed era invisibile: una
+                  // barra in cima e' il posto dove si guarda per tornare
+                  // indietro, non per trovare un comando. Qui e' sulla strada
+                  // del pollice, subito sopra il tasto che manda — cioe'
+                  // nell'ultimo punto in cui uno si chiede "manca qualcosa?".
+                  TextButton(
+                    onPressed: _scrivi,
+                    child: Text(
+                      _scritte.isEmpty
+                          ? 'Aa  SCRIVI SULLA FOTO'
+                          : 'Aa  AGGIUNGI UNA FRASE',
+                      style: context.texts.labelMedium?.copyWith(
+                        color: palette.accent,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  CrasyButton(label: widget.etichetta, onPressed: _conferma),
+                  if (widget.nota.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      widget.nota,
+                      textAlign: TextAlign.center,
+                      style: context.texts.bodySmall?.copyWith(
+                        color: palette.textFaint,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
@@ -322,6 +359,41 @@ class _PhotoEditorState extends State<PhotoEditor> {
           posizione: const Offset(0.5, 0.5),
         ),
       );
+    });
+  }
+
+  /// Toccando una frase: la si cambia o la si toglie.
+  ///
+  /// **Prima non si poteva fare ne' l'una ne' l'altra.** Scritta una frase,
+  /// un refuso voleva dire tornare indietro e rifare tutto, foto compresa. E
+  /// l'unico modo di toglierne una era il tasto in cima, che toglie
+  /// **l'ultima** — non quella che si sta guardando, che e' quasi sempre
+  /// un'altra.
+  ///
+  /// Il riquadro e' lo stesso di quando si scrive, con dentro gia' il testo e
+  /// un comando in piu'. Non e' una schermata nuova da imparare: e' quella di
+  /// prima, riaperta.
+  Future<void> _ritocca(_Scritta scritta) async {
+    final esito = await showDialog<String>(
+      context: context,
+      builder: (context) => _ChiediIlTesto(iniziale: scritta.testo),
+    );
+
+    if (esito == null) {
+      return;
+    }
+
+    setState(() {
+      // Svuotarla vuol dire toglierla: chi cancella tutto il testo e conferma
+      // ha gia' detto cosa vuole, e chiederglielo una seconda volta con un
+      // "sei sicuro?" sarebbe far ripetere una cosa gia' chiara.
+      if (esito.trim().isEmpty) {
+        _scritte.remove(scritta);
+
+        return;
+      }
+
+      scritta.testo = esito.trim();
     });
   }
 
@@ -545,7 +617,9 @@ class _BordoSicuro extends CustomPainter {
 class _Scritta {
   _Scritta({required this.testo, required this.posizione});
 
-  final String testo;
+  /// Si puo' cambiare: toccando la frase si riapre il riquadro con dentro
+  /// quello che c'era, e si corregge.
+  String testo;
 
   /// In frazioni del riquadro, non in pixel: cosi' resta nello stesso punto
   /// qualunque sia la misura dello schermo, e soprattutto resta dov'e' quando
@@ -569,6 +643,7 @@ class _ScrittaSopra extends StatefulWidget {
     required this.riquadro,
     required this.area,
     required this.onCambia,
+    required this.onTocca,
   });
 
   final _Scritta scritta;
@@ -581,6 +656,9 @@ class _ScrittaSopra extends StatefulWidget {
   final Rect area;
 
   final VoidCallback onCambia;
+
+  /// Il tocco: apre il riquadro per cambiarla o toglierla.
+  final void Function(_Scritta scritta) onTocca;
 
   @override
   State<_ScrittaSopra> createState() => _ScrittaSopraState();
@@ -674,6 +752,12 @@ class _ScrittaSopraState extends State<_ScrittaSopra> {
       child: FractionalTranslation(
         translation: const Offset(-0.5, -0.5),
         child: GestureDetector(
+          // **Toccandola si cambia o si toglie.** Prima, scritta una frase,
+          // non c'era piu' nessun modo di correggerla: un refuso voleva dire
+          // tornare indietro e rifare tutto, foto compresa. E l'unico modo di
+          // toglierla era il tasto in cima, che toglie **l'ultima** — non
+          // quella che si sta guardando.
+          onTap: () => widget.onTocca(scritta),
           onScaleStart: (_) => _scalaAllInizio = scritta.scala,
           onScaleUpdate: (dettagli) {
             scritta.posizione = _dentro(
@@ -707,14 +791,17 @@ class _ScrittaSopraState extends State<_ScrittaSopra> {
 
 /// Il riquadro in cui si batte la frase.
 class _ChiediIlTesto extends StatefulWidget {
-  const _ChiediIlTesto();
+  const _ChiediIlTesto({this.iniziale = ''});
+
+  /// Quello che c'e' gia' scritto, quando si riapre per correggere.
+  final String iniziale;
 
   @override
   State<_ChiediIlTesto> createState() => _ChiediIlTestoState();
 }
 
 class _ChiediIlTestoState extends State<_ChiediIlTesto> {
-  final _controller = TextEditingController();
+  late final _controller = TextEditingController(text: widget.iniziale);
 
   @override
   void dispose() {
@@ -726,7 +813,10 @@ class _ChiediIlTestoState extends State<_ChiediIlTesto> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: context.palette.background,
-      title: Text('Scrivi sulla foto', style: context.texts.titleMedium),
+      title: Text(
+        widget.iniziale.isEmpty ? 'Scrivi sulla foto' : 'Cambia la frase',
+        style: context.texts.titleMedium,
+      ),
       content: TextField(
         controller: _controller,
         autofocus: true,
@@ -741,13 +831,27 @@ class _ChiediIlTestoState extends State<_ChiediIlTesto> {
         onSubmitted: (testo) => Navigator.of(context).pop(testo),
       ),
       actions: [
+        // **"Togli" solo quando c'e' qualcosa da togliere.** Aprendo il
+        // riquadro per scrivere la prima frase, un tasto che cancella non ha
+        // niente su cui agire: offrirlo lo stesso e' far leggere una scelta
+        // che non esiste.
+        if (widget.iniziale.isNotEmpty)
+          TextButton(
+            // La stringa vuota vuol dire "toglila": lo capisce chi chiama,
+            // ed e' lo stesso che succede cancellando tutto il testo a mano.
+            onPressed: () => Navigator.of(context).pop(''),
+            child: Text(
+              'Togli',
+              style: TextStyle(color: context.palette.accent),
+            ),
+          ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Annulla'),
         ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(_controller.text),
-          child: const Text('Metti'),
+          child: Text(widget.iniziale.isEmpty ? 'Metti' : 'Salva'),
         ),
       ],
     );

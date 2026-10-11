@@ -20,15 +20,27 @@ Future<void> _apri(WidgetTester tester) async {
   addTearDown(tester.view.reset);
 
   await tester.pumpWidget(
-    MaterialApp(home: PhotoEditor(bytes: _unaFoto, aspectRatio: 4 / 5)),
+    MaterialApp(
+      home: PhotoEditor(bytes: _unaFoto, aspectRatio: 4 / 5),
+    ),
   );
 
   await tester.pumpAndSettle();
 }
 
 /// Batte la frase e la mette sulla foto, dal tasto Aa.
+/// Il tasto che apre la tastiera. Cambia parola quando c'e' gia' una frase,
+/// e il suggerimento sotto la foto contiene anche lui le lettere "Aa": si
+/// cerca per il resto della scritta.
+Finder get _tastoScrivi => find.byWidgetPredicate(
+  (w) =>
+      w is Text &&
+      (w.data?.contains('SCRIVI SULLA FOTO') == true ||
+          w.data?.contains('AGGIUNGI UNA FRASE') == true),
+);
+
 Future<void> _scrivi(WidgetTester tester, String frase) async {
-  await tester.tap(find.text('Aa'));
+  await tester.tap(_tastoScrivi);
   await tester.pumpAndSettle();
 
   await tester.enterText(find.byType(TextField), frase);
@@ -47,8 +59,8 @@ void main() {
       await _apri(tester);
 
       expect(find.text('AVANTI'), findsNothing);
-      expect(find.text('Aa'), findsOneWidget);
-      expect(find.text('FATTO'), findsOneWidget);
+      expect(_tastoScrivi, findsOneWidget);
+      expect(find.text('MANDA IN GARA'), findsOneWidget);
     });
 
     testWidgets('mettere una frase non fa cadere l\'app', (tester) async {
@@ -104,6 +116,77 @@ void main() {
 
       expect(find.text('questa va via'), findsNothing);
       expect(find.text('TOGLI'), findsNothing);
+    });
+  });
+
+  group('cambiare o togliere una frase', () {
+    testWidgets("toccandola si riapre con dentro quello che c'era", (
+      tester,
+    ) async {
+      // Prima, scritta una frase, un refuso voleva dire tornare indietro e
+      // rifare tutto, foto compresa.
+      await _apri(tester);
+      await _scrivi(tester, 'sbaglaito');
+
+      await tester.tap(find.text('sbaglaito'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Cambia la frase'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'sbaglaito'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'sbagliato');
+      await tester.tap(find.text('Salva'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('sbagliato'), findsOneWidget);
+      expect(find.text('sbaglaito'), findsNothing);
+    });
+
+    testWidgets('dal riquadro si toglie quella che si sta guardando', (
+      tester,
+    ) async {
+      // Il tasto in cima toglie **l'ultima**, che quasi mai e' quella che si
+      // sta guardando.
+      await _apri(tester);
+      await _scrivi(tester, 'prima');
+
+      // Nascono tutte al centro: senza spostare la prima, il tocco prenderebbe
+      // la seconda, che le sta sopra.
+      await tester.drag(find.text('prima'), const Offset(0, -80));
+      await tester.pumpAndSettle();
+
+      await _scrivi(tester, 'seconda');
+
+      await tester.tap(find.text('prima'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Togli'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('prima'), findsNothing);
+      expect(find.text('seconda'), findsOneWidget);
+    });
+
+    testWidgets('svuotando il testo la frase sparisce', (tester) async {
+      await _apri(tester);
+      await _scrivi(tester, 'via');
+
+      await tester.tap(find.text('via'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '   ');
+      await tester.tap(find.text('Salva'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('via'), findsNothing);
+    });
+
+    testWidgets('scrivendo la prima non si offre di toglierla', (tester) async {
+      await _apri(tester);
+
+      await tester.tap(_tastoScrivi);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Togli'), findsNothing);
+      expect(find.text('Metti'), findsOneWidget);
     });
   });
 

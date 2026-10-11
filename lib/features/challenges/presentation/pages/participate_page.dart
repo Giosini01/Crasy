@@ -308,8 +308,23 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
             // mirino un secondo prima. E' vero a meta': il mirino mostra tutto
             // il fotogramma, il riquadro della gara ne tiene quattro quinti, e
             // quel quinto che se ne va non l'ha scelto nessuno.
-            builder: (_) =>
-                PhotoEditor(bytes: definitiva.bytes, aspectRatio: 4 / 5),
+            builder: (_) => PhotoEditor(
+              bytes: definitiva.bytes,
+              aspectRatio: 4 / 5,
+              // **Da qui si manda, e il tasto lo dice.**
+              //
+              // Prima c'era scritto "Fatto", e dopo "Fatto" si tornava qui a
+              // premere un secondo tasto: due conferme per un gesto solo, e
+              // la prima che non si capisce a cosa serva. Scatti, sistemi,
+              // mandi.
+              etichetta: 'Manda in gara',
+              // **La riga del consenso viene con l'editor**, perche' quella
+              // e' diventata l'ultima schermata prima dell'invio. Lasciandola
+              // solo qui sarebbe sparita dal percorso: chi consegna una cosa
+              // fatta da se' per dei soldi veri ha diritto di sapere che ne
+              // sara' **prima** di consegnarla.
+              nota: _ilConsenso(challenge),
+            ),
           ),
         );
 
@@ -317,11 +332,22 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
           return;
         }
 
-        // Tornato indietro senza confermare: la foto scelta resta quella, senza
-        // ritaglio e senza scritte. Non e' un errore e non si dice niente.
-        if (sistemata != null) {
-          definitiva = definitiva.conNuoviByte(sistemata);
+        // **Tornato indietro senza mandare: non si manda.** La freccia in
+        // cima all'editor adesso vuol dire "lascia stare", perche' il tasto
+        // che manda sta li' dentro. Prima la foto restava comunque pronta
+        // sulla pagina; adesso sarebbe un invio che nessuno ha chiesto.
+        if (sistemata == null) {
+          return;
         }
+
+        definitiva = definitiva.conNuoviByte(sistemata);
+
+        setState(() => _media = definitiva);
+
+        // Si manda subito: e' il tasto che e' stato premuto.
+        await _submit(challenge);
+
+        return;
       }
 
       setState(() => _media = definitiva);
@@ -688,13 +714,7 @@ class _Form extends StatelessWidget {
         // averle affatto, ma va sistemato prima che qualcuno ci metta dei soldi
         // veri.
         Text(
-          challenge.mediaKind.isVideo
-              ? 'Il video resta tuo. Mandandolo, CRASY può mostrarlo qui '
-                    'dentro e usarlo per raccontare com\'è finita questa '
-                    'challenge.'
-              : 'La foto resta tua. Mandandola, CRASY può mostrarla qui '
-                    'dentro e usarla per raccontare com\'è finita questa '
-                    'challenge.',
+          _ilConsenso(challenge),
           style: texts.bodySmall?.copyWith(color: palette.textFaint),
         ),
       ],
@@ -781,6 +801,29 @@ class _Preview extends StatelessWidget {
 /// **Cambia con la gara, e deve.** Erano due frasi fisse che dicevano "niente
 /// galleria" — vere fino a ieri, e da oggi false meta' delle volte. Una regola
 /// scritta male e' peggio di una regola non scritta: la prima la si crede.
+/// **Chi manda una cosa in gara ha diritto di sapere che ne sara'.**
+///
+/// Sta in una funzione sola perche' adesso la leggono in due: questa pagina,
+/// e l'editor della foto — che e' diventato l'ultima schermata prima
+/// dell'invio. Due copie della stessa frase sono due frasi che al primo
+/// cambiamento si dicono cose diverse, e questa e' una frase che vale come
+/// impegno.
+///
+/// Quello che dice e' il minimo vero: **l'opera resta di chi l'ha fatta**, e
+/// CRASY puo' mostrarla dentro l'app e raccontare com'e' finita la gara.
+/// Niente di piu': nessuna pubblicita', nessuna vendita, nessun uso fuori da
+/// qui.
+///
+/// Le parole esatte vanno riviste da un legale prima di aprire al pubblico —
+/// vedi `legale.md`.
+String _ilConsenso(Challenge challenge) {
+  return challenge.mediaKind.isVideo
+      ? 'Il video resta tuo. Mandandolo, CRASY pu\u00f2 mostrarlo qui dentro '
+            'e usarlo per raccontare com\u2019\u00e8 finita questa challenge.'
+      : 'La foto resta tua. Mandandola, CRASY pu\u00f2 mostrarla qui dentro '
+            'e usarla per raccontare com\u2019\u00e8 finita questa challenge.';
+}
+
 String _laRegola(Challenge challenge) {
   final video = challenge.mediaKind.isVideo;
 
