@@ -79,6 +79,32 @@ class ChallengeEntry {
   /// A schermo intero non si usa: li' serve tutta.
   String get previewUrl => thumbUrl.isEmpty ? mediaUrl : thumbUrl;
 
+  /// **L'indirizzo da usare quando la foto si guarda grande.**
+  ///
+  /// L'originale se c'e'. Se non c'e' piu', la miniatura — sgranata, ma c'e'.
+  ///
+  /// ## Perche' serve, e com'e' venuto fuori
+  ///
+  /// Quando una gara si chiude, il server cancella i file delle foto che non
+  /// hanno vinto: pesano, e passata la gara non le guarda piu' nessuno. Svuota
+  /// `mediaUrl` e **tiene la miniatura**, che e' qualche decina di chilobyte.
+  ///
+  /// Solo che ne' la griglia ne' lo schermo intero la usavano: leggevano
+  /// `mediaUrl` e basta. Il risultato era che una gara finita da due ore
+  /// diventava una fila di riquadri vuoti con sotto i nomi di chi aveva
+  /// partecipato — e chi la apriva pensava che l'app fosse rotta. E' arrivata
+  /// cosi': *"mary ha partecipato ma non vedo la foto"*.
+  ///
+  /// Una miniatura ingrandita si vede sgranata. Sgranata e' peggio
+  /// dell'originale e **molto** meglio del nulla: dice che quella persona ha
+  /// giocato e cosa ha mandato, che e' tutto il motivo per cui si riapre una
+  /// gara finita.
+  String get urlGrande => mediaUrl.isEmpty ? thumbUrl : mediaUrl;
+
+  /// Se dell'originale resta solo la miniatura: la gara e' finita e la foto
+  /// non ha vinto.
+  bool get soloMiniatura => mediaUrl.isEmpty && thumbUrl.isNotEmpty;
+
   /// Due righe scritte da chi ha mandato la foto, come sotto un'istantanea.
   ///
   /// **Si scrive una volta e non si cambia piu'**, come la foto: e' la stessa

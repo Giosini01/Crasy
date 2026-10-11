@@ -240,7 +240,10 @@ class _Slide extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final url = entry.mediaUrl;
+    // L'originale se c'e', altrimenti la miniatura: a gara finita il server
+    // butta gli originali di chi non ha vinto e tiene solo le miniature.
+    // Vedi `ChallengeEntry.urlGrande`.
+    final url = entry.urlGrande;
 
     // Vedi `_NienteDaVedere`: un riquadro vuoto su fondo nero e' uno schermo
     // nero, e chi ci finisce non ha modo di sapere che non e' un guasto suo.
@@ -249,7 +252,7 @@ class _Slide extends ConsumerWidget {
         child: Padding(
           padding: EdgeInsets.all(AppSpacing.page),
           child: Text(
-            'Questa foto non si carica.',
+            'Questa foto non c’è più.',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.paper),
           ),

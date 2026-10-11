@@ -53,11 +53,15 @@ class EntryTile extends ConsumerWidget {
     );
 
     final foto = MediaFrame(
-      // **L'originale, non la miniatura.** Qui la foto e' larga quanto
-      // lo schermo: su un telefono a tripla densita' vuol dire piu' di
-      // mille punti veri, e qualunque copia ridotta si vede sgranata.
-      // La foto e' il contenuto — e' l'ultima cosa su cui risparmiare.
-      url: entry.mediaUrl,
+      // **L'originale finche' c'e'.** Qui la foto e' larga quanto lo
+      // schermo: su un telefono a tripla densita' vuol dire piu' di mille
+      // punti veri, e qualunque copia ridotta si vede sgranata. La foto e'
+      // il contenuto — e' l'ultima cosa su cui risparmiare.
+      //
+      // Ma quando la gara si chiude il server butta gli originali di chi non
+      // ha vinto, e prima qui restava un buco: una gara finita da due ore era
+      // una fila di riquadri vuoti con sotto i nomi. Vedi `urlGrande`.
+      url: entry.urlGrande,
       video: entry.isVideo,
       caption: entry.authorName,
       mine: entry.userId == ref.watch(currentUserIdProvider),
