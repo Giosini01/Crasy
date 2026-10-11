@@ -261,6 +261,11 @@ exports.createPayoutOnboarding = payments.createPayoutOnboarding;
 exports.withdrawWallet = payments.withdrawWallet;
 exports.requestPayout = payments.requestPayout;
 exports.payChallengeFromWallet = payments.payChallengeFromWallet;
+
+// **Le missioni che partono da sole, finche' il fondo prepagato dura.**
+// Vedi `salvadanaio.js`: una spinta per far partire il motore all'inizio, con
+// un fondo, una data di fine e un interruttore.
+exports.lanciaLeMissioni = require('./salvadanaio').lanciaLeMissioni;
 exports.adminListMance = payments.adminListMance;
 exports.adminListPayouts = payments.adminListPayouts;
 exports.adminMarkPayoutPaid = payments.adminMarkPayoutPaid;
@@ -289,6 +294,11 @@ exports.createTipPaymentIntent = payments.createTipPaymentIntent;
 const amministrazione = require('./admin');
 
 exports.adminWhoAmI = amministrazione.adminWhoAmI;
+
+// Il fondo delle missioni automatiche, per la pagina di amministrazione.
+exports.adminFondo = amministrazione.adminFondo;
+exports.adminFermaIlFondo = amministrazione.adminFermaIlFondo;
+exports.adminLanciaDalFondo = amministrazione.adminLanciaDalFondo;
 exports.adminListReports = amministrazione.adminListReports;
 exports.adminResolveReport = amministrazione.adminResolveReport;
 exports.adminOnline = amministrazione.adminOnline;

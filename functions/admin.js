@@ -44,6 +44,9 @@ const { avvisaChiLHaMandata } = require('./avvisi');
 
 const db = admin.firestore();
 
+// Le missioni automatiche: vedi `salvadanaio.js`.
+const fondo = require('./salvadanaio');
+
 // Serve a una cosa sola: restituire il premio quando si toglie di mezzo una
 // missione segnalata. Vedi `adminResolveReport`.
 const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
@@ -589,3 +592,112 @@ exports.adminImpostaVerificato = onCall(async (request) => {
   return { ok: true, verificato };
 });
 
+/**
+ * **Il fondo delle missioni automatiche, per la pagina di amministrazione.**
+ *
+ * Risponde alla domanda che non aveva risposta: *come faccio a capire che
+ * stanno finendo i soldi?* Prima non c'era nessun posto che lo dicesse, e
+ * l'unico modo di accorgersene sarebbe stato notare che le missioni avevano
+ * smesso di uscire.
+ *
+ * Torna anche le ultime lanciate, perche' "restano dodici euro" da solo non
+ * dice se il meccanismo sta funzionando: dodici euro possono voler dire che
+ * va tutto bene o che e' fermo da tre giorni.
+ */
+exports.adminFondo = onCall(async (request) => {
+  soloAdmin(request);
+
+  const salvadanai = await db.collection('salvadanai').get();
+  const fondi = [];
+
+  for (const salvadanaio of salvadanai.docs) {
+    const dati = salvadanaio.data() || {};
+    const utente = await db.collection('users').doc(salvadanaio.id).get();
+
+    const lanciate = await salvadanaio.ref
+      .collection('lanciate')
+      .orderBy('quando', 'desc')
+      .limit(8)
+      .get();
+
+    fondi.push({
+      uid: salvadanaio.id,
+      username: utente.get('username') || salvadanaio.id,
+      acceso: dati.acceso === true,
+      spentoPerche: dati.spentoPerche || '',
+      fondoCents: dati.fondoCents || 0,
+      spesiCents: dati.spesiCents || 0,
+      premioCents: dati.premioCents || 0,
+      alGiorno: dati.alGiorno || 0,
+      maxPartecipanti: dati.maxPartecipanti || 0,
+      oreDiGara: dati.oreDiGara || 0,
+      fino: dati.fino || '',
+      fatte: dati.fatte || 0,
+      giorno: dati.giorno || '',
+      ultime: lanciate.docs.map((riga) => ({
+        gara: riga.id,
+        titolo: riga.get('titolo') || '',
+        premioCents: riga.get('premioCents') || 0,
+        quando: riga.get('quando') ? riga.get('quando').toMillis() : null,
+      })),
+    });
+  }
+
+  return { fondi };
+});
+
+/**
+ * Ferma o riaccende il fondo di una persona.
+ *
+ * **Fermare non tocca le gare gia' aperte**, e non e' una dimenticanza: quelle
+ * hanno un premio pagato e delle persone dentro che hanno speso una delle loro
+ * cinque di oggi. Si chiudono da sole come tutte le altre. Questo interruttore
+ * dice "non lanciarne altre", non "annulla quello che c'e'".
+ */
+exports.adminFermaIlFondo = onCall(async (request) => {
+  soloAdmin(request);
+
+  const uid = String((request.data && request.data.uid) || '');
+  const acceso = Boolean(request.data && request.data.acceso);
+
+  if (!uid) {
+    throw new HttpsError('invalid-argument', 'Manca di chi.');
+  }
+
+  await db
+    .collection('salvadanai')
+    .doc(uid)
+    .update({ acceso, spentoPerche: acceso ? '' : 'a mano' });
+
+  return { ok: true, acceso };
+});
+
+/**
+ * Lancia subito una missione dal fondo, senza aspettare l'orario.
+ *
+ * Serve a due cose diverse e tutte e due vere: provare che il meccanismo
+ * funziona senza stare sveglio fino alle dieci, e avere un modo di riempire
+ * la giornata quando serve — una sera in cui non c'e' niente di aperto.
+ *
+ * **Conta nel limite giornaliero**, come le altre. Un tasto che scavalca il
+ * tetto e' un tetto che non c'e'.
+ */
+exports.adminLanciaDalFondo = onCall(async (request) => {
+  soloAdmin(request);
+
+  const uid = String((request.data && request.data.uid) || '');
+
+  if (!uid) {
+    throw new HttpsError('invalid-argument', 'Manca di chi.');
+  }
+
+  const salvadanaio = await db.collection('salvadanai').doc(uid).get();
+
+  if (!salvadanaio.exists) {
+    throw new HttpsError('not-found', 'Nessun fondo per questa persona.');
+  }
+
+  const esito = await fondo.lanciaOra(salvadanaio);
+
+  return esito;
+});

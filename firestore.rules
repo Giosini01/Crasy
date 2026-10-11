@@ -162,6 +162,23 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // **Il fondo delle missioni automatiche: nessun telefono lo apre.**
+    //
+    // Dentro c'e' quanto resta da spendere, quante missioni al giorno e fino
+    // a quando (vedi `functions/salvadanaio.js`). Chi apre l'app vede delle
+    // missioni vere, lanciate da una persona vera, con un premio vero: chi
+    // preme il tasto e' una faccenda di contabilita' e non riguarda nessuno.
+    //
+    // E soprattutto non si scrive da fuori: un documento che decide quanti
+    // soldi far uscire, scrivibile da un telefono, e' un portafoglio aperto.
+    match /salvadanai/{chi} {
+      allow read, write: if false;
+
+      match /lanciate/{gara} {
+        allow read, write: if false;
+      }
+    }
+
     // Il profilo.
     //
     // **Lo legge chiunque abbia fatto l'accesso, lo scrive solo il diretto

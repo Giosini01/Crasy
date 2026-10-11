@@ -134,6 +134,13 @@
   .dati dd { margin: 0; }
 
   .comandi { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
+  /* Il fondo delle missioni. La riga piccola e' per le cose che si leggono
+     solo quando si sta gia' guardando quel riquadro: le impostazioni e le
+     ultime lanciate. */
+  .riga-piccola { font-size: 13px; opacity: .65; margin-top: 2px; }
+  .vuoto { opacity: .65; }
+  .acceso { color: #16a34a; font-weight: 600; }
+  .spento { color: #dc2626; font-weight: 600; }
 
   .stato {
     display: inline-block;
@@ -241,6 +248,20 @@
          Qui c'e' quello che serve per farlo — quanto, a chi, su quale IBAN — e
          il tasto per dire che e' partito. Nessuna macchina puo' sapere se quel
          bonifico e' stato fatto davvero: lo dice chi l'ha fatto. -->
+    <!-- **Il fondo delle missioni automatiche.**
+
+         Risponde alla domanda che prima non aveva risposta: come faccio a
+         capire che stanno finendo i soldi? L'unico modo sarebbe stato
+         accorgersi che le missioni avevano smesso di uscire.
+
+         Ci sono anche le ultime lanciate, perche' "restano dodici euro" da
+         solo non dice se il meccanismo funziona: dodici euro possono voler
+         dire che va tutto bene o che e' fermo da tre giorni. -->
+    <div class="scatola">
+      <h2>Fondo missioni</h2>
+      <div id="fondo"></div>
+    </div>
+
     <div class="scatola">
       <h2>Prelievi da pagare</h2>
       <div id="prelievi"></div>
@@ -320,6 +341,10 @@ const chiediPresenze = httpsCallable(functions, 'adminOnline');
 const segnaPagato = httpsCallable(functions, 'adminMarkPayoutPaid');
 const cercaUtenti = httpsCallable(functions, 'adminCercaUtenti');
 const impostaVerificato = httpsCallable(functions, 'adminImpostaVerificato');
+
+const chiediFondo = httpsCallable(functions, 'adminFondo');
+const fermaIlFondo = httpsCallable(functions, 'adminFermaIlFondo');
+const lanciaDalFondo = httpsCallable(functions, 'adminLanciaDalFondo');
 
 const $ = (id) => document.getElementById(id);
 const accesso = $('accesso');
@@ -508,6 +533,11 @@ function ovunque(html, azzeraIConti) {
 async function carica() {
   dillo('');
   ovunque('<p class="nota">Carico…</p>', true);
+
+  // **Non si aspetta.** Il fondo si disegna per conto suo: se la sua chiamata
+  // e' lenta o fallisce, le segnalazioni — che sono il motivo per cui questa
+  // pagina esiste — devono comparire lo stesso.
+  mostraIlFondo();
 
   try {
     const esito = await chiediElenco({ status: filtro });
@@ -843,6 +873,161 @@ onAuthStateChanged(auth, async (utente) => {
   caricaMance();
   caricaPresenze();
 });
+
+/**
+ * Il fondo delle missioni automatiche.
+ *
+ * Il numero che conta non e' quanti euro restano ma **quante missioni**:
+ * "restano 12,00 euro" costringe a fare una divisione, "restano 12 missioni"
+ * si legge e basta. Gli euro ci sono lo stesso, accanto, perche' quelli vanno
+ * fatti tornare con Stripe.
+ */
+async function mostraIlFondo() {
+  const dove = $('fondo');
+
+  if (!dove) {
+    return;
+  }
+
+  let esito;
+
+  try {
+    esito = await chiediFondo();
+  } catch (guaio) {
+    dove.innerHTML = '<p class="vuoto">Non riesco a leggere il fondo.</p>';
+
+    return;
+  }
+
+  const fondi = (esito.data && esito.data.fondi) || [];
+
+  if (fondi.length === 0) {
+    dove.innerHTML =
+      '<p class="vuoto">Nessun fondo. Si carica con ' +
+      '<code>tool/carica_il_salvadanaio.py</code>, dopo che i soldi sono ' +
+      'arrivati davvero su Stripe.</p>';
+
+    return;
+  }
+
+  dove.innerHTML = fondi
+    .map((f) => {
+      const restano = f.premioCents ? Math.floor(f.fondoCents / f.premioCents) : 0;
+      const oggi = new Date().toLocaleDateString('sv-SE');
+      const fatteOggi = f.giorno === oggi ? f.fatte : 0;
+
+      const ultime = f.ultime.length
+        ? f.ultime
+            .map(
+              (u) =>
+                '<div class="riga-piccola">' +
+                (u.quando
+                  ? new Date(u.quando).toLocaleString('it-IT', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : '') +
+                ' &middot; ' +
+                u.titolo +
+                ' &middot; ' +
+                euro(u.premioCents) +
+                '</div>'
+            )
+            .join('')
+        : '<div class="riga-piccola">Nessuna ancora.</div>';
+
+      return (
+        '<div class="riga">' +
+        '<div><strong>@' +
+        f.username +
+        '</strong> &middot; ' +
+        (f.acceso
+          ? '<span class="acceso">acceso</span>'
+          : '<span class="spento">fermo' +
+            (f.spentoPerche ? ' (' + f.spentoPerche + ')' : '') +
+            '</span>') +
+        '</div>' +
+        '<div><strong>' +
+        restano +
+        ' missioni</strong> &middot; ' +
+        euro(f.fondoCents) +
+        ' &middot; spesi ' +
+        euro(f.spesiCents) +
+        '</div>' +
+        '<div class="riga-piccola">' +
+        euro(f.premioCents) +
+        ' a missione &middot; ' +
+        f.alGiorno +
+        ' al giorno (oggi ' +
+        fatteOggi +
+        ') &middot; ' +
+        f.maxPartecipanti +
+        ' posti &middot; ' +
+        f.oreDiGara +
+        ' ore' +
+        (f.fino ? ' &middot; fino al ' + f.fino : '') +
+        '</div>' +
+        '<div class="comandi">' +
+        '<button data-lancia="' +
+        f.uid +
+        '">Lancia adesso</button> ' +
+        '<button data-ferma="' +
+        f.uid +
+        '" data-acceso="' +
+        (f.acceso ? '1' : '0') +
+        '">' +
+        (f.acceso ? 'Ferma' : 'Riaccendi') +
+        '</button>' +
+        '</div>' +
+        ultime +
+        '</div>'
+      );
+    })
+    .join('');
+
+  dove.querySelectorAll('[data-lancia]').forEach((tasto) => {
+    tasto.addEventListener('click', async () => {
+      tasto.disabled = true;
+      tasto.textContent = 'Un attimo…';
+
+      try {
+        const r = await lanciaDalFondo({ uid: tasto.dataset.lancia });
+
+        // **Si dice sempre com'e' andata, anche quando non e' partita.** Un
+        // tasto che non fa niente e non spiega si preme tre volte.
+        alert(
+          r.data && r.data.ok
+            ? 'Lanciata: ' + r.data.titolo
+            : 'Non lanciata: ' + ((r.data && r.data.reason) || 'non so perché')
+        );
+      } catch (guaio) {
+        alert('Non lanciata: ' + guaio.message);
+      }
+
+      await mostraIlFondo();
+    });
+  });
+
+  dove.querySelectorAll('[data-ferma]').forEach((tasto) => {
+    tasto.addEventListener('click', async () => {
+      tasto.disabled = true;
+
+      try {
+        await fermaIlFondo({
+          uid: tasto.dataset.ferma,
+          acceso: tasto.dataset.acceso !== '1',
+        });
+      } catch (guaio) {
+        alert(guaio.message);
+      }
+
+      await mostraIlFondo();
+    });
+  });
+}
+
 </script>
 </body>
 </html>
