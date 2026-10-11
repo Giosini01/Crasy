@@ -156,7 +156,7 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
       mediaKind: mediaKind,
       contentType: contentType,
       caption: caption,
-    muted: muted,
+      muted: muted,
     );
   }
 

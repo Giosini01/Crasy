@@ -57,6 +57,65 @@ class MissionePronta {
   /// può fare — una foto di dieci anni fa non si scatta.
   final ChallengeSource source;
 
+  /// **Quelle di oggi: le stesse per tutti, diverse domani.**
+  ///
+  /// L'elenco e' sempre quello, cambia l'ordine — e cambia **una volta al
+  /// giorno**, non a ogni apertura.
+  ///
+  /// ## Perche' non a caso ogni volta
+  ///
+  /// Un ordine che cambia a ogni apertura e' un elenco che non si impara mai:
+  /// uno vede una missione, esce per pensarci, rientra e non la ritrova piu'.
+  /// E dentro la stessa schermata sarebbe peggio ancora — i campi qui sotto si
+  /// riscrivono a ogni lettera battuta, e la fila si rimescolerebbe sotto le
+  /// dita.
+  ///
+  /// ## Perche' le stesse per tutti
+  ///
+  /// Perche' due amici che si parlano devono aver visto la stessa cosa. *"Hai
+  /// visto quella del portafoglio?"* deve voler dire qualcosa; se ognuno
+  /// vedesse un ordine suo, quella frase non starebbe in piedi.
+  ///
+  /// ## Perche' cambiarlo
+  ///
+  /// Le prime tre sono le uniche che si vedono senza scorrere, e se sono
+  /// sempre quelle, le altre ventisette non le guarda nessuno — e chi lancia
+  /// due volte in una settimana si ritrova davanti lo stesso menu di prima.
+  static List<MissionePronta> diOggi([DateTime? quando]) {
+    final oggi = quando ?? DateTime.now();
+
+    // Il giorno come un numero solo. Non l'ora: dentro la stessa giornata
+    // l'ordine non si deve muovere.
+    final seme = oggi.year * 10000 + oggi.month * 100 + oggi.day;
+
+    final mescolate = [...tutte];
+
+    // Un rimescolamento che dipende solo dal giorno: lo stesso giorno da' lo
+    // stesso ordine su qualunque telefono, senza che nessuno debba metterselo
+    // d'accordo con nessuno.
+    mescolate.sort(
+      (una, altra) => _posto(una, seme).compareTo(_posto(altra, seme)),
+    );
+
+    return mescolate;
+  }
+
+  /// Il posto di una missione nell'ordine di un certo giorno.
+  ///
+  /// Si usa `hashCode` della stringa? No: in Dart non e' garantito uguale fra
+  /// un avvio e l'altro, quindi due telefoni potrebbero ordinarle in modo
+  /// diverso lo stesso giorno. Questo conto invece da' sempre lo stesso
+  /// numero.
+  static int _posto(MissionePronta missione, int seme) {
+    var somma = seme;
+
+    for (final unita in missione.titolo.codeUnits) {
+      somma = (somma * 31 + unita) % 1000000007;
+    }
+
+    return somma;
+  }
+
   /// L'elenco che si vede quando si apre il lancio.
   ///
   /// L'ordine non è casuale: in cima quelle che si fanno **senza alzarsi dal

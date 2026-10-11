@@ -806,6 +806,14 @@ class _MissioniPronte extends StatelessWidget {
 
   final void Function(MissionePronta pronta) onScegli;
 
+  /// **Si prende una volta sola, non a ogni ridisegno.**
+  ///
+  /// Questa schermata si ridisegna a ogni lettera battuta nei campi qui
+  /// sotto: chiedendo l'ordine ogni volta si rifarebbe il conto trenta volte
+  /// per scrivere un titolo. Il risultato sarebbe lo stesso — dipende dal
+  /// giorno — ma il lavoro no.
+  static final List<MissionePronta> _diOggi = MissionePronta.diOggi();
+
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
@@ -829,10 +837,10 @@ class _MissioniPronte extends StatelessWidget {
             // scorre deve poter uscire dai bordi: senza questo, le schede si
             // fermerebbero prima del bordo e sembrerebbero finite.
             padding: EdgeInsets.zero,
-            itemCount: MissionePronta.tutte.length,
+            itemCount: _diOggi.length,
             separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
             itemBuilder: (context, i) {
-              final pronta = MissionePronta.tutte[i];
+              final pronta = _diOggi[i];
 
               return GestureDetector(
                 onTap: () => onScegli(pronta),

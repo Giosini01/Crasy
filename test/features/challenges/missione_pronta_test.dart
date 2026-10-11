@@ -52,6 +52,39 @@ void main() {
       expect(MissionePronta.tutte.length, greaterThanOrEqualTo(8));
     });
 
+    test("l'ordine cambia ogni giorno", () {
+      // Le prime tre sono le uniche che si vedono senza scorrere: se sono
+      // sempre quelle, le altre non le guarda nessuno, e chi lancia due volte
+      // in una settimana si ritrova lo stesso menù.
+      final oggi = MissionePronta.diOggi(DateTime(2026, 10, 11));
+      final domani = MissionePronta.diOggi(DateTime(2026, 10, 12));
+
+      expect(
+        oggi.take(3).map((m) => m.titolo),
+        isNot(domani.take(3).map((m) => m.titolo)),
+      );
+    });
+
+    test("nello stesso giorno l'ordine non si muove", () {
+      // La schermata si ridisegna a ogni lettera battuta nei campi: un ordine
+      // che cambia sotto le dita e' la cosa piu' fastidiosa che possa fare.
+      expect(
+        MissionePronta.diOggi(DateTime(2026, 10, 11, 9)).map((m) => m.titolo),
+        MissionePronta.diOggi(DateTime(2026, 10, 11, 23)).map((m) => m.titolo),
+      );
+    });
+
+    test('non se ne perde nessuna rimescolando', () {
+      // Un ordine nuovo, non un elenco nuovo: devono esserci tutte.
+      final mescolate = MissionePronta.diOggi(DateTime(2026, 10, 11));
+
+      expect(mescolate.length, MissionePronta.tutte.length);
+      expect(
+        mescolate.map((m) => m.titolo).toSet(),
+        MissionePronta.tutte.map((m) => m.titolo).toSet(),
+      );
+    });
+
     test('i titoli si leggono senza aprire', () {
       // Il titolo è spesso l'unica cosa che si legge: se serve la consegna per
       // capire cosa c'è da fare, quella missione in una fila da sfogliare non
