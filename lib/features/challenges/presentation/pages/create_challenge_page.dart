@@ -16,6 +16,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge_source.dart'
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/entities/missione_pronta.dart';
 import 'package:crasy/features/challenges/presentation/controllers/create_challenge_controller.dart';
+import 'package:crasy/features/challenges/presentation/widgets/anonimo_switch.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 import 'package:crasy/features/payments/domain/prize_ledger.dart';
 import 'package:crasy/features/payments/presentation/providers/payments_providers.dart';
@@ -134,6 +135,10 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
   /// altrimenti non si potrebbero fare — non e' l'alternativa comoda da
   /// prendere per distrazione.
   ChallengeSource _source = ChallengeSource.instant;
+
+  /// Lanciata senza nome: vedi `Challenge.anonimo`.
+  var _anonimo = false;
+
   String? _error;
 
   @override
@@ -341,6 +346,10 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                     // c'è il premio, che è una decisione; da questa riga in giù
                     // comincia la parte in cui bisogna avere un'idea, ed è
                     // quella che ferma la gente. Vedi `MissionePronta`.
+                    //
+                    // Staccato dal premio: attaccato ad "Almeno 1 €" sembrava
+                    // la riga dopo della stessa frase.
+                    const SizedBox(height: AppSpacing.lg),
                     _MissioniPronte(onScegli: _prendiLaPronta),
                     _Field(
                       label: 'Come si chiama',
@@ -452,6 +461,11 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                             onTap: () => setState(() => _minutes = choice.$1),
                           ),
                       ],
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    AnonimoSwitch(
+                      acceso: _anonimo,
+                      onCambia: (valore) => setState(() => _anonimo = valore),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     if (_error != null) ...[
@@ -592,6 +606,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               // foto. Le gare vecchie con dentro una citta' restano come sono.
               place: '',
               minutes: _minutes,
+              anonimo: _anonimo,
             );
 
     if (!mounted) {

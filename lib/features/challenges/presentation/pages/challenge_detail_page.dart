@@ -89,7 +89,12 @@ class ChallengeDetailPage extends ConsumerWidget {
                 ref,
                 kind: ReportTargetKind.challenge,
                 reportedUserId: gara.createdByUserId,
-                reportedUsername: gara.createdByUsername,
+                // **Anche un anonimo si segnala e si blocca**: la maschera
+                // nasconde il nome a chi riceve, non a chi modera. Qui pero'
+                // il nome non c'e', e non va cercato.
+                reportedUsername: gara.anonimo
+                    ? 'anonimo'
+                    : gara.createdByUsername,
                 challengeId: gara.id,
                 challengeTitle: gara.title,
               ),
@@ -277,7 +282,7 @@ class _Body extends ConsumerWidget {
           const SizedBox(height: AppSpacing.md),
           _DuelMessage(challenge: challenge),
         ],
-        if (challenge.hasCreator) ...[
+        if (challenge.hasCreator || challenge.anonimo) ...[
           const SizedBox(height: AppSpacing.md),
           ChallengeAuthor(challenge: challenge),
         ],
@@ -998,7 +1003,7 @@ class _DuelAnswer extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          '@${challenge.createdByUsername} ti ha sfidato. '
+          '${challenge.creatorTag} ti ha sfidato. '
           'Se accetti, la porti a termine.',
           style: texts.bodySmall?.copyWith(color: palette.textSecondary),
         ),
@@ -1105,13 +1110,15 @@ class _Verdict extends StatelessWidget {
               // Su una sfida mirata non ha vinto nessun conteggio: ha vinto
               // perche' chi l'ha lanciata ha detto che ce l'aveva fatta.
               challenge.isDuel
-                  ? '@${challenge.createdByUsername} ha detto che ce l\'ha '
+                  ? '${challenge.creatorTag} ha detto che ce l\'ha '
                         'fatta: sfida vinta.'
                   // Fra amici sceglie chi l'ha lanciata: le fiamme decidono
                   // solo se non ha scelto in tempo.
                   : challenge.sceltoDalCreatore
-                  ? 'L\'ha scelta @${challenge.createdByUsername}, che ha '
-                        'lanciato la missione.'
+                  ? (challenge.anonimo
+                        ? 'L\'ha scelta chi ha lanciato la missione.'
+                        : 'L\'ha scelta @${challenge.createdByUsername}, che '
+                              'ha lanciato la missione.')
                   : 'Ha vinto la foto con più fiamme alla chiusura.',
               style: context.texts.bodySmall?.copyWith(
                 color: palette.textSecondary,
@@ -1387,7 +1394,9 @@ class _GameRules extends StatelessWidget {
           if (challenge.isForFriends && !challenge.isDuel)
             _Rule(
               icon: Icons.gavel_rounded,
-              text: 'Sceglie @${challenge.createdByUsername}.',
+              text: challenge.anonimo
+                  ? 'Sceglie chi l\'ha lanciata.'
+                  : 'Sceglie @${challenge.createdByUsername}.',
               detail:
                   'Quando finisce, chi ha lanciato la missione sceglie la foto '
                   'che vince. Le fiamme sono tifo, e decidono solo se non '
@@ -1546,7 +1555,7 @@ class _DuelOutcome extends ConsumerWidget {
       _ => (
         '⏳',
         sfidato
-            ? '@${challenge.createdByUsername} ti ha sfidato.'
+            ? '${challenge.creatorTag} ti ha sfidato.'
             : 'Aspetti una risposta da @${challenge.targetUsername}.',
         sfidato
             ? 'Rispondi dal party: accetti o rifiuti.'
@@ -1656,7 +1665,11 @@ class _DuelJudgement extends ConsumerWidget {
     final altro = mio ? challenge.targetUsername : challenge.createdByUsername;
 
     final riga =
-        state.nota(mine: !mio, username: altro) ??
+        state.nota(
+          mine: !mio,
+          username: altro,
+          anonimo: !mio && challenge.anonimo,
+        ) ??
         state.fischio(mine: !mio, username: altro);
 
     return Column(
@@ -1915,6 +1928,8 @@ class _PickWinnerState extends ConsumerState<_PickWinner> {
                     ? 'È finita: scegli tu chi ha vinto'
                           '${ore == null ? '' : ' (hai ancora $ore ore)'}. '
                           'Se non scegli, decidono le fiamme.'
+                    : widget.challenge.anonimo
+                    ? 'È finita: sceglie chi ha vinto chi l\'ha lanciata.'
                     : 'È finita: sceglie chi ha vinto '
                           '@${widget.challenge.createdByUsername}.',
                 style: texts.bodySmall?.copyWith(color: palette.accent),
@@ -2484,12 +2499,24 @@ class _DuelMessage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.xxs),
-          TickedName(
-            userId: challenge.createdByUserId,
-            text: '@${challenge.createdByUsername}',
-            tickSize: 12,
-            style: context.texts.labelSmall?.copyWith(color: palette.textFaint),
-          ),
+          // In anonimo la firma e' la maschera: niente spunta, che sarebbe
+          // gia' un indizio.
+          if (challenge.anonimo)
+            Text(
+              'Un anonimo',
+              style: context.texts.labelSmall?.copyWith(
+                color: palette.textFaint,
+              ),
+            )
+          else
+            TickedName(
+              userId: challenge.createdByUserId,
+              text: '@${challenge.createdByUsername}',
+              tickSize: 12,
+              style: context.texts.labelSmall?.copyWith(
+                color: palette.textFaint,
+              ),
+            ),
         ],
       ),
     );

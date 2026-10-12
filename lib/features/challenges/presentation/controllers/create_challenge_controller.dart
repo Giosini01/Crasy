@@ -170,6 +170,7 @@ class CreateChallengeController extends AsyncNotifier<void> {
     ChallengeSource source = ChallengeSource.instant,
     required String place,
     required int minutes,
+    bool anonimo = false,
   }) async {
     final authState = ref.read(authStateProvider);
 
@@ -215,8 +216,10 @@ class CreateChallengeController extends AsyncNotifier<void> {
                 amico.userId,
             ]
           : const [Challenge.everyone],
-      createdByUsername: profile?.username ?? 'anonimo',
+      // In anonimo il nome non parte: vedi `Challenge.anonimo`.
+      createdByUsername: anonimo ? '' : profile?.username ?? 'anonimo',
       createdByUserId: authState.user.id,
+      anonimo: anonimo,
       startsAt: now,
       endsAt: now.add(Duration(minutes: minutes)),
     );

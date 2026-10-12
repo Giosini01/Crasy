@@ -613,37 +613,14 @@ service cloud.firestore {
       }
 
 
-      // **Una sfida superata la vedono anche gli amici di chi l'ha fatta.**
+      // **Una sfida uno contro uno resta fra i due, anche superata.**
       //
-      // Una sfida mirata e' una cosa fra due persone, e finche' e' in corso —
-      // o rifiutata, o bocciata — resta fra loro: la vedono solo i due
-      // dell'`audience`. Ma una **superata** e' un trofeo, e un trofeo che
-      // nemmeno i propri amici possono vedere non e' un trofeo: e' un appunto
-      // privato.
-      //
-      // Quindi la terza porta si apre a chi e' amico di uno dei due. Non a
-      // tutti, ed e' la differenza che conta: chi non conosce nessuno dei due
-      // non ha motivo di trovarsi una loro sfida sul profilo di uno
-      // sconosciuto.
-      //
-      // **Costa una lettura in piu', e solo dove serve.** Le condizioni si
-      // valutano in fila e ci si ferma alla prima vera: una gara pubblica non
-      // arriva mai qui, una riservata in cui si e' dentro nemmeno. Ci arrivano
-      // soltanto le sfide di altri, che sono poche.
-      function amicoDi(chi) {
-        return chi != ''
-               && exists(
-                    /databases/$(database)/documents/users/$(chi)/friends/$(request.auth.uid)
-                  );
-      }
-
-      function sfidaSuperataDiUnAmico() {
-        return resource.data.get('duelVerdict', '') == 'approved'
-               && (
-                    amicoDi(resource.data.get('winnerUserId', ''))
-                    || amicoDi(resource.data.get('createdByUserId', ''))
-                  );
-      }
+      // Prima una sfida superata si apriva agli amici di tutti e due, come
+      // trofeo, con la foto sopra. Ma quella foto e' stata mandata a una
+      // persona sola, e l'app promette che resta fra voi: le sfide sono anche
+      // il posto delle foto piu' personali, ed e' proprio li' che la promessa
+      // deve valere senza eccezioni. Adesso la leggono solo i due
+      // dell'`audience`, come qualunque altra gara riservata.
 
       // **Niente si legge senza aver fatto l'accesso, e le gare riservate solo
       // se sei fra i destinatari.**
@@ -686,7 +663,6 @@ service cloud.firestore {
                        resource == null
                        || '*' in resource.data.get('audience', ['*'])
                        || request.auth.uid in resource.data.get('audience', ['*'])
-                       || sfidaSuperataDiUnAmico()
                      );
 
       // Una challenge la lancia chiunque abbia un account.
@@ -703,6 +679,15 @@ service cloud.firestore {
       allow create: if signedIn()
                     && request.resource.data.createdByUserId == request.auth.uid
                     && request.resource.data.createdByUsername is string
+                    // **In anonimo il nome non si scrive.** Chi lancia senza
+                    // farsi vedere non deve lasciare il proprio nome dentro
+                    // un documento che il destinatario legge: lo nasconderebbe
+                    // solo l'interfaccia.
+                    && request.resource.data.get('anonimo', false) is bool
+                    && (
+                         request.resource.data.get('anonimo', false) == false
+                         || request.resource.data.createdByUsername == ''
+                       )
                     && request.resource.data.title is string
                     && !saysSomethingForbidden(request.resource.data.title)
                     && !saysSomethingForbidden(request.resource.data.brief)

@@ -317,11 +317,8 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
     return;
   }
 
-  PushTap dove(RemoteMessage messaggio, {required bool daFermo}) => pushTapOf(
-    messaggio.data,
-    daFermo: daFermo,
-    io: ref.read(currentUserIdProvider),
-  );
+  PushTap dove(RemoteMessage messaggio, {required bool daFermo}) =>
+      pushTapOf(messaggio.data, daFermo: daFermo);
 
   // **Chi arriva da un'app chiusa passa di qui.** Toccando una notifica con
   // CRASY spenta, l'app parte da zero e il tocco non lo racconta nessuno: resta
@@ -358,14 +355,7 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
 /// al tocco sull'avviso che l'app mostra da se' quando la notifica arriva ad app
 /// aperta. Due copie della stessa regola si direbbero cose diverse al primo
 /// cambiamento.
-///
-/// `io` serve alle notizie di commento vecchie, che non portano la foto: la
-/// foto commentata e' di chi riceve la notizia.
-PushTap pushTapOf(
-  Map<String, dynamic> dati, {
-  required bool daFermo,
-  String? io,
-}) {
+PushTap pushTapOf(Map<String, dynamic> dati, {required bool daFermo}) {
   final kind = dati['kind'] ?? '';
 
   // Una missione nuova o la sfida del giorno riguardano **una gara**: si va
@@ -381,160 +371,25 @@ PushTap pushTapOf(
     );
   }
 
-  // **Una gara finita porta alla gara, non in campanella.**
+  // **Tutto il resto va in campanella, sulla sezione giusta.**
   //
-  // E' l'unica notifica che non racconta un fatto ma ne annuncia uno: dice
-  // che il tempo e' scaduto e **non dice chi ha vinto**. Il finale sta nella
-  // missione, dove si apre con il rullo di tamburi — portare chi tocca in
-  // campanella vorrebbe dire fargli leggere "la missione e' finita" e poi
-  // cercarsi da solo dove si guarda com'e' andata.
-  // **Una sfida porta alla sfida.** Le quattro notizie delle sfide mirate
-  // riguardano una missione precisa, e quella missione e' il posto dove si
-  // accetta, si rifiuta o si va a vedere com'e' andata. Mandare in campanella
-  // chi ha toccato "@mario ti ha sfidato" vorrebbe dire fargli cercare da
-  // solo dove si risponde.
-  if (kind == 'partyMission' ||
-      kind == 'duel' ||
-      kind == 'duelAccepted' ||
-      kind == 'duelDeclined' ||
-      kind == 'duelCompleted' ||
-      kind == 'duelApproved' ||
-      kind == 'duelRejected' ||
-      kind == 'duelNoVerdict' ||
-      kind == 'soloJudge' ||
-      kind == 'pickWinner' ||
-      kind == 'ended') {
-    final gara = dati['challengeId'] ?? '';
-
-    if (gara.isNotEmpty) {
-      return (
-        // Sotto la sfida si posa il party e non la home: e' la scheda da cui
-        // quella missione viene, ed e' dove si torna chiudendola.
-        scheda: kind == 'ended'
-            ? AppRoutes.challenges
-            : AppRoutes.friendsActivity,
-        apri: AppRoutes.challengeDetailOf(gara),
-        evidenzia: null,
-        notificationId: dati['notificationId'],
-        daFermo: daFermo,
-        quando: DateTime.now().microsecondsSinceEpoch,
-      );
-    }
-  }
-
-  // **Un commento o una nomina portano al commento.** "Ti hanno taggato" in
-  // campanella era un passaggio in piu': si toccava la riga, si apriva la
-  // gara, e il commento andava cercato foto per foto. Qui si apre la foto
-  // grande con i commenti sopra. Le notizie di commento vecchie, senza la
-  // foto dentro, la ritrovano lo stesso: la foto commentata e' di chi riceve
-  // la notizia, e il suo nome e' il suo identificativo.
-  if (kind == 'mention' || kind == 'comment') {
-    final gara = dati['challengeId'] ?? '';
-    var foto = dati['entryId'] as String? ?? '';
-
-    if (foto.isEmpty && kind == 'comment') {
-      foto = io ?? '';
-    }
-
-    // **Senza la foto, in campanella sulla riga giusta.** La push di una
-    // nomina porta la foto solo dal server aggiornato; senza, la gara intera
-    // non dice dove sia il commento. La campanella si apre su COMMENTI con la
-    // riga accesa, e se la riga conosce la foto apre lei il commento.
-    if (foto.isEmpty) {
-      return (
-        scheda: AppRoutes.challenges,
-        apri: AppRoutes.notifications,
-        evidenzia: dati['notificationId'],
-        notificationId: dati['notificationId'],
-        daFermo: daFermo,
-        quando: DateTime.now().microsecondsSinceEpoch,
-      );
-    }
-
-    if (gara.isNotEmpty) {
-      return (
-        scheda: AppRoutes.challenges,
-        apri: foto.isEmpty
-            ? AppRoutes.challengeDetailOf(gara)
-            : AppRoutes.entryCommentsOf(gara, foto),
-        evidenzia: null,
-        notificationId: dati['notificationId'],
-        daFermo: daFermo,
-        quando: DateTime.now().microsecondsSinceEpoch,
-      );
-    }
-  }
-
-  // **Una richiesta di amicizia non finisce in campanella.** Non c'e' una
-  // riga da accendere: c'e' una scheda con i tasti per accettare o rifiutare,
-  // ed e' li' che serve arrivare. Portare in campanella chi ha toccato quella
-  // notifica vorrebbe dire fargli cercare da solo dove si risponde.
-  if (kind == 'friendRequest') {
-    return (
-      scheda: AppRoutes.profile,
-      apri: AppRoutes.friends,
-      evidenzia: null,
-      notificationId: null,
-      daFermo: daFermo,
-      quando: DateTime.now().microsecondsSinceEpoch,
-    );
-  }
-
-  // **Una fiamma porta alla foto che l'ha presa.**
+  // Prima ogni tipo aveva la sua strada: la fiamma apriva la foto, il commento
+  // il commento, la sfida la sfida. Erano scorciatoie, e si rompevano appena
+  // mancava un pezzo — una foto gia' ripulita, una notizia vecchia senza la
+  // foto dentro — lasciando chi toccava su una schermata vuota. La campanella
+  // invece c'e' sempre, e dice per esteso chi e' stato e sotto cosa: da li' un
+  // tocco porta dove serve.
   //
-  // Era la notifica piu' numerosa di tutte — sessantanove su trecento — e
-  // l'unica che non aveva un ramo suo: finiva nel caso generale, cioe' in
-  // campanella. Si leggeva "una fiamma nuova sulla tua foto", si toccava, e si
-  // arrivava a un elenco di notifiche con dentro scritta la stessa frase. La
-  // foto bisognava andarsela a cercare.
-  //
-  // **Quale foto lo si sa senza che il server lo dica.** Una partecipazione ha
-  // come identificativo l'uid di chi l'ha mandata — e' cosi' che il database
-  // garantisce una foto sola a testa — quindi la foto che ha preso la fiamma e'
-  // quella di chi riceve la notizia, in quella gara. E' lo stesso ragionamento
-  // che il ramo dei commenti fa gia' per le notizie vecchie.
-  // **Chi prova a batterti: si apre la sua foto.** La domanda di chi riceve
-  // questa notizia e' una sola — con cosa prova a battermi — e la campanella
-  // sarebbe un passaggio in piu' per arrivare alla stessa foto.
-  if (kind == 'rival') {
-    final gara = dati['challengeId'] ?? '';
-    final foto = dati['entryId'] ?? '';
+  // La sezione viaggia nell'indirizzo: la riga puo' non essere ancora
+  // arrivata quando la pagina si apre, e la sezione giusta va scelta lo
+  // stesso.
+  final sezione = AppNotification.groupOf(
+    AppNotification.kindFromName(kind as String?),
+  );
 
-    if (gara.isNotEmpty && foto.isNotEmpty) {
-      return (
-        scheda: AppRoutes.challenges,
-        apri: AppRoutes.entryCommentsOf(gara, foto),
-        evidenzia: null,
-        notificationId: dati['notificationId'],
-        daFermo: daFermo,
-        quando: DateTime.now().microsecondsSinceEpoch,
-      );
-    }
-  }
-
-  if (kind == 'fire') {
-    final gara = dati['challengeId'] ?? '';
-    final foto = (dati['entryId'] as String?)?.isNotEmpty == true
-        ? dati['entryId'] as String
-        : (io ?? '');
-
-    if (gara.isNotEmpty && foto.isNotEmpty) {
-      return (
-        scheda: AppRoutes.challenges,
-        apri: AppRoutes.entryCommentsOf(gara, foto),
-        evidenzia: null,
-        notificationId: dati['notificationId'],
-        daFermo: daFermo,
-        quando: DateTime.now().microsecondsSinceEpoch,
-      );
-    }
-  }
-
-  // Tutto il resto — vittorie, richiami, rimozioni — riguarda **te**: si
-  // va in campanella, sulla riga precisa da cui si e' arrivati.
   return (
     scheda: AppRoutes.challenges,
-    apri: AppRoutes.notifications,
+    apri: '${AppRoutes.notifications}?sezione=${sezione.name}',
     evidenzia: dati['notificationId'],
     notificationId: dati['notificationId'],
     daFermo: daFermo,
@@ -563,11 +418,7 @@ final foregroundPushProvider = StreamProvider<ForegroundPush>((ref) {
       .map(
         (messaggio) => (
           testo: messaggio.notification!.body!,
-          dove: pushTapOf(
-            messaggio.data,
-            daFermo: false,
-            io: ref.read(currentUserIdProvider),
-          ),
+          dove: pushTapOf(messaggio.data, daFermo: false),
         ),
       );
 });

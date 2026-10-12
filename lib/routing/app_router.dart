@@ -18,6 +18,7 @@ import 'package:crasy/features/friends/presentation/pages/who_you_know_page.dart
 import 'package:crasy/features/home/presentation/pages/home_page.dart';
 import 'package:crasy/features/home/presentation/pages/splash_page.dart';
 import 'package:crasy/features/legal/presentation/pages/consent_page.dart';
+import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
 import 'package:crasy/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:crasy/features/onboarding/presentation/pages/onboarding_page.dart';
 import 'package:crasy/features/onboarding/presentation/pages/permissions_page.dart';
@@ -359,6 +360,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         // notifica sullo schermo bloccato, e ha in testa quella sola.
         (state) => NotificationsPage(
           evidenzia: state.uri.queryParameters['evidenzia'],
+          // La sezione di partenza, per chi arriva da una push: la riga puo'
+          // non essere ancora arrivata, la sezione si sa dal tipo.
+          sezione: NotificationGroup.values
+              .where((g) => g.name == state.uri.queryParameters['sezione'])
+              .firstOrNull,
         ),
       ),
       // Gli amici non sono piu' una scheda: si aprono dal numero sul profilo,

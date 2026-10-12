@@ -14,6 +14,8 @@ import 'package:crasy/features/challenges/domain/entities/challenge_source.dart'
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/presentation/controllers/create_challenge_controller.dart';
 import 'package:crasy/features/challenges/presentation/controllers/duel_controller.dart';
+import 'package:crasy/features/challenges/presentation/widgets/anonimo_switch.dart';
+import 'package:crasy/features/challenges/presentation/widgets/privacy_note.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
@@ -72,6 +74,9 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
   /// dalla parte dei soldi metterebbe un casello davanti alla cosa piu'
   /// naturale che si fa qui dentro.
   var _gratis = true;
+
+  /// Lanciata senza nome: vedi `Challenge.anonimo`.
+  var _anonimo = false;
 
   String? _error;
 
@@ -230,6 +235,13 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
                             selected: _mediaKind,
                             onPick: (kind) => setState(() => _mediaKind = kind),
                           ),
+                          const SizedBox(height: AppSpacing.lg),
+                          AnonimoSwitch(
+                            acceso: _anonimo,
+                            sfida: true,
+                            onCambia: (valore) =>
+                                setState(() => _anonimo = valore),
+                          ),
                           const SizedBox(height: AppSpacing.xl),
                           Text(
                             'IL PREMIO',
@@ -304,8 +316,14 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
                             palette: palette,
                             texts: texts,
                             gratis: _gratis,
+                            anonimo: _anonimo,
                           ),
-                          const SizedBox(height: AppSpacing.xl),
+                          const SizedBox(height: AppSpacing.lg),
+                          // **Privata davvero, e va detto prima di mandare.**
+                          // Chi sfida una persona sola deve sapere che quello
+                          // che si scambiano resta fra loro.
+                          const PrivacyNote(text: PrivacyNote.sfida),
+                          const SizedBox(height: AppSpacing.lg),
                           CrasyButton(
                             label: _daPagare == null
                                 ? 'Lancia la sfida'
@@ -432,6 +450,7 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
           // qualcuno. Pescare dall'archivio sarebbe rispondere con una cosa
           // che si aveva gia' in tasca.
           source: ChallengeSource.instant,
+          anonimo: _anonimo,
         );
 
     if (!mounted) {
@@ -628,6 +647,7 @@ class _Rules extends StatelessWidget {
     required this.palette,
     required this.texts,
     required this.gratis,
+    this.anonimo = false,
   });
 
   final AppPalette palette;
@@ -636,8 +656,13 @@ class _Rules extends StatelessWidget {
   /// Cambia una riga sola, ed e' quella che dice cosa c'e' in palio.
   final bool gratis;
 
+  /// In anonimo l'amico non sa chi l'ha sfidato, ma sa chi giudica: "chi te
+  /// l'ha lanciata", senza nome.
+  final bool anonimo;
+
   List<String> get _righe => [
     'La vedete solo voi due.',
+    if (anonimo) 'Non saprà che sei tu, a meno che non sia tu a dirlo.',
     if (gratis)
       'Non c’è premio in denaro: in palio c’è la parola data.'
     else

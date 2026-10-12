@@ -11,8 +11,6 @@ import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
-import 'package:crasy/features/friends/domain/entities/friendship.dart';
-import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/moderation/presentation/providers/moderation_providers.dart';
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -444,21 +442,11 @@ final trophiesOfProvider = StreamProvider.family<List<Challenge>, String>((
   // ne fa parte: senza dirlo alla lettura, il database non filtra — rifiuta
   // tutta la richiesta, e la bacheca di chi ha vinto una missione fra amici
   // resta vuota per chiunque non sia dei loro.
-  //
-  // **E l'amicizia cambia cosa si vede ancora di piu'.** Le sfide mirate
-  // superate sono un trofeo che si mostra agli amici: chi non lo e' non le
-  // chiede nemmeno, perche' il database gliele negherebbe e con loro negherebbe
-  // tutta la bacheca.
   final io = ref.watch(currentUserIdProvider);
-  final amici = ref.watch(myFriendsProvider).valueOrNull ?? const <Friend>[];
 
   return ref
       .watch(challengeRepositoryProvider)
-      .watchTrophiesOf(
-        userId,
-        viewerId: io,
-        friend: userId == io || amici.any((amico) => amico.userId == userId),
-      )
+      .watchTrophiesOf(userId, viewerId: io)
       .map(soloAPagamento);
 });
 
@@ -481,12 +469,7 @@ final myTrophiesProvider = StreamProvider<List<Challenge>>((ref) {
 
   return ref
       .watch(challengeRepositoryProvider)
-      .watchTrophiesOf(
-        authState.user.id,
-        viewerId: authState.user.id,
-        // Le proprie sfide superate si vedono sempre: amico di se' stessi.
-        friend: true,
-      )
+      .watchTrophiesOf(authState.user.id, viewerId: authState.user.id)
       .map(soloAPagamento);
 });
 

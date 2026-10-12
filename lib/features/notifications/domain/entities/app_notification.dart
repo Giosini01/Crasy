@@ -163,7 +163,13 @@ enum NotificationGroup {
   duels('SFIDE'),
 
   /// Qualcuno ha scritto sotto la tua foto, o ti ha nominato.
-  comments('COMMENTI');
+  comments('COMMENTI'),
+
+  /// **Chi ha iniziato a seguirti.** Una sezione sua perche' e' l'unica cosa
+  /// della campanella che aspetta una scelta tua — ricambiare o no — e in
+  /// mezzo alle partecipazioni si perdeva. Toccandola si va a "Ti seguono",
+  /// dove si decide.
+  requests('RICHIESTE');
 
   const NotificationGroup(this.label);
 
@@ -190,6 +196,7 @@ class AppNotification {
     this.challengeId = '',
     this.challengeTitle = '',
     this.entryId = '',
+    this.anonimo = false,
     this.createdAt,
   });
 
@@ -207,6 +214,13 @@ class AppNotification {
   /// La foto di cui si parla, per commenti e nomine. Vuota per le notizie
   /// vecchie, scritte prima che ci fosse.
   final String entryId;
+
+  /// **Arriva da una sfida lanciata in anonimo.** Niente nome, niente faccia:
+  /// la riga dice "Un anonimo" e al posto della foto c'e' una maschera.
+  final bool anonimo;
+
+  /// Come si chiama chi l'ha fatta, nella frase: `@mario` o `Un anonimo`.
+  String get actorTag => anonimo ? 'Un anonimo' : '@$actorUsername';
 
   final DateTime? createdAt;
 
@@ -228,37 +242,35 @@ class AppNotification {
   /// tutti i posti in cui compare, e cambiarla vuol dire cambiarla una volta.
   String get message => switch (kind) {
     NotificationKind.participation =>
-      '@$actorUsername ha partecipato alla tua challenge',
+      '$actorTag ha partecipato alla tua challenge',
     // Niente "e' entrato" o "e' entrata": una riga che indovina il genere di
     // chi ha mandato la foto lo sbaglia a meta' dell'app.
-    NotificationKind.rival => '@$actorUsername prova a batterti',
-    NotificationKind.fire => '@$actorUsername ha dato una fiamma alla tua foto',
-    NotificationKind.mention => '@$actorUsername ti ha nominato in un commento',
-    NotificationKind.friendRequest => '@$actorUsername ha iniziato a seguirti',
+    NotificationKind.rival => '$actorTag prova a batterti',
+    NotificationKind.fire => '$actorTag ha dato una fiamma alla tua foto',
+    NotificationKind.mention => '$actorTag ti ha nominato in un commento',
+    NotificationKind.friendRequest => '$actorTag ha iniziato a seguirti',
     NotificationKind.comeback => 'Ci sono missioni nuove che ti aspettano',
-    NotificationKind.duel => '@$actorUsername ti ha sfidato',
-    NotificationKind.duelAccepted =>
-      '@$actorUsername ha accettato la tua sfida',
-    NotificationKind.duelDeclined =>
-      '@$actorUsername ha rifiutato la tua sfida',
+    NotificationKind.duel => '$actorTag ti ha sfidato',
+    NotificationKind.duelAccepted => '$actorTag ha accettato la tua sfida',
+    NotificationKind.duelDeclined => '$actorTag ha rifiutato la tua sfida',
     NotificationKind.duelCompleted =>
-      '@$actorUsername ha portato a termine la tua sfida',
+      '$actorTag ha portato a termine la tua sfida',
     NotificationKind.duelApproved =>
-      '@$actorUsername dice che ce l\'hai fatta: sfida vinta',
+      '$actorTag dice che ce l\'hai fatta: sfida vinta',
     NotificationKind.duelRejected =>
-      '@$actorUsername non ha giudicato valida la tua sfida',
+      '$actorTag non ha giudicato valida la tua sfida',
     NotificationKind.duelNoVerdict =>
       'Nessuno ha giudicato la tua sfida in tempo',
     NotificationKind.pickWinner =>
       'La tua missione è finita: scegli chi ha vinto',
     NotificationKind.soloJudge =>
-      'Solo @$actorUsername ha partecipato alla tua missione: decidi se ha vinto',
+      'Solo $actorTag ha partecipato alla tua missione: decidi se ha vinto',
     NotificationKind.partyMission =>
-      '@$actorUsername ha lanciato una missione per il party',
+      '$actorTag ha lanciato una missione per il party',
     NotificationKind.win => 'Hai vinto',
     NotificationKind.ended => 'La missione è finita: guarda chi ha vinto',
     NotificationKind.removed => 'La tua foto è stata tolta dalla gara',
-    NotificationKind.comment => '@$actorUsername ha commentato la tua foto',
+    NotificationKind.comment => '$actorTag ha commentato la tua foto',
   };
 
   /// La sezione in cui finisce.
@@ -279,6 +291,7 @@ class AppNotification {
   /// perche' ci arrivi qualcosa.
   NotificationGroup get group => switch (kind) {
     NotificationKind.fire => NotificationGroup.fires,
+    NotificationKind.friendRequest => NotificationGroup.requests,
     NotificationKind.duel ||
     NotificationKind.duelAccepted ||
     NotificationKind.duelDeclined ||
@@ -298,12 +311,16 @@ class AppNotification {
     // **Sta con le partecipazioni**: parla di una gara a cui si partecipa, ed
     // e' li' che uno andrebbe a cercarla.
     NotificationKind.rival ||
-    NotificationKind.friendRequest ||
     // **Sta con le partecipazioni, non con le vittorie.** E' la propria
     // partecipazione che non c'e' piu': trovarla sotto l'insegna VITTORIE
     // sarebbe la cosa piu' stonata della campanella.
     NotificationKind.removed => NotificationGroup.participations,
   };
+
+  /// La sezione di un tipo di notizia, senza avere la notizia in mano: serve
+  /// a chi arriva da una push, che conosce solo il tipo.
+  static NotificationGroup groupOf(NotificationKind kind) =>
+      AppNotification(id: '', kind: kind).group;
 
   static NotificationKind kindFromName(String? value) {
     for (final kind in NotificationKind.values) {

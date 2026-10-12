@@ -26,6 +26,9 @@ abstract final class ChallengeMapper {
       source: ChallengeSource.fromName(data['source'] as String?),
       createdByUsername: data['createdByUsername'] as String? ?? '',
       createdByUserId: data['createdByUserId'] as String? ?? '',
+      // Manca su tutte le gare nate prima che si potesse lanciare in anonimo:
+      // erano tutte firmate.
+      anonimo: data['anonimo'] as bool? ?? false,
       // Le date sono obbligatorie per il prodotto ma non per il documento: un
       // record scritto a mano male non deve far cadere l'intera schermata.
       // Senza inizio e fine la challenge risulta chiusa, che e' lo stato piu'
@@ -81,6 +84,10 @@ abstract final class ChallengeMapper {
       'mediaKind': challenge.mediaKind.name,
       'createdByUsername': challenge.createdByUsername,
       'createdByUserId': challenge.createdByUserId,
+      // **In anonimo il nome non parte nemmeno.** Lo chiedono anche le regole
+      // del database: con `anonimo` acceso, `createdByUsername` dev'essere
+      // vuoto.
+      'anonimo': challenge.anonimo,
       'startsAt': Timestamp.fromDate(challenge.startsAt),
       'endsAt': Timestamp.fromDate(challenge.endsAt),
       'participantsCount': challenge.participantsCount,

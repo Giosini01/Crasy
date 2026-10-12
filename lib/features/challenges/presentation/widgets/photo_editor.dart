@@ -340,10 +340,7 @@ class _PhotoEditorState extends State<PhotoEditor> {
   }
 
   Future<void> _scrivi() async {
-    final testo = await showDialog<String>(
-      context: context,
-      builder: (context) => const _ChiediIlTesto(),
-    );
+    final testo = await _apriLaScrittura(context);
 
     if (testo == null || testo.trim().isEmpty) {
       return;
@@ -374,10 +371,7 @@ class _PhotoEditorState extends State<PhotoEditor> {
   /// un comando in piu'. Non e' una schermata nuova da imparare: e' quella di
   /// prima, riaperta.
   Future<void> _ritocca(_Scritta scritta) async {
-    final esito = await showDialog<String>(
-      context: context,
-      builder: (context) => _ChiediIlTesto(iniziale: scritta.testo),
-    );
+    final esito = await _apriLaScrittura(context, iniziale: scritta.testo);
 
     if (esito == null) {
       return;
@@ -789,7 +783,28 @@ class _ScrittaSopraState extends State<_ScrittaSopra> {
   }
 }
 
-/// Il riquadro in cui si batte la frase.
+/// **Si scrive sopra la foto, non in una finestra.**
+///
+/// Prima c'era un riquadro bianco con un titolo, una riga e due tasti: un
+/// modulo da compilare in mezzo a una cosa che deve sembrare un gioco. Adesso
+/// la foto resta sotto, velata, e la frase si scrive al centro **con lo stesso
+/// carattere con cui finira' sulla foto**: bianca, grossa, con l'ombra. Quello
+/// che si vede mentre si scrive e' quello che si ottiene.
+///
+/// Torna il testo, una stringa vuota per toglierla, o `null` se si lascia
+/// stare.
+Future<String?> _apriLaScrittura(BuildContext context, {String iniziale = ''}) {
+  return showGeneralDialog<String>(
+    context: context,
+    barrierDismissible: false,
+    barrierColor: Colors.black.withValues(alpha: 0.6),
+    transitionDuration: const Duration(milliseconds: 150),
+    pageBuilder: (context, _, _) => _ChiediIlTesto(iniziale: iniziale),
+    transitionBuilder: (context, animazione, _, figlio) =>
+        FadeTransition(opacity: animazione, child: figlio),
+  );
+}
+
 class _ChiediIlTesto extends StatefulWidget {
   const _ChiediIlTesto({this.iniziale = ''});
 
@@ -811,49 +826,91 @@ class _ChiediIlTestoState extends State<_ChiediIlTesto> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: context.palette.background,
-      title: Text(
-        widget.iniziale.isEmpty ? 'Scrivi sulla foto' : 'Cambia la frase',
-        style: context.texts.titleMedium,
-      ),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        maxLength: 60,
-        maxLines: 2,
-        textCapitalization: TextCapitalization.sentences,
-        // Sessanta caratteri e due righe: oltre, una frase sopra una foto
-        // smette di essere una didascalia e diventa un muro che copre quello
-        // che c'e' sotto.
-        inputFormatters: [LengthLimitingTextInputFormatter(60)],
-        decoration: const InputDecoration(hintText: 'Una frase, corta'),
-        onSubmitted: (testo) => Navigator.of(context).pop(testo),
-      ),
-      actions: [
-        // **"Togli" solo quando c'e' qualcosa da togliere.** Aprendo il
-        // riquadro per scrivere la prima frase, un tasto che cancella non ha
-        // niente su cui agire: offrirlo lo stesso e' far leggere una scelta
-        // che non esiste.
-        if (widget.iniziale.isNotEmpty)
-          TextButton(
-            // La stringa vuota vuol dire "toglila": lo capisce chi chiama,
-            // ed e' lo stesso che succede cancellando tutto il testo a mano.
-            onPressed: () => Navigator.of(context).pop(''),
-            child: Text(
-              'Togli',
-              style: TextStyle(color: context.palette.accent),
+    final palette = context.palette;
+    final etichetta = context.texts.labelLarge?.copyWith(
+      color: Colors.white,
+      letterSpacing: 1,
+    );
+
+    return Material(
+      type: MaterialType.transparency,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              child: Row(
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text('ANNULLA', style: etichetta),
+                  ),
+                  const Spacer(),
+                  // **"Togli" solo quando c'e' qualcosa da togliere.** La
+                  // stringa vuota vuol dire "toglila": lo capisce chi chiama,
+                  // ed e' lo stesso che succede cancellando tutto a mano.
+                  if (widget.iniziale.isNotEmpty)
+                    // Un cestino e non una parola: tre parole in fila non ci
+                    // stanno sui telefoni stretti.
+                    IconButton(
+                      tooltip: 'Elimina la frase',
+                      onPressed: () => Navigator.of(context).pop(''),
+                      icon: const Icon(
+                        Icons.delete_outline_rounded,
+                        color: Colors.white,
+                      ),
+                    ),
+                  TextButton(
+                    onPressed: () =>
+                        Navigator.of(context).pop(_controller.text),
+                    child: Text(
+                      'FATTO',
+                      style: etichetta?.copyWith(color: palette.accent),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Annulla'),
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.page,
+                  ),
+                  child: TextField(
+                    controller: _controller,
+                    autofocus: true,
+                    maxLines: null,
+                    textAlign: TextAlign.center,
+                    textCapitalization: TextCapitalization.sentences,
+                    textInputAction: TextInputAction.done,
+                    cursorColor: palette.accent,
+                    style: _stile(1.3),
+                    // Sessanta caratteri: oltre, una frase sopra una foto
+                    // smette di essere una didascalia e diventa un muro che
+                    // copre quello che c'e' sotto.
+                    inputFormatters: [LengthLimitingTextInputFormatter(60)],
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      filled: false,
+                      hintText: 'Scrivi qualcosa',
+                      hintStyle: _stile(
+                        1.3,
+                      ).copyWith(color: Colors.white.withValues(alpha: 0.45)),
+                    ),
+                    onSubmitted: (testo) => Navigator.of(context).pop(testo),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(_controller.text),
-          child: Text(widget.iniziale.isEmpty ? 'Metti' : 'Salva'),
-        ),
-      ],
+      ),
     );
   }
 }

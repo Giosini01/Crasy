@@ -36,7 +36,7 @@ class DuelBadge extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Flexible(
             child: Text(
-              '@${challenge.createdByUsername} → '
+              '${challenge.creatorTag} → '
               '@${challenge.targetUsername}',
               style: texts.labelMedium?.copyWith(color: palette.textSecondary),
               maxLines: 1,

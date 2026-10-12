@@ -54,6 +54,7 @@ class DuelController extends AsyncNotifier<void> {
     MediaKind mediaKind = MediaKind.photo,
     ChallengeSource source = ChallengeSource.instant,
     Duration duration = defaultDuration,
+    bool anonimo = false,
   }) async {
     final authState = ref.read(authStateProvider);
 
@@ -110,8 +111,12 @@ class DuelController extends AsyncNotifier<void> {
       // mirata e' una cosa fra due persone, e allargarla al gruppo sarebbe
       // un'altra funzione — quella c'e' gia', ed e' la missione di party.
       audience: [meId, targetUserId],
-      createdByUsername: profile?.username ?? 'anonimo',
+      // **In anonimo il nome non si scrive nemmeno.** Chi riceve la sfida sa
+      // solo che arriva da uno dei suoi amici: indovinare chi e' fa parte del
+      // gioco.
+      createdByUsername: anonimo ? '' : profile?.username ?? 'anonimo',
       createdByUserId: meId,
+      anonimo: anonimo,
       targetUserId: targetUserId,
       targetUsername: targetUsername,
       // La riga per l'amico: facoltativa, e tagliata a lunghezza prima di
@@ -153,6 +158,7 @@ class DuelController extends AsyncNotifier<void> {
       // riceve la leggerebbe solo entrando: una provocazione letta il giorno
       // dopo non e' piu' una provocazione.
       message: nata.duelMessage,
+      anonimo: anonimo,
     );
 
     return nata.id;
@@ -243,6 +249,8 @@ class DuelController extends AsyncNotifier<void> {
           : NotificationKind.duelRejected,
       challengeId: challenge.id,
       challengeTitle: challenge.title,
+      // Il verdetto lo da' chi ha lanciato: se si era nascosto, resta nascosto.
+      anonimo: challenge.anonimo,
     );
   }
 
@@ -324,6 +332,7 @@ class DuelController extends AsyncNotifier<void> {
     required String challengeId,
     required String challengeTitle,
     String message = '',
+    bool anonimo = false,
   }) async {
     final repository = ref.read(notificationsRepositoryProvider);
     final meId = ref.read(currentUserIdProvider);
@@ -346,6 +355,7 @@ class DuelController extends AsyncNotifier<void> {
       challengeId: challengeId,
       challengeTitle: challengeTitle,
       message: message,
+      anonimo: anonimo,
     );
   }
 }

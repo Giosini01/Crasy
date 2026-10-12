@@ -204,11 +204,20 @@ enum DuelState {
   ///
   /// Separata dal fischio perche' non e' una presa in giro di nessuno: dice
   /// solo chi sta aspettando cosa.
-  String? nota({required bool mine, required String username}) {
+  ///
+  /// [anonimo]: la sfida ricevuta arriva da qualcuno che non si e' firmato, e
+  /// il suo nome non c'e' da scrivere.
+  String? nota({
+    required bool mine,
+    required String username,
+    bool anonimo = false,
+  }) {
     return switch (this) {
       DuelState.judging =>
         mine
-            ? 'L\'hai fatta. Aspetta il giudizio di @$username.'
+            ? (anonimo
+                  ? 'L\'hai fatta. Aspetta il giudizio di chi ti ha sfidato.'
+                  : 'L\'hai fatta. Aspetta il giudizio di @$username.')
             : '@$username l\'ha fatta: tocca a te dire se va bene.',
       DuelState.noVerdict =>
         mine

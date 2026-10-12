@@ -96,6 +96,12 @@ abstract final class Leaderboard {
         continue;
       }
 
+      // **Chi lancia in anonimo non sale.** Il suo nome qui, accanto ai soldi
+      // di una gara che tutti hanno visto, toglierebbe la maschera.
+      if (challenge.anonimo) {
+        continue;
+      }
+
       cents[chi] = (cents[chi] ?? 0) + challenge.prizeCents;
       quante[chi] = (quante[chi] ?? 0) + 1;
       nomi[chi] = challenge.createdByUsername;

@@ -19,6 +19,7 @@ import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/presentation/controllers/participation_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/photo_editor.dart';
+import 'package:crasy/features/challenges/presentation/widgets/privacy_note.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -323,7 +324,12 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
               // solo qui sarebbe sparita dal percorso: chi consegna una cosa
               // fatta da se' per dei soldi veri ha diritto di sapere che ne
               // sara' **prima** di consegnarla.
-              nota: _ilConsenso(challenge),
+              //
+              // **E con lei l'avviso dell'unico scatto.** Prima stava in una
+              // finestra che si apriva dopo aver premuto "Manda in gara": due
+              // "manda" di fila per lo stesso gesto. Detto qui, prima del
+              // tasto, il tasto basta.
+              nota: '${_unoScatto(challenge)} ${_ilConsenso(challenge)}',
             ),
           ),
         );
@@ -344,8 +350,9 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
 
         setState(() => _media = definitiva);
 
-        // Si manda subito: e' il tasto che e' stato premuto.
-        await _submit(challenge);
+        // Si manda subito: e' il tasto che e' stato premuto, e l'avviso
+        // l'aveva gia' sotto gli occhi. Nessuna seconda conferma.
+        await _submit(challenge, confermata: true);
 
         return;
       }
@@ -487,7 +494,10 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
     return risposta ?? false;
   }
 
-  Future<void> _submit(Challenge challenge) async {
+  /// [confermata]: il tasto premuto era gia' quello che manda, con l'avviso
+  /// dell'unico scatto scritto sopra — vedi `PhotoEditor.nota`. Chiedere di
+  /// nuovo "la mandi?" sarebbe far premere due volte la stessa cosa.
+  Future<void> _submit(Challenge challenge, {bool confermata = false}) async {
     final media = _media;
 
     if (media == null) {
@@ -510,7 +520,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
 
     setState(() => _error = null);
 
-    if (!await _conferma(challenge)) {
+    if (!confermata && !await _conferma(challenge)) {
       return;
     }
 
@@ -677,6 +687,13 @@ class _Form extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           InlineBanner(message: error!),
         ],
+        // **Su una sfida uno contro uno, chi manda la foto deve sapere chi la
+        // vedra'**: solo chi l'ha sfidato. E' la domanda che uno si fa prima di
+        // mandare qualcosa di personale, e la risposta va data qui.
+        if (challenge.isDuel) ...[
+          const SizedBox(height: AppSpacing.md),
+          const PrivacyNote(text: PrivacyNote.sfida),
+        ],
         const SizedBox(height: AppSpacing.xl),
         CrasyButton(
           label: 'Manda in gara',
@@ -816,6 +833,17 @@ class _Preview extends StatelessWidget {
 ///
 /// Le parole esatte vanno riviste da un legale prima di aprire al pubblico —
 /// vedi `legale.md`.
+/// L'avviso dell'unico scatto, in una riga: quello che diceva la finestra
+/// "La mandi?", detto prima del tasto invece che dopo.
+String _unoScatto(Challenge challenge) {
+  final cosa = challenge.mediaKind.isVideo ? 'Mandato' : 'Mandata';
+  final costo = challenge.isDuel || challenge.isDaily
+      ? 'Non ti costa nessuna partecipazione.'
+      : 'Usa una delle partecipazioni di oggi.';
+
+  return 'Un solo scatto: $cosa, non si cambia e non si cancella. $costo';
+}
+
 String _ilConsenso(Challenge challenge) {
   return challenge.mediaKind.isVideo
       ? 'Il video resta tuo. Mandandolo, CRASY pu\u00f2 mostrarlo qui dentro '

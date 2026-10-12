@@ -50,7 +50,7 @@ import 'package:go_router/go_router.dart';
 /// notizie, non fuoco. Se fosse rosso tutto, il rosso smetterebbe di dire
 /// qualcosa gia' alla terza riga.
 class NotificationsPage extends ConsumerStatefulWidget {
-  const NotificationsPage({this.evidenzia, super.key});
+  const NotificationsPage({this.evidenzia, this.sezione, super.key});
 
   /// Quale riga accendere, arrivando da una notifica toccata.
   ///
@@ -59,6 +59,9 @@ class NotificationsPage extends ConsumerStatefulWidget {
   /// dove c'e' anche quella vuol dire cercarsela in mezzo alle altre. Il nome
   /// del documento arriva dentro il messaggio, e serve a puntarla.
   final String? evidenzia;
+
+  /// Su quale sezione aprirsi, arrivando da una push.
+  final NotificationGroup? sezione;
 
   @override
   ConsumerState<NotificationsPage> createState() => _NotificationsPageState();
@@ -169,7 +172,27 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   /// guarda, e una schermata che si sposta sotto il dito e' peggio di una
   /// schermata che parte dal posto sbagliato.
   void _scegliLaSezione(List<AppNotification> notifiche, DateTime? seenAt) {
-    if (_sezioneScelta || notifiche.isEmpty) {
+    if (_sezioneScelta) {
+      return;
+    }
+
+    // **Da una push, comanda la sezione della push** — subito, anche se le
+    // righe non sono ancora arrivate. Chi ha toccato "nuovo commento" vuole
+    // vedere i commenti, non una sezione scelta a caso mentre la rete carica.
+    if (widget.sezione case final sezione?) {
+      _sezioneScelta = true;
+      _viste.add(sezione);
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(notificationFilterProvider.notifier).state = sezione;
+        }
+      });
+
+      return;
+    }
+
+    if (notifiche.isEmpty) {
       return;
     }
 
@@ -259,6 +282,13 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       for (final riga in notifications)
         if (riga.group == filtro) riga,
     ];
+
+    // La riga per cui si e' arrivati si spegne **da quando si vede**, non da
+    // quando si e' aperta la pagina: arrivando da una push puo' comparire un
+    // attimo dopo.
+    if (_accesa != null && visibili.any((riga) => riga.id == _accesa)) {
+      _accendi();
+    }
 
     // **Le vecchie non stanno in mezzo, stanno in fondo.** Sopra la settimana
     // una notizia non e' piu' una notizia: chi apre la campanella cerca cosa e'
@@ -700,9 +730,10 @@ class _Message extends StatelessWidget {
       );
     }
 
-    final handle = '@${notification.actorUsername}';
+    final handle = notification.actorTag;
 
-    if (notification.actorUsername.isEmpty || !message.startsWith(handle)) {
+    if ((notification.actorUsername.isEmpty && !notification.anonimo) ||
+        !message.startsWith(handle)) {
       return Text(message, style: texts.bodyLarge, maxLines: 2);
     }
 
@@ -716,13 +747,15 @@ class _Message extends StatelessWidget {
               color: palette.textPrimary,
             ),
           ),
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: Padding(
-              padding: const EdgeInsets.only(left: 3),
-              child: VerifiedTick(userId: notification.actorId, size: 13),
+          // In anonimo niente spunta: sarebbe un indizio su chi e'.
+          if (!notification.anonimo)
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 3),
+                child: VerifiedTick(userId: notification.actorId, size: 13),
+              ),
             ),
-          ),
           TextSpan(
             text: message.substring(handle.length),
             style: texts.bodyLarge?.copyWith(color: palette.textSecondary),
@@ -777,6 +810,25 @@ class _Face extends StatelessWidget {
     // tolta, una sfida scaduta non le ha fatte nessuno: la sagoma grigia al
     // posto della faccia sembrava una foto che non si era caricata. Al suo
     // posto il segno della notizia, grande, come la coppa delle vittorie.
+    // **In anonimo, una maschera.** La faccia di chi ha lanciato la sfida e'
+    // proprio la cosa che non si deve vedere.
+    if (notification.anonimo) {
+      return Container(
+        width: _size,
+        height: _size,
+        decoration: BoxDecoration(
+          color: palette.accentTint,
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: Icon(
+          Icons.theater_comedy_rounded,
+          size: 24,
+          color: palette.accent,
+        ),
+      );
+    }
+
     if (notification.actorId.isEmpty) {
       final segno = switch (kind) {
         NotificationKind.ended => Icons.flag_rounded,

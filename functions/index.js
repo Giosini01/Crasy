@@ -1322,8 +1322,13 @@ async function avvisaSfidaSenzaGiudizio(challenge) {
       .doc('nogiudizio_' + challenge.id)
       .set({
         kind: 'duelNoVerdict',
-        actorId: challenge.get('createdByUserId') || '',
-        actorUsername: challenge.get('createdByUsername') || '',
+        // In anonimo chi ha lanciato resta nascosto anche qui.
+        ...(challenge.get('anonimo') === true
+          ? { actorId: '', actorUsername: '', anonimo: true }
+          : {
+              actorId: challenge.get('createdByUserId') || '',
+              actorUsername: challenge.get('createdByUsername') || '',
+            }),
         challengeId: challenge.id,
         challengeTitle: challenge.get('title') || '',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1908,6 +1913,8 @@ exports.sendPushOnNotification = onDocumentCreated(
 
     const userId = event.params.userId;
     const chi = dati.actorUsername || 'qualcuno';
+    // **Chi si e' nascosto resta nascosto anche sullo schermo bloccato.**
+    const tag = dati.anonimo === true ? 'Un anonimo' : `@${chi}`;
     const gara = dati.challengeTitle || '';
 
     // Una riga per tipo. Corte apposta: sullo schermo bloccato di un telefono
@@ -1958,23 +1965,23 @@ exports.sendPushOnNotification = onDocumentCreated(
       // legge senza la sola cosa che gli serve per decidere se aprire l'app
       // adesso o stasera. Le altre notizie raccontano un fatto gia' successo,
       // dove il nome puo' aspettare la campanella.
-      duel: `@${chi} ti ha sfidato`,
-      duelAccepted: `@${chi} ha accettato la tua sfida`,
-      duelDeclined: `@${chi} ha rifiutato la tua sfida`,
-      duelCompleted: `@${chi} ha portato a termine la tua sfida`,
+      duel: `${tag} ti ha sfidato`,
+      duelAccepted: `${tag} ha accettato la tua sfida`,
+      duelDeclined: `${tag} ha rifiutato la tua sfida`,
+      duelCompleted: `${tag} ha portato a termine la tua sfida`,
       // **Il verdetto, che su una sfida mirata e' il finale.** Non c'e' nessun
       // conteggio di fiamme che chiuda una gara a due: la chiude una persona
       // che dice se vale, e questa e' la notizia che lo dice all'altra.
-      duelApproved: `@${chi} dice che ce l'hai fatta: sfida vinta`,
-      duelRejected: `@${chi} non ha giudicato valida la tua sfida`,
+      duelApproved: `${tag} dice che ce l'hai fatta: sfida vinta`,
+      duelRejected: `${tag} non ha giudicato valida la tua sfida`,
       duelNoVerdict: 'Nessuno ha giudicato la tua sfida in tempo',
-      soloJudge: `Solo @${chi} ha partecipato alla tua missione: decidi se ha vinto`,
+      soloJudge: `Solo ${tag} ha partecipato alla tua missione: decidi se ha vinto`,
       pickWinner: gara
         ? `È finita: scegli chi ha vinto ${gara}`
         : 'La tua missione è finita: scegli chi ha vinto',
       partyMission: gara
-        ? `@${chi} ha lanciato una missione: ${gara}`
-        : `@${chi} ha lanciato una missione per il party`,
+        ? `${tag} ha lanciato una missione: ${gara}`
+        : `${tag} ha lanciato una missione per il party`,
     };
 
     let corpo = testi[dati.kind] || 'Qualcosa di nuovo ti aspetta';
@@ -2655,6 +2662,7 @@ exports.notifyFriendsOnLivePartyChallenge = onDocumentWritten(
 
     const autore = String(dati.createdByUserId || '');
     const nome = String(dati.createdByUsername || '');
+    const anonimo = dati.anonimo === true;
     const titolo = String(dati.title || '');
     const destinatari = (dati.audience || [])
       .filter((id) => typeof id === 'string' && id && id !== '*' && id !== autore)
@@ -2675,8 +2683,12 @@ exports.notifyFriendsOnLivePartyChallenge = onDocumentWritten(
           .doc(`party_${event.params.challengeId}`),
         {
           kind: 'partyMission',
-          actorId: autore,
-          actorUsername: nome,
+          // **In anonimo, niente nome e niente faccia.** La campanella mostra
+          // la foto di `actorId`: lasciarlo scritto vorrebbe dire firmare la
+          // missione proprio dove la si annuncia.
+          actorId: anonimo ? '' : autore,
+          actorUsername: anonimo ? '' : nome,
+          ...(anonimo ? { anonimo: true } : {}),
           challengeId: event.params.challengeId,
           challengeTitle: titolo,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),

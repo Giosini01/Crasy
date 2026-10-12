@@ -28,6 +28,7 @@ class Challenge {
     this.source = ChallengeSource.instant,
     this.createdByUsername = '',
     this.createdByUserId = '',
+    this.anonimo = false,
     this.participantsCount = 0,
     this.winnerEntryId,
     this.winnerUserId = '',
@@ -222,6 +223,23 @@ class Challenge {
   final String createdByUserId;
 
   bool get hasCreator => createdByUsername.isNotEmpty;
+
+  /// **Lanciata in anonimo**: chi la riceve non sa da chi arriva.
+  ///
+  /// Il nome non viene nemmeno scritto nel documento — `createdByUsername`
+  /// nasce vuoto — e l'app non mostra faccia, nome ne' profilo di chi l'ha
+  /// lanciata. L'identificativo resta, perche' senza non si potrebbe pagare,
+  /// giudicare o cancellare: ma nessuna schermata lo apre.
+  ///
+  /// **E non conta per la classifica di chi fa giocare.** Una classifica e'
+  /// un modo di farsi vedere, e chi ha scelto di non farsi vedere non ci
+  /// sale: altrimenti il suo nome comparirebbe li' accanto ai soldi messi in
+  /// palio, e la maschera durerebbe il tempo di un confronto.
+  final bool anonimo;
+
+  /// Come si chiama chi l'ha lanciata, detto a chi guarda: `@mario`, oppure
+  /// `Un anonimo`. Da usare dappertutto al posto di `@$createdByUsername`.
+  String get creatorTag => anonimo ? 'Un anonimo' : '@$createdByUsername';
 
   /// L'ha lanciata CRASY.
   bool get byCrasy => createdByUserId == crasyUserId;
@@ -593,6 +611,7 @@ class Challenge {
     ChallengeSource? source,
     String? createdByUsername,
     String? createdByUserId,
+    bool? anonimo,
     DateTime? startsAt,
     DateTime? endsAt,
     int? participantsCount,
@@ -627,6 +646,7 @@ class Challenge {
       source: source ?? this.source,
       createdByUsername: createdByUsername ?? this.createdByUsername,
       createdByUserId: createdByUserId ?? this.createdByUserId,
+      anonimo: anonimo ?? this.anonimo,
       startsAt: startsAt ?? this.startsAt,
       endsAt: endsAt ?? this.endsAt,
       participantsCount: participantsCount ?? this.participantsCount,
@@ -669,6 +689,7 @@ class Challenge {
         other.source == source &&
         other.createdByUsername == createdByUsername &&
         other.createdByUserId == createdByUserId &&
+        other.anonimo == anonimo &&
         other.startsAt == startsAt &&
         other.endsAt == endsAt &&
         other.participantsCount == participantsCount &&
@@ -692,6 +713,7 @@ class Challenge {
     source,
     createdByUsername,
     createdByUserId,
+    anonimo,
     startsAt,
     endsAt,
     participantsCount,

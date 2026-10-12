@@ -142,7 +142,7 @@ class ChallengeCard extends ConsumerWidget {
                 ],
                 const SizedBox(height: AppSpacing.md),
                 ChallengeMetaRow(challenge: challenge),
-                if (challenge.hasCreator) ...[
+                if (challenge.hasCreator || challenge.anonimo) ...[
                   const SizedBox(height: AppSpacing.xs),
                   ChallengeAuthor(challenge: challenge),
                 ],
@@ -365,6 +365,38 @@ class ChallengeAuthor extends StatelessWidget {
     final texts = context.texts;
     final official = challenge.createdByUserId.isEmpty;
 
+    // **In anonimo: una maschera, e nessun profilo da aprire.** Il tocco che
+    // porta da chi l'ha lanciata e' proprio quello che la maschera deve
+    // impedire.
+    if (challenge.anonimo) {
+      return Row(
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: palette.accentTint,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.theater_comedy_rounded,
+              size: 12,
+              color: palette.accent,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Flexible(
+            child: Text(
+              'Lanciata in anonimo',
+              style: texts.labelMedium,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      );
+    }
+
     return GestureDetector(
       onTap: official
           ? null
@@ -390,42 +422,31 @@ class ChallengeAuthor extends StatelessWidget {
         // da un ufficio. Con la sua fotografia — l'icona dell'app — la sfida
         // del giorno diventa una cosa che qualcuno ti ha chiesto di fare, che
         // e' la stessa promessa delle altre gare.
-        if (challenge.byCrasy)
-          FriendAvatar(
-            userId: challenge.createdByUserId,
-            username: challenge.createdByUsername,
-            size: 20,
-          )
-        else
+        //
+        // **E anche chi lancia ha la sua faccia, non un'iniziale.** Prima
+        // c'era una lettera in un cerchio grigio: "Lanciata da @giosyni" con
+        // sopra una G, quando la foto profilo c'era. La faccia e' la cosa che
+        // fa riconoscere chi ti sta sfidando prima ancora del nome.
+        if (official)
           Container(
             width: 20,
             height: 20,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: official ? palette.accentTint : palette.surfaceMuted,
+              color: palette.accentTint,
               shape: BoxShape.circle,
             ),
-            child: official
-                ? Icon(
-                    Icons.local_fire_department,
-                    size: 12,
-                    color: palette.accent,
-                  )
-                // Il nome puo' arrivare vuoto da una challenge scritta male:
-                // `substring` su una stringa vuota fa saltare l'intera lista.
-                // Al suo posto **la sagoma di una persona, non un `?`**: un
-                // punto interrogativo in un cerchio grigio si legge come
-                // un'immagine che non si e' caricata, e non e' quello che sta
-                // succedendo.
-                : challenge.createdByUsername.isEmpty
-                ? Icon(Icons.person_rounded, size: 12, color: palette.textFaint)
-                : Text(
-                    challenge.createdByUsername.substring(0, 1).toUpperCase(),
-                    style: texts.labelSmall?.copyWith(
-                      color: palette.textSecondary,
-                      letterSpacing: 0,
-                    ),
-                  ),
+            child: Icon(
+              Icons.local_fire_department,
+              size: 12,
+              color: palette.accent,
+            ),
+          )
+        else
+          FriendAvatar(
+            userId: challenge.createdByUserId,
+            username: challenge.createdByUsername,
+            size: 20,
           ),
         const SizedBox(width: AppSpacing.xs),
         Flexible(

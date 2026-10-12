@@ -89,7 +89,7 @@ void main() {
         // Le richieste d'amicizia non compaiono qui: stanno nella scheda
         // Amici, con i comandi per accettare o rifiutare. Il ramo esiste
         // perche' il tipo esiste, non perche' ci arrivi qualcosa.
-        NotificationKind.friendRequest: NotificationGroup.participations,
+        NotificationKind.friendRequest: NotificationGroup.requests,
       };
 
       casi.forEach((kind, gruppo) {

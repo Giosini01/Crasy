@@ -254,8 +254,19 @@ class _NavBar extends StatelessWidget {
       // punti e' una barra di pulsanti e si prende tutta, sotto e' una lineetta
       // o un gesto e se ne tiene un terzo. Cosi' vale anche per Android a gesti,
       // che sta sui ventiquattro, senza chiedere a nessuno su cosa sta girando.
+      //
+      // **E un margine ai lati, uguale dai due.** Sugli iPhone gli angoli
+      // dello schermo sono curvi, e la prima e l'ultima scheda — CHALLENGE e
+      // PROFILO — finivano dentro la curva, con l'etichetta tagliata dal
+      // bordo. Le cinque restano larghe uguali, quindi la distanza fra l'una e
+      // l'altra non cambia: si stringe solo la fila.
       child: Padding(
-        padding: EdgeInsets.only(bottom: _sotto(context)),
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          0,
+          AppSpacing.md,
+          _sotto(context),
+        ),
         child: SizedBox(
           height: 56,
           child: Row(

@@ -116,4 +116,32 @@ void main() {
 
     expect(Leaderboard.launchers(chiuse), isEmpty);
   });
+
+  test('chi lancia in anonimo non sale fra chi fa giocare', () {
+    // Il nome accanto ai soldi di quella gara toglierebbe la maschera.
+    final chiuse = [
+      gara(id: 'firmata', prizeCents: 500, lanciata: 'anna'),
+      gara(
+        id: 'mascherata',
+        prizeCents: 10000,
+        lanciata: 'anna',
+      ).copyWith(anonimo: true, createdByUsername: ''),
+    ];
+
+    final classifica = Leaderboard.launchers(chiuse);
+
+    expect(classifica, hasLength(1));
+    expect(classifica.single.cents, 500);
+    expect(classifica.single.count, 1);
+  });
+
+  test("una gara anonima non dice chi l'ha lanciata", () {
+    final mascherata = gara(
+      id: 'm',
+      prizeCents: 500,
+    ).copyWith(anonimo: true, createdByUsername: '');
+
+    expect(mascherata.creatorTag, 'Un anonimo');
+    expect(gara(id: 'f', prizeCents: 500).creatorTag, '@anna');
+  });
 }

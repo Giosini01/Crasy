@@ -44,7 +44,7 @@ Future<void> _scrivi(WidgetTester tester, String frase) async {
   await tester.pumpAndSettle();
 
   await tester.enterText(find.byType(TextField), frase);
-  await tester.tap(find.text('Metti'));
+  await tester.tap(find.text('FATTO'));
   await tester.pumpAndSettle();
 }
 
@@ -131,11 +131,10 @@ void main() {
       await tester.tap(find.text('sbaglaito'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Cambia la frase'), findsOneWidget);
       expect(find.widgetWithText(TextField, 'sbaglaito'), findsOneWidget);
 
       await tester.enterText(find.byType(TextField), 'sbagliato');
-      await tester.tap(find.text('Salva'));
+      await tester.tap(find.text('FATTO'));
       await tester.pumpAndSettle();
 
       expect(find.text('sbagliato'), findsOneWidget);
@@ -159,7 +158,7 @@ void main() {
 
       await tester.tap(find.text('prima'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Togli'));
+      await tester.tap(find.byTooltip('Elimina la frase'));
       await tester.pumpAndSettle();
 
       expect(find.text('prima'), findsNothing);
@@ -173,7 +172,7 @@ void main() {
       await tester.tap(find.text('via'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), '   ');
-      await tester.tap(find.text('Salva'));
+      await tester.tap(find.text('FATTO'));
       await tester.pumpAndSettle();
 
       expect(find.text('via'), findsNothing);
@@ -185,8 +184,8 @@ void main() {
       await tester.tap(_tastoScrivi);
       await tester.pumpAndSettle();
 
-      expect(find.text('Togli'), findsNothing);
-      expect(find.text('Metti'), findsOneWidget);
+      expect(find.byTooltip('Elimina la frase'), findsNothing);
+      expect(find.text('FATTO'), findsOneWidget);
     });
   });
 

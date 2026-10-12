@@ -857,11 +857,7 @@ class FirestoreChallengeRepository implements ChallengeRepository {
   }
 
   @override
-  Stream<List<Challenge>> watchTrophiesOf(
-    String userId, {
-    String? viewerId,
-    bool friend = false,
-  }) {
+  Stream<List<Challenge>> watchTrophiesOf(String userId, {String? viewerId}) {
     // Senza `orderBy`: incrociare un filtro e un ordinamento su campi diversi
     // costringe Firestore a un indice composto, e un indice mancante non e' un
     // errore che si vede scrivendo il codice — e' una schermata vuota in mano a
@@ -873,23 +869,14 @@ class FirestoreChallengeRepository implements ChallengeRepository {
       vinte.where('audience', arrayContains: Challenge.everyone).snapshots(),
       // Quelle riservate **in cui c'e' anche chi sta guardando**: le missioni
       // del proprio gruppo di amici, le proprie sfide.
+      //
+      // **Le sfide uno contro uno restano fra i due, anche superate.** Prima
+      // una sfida vinta diventava un trofeo che vedevano gli amici di tutti e
+      // due, con la foto sopra. Ma quella foto e' stata mandata a una persona
+      // sola, e l'app promette che resta fra voi: un trofeo che la mostra ad
+      // altri tradirebbe la promessa proprio sulle foto piu' personali.
       if (viewerId != null && viewerId.isNotEmpty)
         vinte.where('audience', arrayContains: viewerId).snapshots(),
-      // **Le sfide mirate superate: agli amici, e solo a loro.**
-      //
-      // Una sfida mirata e' una cosa fra due persone, e finche' e' in corso —
-      // o rifiutata, o bocciata — resta fra loro: passa dalle due righe qui
-      // sopra, cioe' la vede chi e' nell'`audience`. Ma una **superata** e' un
-      // trofeo, e un trofeo che nemmeno i propri amici vedono non e' un trofeo:
-      // e' un appunto privato.
-      //
-      // **Questa riga si chiede solo essendo amici**, e non e' una cortesia
-      // verso il database: le regole aprono queste gare agli amici e a nessun
-      // altro, e una lettura che ne chiedesse una a cui non si ha diritto non
-      // verrebbe filtrata — verrebbe respinta tutta, lasciando la bacheca
-      // vuota. E' lo stesso motivo per cui qui si fanno piu' letture invece di
-      // una.
-      if (friend) vinte.where('duelVerdict', isEqualTo: 'approved').snapshots(),
     ]).map(
       (challenges) => _mostRecentFirst([
         for (final challenge in challenges)
@@ -919,7 +906,14 @@ class FirestoreChallengeRepository implements ChallengeRepository {
       mie.where('audience', arrayContains: Challenge.everyone).snapshots(),
       if (viewerId != null && viewerId.isNotEmpty)
         mie.where('audience', arrayContains: viewerId).snapshots(),
-    ]).map((challenges) => commissionedOrder(challenges, now: DateTime.now()));
+    ]).map(
+      (challenges) => commissionedOrder([
+        for (final challenge in challenges)
+          // **Le anonime sul profilo le vede solo chi le ha lanciate.** Sul
+          // profilo di qualcun altro sarebbero firmate.
+          if (!challenge.anonimo || viewerId == userId) challenge,
+      ], now: DateTime.now()),
+    );
   }
 
   /// Le stesse gare cercate in piu' modi, riunite senza doppioni.

@@ -240,15 +240,10 @@ abstract class ChallengeRepository {
   /// `audience` — ma va detta anche qui, perche' una lettura che chiede piu' di
   /// quello che si puo' avere non torna filtrata: **fallisce tutta**, e la
   /// bacheca resta vuota per chiunque non sia amico.
-  /// [friend] dice se chi guarda e' **amico** di [userId]. Solo allora si
-  /// chiedono anche le sfide mirate superate: le regole del database le aprono
-  /// agli amici e a nessun altro, e una lettura che ne chiedesse una a cui non
-  /// si ha diritto non verrebbe filtrata — verrebbe respinta tutta.
-  Stream<List<Challenge>> watchTrophiesOf(
-    String userId, {
-    String? viewerId,
-    bool friend = false,
-  });
+  ///
+  /// **Le sfide uno contro uno le vedono solo i due**, anche superate: la foto
+  /// e' stata mandata a una persona sola.
+  Stream<List<Challenge>> watchTrophiesOf(String userId, {String? viewerId});
 
   /// Le gare che [userId] ha **commissionato** e che hanno prodotto qualcosa.
   ///

@@ -184,6 +184,10 @@ class FirestoreNotificationsRepository {
     /// La riga che chi lancia una sfida scrive all'amico. Vuota per tutto il
     /// resto: nessun'altra notifica porta parole scritte da qualcuno.
     String message = '',
+
+    /// Da una sfida lanciata in anonimo: chi la riceve non deve vedere chi e'.
+    /// Il nome allora non parte nemmeno.
+    bool anonimo = false,
   }) async {
     if (toUserId.isEmpty || toUserId == actorId) {
       return;
@@ -193,7 +197,8 @@ class FirestoreNotificationsRepository {
       await _inbox(toUserId).doc(id).set({
         'kind': kind.name,
         'actorId': actorId,
-        'actorUsername': actorUsername,
+        'actorUsername': anonimo ? '' : actorUsername,
+        if (anonimo) 'anonimo': true,
         'challengeId': challengeId,
         'challengeTitle': challengeTitle,
         if (entryId.isNotEmpty) 'entryId': entryId,
@@ -286,6 +291,7 @@ class FirestoreNotificationsRepository {
       challengeId: data['challengeId'] as String? ?? '',
       challengeTitle: data['challengeTitle'] as String? ?? '',
       entryId: data['entryId'] as String? ?? '',
+      anonimo: data['anonimo'] as bool? ?? false,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }

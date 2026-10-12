@@ -59,14 +59,21 @@ class _CrasyAppState extends ConsumerState<CrasyApp> {
 
     if (dove.apri case final pagina?) {
       final quale = dove.evidenzia;
+      final uri = Uri.parse(pagina);
+      // La pagina puo' portare gia' le sue domande — la campanella la
+      // sezione — e la riga da accendere si aggiunge a quelle.
       final indirizzo = quale == null || quale.isEmpty
           ? pagina
-          : '$pagina?evidenzia=${Uri.encodeComponent(quale)}';
+          : uri
+                .replace(
+                  queryParameters: {...uri.queryParameters, 'evidenzia': quale},
+                )
+                .toString();
 
       // **Non si apre due volte la stessa pagina.** Chi tocca due notifiche di
       // fila si ritroverebbe due campanelle impilate, e due frecce indietro per
       // uscire da quella che ha aperto una volta sola.
-      if (router.state.matchedLocation == Uri.parse(pagina).path) {
+      if (router.state.matchedLocation == uri.path) {
         router.replace(indirizzo);
 
         return;

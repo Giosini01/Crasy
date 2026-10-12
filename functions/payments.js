@@ -734,9 +734,12 @@ async function accendiLaGara(challengeId, paymentIntentId) {
     // per l'altra meta' dell'app: si conta nell'istante in cui il premio e'
     // davvero incassato, non quando la gara viene scritta. Una gara dichiarata
     // e mai pagata non ha fatto giocare nessuno.
+    //
+    // **In anonimo non si conta.** La classifica e' un modo di farsi vedere,
+    // e il nome accanto ai soldi di quella gara svelerebbe chi si e' nascosto.
     const diChi = snapshot.get('createdByUserId');
 
-    if (diChi) {
+    if (diChi && snapshot.get('anonimo') !== true) {
       transaction.set(
         db.collection('users').doc(diChi),
         {
@@ -1299,14 +1302,16 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
         });
 
       // E la classifica di chi fa giocare: una gara annullata non ha fatto
-      // giocare nessuno.
-      await db
-        .collection('users')
-        .doc(chi)
-        .update({
-          totalStakedCents: admin.firestore.FieldValue.increment(-premio),
-          totalStakedCount: admin.firestore.FieldValue.increment(-1),
-        });
+      // giocare nessuno. Quella anonima non c'era mai entrata.
+      if (snapshot.get('anonimo') !== true) {
+        await db
+          .collection('users')
+          .doc(chi)
+          .update({
+            totalStakedCents: admin.firestore.FieldValue.increment(-premio),
+            totalStakedCount: admin.firestore.FieldValue.increment(-1),
+          });
+      }
 
       await scriviNelRegistro(chi, `rimborso_${challengeId}`, {
         kind: 'refund',
@@ -1453,7 +1458,9 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
   // Senza, scalare la classifica di chi fa giocare sarebbe gratis: si lancia
   // una gara da cento euro, non partecipa nessuno, il rimborso torna indietro
   // intero e in cima all'elenco resta scritto che hai fatto giocare la gente.
-  if (haPagato) {
+  //
+  // Una gara anonima non era mai stata contata, e non si scala.
+  if (haPagato && snapshot.get('anonimo') !== true) {
     try {
       await db
         .collection('users')
@@ -1673,8 +1680,14 @@ exports.payChallengeFromWallet = onCall(async (request) => {
       // documento: due mutazioni sulla stessa riga dentro una transazione
       // funzionano, ma chi legge questo codice fra sei mesi deve poter vedere
       // in un colpo tutto quello che succede a questo utente.
-      totalStakedCents: admin.firestore.FieldValue.increment(premio),
-      totalStakedCount: admin.firestore.FieldValue.increment(1),
+      //
+      // In anonimo la classifica non si muove: vedi il webhook di Stripe.
+      ...(gara.get('anonimo') === true
+        ? {}
+        : {
+            totalStakedCents: admin.firestore.FieldValue.increment(premio),
+            totalStakedCount: admin.firestore.FieldValue.increment(1),
+          }),
     });
 
     transaction.update(challengeRef, {

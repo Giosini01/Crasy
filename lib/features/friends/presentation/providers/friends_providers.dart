@@ -467,7 +467,9 @@ final friendChallengesProvider = Provider<List<Challenge>>((ref) {
   // non le raccogliessimo qui non si vedrebbero da nessuna parte.
   return [
     for (final challenge in live)
-      if (loro.contains(challenge.createdByUserId)) challenge,
+      // Le anonime no: "lanciata da un tuo amico" e' gia' mezzo nome.
+      if (loro.contains(challenge.createdByUserId) && !challenge.anonimo)
+        challenge,
   ];
 });
 

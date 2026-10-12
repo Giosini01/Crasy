@@ -13,6 +13,7 @@ import 'package:crasy/features/challenges/presentation/controllers/duel_controll
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/challenge_card.dart';
 import 'package:crasy/features/challenges/presentation/widgets/duel_badge.dart';
+import 'package:crasy/features/challenges/presentation/widgets/privacy_note.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:flutter/material.dart';
@@ -308,13 +309,22 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
             EmptyState(
               title: 'Nessuna sfida personale',
               message:
-                  'Sfida un amico, tu contro lui: chi accetta ci mette la '
-                  'parola, e sei tu a dire se ce l\'ha fatta.',
+                  'Sfida un amico, tu contro lui, anche in anonimo: chi '
+                  'accetta ci mette la parola, e sei tu a dire se ce l\'ha '
+                  'fatta. È tutto privato: sfide e foto le vedete solo voi due.',
             ),
           ];
         }
 
-        return [for (final challenge in personali) riga(challenge)];
+        return [
+          // Il lucchetto in cima all'elenco: e' la stessa promessa per tutte
+          // le righe sotto, e si dice una volta.
+          const Padding(
+            padding: EdgeInsets.only(bottom: AppSpacing.md),
+            child: PrivacyNote(text: PrivacyNote.sfida),
+          ),
+          for (final challenge in personali) riga(challenge),
+        ];
 
       case FriendActivityView.group:
         if (gruppo.isEmpty) {
@@ -661,12 +671,32 @@ class _DuelRow extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  FriendAvatar(userId: chiId, username: chiNome, size: 32),
+                  // **Ricevuta in anonimo: una maschera al posto della
+                  // faccia.** Indovinare chi e' fa parte della sfida.
+                  if (received && challenge.anonimo)
+                    Container(
+                      width: 32,
+                      height: 32,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: palette.accentTint,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.theater_comedy_rounded,
+                        size: 18,
+                        color: palette.accent,
+                      ),
+                    )
+                  else
+                    FriendAvatar(userId: chiId, username: chiNome, size: 32),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
                       received
-                          ? '@$chiNome ti ha sfidato'
+                          ? '${challenge.creatorTag} ti ha sfidato'
+                          : challenge.anonimo
+                          ? 'Hai sfidato @$chiNome in anonimo'
                           : 'Hai sfidato @$chiNome',
                       style: texts.labelMedium,
                       maxLines: 1,
@@ -722,7 +752,11 @@ class _DuelRow extends ConsumerWidget {
               // stata una bella figura. E' tutto quello che costa dire di no, e
               // deve costare qualcosa o la parola data non vale niente.
               if ((state.fischio(mine: received, username: chiNome) ??
-                      state.nota(mine: received, username: chiNome))
+                      state.nota(
+                        mine: received,
+                        username: chiNome,
+                        anonimo: received && challenge.anonimo,
+                      ))
                   case final fischio?) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Row(
@@ -988,9 +1022,9 @@ class _ClosedRow extends StatelessWidget {
                   Expanded(
                     child: Text(
                       challenge.isDuel
-                          ? '@${challenge.createdByUsername} → '
+                          ? '${challenge.creatorTag} → '
                                 '@${challenge.targetUsername}'
-                          : 'Party · @${challenge.createdByUsername}',
+                          : 'Party · ${challenge.creatorTag}',
                       style: texts.labelSmall?.copyWith(
                         color: palette.textSecondary,
                       ),
