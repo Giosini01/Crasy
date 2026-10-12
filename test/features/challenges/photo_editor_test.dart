@@ -29,15 +29,8 @@ Future<void> _apri(WidgetTester tester) async {
 }
 
 /// Batte la frase e la mette sulla foto, dal tasto Aa.
-/// Il tasto che apre la tastiera. Cambia parola quando c'e' gia' una frase,
-/// e il suggerimento sotto la foto contiene anche lui le lettere "Aa": si
-/// cerca per il resto della scritta.
-Finder get _tastoScrivi => find.byWidgetPredicate(
-  (w) =>
-      w is Text &&
-      (w.data?.contains('SCRIVI SULLA FOTO') == true ||
-          w.data?.contains('AGGIUNGI UNA FRASE') == true),
-);
+/// Il tasto che apre la tastiera: "Aa" sopra la foto.
+Finder get _tastoScrivi => find.byTooltip('Scrivi sulla foto');
 
 Future<void> _scrivi(WidgetTester tester, String frase) async {
   await tester.tap(_tastoScrivi);
@@ -60,7 +53,7 @@ void main() {
 
       expect(find.text('AVANTI'), findsNothing);
       expect(_tastoScrivi, findsOneWidget);
-      expect(find.text('MANDA IN GARA'), findsOneWidget);
+      expect(find.text('INVIA'), findsOneWidget);
     });
 
     testWidgets('mettere una frase non fa cadere l\'app', (tester) async {

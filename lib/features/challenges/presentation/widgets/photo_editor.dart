@@ -2,11 +2,10 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:crasy/core/theme/app_colors.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
-import 'package:crasy/core/widgets/app_background.dart';
-import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -60,7 +59,7 @@ class PhotoEditor extends StatefulWidget {
   const PhotoEditor({
     required this.bytes,
     required this.aspectRatio,
-    this.etichetta = 'Manda in gara',
+    this.etichetta = 'Invia',
     this.nota = '',
     super.key,
   });
@@ -137,186 +136,187 @@ class _PhotoEditorState extends State<PhotoEditor> {
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.palette;
     final area = areaSempreVisibile(widget.aspectRatio);
+    final piccolo = context.texts.bodySmall?.copyWith(
+      color: Colors.white.withValues(alpha: 0.55),
+    );
 
+    // **Nero, come la fotocamera da cui si arriva.** Scatto e ritocco sono lo
+    // stesso gesto, e cambiare colore a meta' lo faceva sembrare un'altra
+    // app. La foto resta grande e nello stesso riquadro.
     return Scaffold(
-      appBar: AppBar(
-        leading: const BackButton(),
-        title: const Text('La tua foto'),
-        actions: [
-          if (_scritte.isNotEmpty)
-            TextButton(
-              onPressed: () => setState(_scritte.removeLast),
-              child: Text(
-                'TOGLI',
-                style: context.texts.labelSmall?.copyWith(
-                  color: palette.textFaint,
-                ),
-              ),
-            ),
-        ],
-      ),
-      body: AppBackground(
+      backgroundColor: Colors.black,
+      // **La tastiera non stringe la foto.** Scrivendo una frase la pagina si
+      // accorciava e la foto diventava un francobollo; la frase si scrive nel
+      // velo sopra, che sa da solo dove sta la tastiera.
+      resizeToAvoidBottomInset: false,
+      body: SafeArea(
         child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Indietro',
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    icon: const Icon(Icons.close_rounded, color: Colors.white),
+                  ),
+                  const Spacer(),
+                  if (_scritte.isNotEmpty)
+                    TextButton(
+                      onPressed: () => setState(_scritte.removeLast),
+                      child: Text(
+                        'TOGLI',
+                        style: context.texts.labelSmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
             // **Il riquadro prende lo spazio che c'e', non quello che
-            // vorrebbe.** Con una misura libera, su uno schermo basso — un
-            // tablet, l'orizzontale — un riquadro quattro quinti largo quanto
-            // lo schermo diventa piu' alto dello schermo stesso, e la colonna
-            // sfonda: la spiegazione e il tasto finiscono sotto il bordo.
+            // vorrebbe.** Su uno schermo basso un riquadro quattro quinti
+            // largo quanto lo schermo diventa piu' alto dello schermo stesso.
             Expanded(
               child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.page,
-                        ),
-                        child: Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(
-                                AppRadius.media,
-                              ),
-                              child: AspectRatio(
-                                aspectRatio: widget.aspectRatio,
-                                // **Il confine di cio' che verra' catturato.**
-                                // Tutto quello che sta dentro questo riquadro
-                                // finisce nel file; tutto quello che sta fuori
-                                // non esiste. E' la stessa cosa che vede chi
-                                // guarda, ed e' il punto: nessuna sorpresa fra
-                                // l'anteprima e quello che parte.
-                                child: RepaintBoundary(
-                                  key: _riquadro,
-                                  child: Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      if (_proporzioni != null)
-                                        _DaInquadrare(
-                                          bytes: widget.bytes,
-                                          proporzioniFoto: _proporzioni!,
-                                          proporzioniRiquadro:
-                                              widget.aspectRatio,
-                                          controller: _inquadratura,
-                                        )
-                                      else
-                                        Image.memory(
-                                          widget.bytes,
-                                          fit: BoxFit.cover,
-                                        ),
-                                      if (_scritte.isNotEmpty)
-                                        // **Un solo `Positioned.fill` per
-                                        // tutte le frasi.** Prima ogni frase
-                                        // era un `LayoutBuilder` che
-                                        // restituiva un `Positioned`, e un
-                                        // `Positioned` deve stare attaccato
-                                        // allo `Stack`: messo dentro
-                                        // qualunque altra cosa faceva cadere
-                                        // l'app nell'istante in cui si
-                                        // metteva la scritta.
-                                        Positioned.fill(
-                                          child: LayoutBuilder(
-                                            builder: (context, vincoli) =>
-                                                Stack(
-                                                  children: [
-                                                    for (final scritta
-                                                        in _scritte)
-                                                      _ScrittaSopra(
-                                                        scritta: scritta,
-                                                        riquadro: Size(
-                                                          vincoli.maxWidth,
-                                                          vincoli.maxHeight,
-                                                        ),
-                                                        area: area,
-                                                        onCambia: () =>
-                                                            setState(() {}),
-                                                        onTocca: _ritocca,
-                                                      ),
-                                                  ],
-                                                ),
-                                          ),
-                                        ),
-                                    ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                  ),
+                  child: AspectRatio(
+                    aspectRatio: widget.aspectRatio,
+                    child: Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          // **Il confine di cio' che verra' catturato.**
+                          // Tutto quello che sta dentro questo riquadro
+                          // finisce nel file; tutto quello che sta fuori non
+                          // esiste.
+                          child: RepaintBoundary(
+                            key: _riquadro,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                if (_proporzioni != null)
+                                  _DaInquadrare(
+                                    bytes: widget.bytes,
+                                    proporzioniFoto: _proporzioni!,
+                                    proporzioniRiquadro: widget.aspectRatio,
+                                    controller: _inquadratura,
+                                  )
+                                else
+                                  Image.memory(widget.bytes, fit: BoxFit.cover),
+                                if (_scritte.isNotEmpty)
+                                  // **Un solo `Positioned.fill` per tutte le
+                                  // frasi**: un `Positioned` deve stare
+                                  // attaccato allo `Stack`.
+                                  Positioned.fill(
+                                    child: LayoutBuilder(
+                                      builder: (context, vincoli) => Stack(
+                                        children: [
+                                          for (final scritta in _scritte)
+                                            _ScrittaSopra(
+                                              scritta: scritta,
+                                              riquadro: Size(
+                                                vincoli.maxWidth,
+                                                vincoli.maxHeight,
+                                              ),
+                                              area: area,
+                                              onCambia: () => setState(() {}),
+                                              onTocca: _ritocca,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
+                              ],
                             ),
-                            // **Fuori dal riquadro che viene fotografato**,
-                            // quindi queste righe non finiscono nella foto:
-                            // sono un aiuto per chi scrive, non un segno
-                            // sull'immagine. Compaiono solo quando c'e' una
-                            // frase: senza, segnerebbero un limite che non
-                            // riguarda nessuno.
-                            if (_scritte.isNotEmpty)
-                              Positioned.fill(child: _SegnaIlBordo(area: area)),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.page,
-                      ),
-                      child: Text(
-                        _spiegazione,
-                        textAlign: TextAlign.center,
-                        style: context.texts.bodySmall?.copyWith(
-                          color: palette.textFaint,
+                        // **Fuori dal riquadro che viene fotografato**: le
+                        // righe tratteggiate e il tasto Aa non finiscono
+                        // nella foto.
+                        if (_scritte.isNotEmpty)
+                          Positioned.fill(child: _SegnaIlBordo(area: area)),
+                        // **"Aa" sta sulla foto**, in basso a sinistra, come
+                        // i comandi di BeReal: e' una cosa che si fa *alla*
+                        // foto, e sta dove si guarda.
+                        Positioned(
+                          left: AppSpacing.sm,
+                          bottom: AppSpacing.sm,
+                          child: _TastoAa(onTap: _scrivi),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.page,
-                0,
-                AppSpacing.page,
-                AppSpacing.lg,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.page,
+                vertical: AppSpacing.xs,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // **"Aa" sta qui, grande e al centro.**
-                  //
-                  // Era in alto a destra, nella barra, ed era invisibile: una
-                  // barra in cima e' il posto dove si guarda per tornare
-                  // indietro, non per trovare un comando. Qui e' sulla strada
-                  // del pollice, subito sopra il tasto che manda — cioe'
-                  // nell'ultimo punto in cui uno si chiede "manca qualcosa?".
-                  TextButton(
-                    onPressed: _scrivi,
-                    child: Text(
-                      _scritte.isEmpty
-                          ? 'Aa  SCRIVI SULLA FOTO'
-                          : 'Aa  AGGIUNGI UNA FRASE',
-                      style: context.texts.labelMedium?.copyWith(
-                        color: palette.accent,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xxs),
-                  CrasyButton(label: widget.etichetta, onPressed: _conferma),
-                  if (widget.nota.isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      widget.nota,
-                      textAlign: TextAlign.center,
-                      style: context.texts.bodySmall?.copyWith(
-                        color: palette.textFaint,
-                      ),
-                    ),
-                  ],
-                ],
+              child: Text(
+                _spiegazione,
+                textAlign: TextAlign.center,
+                style: piccolo,
               ),
             ),
+            // **INVIA, rosso, e basta.** Niente bottone pieno: una parola
+            // grande che si legge da lontano, come l'ultimo gesto di una
+            // fotocamera.
+            Semantics(
+              button: true,
+              label: widget.etichetta,
+              child: GestureDetector(
+                onTap: _conferma,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xl,
+                    vertical: AppSpacing.sm,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.etichetta.toUpperCase(),
+                        style: const TextStyle(
+                          color: AppColors.crasyRed,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.xxs),
+                      const Icon(
+                        Icons.play_arrow_rounded,
+                        color: AppColors.crasyRed,
+                        size: 34,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (widget.nota.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.page,
+                  0,
+                  AppSpacing.page,
+                  AppSpacing.sm,
+                ),
+                child: Text(
+                  widget.nota,
+                  textAlign: TextAlign.center,
+                  style: piccolo?.copyWith(fontSize: 11),
+                ),
+              ),
           ],
         ),
       ),
@@ -874,41 +874,88 @@ class _ChiediIlTestoState extends State<_ChiediIlTesto> {
                 ],
               ),
             ),
+            // **La frase sta sopra la tastiera, non sotto.** Centrata nello
+            // schermo intero finiva dietro i tasti: si scriveva senza vedere
+            // cosa. Lo spazio si misura togliendo la tastiera.
             Expanded(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.page,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: math.max(
+                    0,
+                    MediaQuery.viewInsetsOf(context).bottom -
+                        MediaQuery.paddingOf(context).bottom,
                   ),
-                  child: TextField(
-                    controller: _controller,
-                    autofocus: true,
-                    maxLines: null,
-                    textAlign: TextAlign.center,
-                    textCapitalization: TextCapitalization.sentences,
-                    textInputAction: TextInputAction.done,
-                    cursorColor: palette.accent,
-                    style: _stile(1.3),
-                    // Sessanta caratteri: oltre, una frase sopra una foto
-                    // smette di essere una didascalia e diventa un muro che
-                    // copre quello che c'e' sotto.
-                    inputFormatters: [LengthLimitingTextInputFormatter(60)],
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      filled: false,
-                      hintText: 'Scrivi qualcosa',
-                      hintStyle: _stile(
-                        1.3,
-                      ).copyWith(color: Colors.white.withValues(alpha: 0.45)),
+                ),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.page,
                     ),
-                    onSubmitted: (testo) => Navigator.of(context).pop(testo),
+                    child: TextField(
+                      controller: _controller,
+                      autofocus: true,
+                      maxLines: null,
+                      textAlign: TextAlign.center,
+                      textCapitalization: TextCapitalization.sentences,
+                      textInputAction: TextInputAction.done,
+                      cursorColor: palette.accent,
+                      style: _stile(1.3),
+                      // Sessanta caratteri: oltre, una frase sopra una foto
+                      // smette di essere una didascalia e diventa un muro che
+                      // copre quello che c'e' sotto.
+                      inputFormatters: [LengthLimitingTextInputFormatter(60)],
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        filled: false,
+                        hintText: 'Scrivi qualcosa',
+                        hintStyle: _stile(
+                          1.3,
+                        ).copyWith(color: Colors.white.withValues(alpha: 0.45)),
+                      ),
+                      onSubmitted: (testo) => Navigator.of(context).pop(testo),
+                    ),
                   ),
                 ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Il tasto per scrivere sulla foto: "Aa" in una pillola scura.
+class _TastoAa extends StatelessWidget {
+  const _TastoAa({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Scrivi sulla foto',
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xs,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.45),
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+          ),
+          child: const Text(
+            'Aa',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ),
       ),
     );

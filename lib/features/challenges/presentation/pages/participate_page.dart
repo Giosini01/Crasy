@@ -318,7 +318,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
               // premere un secondo tasto: due conferme per un gesto solo, e
               // la prima che non si capisce a cosa serva. Scatti, sistemi,
               // mandi.
-              etichetta: 'Manda in gara',
+              etichetta: 'Invia',
               // **La riga del consenso viene con l'editor**, perche' quella
               // e' diventata l'ultima schermata prima dell'invio. Lasciandola
               // solo qui sarebbe sparita dal percorso: chi consegna una cosa

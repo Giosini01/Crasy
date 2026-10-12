@@ -317,129 +317,155 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
     final controller = _controller;
     final registrando = controller?.value.isRecordingVideo ?? false;
 
+    // **Come BeReal: nero, e dentro il riquadro della gara.**
+    //
+    // L'anteprima a tutto schermo mostrava piu' di quello che poi finiva in
+    // gara: il riquadro e' quattro quinti, il telefono molto piu' lungo, e il
+    // taglio arrivava dopo, nell'editor, come una sorpresa. Adesso si inquadra
+    // gia' dentro lo stesso riquadro arrotondato in cui la foto verra' vista:
+    // quello che vedi e' quello che mandi, anche nei bordi.
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (_pronta && controller != null)
-            // **L'anteprima non la ribaltiamo noi: la ribalta gia' il
-            // sistema.**
-            //
-            // C'era un `Transform` qui, e faceva danno. Il livello di anteprima
-            // della fotocamera — su iPhone, su Android e nel browser — mostra
-            // gia' la lente frontale come uno specchio, perche' e' l'unico modo
-            // in cui uno riesce a inquadrarsi. Aggiungendone un altro sopra, i
-            // due ribaltamenti si annullavano e ci si vedeva **al contrario**:
-            // la scritta sulla maglietta leggibile, la riga dei capelli dalla
-            // parte sbagliata, e la mano destra che si muove a sinistra.
-            //
-            // Il ribaltamento serve **solo sul file**, che invece arriva dal
-            // sensore cosi' com'e'.
-            Center(child: CameraPreview(controller))
-          else
-            const Center(
-              child: SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.paper,
-                ),
-              ),
-            ),
-          if (_errore case final messaggio?)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.page),
-                child: Text(
-                  messaggio,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.paper),
-                ),
-              ),
-            ),
-          // **Niente veli sopra e sotto, e li avevo messi io.**
-          //
-          // Servivano a far risaltare i comandi bianchi su un'inquadratura
-          // chiara. Il problema e' che l'anteprima non riempie lo schermo: il
-          // sensore vede in quattro terzi, il telefono e' molto piu' lungo, e
-          // sopra e sotto resta del nero. Quel nero **c'era gia'**, e il velo
-          // ci si sommava: due fasce nere piu' nere del resto, con la croce
-          // dentro. Sembrava un difetto, ed era un rimedio applicato a un
-          // problema che in quel punto non esisteva.
-          //
-          // I comandi si difendono da soli: ognuno sta dentro il proprio tondo
-          // scuro, che e' la stessa protezione ma solo dove serve — grande
-          // quanto l'icona, non quanto lo schermo. E l'anteprima resta
-          // **intera**: riempirla tagliando i lati farebbe uscire una foto piu'
-          // larga di quella che si e' inquadrata, e qui vale una regola sola —
-          // quello che vedi e' quello che mandi.
-          // **In alto c'e' solo la via d'uscita.** La croce sta da sola
-          // nell'angolo dove le mani non arrivano per sbaglio: e' il comando
-          // che non deve costare un pensiero quando lo si cerca, e nemmeno
-          // essere premuto per errore quando non lo si cercava.
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topLeft,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // **In alto c'e' solo la via d'uscita.** La croce sta da sola
+            // nell'angolo dove le mani non arrivano per sbaglio.
+            Align(
+              alignment: Alignment.centerLeft,
               child: _Tondo(
                 icona: Icons.close_rounded,
                 etichetta: 'Chiudi',
                 onTap: () => Navigator.of(context).pop(),
               ),
             ),
-          ),
-          SafeArea(
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-                // **I tre comandi dello scatto stanno tutti a portata di
-                // pollice.** Il flash era in cima, all'angolo opposto: per
-                // accenderlo bisognava spostare la mano da sotto il telefono e
-                // riprenderlo, con l'inquadratura gia' pronta. Sono le due
-                // cose che si toccano *mentre* si guarda dentro — flash e
-                // lente — e stanno ai lati di quella che si tocca per ultima.
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // Sulla lente frontale il posto resta vuoto invece di
-                    // sparire: senza, lo scatto si sposterebbe di lato ogni
-                    // volta che si gira la fotocamera, e il pollice lo
-                    // cercherebbe dove non c'e' piu'.
-                    if (_pronta && !_frontale)
-                      _Tondo(
-                        icona: switch (_modiDelFlash[_flash]) {
-                          FlashMode.off => Icons.flash_off_rounded,
-                          FlashMode.auto => Icons.flash_auto_rounded,
-                          _ => Icons.flash_on_rounded,
-                        },
-                        etichetta: 'Flash',
-                        // Acceso e' rosso: e' l'unica cosa qui dentro che
-                        // cambia come viene la foto, e deve vedersi che e'
-                        // inserita.
-                        acceso: _modiDelFlash[_flash] != FlashMode.off,
-                        onTap: registrando ? null : _cambiaIlFlash,
-                      )
-                    else
-                      const SizedBox(width: 60),
-                    _Shutter(
-                      recording: registrando,
-                      busy: _sta && !registrando,
-                      onTap: _scatta,
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                  ),
+                  child: AspectRatio(
+                    aspectRatio: 4 / 5,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: ColoredBox(
+                        color: const Color(0xFF141414),
+                        child: _Riquadro(
+                          controller: _pronta ? controller : null,
+                          errore: _errore,
+                        ),
+                      ),
                     ),
-                    _Tondo(
-                      icona: Icons.cameraswitch_rounded,
-                      etichetta: 'Gira la fotocamera',
-                      onTap: registrando ? null : _giraLaFotocamera,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+            // **I tre comandi dello scatto stanno tutti a portata di
+            // pollice**, sotto il riquadro e non sopra l'inquadratura: flash
+            // e lente ai lati del cerchio rosso, che e' l'ultima cosa che si
+            // tocca.
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Sulla lente frontale il posto resta vuoto invece di
+                  // sparire: senza, lo scatto si sposterebbe di lato ogni
+                  // volta che si gira la fotocamera.
+                  if (_pronta && !_frontale)
+                    _Tondo(
+                      icona: switch (_modiDelFlash[_flash]) {
+                        FlashMode.off => Icons.flash_off_rounded,
+                        FlashMode.auto => Icons.flash_auto_rounded,
+                        _ => Icons.flash_on_rounded,
+                      },
+                      etichetta: 'Flash',
+                      acceso: _modiDelFlash[_flash] != FlashMode.off,
+                      onTap: registrando ? null : _cambiaIlFlash,
+                    )
+                  else
+                    const SizedBox(width: 60),
+                  _Shutter(
+                    recording: registrando,
+                    busy: _sta && !registrando,
+                    onTap: _scatta,
+                  ),
+                  _Tondo(
+                    icona: Icons.cameraswitch_rounded,
+                    etichetta: 'Gira la fotocamera',
+                    onTap: registrando ? null : _giraLaFotocamera,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+/// Dentro il riquadro: l'anteprima che lo riempie, o cosa c'e' da sapere.
+class _Riquadro extends StatelessWidget {
+  const _Riquadro({required this.controller, required this.errore});
+
+  final CameraController? controller;
+  final String? errore;
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = this.controller;
+
+    if (errore case final messaggio?) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.page),
+          child: Text(
+            messaggio,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.paper),
+          ),
+        ),
+      );
+    }
+
+    if (controller == null) {
+      return const Center(
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.paper,
+          ),
+        ),
+      );
+    }
+
+    // **L'anteprima riempie il riquadro, come la foto nella gara.** Il sensore
+    // vede in tre quarti, il riquadro e' quattro quinti: si allarga quanto
+    // basta e i bordi che avanzano restano fuori — esattamente quelli che
+    // l'editor, partendo centrato, lascerebbe fuori.
+    //
+    // **L'anteprima non la ribaltiamo noi: la ribalta gia' il sistema.** Un
+    // `Transform` qui sopra annullerebbe lo specchio della lente frontale, e
+    // ci si vedrebbe al contrario. Il ribaltamento serve solo sul file.
+    return LayoutBuilder(
+      builder: (context, box) {
+        // In verticale l'anteprima e' alta 1 / aspectRatio volte la larghezza.
+        final alta = box.maxWidth * controller.value.aspectRatio;
+
+        return FittedBox(
+          fit: BoxFit.cover,
+          clipBehavior: Clip.hardEdge,
+          child: SizedBox(
+            width: box.maxWidth,
+            height: alta,
+            child: CameraPreview(controller),
+          ),
+        );
+      },
     );
   }
 }

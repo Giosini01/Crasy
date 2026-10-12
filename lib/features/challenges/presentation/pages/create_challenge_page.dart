@@ -139,6 +139,13 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
   /// Lanciata senza nome: vedi `Challenge.anonimo`.
   var _anonimo = false;
 
+  /// Gratis: solo fra amici, e solo scegliendo GRATIS. E' la stessa regola con
+  /// cui `_submit` manda zero.
+  bool get _gratisOra => widget.forFriends && _gratis;
+
+  /// Se a questo lancio segue un pagamento.
+  bool get _daPagareOra => paymentsEnabled && !_gratisOra;
+
   String? _error;
 
   @override
@@ -480,9 +487,12 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                     // bottone. Una schermata che dice "500" e una carta addebitata di
                     // "507,75" e' il tipo di sorpresa che, in un'app che maneggia
                     // soldi, non si recupera piu'.
-                    if (paymentsEnabled) _PaymentSummary(prize: _prize),
+                    if (_daPagareOra) _PaymentSummary(prize: _prize),
+                    // **Gratis non si paga, e il tasto non lo dice.** "Paga e
+                    // lancia" su una gara da zero euro fa pensare a un addebito
+                    // che non c'e', proprio a chi aveva scelto GRATIS.
                     CrasyButton(
-                      label: paymentsEnabled
+                      label: _daPagareOra
                           ? 'Paga e lancia la challenge'
                           : 'Lancia la challenge',
                       loading: creating,
@@ -492,30 +502,31 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                     // Detto prima, non dopo. E' l'unica riga di questa schermata che
                     // parla di soldi veri, e chi la legge deve poterci ripensare
                     // mentre ha ancora il dito lontano dal bottone.
-                    Text(
-                      paymentsEnabled
-                          // **Detto prima di pagare, non dopo.**
-                          //
-                          // Sono le due cose che uno scopre nel momento sbagliato se
-                          // non gliele dici adesso: che cancellando **non torna
-                          // tutto** — restano fuori le spese di pagamento, gia'
-                          // uscite — e che i soldi non rientrano in tempo reale.
-                          // Chi lo legge qui non ha sorprese; chi lo scopre dopo
-                          // pensa di essere stato fregato, ed e' la stessa cosa
-                          // vista da due momenti diversi.
-                          ? 'Il premio lo trattiene CRASY fino alla fine della '
-                                'challenge, poi lo gira a chi vince. Se non '
-                                'partecipa nessuno ti torna indietro intero. Se '
-                                'invece la cancelli tu, ti torna il premio ma non '
-                                'le spese di pagamento — e la banca ci mette 5-10 '
-                                'giorni a rimettertelo sulla carta.'
-                          : 'Il premio lo paghi tu. CRASY non fa da garante e non '
-                                'trattiene i soldi: mettine uno che puoi davvero '
-                                'dare.',
-                      style: texts.bodySmall?.copyWith(
-                        color: palette.textSecondary,
+                    if (!_gratisOra)
+                      Text(
+                        paymentsEnabled
+                            // **Detto prima di pagare, non dopo.**
+                            //
+                            // Sono le due cose che uno scopre nel momento sbagliato se
+                            // non gliele dici adesso: che cancellando **non torna
+                            // tutto** — restano fuori le spese di pagamento, gia'
+                            // uscite — e che i soldi non rientrano in tempo reale.
+                            // Chi lo legge qui non ha sorprese; chi lo scopre dopo
+                            // pensa di essere stato fregato, ed e' la stessa cosa
+                            // vista da due momenti diversi.
+                            ? 'Il premio lo trattiene CRASY fino alla fine della '
+                                  'challenge, poi lo gira a chi vince. Se non '
+                                  'partecipa nessuno ti torna indietro intero. Se '
+                                  'invece la cancelli tu, ti torna il premio ma non '
+                                  'le spese di pagamento — e la banca ci mette 5-10 '
+                                  'giorni a rimettertelo sulla carta.'
+                            : 'Il premio lo paghi tu. CRASY non fa da garante e non '
+                                  'trattiene i soldi: mettine uno che puoi davvero '
+                                  'dare.',
+                        style: texts.bodySmall?.copyWith(
+                          color: palette.textSecondary,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
