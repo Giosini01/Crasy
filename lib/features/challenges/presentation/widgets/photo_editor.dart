@@ -108,6 +108,14 @@ class _PhotoEditorState extends State<PhotoEditor> {
   /// e cio' che avanza si sposta.
   double? _proporzioni;
 
+  /// **Due passaggi: prima si inquadra, poi si scrive.**
+  ///
+  /// Facendo tutte e due le cose sulla stessa schermata, le dita sulla frase e
+  /// le dita sulla foto se le contendevano lo stesso gesto: ogni tanto il
+  /// pizzico per ingrandire la frase lo prendeva la foto, e la frase non
+  /// cresceva. Con la foto ferma mentre si scrive, il gesto ha un padrone solo.
+  var _inquadrata = false;
+
   @override
   void initState() {
     super.initState();
@@ -137,15 +145,12 @@ class _PhotoEditorState extends State<PhotoEditor> {
   @override
   Widget build(BuildContext context) {
     final area = areaSempreVisibile(widget.aspectRatio);
-    final piccolo = context.texts.bodySmall?.copyWith(
-      color: Colors.white.withValues(alpha: 0.55),
-    );
+    final piccolo = context.texts.bodySmall?.copyWith(color: Colors.black45);
 
-    // **Nero, come la fotocamera da cui si arriva.** Scatto e ritocco sono lo
-    // stesso gesto, e cambiare colore a meta' lo faceva sembrare un'altra
-    // app. La foto resta grande e nello stesso riquadro.
+    // **Bianca, pulita: la foto e' l'unica cosa colorata.** La foto resta
+    // grande e nello stesso riquadro della fotocamera.
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       // **La tastiera non stringe la foto.** Scrivendo una frase la pagina si
       // accorciava e la foto diventava un francobollo; la frase si scrive nel
       // velo sopra, che sa da solo dove sta la tastiera.
@@ -157,19 +162,28 @@ class _PhotoEditorState extends State<PhotoEditor> {
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
               child: Row(
                 children: [
+                  // Nel secondo passaggio la freccia torna all'inquadratura,
+                  // con le frasi dove erano; nel primo chiude.
                   IconButton(
                     tooltip: 'Indietro',
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(Icons.close_rounded, color: Colors.white),
+                    onPressed: _inquadrata
+                        ? () => setState(() => _inquadrata = false)
+                        : () => Navigator.of(context).maybePop(),
+                    icon: Icon(
+                      _inquadrata
+                          ? Icons.arrow_back_rounded
+                          : Icons.close_rounded,
+                      color: Colors.black,
+                    ),
                   ),
                   const Spacer(),
-                  if (_scritte.isNotEmpty)
+                  if (_inquadrata && _scritte.isNotEmpty)
                     TextButton(
                       onPressed: () => setState(_scritte.removeLast),
                       child: Text(
                         'TOGLI',
                         style: context.texts.labelSmall?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.7),
+                          color: Colors.black54,
                         ),
                       ),
                     ),
@@ -201,11 +215,16 @@ class _PhotoEditorState extends State<PhotoEditor> {
                               fit: StackFit.expand,
                               children: [
                                 if (_proporzioni != null)
-                                  _DaInquadrare(
-                                    bytes: widget.bytes,
-                                    proporzioniFoto: _proporzioni!,
-                                    proporzioniRiquadro: widget.aspectRatio,
-                                    controller: _inquadratura,
+                                  // Inquadrata, la foto non si muove piu':
+                                  // le dita sono tutte per le frasi.
+                                  IgnorePointer(
+                                    ignoring: _inquadrata,
+                                    child: _DaInquadrare(
+                                      bytes: widget.bytes,
+                                      proporzioniFoto: _proporzioni!,
+                                      proporzioniRiquadro: widget.aspectRatio,
+                                      controller: _inquadratura,
+                                    ),
                                   )
                                 else
                                   Image.memory(widget.bytes, fit: BoxFit.cover),
@@ -244,11 +263,12 @@ class _PhotoEditorState extends State<PhotoEditor> {
                         // **"Aa" sta sulla foto**, in basso a sinistra, come
                         // i comandi di BeReal: e' una cosa che si fa *alla*
                         // foto, e sta dove si guarda.
-                        Positioned(
-                          left: AppSpacing.sm,
-                          bottom: AppSpacing.sm,
-                          child: _TastoAa(onTap: _scrivi),
-                        ),
+                        if (_inquadrata)
+                          Positioned(
+                            left: AppSpacing.sm,
+                            bottom: AppSpacing.sm,
+                            child: _TastoAa(onTap: _scrivi),
+                          ),
                       ],
                     ),
                   ),
@@ -266,44 +286,35 @@ class _PhotoEditorState extends State<PhotoEditor> {
                 style: piccolo,
               ),
             ),
-            // **INVIA, rosso, e basta.** Niente bottone pieno: una parola
-            // grande che si legge da lontano, come l'ultimo gesto di una
-            // fotocamera.
+            // **AVANTI, poi INVIA: rossi, e basta.** Niente bottone pieno: una
+            // parola grande che si legge da lontano.
             Semantics(
               button: true,
-              label: widget.etichetta,
+              label: _inquadrata ? widget.etichetta : 'Avanti',
               child: GestureDetector(
-                onTap: _conferma,
+                onTap: _inquadrata
+                    ? _conferma
+                    : () => setState(() => _inquadrata = true),
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.xl,
                     vertical: AppSpacing.sm,
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        widget.etichetta.toUpperCase(),
-                        style: const TextStyle(
-                          color: AppColors.crasyRed,
-                          fontSize: 30,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.xxs),
-                      const Icon(
-                        Icons.play_arrow_rounded,
-                        color: AppColors.crasyRed,
-                        size: 34,
-                      ),
-                    ],
+                  child: Text(
+                    _inquadrata ? widget.etichetta.toUpperCase() : 'AVANTI',
+                    style: const TextStyle(
+                      color: AppColors.crasyRed,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1,
+                    ),
                   ),
                 ),
               ),
             ),
-            if (widget.nota.isNotEmpty)
+            // L'avviso dell'unico scatto sta sotto INVIA: e' li' che serve.
+            if (_inquadrata && widget.nota.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.page,
@@ -329,9 +340,12 @@ class _PhotoEditorState extends State<PhotoEditor> {
   /// gesti. Elencarli tutti da subito farebbe un manuale, e un manuale non lo
   /// legge nessuno.
   String get _spiegazione {
+    if (!_inquadrata) {
+      return 'Trascina per scegliere cosa tenere, due dita per ingrandire.';
+    }
+
     if (_scritte.isEmpty) {
-      return 'Trascina per scegliere cosa tenere, due dita per ingrandire. '
-          'Con Aa ci scrivi sopra.';
+      return 'Con Aa ci scrivi sopra. Se non serve, invia.';
     }
 
     return 'La frase si sposta con un dito e si ridimensiona con due. Resta '

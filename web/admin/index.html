@@ -288,6 +288,14 @@
       <div id="elencoFoto"></div>
     </div>
 
+    <!-- **Le foto che la macchina ha scartato da sola.** SafeSearch e' severo
+         apposta e ogni tanto sbaglia: chi se le vede scartare crede di essere
+         in gara e non c'e'. Qui si guardano e, se andavano bene, si rimettono. -->
+    <div class="scatola">
+      <h2>Scartate in automatico <span class="quanti" id="quantiScartate">0</span></h2>
+      <div id="elencoScartate"></div>
+    </div>
+
     <div class="scatola">
       <h2>Missioni segnalate <span class="quanti" id="quantiMissioni">0</span></h2>
       <div id="elencoMissioni"></div>
@@ -403,6 +411,8 @@ const chiediFondo = httpsCallable(functions, 'adminFondo');
 const fermaIlFondo = httpsCallable(functions, 'adminFermaIlFondo');
 const lanciaDalFondo = httpsCallable(functions, 'adminLanciaDalFondo');
 const saltaLaProssima = httpsCallable(functions, 'adminSaltaLaProssima');
+const chiediScartate = httpsCallable(functions, 'adminFotoScartate');
+const rimettiFoto = httpsCallable(functions, 'adminRimettiFoto');
 
 const $ = (id) => document.getElementById(id);
 const accesso = $('accesso');
@@ -737,6 +747,81 @@ async function caricaPrelievi() {
   }
 }
 
+/** Una foto scartata dalla macchina, con il tasto per rimetterla in gara. */
+function rigaScartata(f) {
+  const nodo = document.createElement('div');
+  nodo.className = 'riga';
+
+  const media = f.mediaUrl
+    ? f.mediaKind === 'video'
+      ? '<video class="foto" src="' + testo(f.mediaUrl) + '" controls muted></video>'
+      : '<img class="foto" src="' + testo(f.mediaUrl) + '" alt="foto scartata">'
+    : '<div class="foto vuota">Foto non più disponibile</div>';
+
+  nodo.innerHTML =
+    media +
+    '<div class="dati">' +
+    '<strong>' + testo(f.motivi.length ? f.motivi.join(', ') : 'Senza motivo') + '</strong>' +
+    '<dl>' +
+    '<dt>Di</dt><dd>' + (f.authorName ? '@' + testo(f.authorName) : '—') +
+      ' <span class="nota">' + testo(f.userId) + '</span></dd>' +
+    '<dt>Missione</dt><dd>' + testo(f.challengeTitle || f.challengeId) + '</dd>' +
+    '<dt>Mandata il</dt><dd>' + quando(f.createdAt) + '</dd>' +
+    '<dt>Scartata il</dt><dd>' + quando(f.moderatedAt) + '</dd>' +
+    '</dl></div>' +
+    '<div class="comandi">' +
+    '<button class="tieni" data-fai="rimetti">↩ Rimetti in gara</button>' +
+    '</div>';
+
+  const tasto = nodo.querySelector('[data-fai="rimetti"]');
+
+  tasto.addEventListener('click', async () => {
+    if (!confirm('Rimettere la foto in gara? La vedranno tutti.')) {
+      return;
+    }
+
+    tasto.disabled = true;
+
+    try {
+      await rimettiFoto({ challengeId: f.challengeId, entryId: f.entryId });
+      await caricaScartate();
+    } catch (errore) {
+      tasto.disabled = false;
+      dillo(errore.message || 'Non siamo riusciti a rimetterla.');
+    }
+  });
+
+  return nodo;
+}
+
+async function caricaScartate() {
+  const dove = $('elencoScartate');
+  const conta = $('quantiScartate');
+
+  dove.innerHTML = '<p class="nota">Carico…</p>';
+
+  try {
+    const esito = await chiediScartate();
+    const foto = esito.data.foto || [];
+
+    conta.textContent = String(foto.length);
+    dove.innerHTML = '';
+
+    if (foto.length === 0) {
+      dove.innerHTML = '<p class="nota">Nessuna foto scartata.</p>';
+
+      return;
+    }
+
+    for (const f of foto) {
+      dove.appendChild(rigaScartata(f));
+    }
+  } catch (errore) {
+    dove.innerHTML = '';
+    dillo(errore.message || 'Non riusciamo a leggere le foto scartate.');
+  }
+}
+
 async function caricaMance() {
   const dove = document.getElementById('mance');
   const totale = document.getElementById('totaleMance');
@@ -858,7 +943,10 @@ for (const tasto of document.querySelectorAll('.filtri [data-stato]')) {
   });
 }
 
-$('ricarica').addEventListener('click', carica);
+$('ricarica').addEventListener('click', () => {
+  carica();
+  caricaScartate();
+});
 
 $('modulo').addEventListener('submit', async (evento) => {
   evento.preventDefault();
@@ -927,6 +1015,7 @@ onAuthStateChanged(auth, async (utente) => {
   mostra(accesso, false);
   mostra(tavolo, true);
   carica();
+  caricaScartate();
   caricaPrelievi();
   caricaMance();
   caricaPresenze();

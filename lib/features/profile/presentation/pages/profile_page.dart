@@ -9,6 +9,7 @@ import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/core/widgets/media_gestures.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
+import 'package:crasy/core/widgets/photo_viewer.dart';
 import 'package:crasy/features/auth/presentation/controllers/auth_action_controller.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
@@ -347,8 +348,17 @@ class _Avatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
 
+    // **La propria foto si guarda, e si cambia dalla fotocamerina.** Prima il
+    // tocco apriva solo la galleria: la propria faccia grande non la si poteva
+    // vedere, mentre quella degli altri si'.
     return GestureDetector(
-      onTap: onTap,
+      onTap: profile.hasPhoto
+          ? () => showPhotoViewer(
+              context,
+              url: profile.photoUrl!,
+              caption: '@${profile.username}',
+            )
+          : onTap,
       child: SizedBox(
         width: _size,
         height: _size,
@@ -372,18 +382,21 @@ class _Avatar extends StatelessWidget {
             Positioned(
               right: 0,
               bottom: 0,
-              child: Container(
-                width: 22,
-                height: 22,
-                decoration: BoxDecoration(
-                  color: palette.background,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: palette.line),
-                ),
-                child: Icon(
-                  Icons.photo_camera_outlined,
-                  size: 12,
-                  color: palette.textSecondary,
+              child: GestureDetector(
+                onTap: onTap,
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: palette.background,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: palette.line),
+                  ),
+                  child: Icon(
+                    Icons.photo_camera_outlined,
+                    size: 12,
+                    color: palette.textSecondary,
+                  ),
                 ),
               ),
             ),

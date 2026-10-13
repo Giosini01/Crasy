@@ -784,6 +784,24 @@ async function accendiLaGara(challengeId, paymentIntentId) {
   logger.info(`Challenge ${challengeId}: premio incassato, gara aperta.`);
 }
 
+/**
+ * Di quale fondo e' una missione: quello che la tiene fra le sue `lanciate`.
+ * I fondi sono pochissimi — uno per padrone — e si guardano tutti.
+ */
+async function fondoDi(challengeId) {
+  const fondi = await db.collection('salvadanai').get();
+
+  for (const fondo of fondi.docs) {
+    const traccia = await fondo.ref.collection('lanciate').doc(challengeId).get();
+
+    if (traccia.exists) {
+      return fondo.id;
+    }
+  }
+
+  return null;
+}
+
 async function onChargeRefunded(charge) {
   const challenges = await db
     .collection('challenges')
@@ -1291,11 +1309,15 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
   if (dalFondo) {
     const chi = snapshot.get('createdByUserId');
     const premio = snapshot.get('prizeCents') || 0;
+    // **Il fondo non e' per forza di chi compare come autore**: le missioni
+    // del fondo si lanciano a turno a nome dei padroni. Il fondo giusto e'
+    // quello che la ricorda fra le sue `lanciate`.
+    const padrone = (await fondoDi(challengeId)) || chi;
 
     if (chi && premio > 0) {
       await db
         .collection('salvadanai')
-        .doc(chi)
+        .doc(padrone)
         .update({
           fondoCents: admin.firestore.FieldValue.increment(premio),
           spesiCents: admin.firestore.FieldValue.increment(-premio),
@@ -1313,7 +1335,7 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
           });
       }
 
-      await scriviNelRegistro(chi, `rimborso_${challengeId}`, {
+      await scriviNelRegistro(padrone, `rimborso_${challengeId}`, {
         kind: 'refund',
         amountCents: premio,
         challengeId,

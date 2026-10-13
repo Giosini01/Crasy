@@ -15,6 +15,7 @@ import 'package:crasy/features/challenges/presentation/providers/challenge_provi
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
+import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:crasy/features/friends/presentation/widgets/unfollow_dialog.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/moderation/domain/report_reason.dart';
@@ -227,7 +228,14 @@ class _BodyState extends ConsumerState<_Body> {
             child: PrizeTotalCard(prizeCents: prizeCents),
           ),
           const SizedBox(height: AppSpacing.lg),
-          _Stats(entries: entries.length, wins: wins, friends: friends.length),
+          _Stats(
+            entries: entries.length,
+            wins: wins,
+            friends: friends.length,
+            onFriends: friends.isEmpty
+                ? null
+                : () => _mostraGliAmici(context, profile, friends),
+          ),
           const SizedBox(height: AppSpacing.xl),
           ProfileShelfTabs(
             selected: _shelf,
@@ -527,11 +535,15 @@ class _Stats extends StatelessWidget {
     required this.entries,
     required this.wins,
     required this.friends,
+    this.onFriends,
   });
 
   final int entries;
   final int wins;
   final int friends;
+
+  /// Toccando AMICI si vede chi sono.
+  final VoidCallback? onFriends;
 
   @override
   Widget build(BuildContext context) {
@@ -552,7 +564,7 @@ class _Stats extends StatelessWidget {
               _Divider(color: palette.line),
               _Stat(label: 'VINTE', value: '$wins'),
               _Divider(color: palette.line),
-              _Stat(label: 'AMICI', value: '$friends'),
+              _Stat(label: 'AMICI', value: '$friends', onTap: onFriends),
             ],
           ),
         ),
@@ -574,10 +586,11 @@ class _Divider extends StatelessWidget {
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value});
+  const _Stat({required this.label, required this.value, this.onTap});
 
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -585,23 +598,100 @@ class _Stat extends StatelessWidget {
     final texts = context.texts;
 
     return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: texts.headlineSmall,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            label,
-            style: texts.labelSmall?.copyWith(color: palette.textFaint),
-          ),
-        ],
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: texts.headlineSmall,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              label,
+              style: texts.labelSmall?.copyWith(
+                // Rosso quando si tocca: dice che sotto c'e' qualcosa.
+                color: onTap == null ? palette.textFaint : palette.accent,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+/// **Gli amici di una persona, a chiunque li chieda.**
+///
+/// Il numero era gia' pubblico e l'elenco si poteva gia' leggere: mancava solo
+/// il modo di vederlo. Sapere chi frequenta chi e' la meta' di un'app in cui
+/// ci si conosce attraverso gli altri.
+void _mostraGliAmici(
+  BuildContext context,
+  UserProfile profile,
+  List<Friend> amici,
+) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    backgroundColor: context.palette.background,
+    builder: (sheetContext) => DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.6,
+      maxChildSize: 0.9,
+      builder: (context, scroll) => ListView(
+        controller: scroll,
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.page,
+          0,
+          AppSpacing.page,
+          AppSpacing.xl,
+        ),
+        children: [
+          Text(
+            'GLI AMICI DI @${profile.username.toUpperCase()}',
+            style: context.texts.labelSmall?.copyWith(
+              color: context.palette.textFaint,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          for (final amico in amici)
+            InkWell(
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                context.push(AppRoutes.userProfileOf(amico.userId));
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                child: Row(
+                  children: [
+                    FriendAvatar(
+                      userId: amico.userId,
+                      username: amico.username,
+                      size: 44,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Flexible(
+                      child: Text(
+                        '@${amico.username}',
+                        style: context.texts.bodyLarge,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    VerifiedTick(userId: amico.userId, size: 14),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _EntryGrid extends StatelessWidget {

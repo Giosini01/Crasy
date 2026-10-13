@@ -421,6 +421,117 @@ exports.adminResolveReport = onCall(
 );
 
 /**
+ * **Le foto che il controllo automatico ha scartato da solo.**
+ *
+ * SafeSearch sbaglia, e sbaglia nel verso voluto: e' severo apposta. Ma una
+ * foto innocua scartata per errore e' una persona che crede di essere in gara
+ * e non c'e', e finora nessuno lo vedeva. Qui si vedono tutte, con il motivo,
+ * e da qui si rimettono.
+ *
+ * Solo quelle **automatiche**: le tolte a mano da un amministratore portano
+ * `moderationReason: 'admin'` e stanno gia' fra le segnalazioni, dove si
+ * decidono.
+ *
+ * Ci sono finche' c'e' la partecipazione: la pulizia delle quarantotto ore le
+ * cancella insieme alle altre.
+ */
+exports.adminFotoScartate = onCall(async (request) => {
+  soloAdmin(request);
+
+  const scartate = await db
+    .collectionGroup('entries')
+    .where('moderation', '==', 'rejected')
+    .orderBy('createdAt')
+    .limitToLast(100)
+    .get();
+
+  const foto = [];
+
+  for (const doc of scartate.docs) {
+    const dati = doc.data() || {};
+
+    if (dati.moderationReason === 'admin') {
+      continue;
+    }
+
+    foto.push({
+      challengeId: doc.ref.parent.parent.id,
+      entryId: doc.id,
+      challengeTitle: String(dati.challengeTitle || ''),
+      authorName: String(dati.authorName || ''),
+      userId: String(dati.userId || ''),
+      mediaUrl: String(dati.mediaUrl || ''),
+      mediaKind: String(dati.mediaKind || 'photo'),
+      motivi: Array.isArray(dati.moderationReasons) ? dati.moderationReasons : [],
+      createdAt: dati.createdAt ? dati.createdAt.toMillis() : null,
+      moderatedAt: dati.moderatedAt ? dati.moderatedAt.toMillis() : null,
+    });
+  }
+
+  // Le piu' recenti in cima: sono quelle su cui c'e' ancora tempo per fare
+  // qualcosa, a gara aperta.
+  foto.reverse();
+
+  return { foto };
+});
+
+/**
+ * **Rimette in gara una foto scartata per errore.**
+ *
+ * Torna `approved`, e il conto dei partecipanti risale: lo scarto lo aveva
+ * abbassato di uno, e chi rientra in gara c'e'. Si scrive anche chi l'ha
+ * rimessa, perche' il giorno che una foto sbagliata finisce davanti a tutti
+ * si deve poter sapere se l'ha fatta passare la macchina o una persona.
+ */
+exports.adminRimettiFoto = onCall(async (request) => {
+  const chi = soloAdmin(request);
+
+  const challengeId = String((request.data && request.data.challengeId) || '');
+  const entryId = String((request.data && request.data.entryId) || '');
+
+  if (!challengeId || !entryId) {
+    throw new HttpsError('invalid-argument', 'Manca la foto.');
+  }
+
+  const gara = db.collection('challenges').doc(challengeId);
+  const foto = gara.collection('entries').doc(entryId);
+
+  const esito = await db.runTransaction(async (t) => {
+    const adesso = await t.get(foto);
+
+    if (!adesso.exists) {
+      return 'sparita';
+    }
+
+    // Due clic, o due amministratori insieme: la seconda volta non deve
+    // contare il partecipante un'altra volta.
+    if (adesso.get('moderation') !== 'rejected') {
+      return 'gia-in-gara';
+    }
+
+    t.update(foto, {
+      moderation: 'approved',
+      moderationReason: 'rimessa',
+      moderatedBy: chi,
+      moderatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    t.update(gara, {
+      participantsCount: admin.firestore.FieldValue.increment(1),
+    });
+
+    return 'rimessa';
+  });
+
+  if (esito === 'sparita') {
+    throw new HttpsError('not-found', 'La foto non c\'è più.');
+  }
+
+  logger.info('foto rimessa in gara', { challengeId, entryId, admin: chi, esito });
+
+  return { esito };
+});
+
+/**
  * Toglie di mezzo una missione, le sue foto e i suoi file.
  *
  * **Il premio prima di tutto.** Si restituisce finche' la missione c'e'

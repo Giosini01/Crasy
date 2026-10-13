@@ -517,13 +517,26 @@ async function lanciaPerUno(salvadanaio, oggi) {
   const quante = (scelte.lanciate || 0) + (scelte.saltate || 0);
   const missione = MISSIONI[quante % MISSIONI.length];
 
+  // **A lanciarla sono a turno i padroni, non sempre chi ha il fondo.**
+  //
+  // Tutte le missioni con lo stesso nome sopra sembravano l'app di una persona
+  // sola. Alternandole fra i padroni la home ha due facce, e la classifica di
+  // chi fa giocare si divide fra loro: il merito va a chi compare come
+  // autore. I soldi escono comunque da questo fondo.
+  const lanciaId = PADRONI[quante % PADRONI.length];
+  const lancia =
+    lanciaId === userId
+      ? utente
+      : await db.collection('users').doc(lanciaId).get();
+  const autore = lancia.exists ? lancia : utente;
+
   const gara = await scriviLaGara(
-    { userId, username: utente.get('username') || '' },
+    { userId: autore.id, username: autore.get('username') || '' },
     missione,
     scelte
   );
 
-  const esito = await pagaDalFondo(salvadanaio, userId, gara, premio);
+  const esito = await pagaDalFondo(salvadanaio, userId, gara, premio, autore.id);
 
   if (!esito.ok) {
     // **Non pagata vuol dire non nata.** Una gara con il premio a zero in
@@ -595,7 +608,13 @@ async function lanciaPerUno(salvadanaio, oggi) {
  * settimane prima — ma copre venticinque gare, e senza questo segno non si
  * capirebbe.
  */
-async function pagaDalFondo(salvadanaio, userId, gara, premio) {
+async function pagaDalFondo(
+  salvadanaio,
+  userId,
+  gara,
+  premio,
+  autoreId = userId
+) {
   const oggi = oggiInItalia();
 
   const esito = await db.runTransaction(async (transaction) => {
@@ -627,8 +646,9 @@ async function pagaDalFondo(salvadanaio, userId, gara, premio) {
       ultima: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // La classifica di chi fa giocare: questi soldi li ha messi davvero.
-    transaction.update(db.collection('users').doc(userId), {
+    // La classifica di chi fa giocare: va a chi compare come autore della
+    // gara, che a turno e' uno dei padroni.
+    transaction.update(db.collection('users').doc(autoreId), {
       totalStakedCents: admin.firestore.FieldValue.increment(premio),
       totalStakedCount: admin.firestore.FieldValue.increment(1),
     });

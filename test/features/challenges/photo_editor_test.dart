@@ -33,6 +33,12 @@ Future<void> _apri(WidgetTester tester) async {
 Finder get _tastoScrivi => find.byTooltip('Scrivi sulla foto');
 
 Future<void> _scrivi(WidgetTester tester, String frase) async {
+  // Si scrive nel secondo passaggio: se si e' ancora all'inquadratura, avanti.
+  if (find.text('AVANTI').evaluate().isNotEmpty) {
+    await tester.tap(find.text('AVANTI'));
+    await tester.pumpAndSettle();
+  }
+
   await tester.tap(_tastoScrivi);
   await tester.pumpAndSettle();
 
@@ -43,17 +49,26 @@ Future<void> _scrivi(WidgetTester tester, String frase) async {
 
 void main() {
   group('una schermata sola', () {
-    testWidgets('si inquadra e si scrive senza passaggi in mezzo', (
-      tester,
-    ) async {
-      // C'e' stato un passaggio — *inquadra*, poi Avanti, poi *scrivi* — ed e'
-      // durato poco: chi scatta vuole mandare, e un tasto che non fa altro che
-      // portare alla schermata dopo chiede permesso per niente.
+    testWidgets('prima si inquadra, poi si scrive', (tester) async {
+      // Due passaggi perche' sulla stessa schermata le dita sulla foto e
+      // quelle sulla frase si rubavano il gesto.
       await _apri(tester);
 
-      expect(find.text('AVANTI'), findsNothing);
+      expect(find.text('AVANTI'), findsOneWidget);
+      expect(_tastoScrivi, findsNothing);
+      expect(find.text('INVIA'), findsNothing);
+
+      await tester.tap(find.text('AVANTI'));
+      await tester.pumpAndSettle();
+
       expect(_tastoScrivi, findsOneWidget);
       expect(find.text('INVIA'), findsOneWidget);
+
+      // Indietro torna all'inquadratura, non chiude.
+      await tester.tap(find.byTooltip('Indietro'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('AVANTI'), findsOneWidget);
     });
 
     testWidgets('mettere una frase non fa cadere l\'app', (tester) async {
@@ -174,6 +189,8 @@ void main() {
     testWidgets('scrivendo la prima non si offre di toglierla', (tester) async {
       await _apri(tester);
 
+      await tester.tap(find.text('AVANTI'));
+      await tester.pumpAndSettle();
       await tester.tap(_tastoScrivi);
       await tester.pumpAndSettle();
 

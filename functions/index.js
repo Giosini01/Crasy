@@ -305,6 +305,9 @@ exports.adminResolveReport = amministrazione.adminResolveReport;
 exports.adminOnline = amministrazione.adminOnline;
 exports.adminCercaUtenti = amministrazione.adminCercaUtenti;
 exports.adminImpostaVerificato = amministrazione.adminImpostaVerificato;
+// Le foto scartate dal controllo automatico, e il tasto per rimetterle.
+exports.adminFotoScartate = amministrazione.adminFotoScartate;
+exports.adminRimettiFoto = amministrazione.adminRimettiFoto;
 
 /**
  * Manda una notifica ai telefoni di una persona sola.
@@ -1895,6 +1898,9 @@ exports.purgeUnverifiedAccounts = onSchedule('every 60 minutes', async () => {
  * sa a chi sta parlando e in che lingua, e perche' quello che arriva sullo
  * schermo bloccato deve essere corto: una riga, un nome, e cosa e' successo.
  */
+/** Quanto aspetta una fiamma prima di suonare: vedi `sendPushOnNotification`. */
+const ATTESA_FIAMMA_MS = 8 * 1000;
+
 exports.sendPushOnNotification = onDocumentCreated(
   'users/{userId}/notifications/{notificationId}',
   async (event) => {
@@ -1912,6 +1918,46 @@ exports.sendPushOnNotification = onDocumentCreated(
     });
 
     const userId = event.params.userId;
+
+    // **Una fiamma suona solo se resta, e suona una volta sola.**
+    //
+    // Il like si mette con un doppio tocco sulla foto, ed e' facile darlo
+    // senza volerlo: si toglie subito dopo, e la notifica in campanella
+    // sparisce con lui. La push no — era gia' partita. Chi la riceveva leggeva
+    // "una fiamma nuova" per un like che non c'era piu', e chi l'aveva tolto
+    // giurava di non averlo mai messo. Peggio: togliere e rimettere lo stesso
+    // like faceva suonare il telefono ogni volta, e tre push per una fiamma
+    // sola sembravano tre like con il contatore fermo a uno.
+    //
+    // Quindi si aspetta qualche secondo e si guarda se la notifica c'e'
+    // ancora; e per ogni coppia persona-foto si manda **una** push sola, per
+    // sempre, qualunque cosa succeda dopo.
+    if (dati.kind === 'fire') {
+      await new Promise((fatto) => setTimeout(fatto, ATTESA_FIAMMA_MS));
+
+      const ancora = await event.data.ref.get();
+
+      if (!ancora.exists) {
+        logger.info('fiamma tolta prima della push', { userId });
+
+        return;
+      }
+
+      try {
+        await db
+          .collection('users')
+          .doc(userId)
+          .collection('pushFiamme')
+          .doc(event.params.notificationId)
+          .create({ at: admin.firestore.FieldValue.serverTimestamp() });
+      } catch {
+        // Gia' esiste: per questa fiamma la push e' gia' partita una volta.
+        logger.info('fiamma gia annunciata', { userId });
+
+        return;
+      }
+    }
+
     const chi = dati.actorUsername || 'qualcuno';
     // **Chi si e' nascosto resta nascosto anche sullo schermo bloccato.**
     const tag = dati.anonimo === true ? 'Un anonimo' : `@${chi}`;
