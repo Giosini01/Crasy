@@ -181,18 +181,7 @@ class _PhotoEditorState extends State<PhotoEditor> {
                       color: Colors.black,
                     ),
                   ),
-                  // **Il passo, scritto in cima.** Le due schermate avevano
-                  // la stessa faccia — la stessa foto, lo stesso riquadro — e
-                  // sembrava che la stessa schermata si ripetesse due volte.
-                  // Il numero e il nome del passo dicono che si e' andati
-                  // avanti, e cosa si fa adesso.
-                  Expanded(
-                    child: _Passo(
-                      numero: _inquadrata ? 2 : 1,
-                      nome: _inquadrata ? 'AGGIUNGI TESTO' : 'INQUADRA',
-                      titolo: widget.titolo,
-                    ),
-                  ),
+                  const Spacer(),
                   if (_inquadrata && _scritte.isNotEmpty)
                     TextButton(
                       onPressed: () => setState(_scritte.removeLast),
@@ -202,11 +191,7 @@ class _PhotoEditorState extends State<PhotoEditor> {
                           color: Colors.black54,
                         ),
                       ),
-                    )
-                  else
-                    // Lo stesso spazio della freccia, cosi' il passo resta
-                    // al centro dello schermo.
-                    const SizedBox(width: 48),
+                    ),
                 ],
               ),
             ),
@@ -215,73 +200,108 @@ class _PhotoEditorState extends State<PhotoEditor> {
             // largo quanto lo schermo diventa piu' alto dello schermo stesso.
             Expanded(
               child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                  ),
-                  child: AspectRatio(
-                    aspectRatio: widget.aspectRatio,
-                    child: Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(24),
-                          // **Il confine di cio' che verra' catturato.**
-                          // Tutto quello che sta dentro questo riquadro
-                          // finisce nel file; tutto quello che sta fuori non
-                          // esiste.
-                          child: RepaintBoundary(
-                            key: _riquadro,
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                if (_proporzioni != null)
-                                  // Inquadrata, la foto non si muove piu':
-                                  // le dita sono tutte per le frasi.
-                                  IgnorePointer(
-                                    ignoring: _inquadrata,
-                                    child: _DaInquadrare(
-                                      bytes: widget.bytes,
-                                      proporzioniFoto: _proporzioni!,
-                                      proporzioniRiquadro: widget.aspectRatio,
-                                      controller: _inquadratura,
-                                    ),
-                                  )
-                                else
-                                  Image.memory(widget.bytes, fit: BoxFit.cover),
-                                if (_scritte.isNotEmpty)
-                                  // **Un solo `Positioned.fill` per tutte le
-                                  // frasi**: un `Positioned` deve stare
-                                  // attaccato allo `Stack`.
-                                  Positioned.fill(
-                                    child: LayoutBuilder(
-                                      builder: (context, vincoli) => Stack(
-                                        children: [
-                                          for (final scritta in _scritte)
-                                            _ScrittaSopra(
-                                              scritta: scritta,
-                                              riquadro: Size(
-                                                vincoli.maxWidth,
-                                                vincoli.maxHeight,
-                                              ),
-                                              area: area,
-                                              onCambia: () => setState(() {}),
-                                              onTocca: _ritocca,
-                                            ),
-                                        ],
-                                      ),
-                                    ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // **Il passo, attaccato alla foto.** Le due schermate
+                    // avevano la stessa faccia, e sembrava che la stessa
+                    // schermata si ripetesse due volte. Il numero e il nome
+                    // del passo dicono che si e' andati avanti. Sta appena
+                    // sopra la foto e non in cima allo schermo: lassu' era
+                    // incollato all'orologio, staccato da quello di cui parla.
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.page,
+                        0,
+                        AppSpacing.page,
+                        AppSpacing.sm,
+                      ),
+                      child: _Passo(
+                        numero: _inquadrata ? 2 : 1,
+                        nome: _inquadrata ? 'AGGIUNGI TESTO' : 'INQUADRA',
+                        titolo: widget.titolo,
+                      ),
+                    ),
+                    Flexible(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.sm,
+                        ),
+                        child: AspectRatio(
+                          aspectRatio: widget.aspectRatio,
+                          child: Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(24),
+                                // **Il confine di cio' che verra' catturato.**
+                                // Tutto quello che sta dentro questo riquadro
+                                // finisce nel file; tutto quello che sta fuori non
+                                // esiste.
+                                child: RepaintBoundary(
+                                  key: _riquadro,
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      if (_proporzioni != null)
+                                        // Inquadrata, la foto non si muove piu':
+                                        // le dita sono tutte per le frasi.
+                                        IgnorePointer(
+                                          ignoring: _inquadrata,
+                                          child: _DaInquadrare(
+                                            bytes: widget.bytes,
+                                            proporzioniFoto: _proporzioni!,
+                                            proporzioniRiquadro:
+                                                widget.aspectRatio,
+                                            controller: _inquadratura,
+                                          ),
+                                        )
+                                      else
+                                        Image.memory(
+                                          widget.bytes,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      if (_scritte.isNotEmpty)
+                                        // **Un solo `Positioned.fill` per tutte le
+                                        // frasi**: un `Positioned` deve stare
+                                        // attaccato allo `Stack`.
+                                        Positioned.fill(
+                                          child: LayoutBuilder(
+                                            builder: (context, vincoli) =>
+                                                Stack(
+                                                  children: [
+                                                    for (final scritta
+                                                        in _scritte)
+                                                      _ScrittaSopra(
+                                                        scritta: scritta,
+                                                        riquadro: Size(
+                                                          vincoli.maxWidth,
+                                                          vincoli.maxHeight,
+                                                        ),
+                                                        area: area,
+                                                        onCambia: () =>
+                                                            setState(() {}),
+                                                        onTocca: _ritocca,
+                                                      ),
+                                                  ],
+                                                ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
-                              ],
-                            ),
+                                ),
+                              ),
+                              // **Fuori dal riquadro che viene fotografato**: le
+                              // righe tratteggiate non finiscono nella foto.
+                              if (_scritte.isNotEmpty)
+                                Positioned.fill(
+                                  child: _SegnaIlBordo(area: area),
+                                ),
+                            ],
                           ),
                         ),
-                        // **Fuori dal riquadro che viene fotografato**: le
-                        // righe tratteggiate non finiscono nella foto.
-                        if (_scritte.isNotEmpty)
-                          Positioned.fill(child: _SegnaIlBordo(area: area)),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
@@ -359,7 +379,7 @@ class _PhotoEditorState extends State<PhotoEditor> {
     }
 
     if (_scritte.isEmpty) {
-      return 'Se vuoi, scrivici sopra. Se non serve, invia.';
+      return 'Il testo e\' facoltativo: se non serve, invia.';
     }
 
     return 'La frase si sposta con un dito e si ridimensiona con due. Resta '
@@ -967,23 +987,40 @@ class _TastoAa extends StatelessWidget {
       message: 'Scrivi sulla foto',
       child: GestureDetector(
         onTap: onTap,
+        // **Piccola e piena, non un ovale vuoto.** Il cerchio grande con il
+        // bordo nero pesava quanto INVIA, che e' il gesto che conta: questa
+        // e' una cosa in piu', e deve sembrarlo.
         child: Container(
-          margin: const EdgeInsets.only(top: AppSpacing.xs),
+          margin: const EdgeInsets.only(top: AppSpacing.xxs),
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
+            horizontal: AppSpacing.md,
             vertical: AppSpacing.xs,
           ),
           decoration: BoxDecoration(
+            color: const Color(0xFFF1F1F1),
             borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(color: Colors.black, width: 1.5),
           ),
-          child: const Text(
-            'Aa',
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-            ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Aa',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              SizedBox(width: AppSpacing.xs),
+              Text(
+                'Scrivi sulla foto',
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
       ),
