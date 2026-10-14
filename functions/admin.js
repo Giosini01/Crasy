@@ -438,11 +438,15 @@ exports.adminResolveReport = onCall(
 exports.adminFotoScartate = onCall(async (request) => {
   soloAdmin(request);
 
+  // **In ordine crescente, e si gira dopo.** `limitToLast` chiede a Firestore
+  // l'ordine al contrario, e quell'indice non c'e': la chiamata falliva e la
+  // pagina mostrava solo "internal". L'indice crescente c'e' gia', e le
+  // partecipazioni durano quarantotto ore: sono poche, si prendono tutte.
   const scartate = await db
     .collectionGroup('entries')
     .where('moderation', '==', 'rejected')
     .orderBy('createdAt')
-    .limitToLast(100)
+    .limit(300)
     .get();
 
   const foto = [];

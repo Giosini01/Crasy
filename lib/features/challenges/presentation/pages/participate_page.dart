@@ -319,6 +319,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
               // la prima che non si capisce a cosa serva. Scatti, sistemi,
               // mandi.
               etichetta: 'Invia',
+              titolo: challenge.title,
               // **La riga del consenso viene con l'editor**, perche' quella
               // e' diventata l'ultima schermata prima dell'invio. Lasciandola
               // solo qui sarebbe sparita dal percorso: chi consegna una cosa

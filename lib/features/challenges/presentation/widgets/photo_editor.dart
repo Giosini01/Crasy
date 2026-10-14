@@ -61,10 +61,15 @@ class PhotoEditor extends StatefulWidget {
     required this.aspectRatio,
     this.etichetta = 'Invia',
     this.nota = '',
+    this.titolo = '',
     super.key,
   });
 
   final Uint8List bytes;
+
+  /// Il titolo della missione, sotto il passo in cima: ricorda per cosa si
+  /// sta scattando, e riempie la parte sopra la foto con qualcosa che serve.
+  final String titolo;
 
   /// Le proporzioni del riquadro in cui la foto andra' a finire.
   final double aspectRatio;
@@ -176,7 +181,18 @@ class _PhotoEditorState extends State<PhotoEditor> {
                       color: Colors.black,
                     ),
                   ),
-                  const Spacer(),
+                  // **Il passo, scritto in cima.** Le due schermate avevano
+                  // la stessa faccia — la stessa foto, lo stesso riquadro — e
+                  // sembrava che la stessa schermata si ripetesse due volte.
+                  // Il numero e il nome del passo dicono che si e' andati
+                  // avanti, e cosa si fa adesso.
+                  Expanded(
+                    child: _Passo(
+                      numero: _inquadrata ? 2 : 1,
+                      nome: _inquadrata ? 'AGGIUNGI TESTO' : 'INQUADRA',
+                      titolo: widget.titolo,
+                    ),
+                  ),
                   if (_inquadrata && _scritte.isNotEmpty)
                     TextButton(
                       onPressed: () => setState(_scritte.removeLast),
@@ -186,7 +202,11 @@ class _PhotoEditorState extends State<PhotoEditor> {
                           color: Colors.black54,
                         ),
                       ),
-                    ),
+                    )
+                  else
+                    // Lo stesso spazio della freccia, cosi' il passo resta
+                    // al centro dello schermo.
+                    const SizedBox(width: 48),
                 ],
               ),
             ),
@@ -256,19 +276,9 @@ class _PhotoEditorState extends State<PhotoEditor> {
                           ),
                         ),
                         // **Fuori dal riquadro che viene fotografato**: le
-                        // righe tratteggiate e il tasto Aa non finiscono
-                        // nella foto.
+                        // righe tratteggiate non finiscono nella foto.
                         if (_scritte.isNotEmpty)
                           Positioned.fill(child: _SegnaIlBordo(area: area)),
-                        // **"Aa" sta sulla foto**, in basso a sinistra, come
-                        // i comandi di BeReal: e' una cosa che si fa *alla*
-                        // foto, e sta dove si guarda.
-                        if (_inquadrata)
-                          Positioned(
-                            left: AppSpacing.sm,
-                            bottom: AppSpacing.sm,
-                            child: _TastoAa(onTap: _scrivi),
-                          ),
                       ],
                     ),
                   ),
@@ -286,6 +296,10 @@ class _PhotoEditorState extends State<PhotoEditor> {
                 style: piccolo,
               ),
             ),
+            // **"Aa" al centro, sopra INVIA.** Sulla foto, in un angolo, si
+            // perdeva; qui sta sulla strada del pollice, nell'ultimo punto in
+            // cui uno si chiede "manca qualcosa?".
+            if (_inquadrata) _TastoAa(onTap: _scrivi),
             // **AVANTI, poi INVIA: rossi, e basta.** Niente bottone pieno: una
             // parola grande che si legge da lontano.
             Semantics(
@@ -345,7 +359,7 @@ class _PhotoEditorState extends State<PhotoEditor> {
     }
 
     if (_scritte.isEmpty) {
-      return 'Con Aa ci scrivi sopra. Se non serve, invia.';
+      return 'Se vuoi, scrivici sopra. Se non serve, invia.';
     }
 
     return 'La frase si sposta con un dito e si ridimensiona con due. Resta '
@@ -941,7 +955,7 @@ class _ChiediIlTestoState extends State<_ChiediIlTesto> {
   }
 }
 
-/// Il tasto per scrivere sulla foto: "Aa" in una pillola scura.
+/// Il tasto per scrivere sulla foto: "Aa" in una pillola, al centro.
 class _TastoAa extends StatelessWidget {
   const _TastoAa({required this.onTap});
 
@@ -954,24 +968,81 @@ class _TastoAa extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
+          margin: const EdgeInsets.only(top: AppSpacing.xs),
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
+            horizontal: AppSpacing.lg,
             vertical: AppSpacing.xs,
           ),
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.45),
             borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(color: Colors.black, width: 1.5),
           ),
           child: const Text(
             'Aa',
             style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
+              color: Colors.black,
+              fontSize: 22,
               fontWeight: FontWeight.w800,
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// **A che punto si e'**: "1 di 2 · INQUADRA", e sotto il titolo della
+/// missione.
+class _Passo extends StatelessWidget {
+  const _Passo({
+    required this.numero,
+    required this.nome,
+    required this.titolo,
+  });
+
+  final int numero;
+  final String nome;
+  final String titolo;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: '$numero di 2  ·  ',
+                style: const TextStyle(color: AppColors.crasyRed),
+              ),
+              TextSpan(text: nome),
+            ],
+          ),
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.black,
+            fontSize: 15,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1,
+          ),
+        ),
+        if (titolo.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            titolo.toUpperCase(),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.black45,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
