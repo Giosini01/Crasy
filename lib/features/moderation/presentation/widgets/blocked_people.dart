@@ -1,5 +1,6 @@
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
@@ -36,7 +37,12 @@ class _BlockedList extends ConsumerWidget {
     final bloccati = ref.watch(blockedIdsProvider);
 
     return bloccati.when(
-      loading: () => const SizedBox(height: 40),
+      // **Mentre l'elenco arriva, la fiamma.** Prima c'era uno spazio vuoto
+      // alto due dita, e il foglio sembrava aperto per sbaglio.
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Center(child: FiammaCheGira(misura: 28)),
+      ),
       error: (_, _) => Text(
         'Non riusciamo a leggere l\'elenco. Riprova fra poco.',
         style: texts.bodyMedium,
@@ -55,33 +61,78 @@ class _BlockedList extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
-          children: [for (final userId in elenco) _BlockedRow(userId: userId)],
+          // **Ogni riga con la sua chiave.** La riga sbloccata sparisce
+          // dall'elenco mentre la sua fiamma gira ancora: senza chiave, quella
+          // fiamma passerebbe alla riga che le scivola al posto.
+          children: [
+            for (final userId in elenco)
+              _BlockedRow(key: ValueKey(userId), userId: userId),
+          ],
         );
       },
     );
   }
 }
 
-class _BlockedRow extends ConsumerWidget {
-  const _BlockedRow({required this.userId});
+class _BlockedRow extends ConsumerStatefulWidget {
+  const _BlockedRow({required this.userId, super.key});
 
   final String userId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_BlockedRow> createState() => _BlockedRowState();
+}
+
+class _BlockedRowState extends ConsumerState<_BlockedRow> {
+  /// **Mentre sblocca, la fiamma al posto del tasto, su questa riga sola.**
+  /// Prima SBLOCCA restava li' uguale finche' non arrivava la risposta: si
+  /// ritoccava convinti di non aver premuto, e partivano due sblocchi.
+  bool _sbloccando = false;
+
+  Future<void> _sblocca(String nome) async {
+    if (_sbloccando) {
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+
+    setState(() => _sbloccando = true);
+
+    final fatto = await ref
+        .read(moderationActionsProvider)
+        .unblock(widget.userId);
+
+    // Riuscito, la riga se ne va da sola con l'elenco: si spegne la fiamma
+    // solo se c'e' ancora qualcosa su cui spegnerla.
+    if (mounted) {
+      setState(() => _sbloccando = false);
+    }
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          fatto ? 'Hai sbloccato @$nome.' : 'Non ci siamo riusciti. Riprova.',
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final palette = context.palette;
     final texts = context.texts;
     // Il nome si legge dal profilo: nell'elenco dei bloccati c'e' solo
     // l'identificativo, e una riga con dentro `a7Kd92...` non dice a nessuno chi
     // sta sbloccando.
     final nome =
-        ref.watch(publicProfileProvider(userId)).valueOrNull?.username ?? '...';
+        ref.watch(publicProfileProvider(widget.userId)).valueOrNull?.username ??
+        '...';
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Row(
         children: [
-          FriendAvatar(userId: userId, username: nome, size: 32),
+          FriendAvatar(userId: widget.userId, username: nome, size: 32),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
@@ -91,26 +142,13 @@ class _BlockedRow extends ConsumerWidget {
             ),
           ),
           TextButton(
-            onPressed: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              final fatto = await ref
-                  .read(moderationActionsProvider)
-                  .unblock(userId);
-
-              messenger.showSnackBar(
-                SnackBar(
-                  content: Text(
-                    fatto
-                        ? 'Hai sbloccato @$nome.'
-                        : 'Non ci siamo riusciti. Riprova.',
+            onPressed: _sbloccando ? null : () => _sblocca(nome),
+            child: _sbloccando
+                ? const FiammaCheGira(misura: 18)
+                : Text(
+                    'SBLOCCA',
+                    style: texts.labelSmall?.copyWith(color: palette.accent),
                   ),
-                ),
-              );
-            },
-            child: Text(
-              'SBLOCCA',
-              style: texts.labelSmall?.copyWith(color: palette.accent),
-            ),
           ),
         ],
       ),

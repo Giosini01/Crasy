@@ -115,8 +115,19 @@ dove sta scritto.
 
 ### Cosa succede ai soldi
 
-- Il premio si paga **prima** che la challenge sia visibile, e resta fermo su
-  CRASY fino alla fine. L'istituto di pagamento e' Stripe (Connect), non noi.
+- Il premio si paga **prima** che la challenge sia visibile, e resta sul saldo
+  Stripe di CRASY fino alla fine. L'istituto di pagamento e' Stripe (Connect),
+  non noi.
+- **Alla chiusura il premio va sul conto Stripe del vincitore**, un conto
+  collegato (Express) intestato a lui: CRASY non tiene i soldi di chi vince.
+  Il conto si apre prima della prima gara con soldi (nome, codice fiscale,
+  IBAN, poi la verifica di Stripe). Da li' il vincitore preleva verso la sua
+  banca, da 10 euro in su.
+- **Pagare una missione con i premi vinti** vuol dire che CRASY addebita il
+  conto Stripe del vincitore ("account debit", 1,4% a carico di CRASY). Stripe
+  lo consente solo con un **consenso giuridicamente vincolante**: oggi e' una
+  casella da spuntare, con il testo registrato in `consents/addebito_saldo`.
+  *Domanda per il legale: basta, o serve una clausola nelle condizioni d'uso?*
 - Su 500 euro di premio: 507,87 pagati da chi lancia, 450 al vincitore, 50 a
   CRASY (10%), 7,87 a Stripe. Le commissioni le paga chi lancia **in aggiunta**,
   perche' il numero scritto in home sia quello vero (`prize_ledger.dart`).

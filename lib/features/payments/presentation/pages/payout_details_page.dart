@@ -2,6 +2,7 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/payments/domain/entities/payout_details.dart';
@@ -31,6 +32,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class PayoutDetailsPage extends ConsumerStatefulWidget {
   const PayoutDetailsPage({super.key});
 
+  /// Il testo esatto che si accetta: finisce nel registro dei consensi cosi'
+  /// com'e', perche' un consenso si dimostra con le parole a cui si e' detto
+  /// di si'.
+  static const testoAddebito =
+      'Autorizzo CRASY a prelevare dal mio conto Stripe l’importo del premio '
+      'quando scelgo di pagare una missione con il mio saldo: solo quando lo '
+      'scelgo io, una missione alla volta.';
+
   @override
   ConsumerState<PayoutDetailsPage> createState() => _PayoutDetailsPageState();
 }
@@ -45,6 +54,10 @@ class _PayoutDetailsPageState extends ConsumerState<PayoutDetailsPage> {
   bool _working = false;
   String? _error;
   bool _riempito = false;
+
+  /// **Il permesso di pagare le missioni con il saldo Stripe.** Facoltativo,
+  /// e non spuntato di partenza: un consenso si da', non si trova gia' dato.
+  bool _addebito = false;
 
   @override
   void dispose() {
@@ -97,6 +110,14 @@ class _PayoutDetailsPageState extends ConsumerState<PayoutDetailsPage> {
     });
 
     try {
+      if (_addebito &&
+          ref.read(addebitoAccettatoProvider).valueOrNull != true) {
+        await repository.accettaAddebitoDalSaldo(
+          userId,
+          PayoutDetailsPage.testoAddebito,
+        );
+      }
+
       await repository.savePayoutDetails(
         userId,
         PayoutDetails(
@@ -127,97 +148,145 @@ class _PayoutDetailsPageState extends ConsumerState<PayoutDetailsPage> {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final texts = context.texts;
+    final datiInArrivo = ref.watch(payoutDetailsProvider);
+    final permessoInArrivo = ref.watch(addebitoAccettatoProvider);
 
-    _riempiUnaVolta(ref.watch(payoutDetailsProvider).valueOrNull);
+    _riempiUnaVolta(datiInArrivo.valueOrNull);
+
+    // **Il modulo si mostra quando si sa cosa metterci dentro.** Prima
+    // compariva vuoto e si riempiva un attimo dopo, da solo: chi aveva gia'
+    // cominciato a scrivere si vedeva sostituire nome e IBAN sotto le dita. E
+    // sotto, la casella del permesso compariva anche a chi l'aveva gia' dato,
+    // per poi sparire. Finche' non arrivano, la fiamma — e niente da toccare.
+    //
+    // Un errore conta come arrivato: il modulo si apre vuoto, come quando non
+    // si e' mai compilato, invece di girare per sempre.
+    final caricando = [
+      datiInArrivo,
+      permessoInArrivo,
+    ].any((fonte) => !fonte.hasValue && !fonte.hasError);
 
     return Scaffold(
       appBar: AppBar(
         leading: const BackButton(),
-        title: const Text('Dati per il prelievo'),
+        title: const Text('Il tuo conto per i premi'),
       ),
       body: AppBackground(
-        child: SafeArea(
-          top: false,
-          bottom: false,
-          child: Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.page,
-                AppSpacing.lg,
-                AppSpacing.page,
-                AppSpacing.xxl,
+        child: caricando
+            ? const Center(child: FiammaCheGira())
+            : SafeArea(
+                top: false,
+                bottom: false,
+                child: Form(
+                  key: _formKey,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.page,
+                      AppSpacing.lg,
+                      AppSpacing.page,
+                      AppSpacing.xxl,
+                    ),
+                    children: [
+                      Text(
+                        'Servono ad aprire il tuo conto Stripe, dove arrivano i '
+                        'premi che vinci: è a nome tuo, e CRASY non tiene i tuoi '
+                        'soldi. Mandare denaro a qualcuno senza sapere chi è non è '
+                        'consentito a nessuno: si compila una volta sola.',
+                        style: texts.bodyMedium?.copyWith(
+                          color: palette.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      TextFormField(
+                        controller: _nome,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(labelText: 'Nome'),
+                        validator: PayoutValidators.name,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      TextFormField(
+                        controller: _cognome,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(labelText: 'Cognome'),
+                        validator: PayoutValidators.name,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      TextFormField(
+                        controller: _codice,
+                        textCapitalization: TextCapitalization.characters,
+                        inputFormatters: [
+                          UpperCaseTextFormatter(),
+                          LengthLimitingTextInputFormatter(16),
+                        ],
+                        decoration: const InputDecoration(
+                          labelText: 'Codice fiscale',
+                        ),
+                        validator: PayoutValidators.fiscalCode,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      TextFormField(
+                        controller: _iban,
+                        textCapitalization: TextCapitalization.characters,
+                        inputFormatters: [
+                          UpperCaseTextFormatter(),
+                          LengthLimitingTextInputFormatter(40),
+                        ],
+                        decoration: const InputDecoration(
+                          labelText: 'IBAN',
+                          helperText: 'Il conto su cui vuoi ricevere i soldi',
+                        ),
+                        validator: PayoutValidators.iban,
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      // **Il permesso di usare il saldo per le missioni.** Senza, i
+                      // premi si possono solo prelevare: per rimetterli in gioco
+                      // CRASY deve poterli prendere dal conto, e lo fa solo con un
+                      // si' detto una volta, qui.
+                      if (permessoInArrivo.valueOrNull == true)
+                        Text(
+                          'Hai già autorizzato CRASY a usare il tuo saldo Stripe '
+                          'quando paghi una missione col portafoglio.',
+                          style: texts.bodySmall?.copyWith(
+                            color: palette.textSecondary,
+                          ),
+                        )
+                      else
+                        CheckboxListTile(
+                          value: _addebito,
+                          onChanged: (valore) =>
+                              setState(() => _addebito = valore ?? false),
+                          contentPadding: EdgeInsets.zero,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          activeColor: palette.accent,
+                          title: Text(
+                            PayoutDetailsPage.testoAddebito,
+                            style: texts.bodySmall?.copyWith(
+                              color: palette.textSecondary,
+                            ),
+                          ),
+                        ),
+                      if (_error != null) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        InlineBanner(message: _error!),
+                      ],
+                      const SizedBox(height: AppSpacing.xl),
+                      CrasyButton(
+                        label: 'Salva',
+                        loading: _working,
+                        onPressed: _salva,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        'Questi dati non compaiono da nessuna parte nell\'app e non '
+                        'li vede nessun altro. Servono solo ad aprire il tuo conto.',
+                        style: texts.bodySmall?.copyWith(
+                          color: palette.textFaint,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              children: [
-                Text(
-                  'Servono per mandarti i soldi, e li chiediamo adesso perché '
-                  'adesso ne hai. Mandare denaro a qualcuno senza sapere chi è '
-                  'non è consentito a nessuno: si compila una volta sola.',
-                  style: texts.bodyMedium?.copyWith(
-                    color: palette.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                TextFormField(
-                  controller: _nome,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(labelText: 'Nome'),
-                  validator: PayoutValidators.name,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                TextFormField(
-                  controller: _cognome,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(labelText: 'Cognome'),
-                  validator: PayoutValidators.name,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                TextFormField(
-                  controller: _codice,
-                  textCapitalization: TextCapitalization.characters,
-                  inputFormatters: [
-                    UpperCaseTextFormatter(),
-                    LengthLimitingTextInputFormatter(16),
-                  ],
-                  decoration: const InputDecoration(
-                    labelText: 'Codice fiscale',
-                  ),
-                  validator: PayoutValidators.fiscalCode,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                TextFormField(
-                  controller: _iban,
-                  textCapitalization: TextCapitalization.characters,
-                  inputFormatters: [
-                    UpperCaseTextFormatter(),
-                    LengthLimitingTextInputFormatter(40),
-                  ],
-                  decoration: const InputDecoration(
-                    labelText: 'IBAN',
-                    helperText: 'Il conto su cui vuoi ricevere i soldi',
-                  ),
-                  validator: PayoutValidators.iban,
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  InlineBanner(message: _error!),
-                ],
-                const SizedBox(height: AppSpacing.xl),
-                CrasyButton(
-                  label: 'Salva',
-                  loading: _working,
-                  onPressed: _salva,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  'Questi dati non compaiono da nessuna parte nell\'app e non '
-                  'li vede nessun altro. Servono solo al bonifico.',
-                  style: texts.bodySmall?.copyWith(color: palette.textFaint),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

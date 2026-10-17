@@ -99,8 +99,13 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final texts = context.texts;
-    final friends =
-        ref.watch(myFriendsProvider).valueOrNull ?? const <Friend>[];
+    final amici = ref.watch(myFriendsProvider);
+    final friends = amici.valueOrNull ?? const <Friend>[];
+    // **Prima di dire "non hai amici", si aspetta di saperlo.** Mentre la
+    // lettura arriva l'elenco e' vuoto, e la schermata apriva su "Non hai
+    // ancora amici" per poi riempirsi un attimo dopo: a chi ne ha trenta
+    // sembrava di averli persi. Finche' arriva, la fiamma.
+    final caricando = !amici.hasValue && !amici.hasError;
     final busy = ref.watch(duelControllerProvider).isLoading;
 
     // Il nome tiene il passo con la scelta: serve a scriverlo dentro la sfida
@@ -128,18 +133,35 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
         body: Stack(
           children: [
             AppBackground(
-              child: friends.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.symmetric(
+              child: caricando
+                  ? const Center(child: FiammaCheGira())
+                  : friends.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.page,
                       ),
-                      child: EmptyState(
-                        title: 'Non hai ancora amici',
-                        message:
-                            'Le sfide si lanciano a una persona che conosci. Cerca '
-                            'qualcuno e seguilo: appena ti segue anche lui, '
-                            'potrai sfidarlo.',
-                      ),
+                      // Una lettura che non e' riuscita non e' una persona
+                      // senza amici: si dice con un'altra frase.
+                      child: amici.hasError
+                          ? Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: AppSpacing.xxl,
+                              ),
+                              child: Text(
+                                'Non riusciamo a leggere i tuoi amici. Riprova '
+                                'fra poco.',
+                                style: texts.bodyMedium?.copyWith(
+                                  color: palette.textSecondary,
+                                ),
+                              ),
+                            )
+                          : const EmptyState(
+                              title: 'Non hai ancora amici',
+                              message:
+                                  'Le sfide si lanciano a una persona che '
+                                  'conosci. Cerca qualcuno e seguilo: appena '
+                                  'ti segue anche lui, potrai sfidarlo.',
+                            ),
                     )
                   : Form(
                       key: _formKey,

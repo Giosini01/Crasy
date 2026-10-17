@@ -12,6 +12,7 @@ const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
 const vision = require('@google-cloud/vision');
 const { avvisaChiLHaMandata } = require('./avvisi');
+const { liberaLeFiamme } = require('./fiamme');
 const videoIntelligence = require('@google-cloud/video-intelligence');
 
 admin.initializeApp();
@@ -40,6 +41,13 @@ const posta = require('./posta');
  */
 const SUONO_APPLE = 'crasy.wav';
 const SUONO_ANDROID = 'crasy';
+
+/**
+ * **Il canale di Android in cui arriva ogni notifica.** Da Android 8 il suono
+ * lo decide il canale, non il messaggio: lo crea l'app all'avvio, con dentro
+ * `crasy.wav` — vedi `MainActivity.kt` — e il nome deve restare questo.
+ */
+const CANALE_ANDROID = 'crasy';
 
 /** Il rosso di CRASY, che su Android colora l'icona della notifica. */
 const ROSSO = '#FA0000';
@@ -90,7 +98,7 @@ async function annuncia(corpo, dati) {
     apns: { payload: { aps: { sound: SUONO_APPLE, badge: 1 } } },
     android: {
       priority: 'high',
-      notification: { sound: SUONO_ANDROID, color: ROSSO },
+      notification: { sound: SUONO_ANDROID, color: ROSSO, channelId: CANALE_ANDROID },
     },
   };
 
@@ -261,6 +269,11 @@ exports.createPayoutOnboarding = payments.createPayoutOnboarding;
 exports.withdrawWallet = payments.withdrawWallet;
 exports.requestPayout = payments.requestPayout;
 exports.payChallengeFromWallet = payments.payChallengeFromWallet;
+// I premi vanno sul conto Stripe di chi vince: lo stato del conto, e il giro
+// quotidiano che sposta la custodia rimasta indietro.
+exports.statoConto = payments.statoConto;
+exports.spostaLeCustodie = payments.spostaLeCustodie;
+exports.linkContoStripe = payments.linkContoStripe;
 
 // **Le missioni che partono da sole, finche' il fondo prepagato dura.**
 // Vedi `salvadanaio.js`: una spinta per far partire il motore all'inizio, con
@@ -442,7 +455,7 @@ async function mandaAUnaPersona(userId, corpo, dati) {
     apns: { payload: { aps: { sound: SUONO_APPLE, badge: 1 } } },
     android: {
       priority: 'high',
-      notification: { sound: SUONO_ANDROID, color: ROSSO },
+      notification: { sound: SUONO_ANDROID, color: ROSSO, channelId: CANALE_ANDROID },
     },
   });
 
@@ -598,6 +611,9 @@ async function controllaPartecipazione(snapshot, challengeId) {
       participantsCount: admin.firestore.FieldValue.increment(-1),
     });
 
+    // Le fiamme che aveva preso tornano a chi gliele aveva date.
+    await liberaLeFiamme(challengeId, snapshot.id);
+
     logger.warn(
       `Partecipazione ${snapshot.id} rifiutata: ${reasons.join(', ')}`
     );
@@ -747,7 +763,9 @@ const QUANTO_TEMPO_HO = 480 * 1000;
  * Non si passa nessun verdetto, non si anticipa nessuna sirena. Al massimo si
  * chiede a CRASY di fare adesso il lavoro che avrebbe fatto fra poco.
  */
-exports.closeChallengeNow = onCall(async (request) => {
+// Chiudere una gara vuol dire pagare il vincitore o rimborsare: servono le
+// chiavi di Stripe. Senza, Stripe non risponde e i soldi restano fermi.
+exports.closeChallengeNow = onCall({ secrets: [payments.STRIPE_SECRET_KEY, payments.STRIPE_PAYOUT_KEY] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Serve aver fatto l\'accesso.');
   }
@@ -804,6 +822,10 @@ exports.closeExpiredChallenges = onSchedule(
     // l'app cominciava ad andare bene.
     timeoutSeconds: 540,
     memory: '512MiB',
+    // **Le chiavi di Stripe, che qui mancavano.** Questa funzione paga i
+    // vincitori e rimborsa le gare deserte: senza chiave Stripe rifiutava ogni
+    // rimborso, e il premio di una gara senza partecipanti restava fermo.
+    secrets: [payments.STRIPE_SECRET_KEY, payments.STRIPE_PAYOUT_KEY],
   },
   async () => {
   // **Si chiude appena la gara finisce.**
@@ -1045,7 +1067,7 @@ async function avvisaIlCreatoreDellaScelta(challenge) {
  * partecipante solo dice si' o no (`vale`); in una missione fra amici con piu'
  * foto sceglie quale (`entryId`), oppure dice che non ha vinto nessuno.
  */
-exports.giudicaIlSolo = onCall(async (request) => {
+exports.giudicaIlSolo = onCall({ secrets: [payments.STRIPE_SECRET_KEY, payments.STRIPE_PAYOUT_KEY] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', "Serve aver fatto l'accesso.");
   }
@@ -1147,6 +1169,16 @@ async function chiudiLaSfidaMirata(challenge) {
     if (challenge.get('prizeStatus') === 'held') {
       await scriviIlVincitoreDelDuello(challenge, 'expired');
       await sistemaISoldiDellaSfida(challenge.id);
+
+      // **E lo si dice a tutti e due.** Prima il premio arrivava in silenzio:
+      // chi aveva fatto la sfida non sapeva di aver vinto finche' non andava a
+      // guardare, e chi l'aveva lanciata non sapeva che la sfida era chiusa.
+      const fatta = await challenge.ref
+        .collection('entries')
+        .doc(String(challenge.get('targetUserId')))
+        .get();
+
+      await avvisaCheEFinita(challenge, fatta.exists ? [fatta] : []);
       logger.info(`Sfida ${challenge.id}: nessun giudizio, premio a chi l'ha fatta.`);
 
       return true;
@@ -1252,7 +1284,7 @@ async function sistemaISoldiDellaSfida(challengeId) {
  * Adesso il giudizio lo scrive il server, e nello stesso momento paga chi ha
  * vinto o rimborsa chi ha lanciato.
  */
-exports.giudicaSfidaMirata = onCall(async (request) => {
+exports.giudicaSfidaMirata = onCall({ secrets: [payments.STRIPE_SECRET_KEY, payments.STRIPE_PAYOUT_KEY] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', "Serve aver fatto l'accesso.");
   }
@@ -1302,8 +1334,107 @@ exports.giudicaSfidaMirata = onCall(async (request) => {
 
   await sistemaISoldiDellaSfida(challengeId);
 
+  // **Il verdetto lo annuncia il server.** Lo scriveva il telefono di chi
+  // giudicava, e le regole lo obbligano a firmare con il proprio
+  // identificativo: su una sfida lanciata in anonimo, quell'avviso diceva a chi
+  // sapeva leggere il database proprio il nome che la sfida nascondeva.
+  await avvisaDellaSfida(challenge, vale ? 'duelApproved' : 'duelRejected');
+
   return { giudicata: true };
 });
+
+/**
+ * **Un avviso di una sfida mirata, scritto dal server a chi e' stato sfidato.**
+ *
+ * Da qui partono quelli che vengono da chi l'ha lanciata — la sfida stessa e il
+ * verdetto — e partono **senza firma se la sfida e' anonima**: niente nome,
+ * niente identificativo. Il documento ha lo stesso nome che gli dava l'app,
+ * cosi' un'app vecchia che lo scrive ancora non lo raddoppia: chi arriva per
+ * secondo trova il posto preso e si ferma.
+ *
+ * `dalServer` dice alla funzione delle push che questo avviso non va
+ * ricontrollato: non l'ha scritto un telefono. Un telefono non lo puo'
+ * scrivere — le regole non lo lasciano fra i campi possibili.
+ */
+async function avvisaDellaSfida(challenge, tipo) {
+  const dati = challenge.data() || {};
+  const bersaglio = String(dati.targetUserId || '');
+  const autore = String(dati.createdByUserId || '');
+
+  if (!bersaglio || !autore || bersaglio === autore) {
+    return;
+  }
+
+  const anonimo = dati.anonimo === true;
+
+  try {
+    await db
+      .collection('users')
+      .doc(bersaglio)
+      .collection('notifications')
+      .doc(`sfida_${tipo}_${challenge.id}`)
+      .create({
+        kind: tipo,
+        actorId: anonimo ? '' : autore,
+        actorUsername: anonimo ? '' : String(dati.createdByUsername || ''),
+        ...(anonimo ? { anonimo: true } : {}),
+        challengeId: challenge.id,
+        challengeTitle: String(dati.title || ''),
+        ...(tipo === 'duel' && dati.duelMessage
+          ? { message: String(dati.duelMessage) }
+          : {}),
+        dalServer: true,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+  } catch (error) {
+    // 6 = c'e' gia': l'ha scritto un'app di prima, o questa funzione e' gia'
+    // passata di qui.
+    if (error.code !== 6) {
+      logger.error('avviso della sfida non scritto', { tipo, challengeId: challenge.id, error });
+    }
+  }
+}
+
+/**
+ * **La sfida arriva all'amico quando c'e' davvero.**
+ *
+ * La annunciava il telefono di chi la lanciava, appena creata — anche quando
+ * aveva un premio e il pagamento non era ancora passato. Se poi non pagava,
+ * l'amico si trovava una sfida a cui non poteva partecipare: accettava,
+ * scattava, e l'invio veniva rifiutato.
+ *
+ * Adesso parte da qui, nel momento in cui la sfida diventa vera: alla nascita
+ * se e' gratis, al pagamento se ha un premio — vedi `appenaApparsa`. E non
+ * parte affatto se l'amico ha bloccato chi la lancia: un blocco non si scavalca
+ * con una sfida, men che meno con una anonima.
+ */
+exports.annunciaLaSfida = onDocumentWritten(
+  'challenges/{challengeId}',
+  async (event) => {
+    const dati = appenaApparsa(event);
+
+    if (!dati || !dati.targetUserId || dati.duelStatus !== 'pending') {
+      return;
+    }
+
+    const bloccato = await db
+      .collection('users')
+      .doc(String(dati.targetUserId))
+      .collection('blocked')
+      .doc(String(dati.createdByUserId || '-'))
+      .get();
+
+    if (bloccato.exists) {
+      logger.info('sfida a chi ha bloccato chi la lancia: niente avviso', {
+        challengeId: event.params.challengeId,
+      });
+
+      return;
+    }
+
+    await avvisaDellaSfida(event.data.after, 'duel');
+  }
+);
 
 /**
  * Dice a chi ha fatto la sfida che nessuno l'ha guardata.
@@ -1501,8 +1632,14 @@ async function closeChallenge(challenge, { giudizio, scelta } = {}) {
     return;
   }
 
+  // **Le fiamme si contano dai voti**, non dal contatore che le insegue: vedi
+  // `fiammeVereDi`. Se non si riesce, decide il contatore come prima.
+  const fiammeVere = await fiammeVereDi(challenge.id);
+  const fiammeDi = (doc) =>
+    fiammeVere ? fiammeVere.get(doc.id) || 0 : doc.get('votes') || 0;
+
   const ranked = eligible.slice().sort((a, b) => {
-    const byVotes = (b.get('votes') || 0) - (a.get('votes') || 0);
+    const byVotes = fiammeDi(b) - fiammeDi(a);
 
     if (byVotes !== 0) {
       return byVotes;
@@ -1544,24 +1681,59 @@ async function closeChallenge(challenge, { giudizio, scelta } = {}) {
   // Il file della foto del vincitore lo spazzino non lo tocca — vedi
   // `purgeOldChallenges` — quindi questo indirizzo continua a funzionare
   // quando la partecipazione non c'e' piu'.
-  const batch = db.batch();
-  batch.update(challenge.ref, {
-    ...(challenge.get('attesaGiudizio')
-      ? { attesaGiudizio: false, giudizioSolo: giudizio === 'vale' ? 'vale' : 'scaduto' }
-      : {}),
-    winnerEntryId: winner.id,
-    winnerUserId: winner.get('userId') || null,
-    winnerUsername: winner.get('authorName') || '',
-    winnerMediaUrl: winner.get('mediaUrl') || '',
-    winnerMediaKind: winner.get('mediaKind') || 'photo',
-    winnerVotes: winner.get('votes') || 0,
+  // **I numeri sulle foto diventano quelli giusti**, dove il contatore era
+  // rimasto indietro: la classifica che si vede dopo la sirena deve dire la
+  // stessa cosa del vincitore pagato.
+  const correzioni = fiammeVere
+    ? entries.docs
+        .filter((doc) => (doc.get('votes') || 0) !== fiammeDi(doc))
+        .slice(0, 400)
+    : [];
+
+  // **Proclama uno solo.** La gara la chiudono sia il telefono di chi la
+  // guarda alla sirena sia la spazzatrice, e capita che arrivino insieme: due
+  // giri con conti diversi di un secondo scrivevano due vincitori diversi, uno
+  // sopra l'altro. Adesso chi arriva secondo trova la gara gia' chiusa e si
+  // ferma, prima di avvisare o pagare chiunque.
+  const proclamata = await db.runTransaction(async (transazione) => {
+    const adesso = await transazione.get(challenge.ref);
+    const gia = adesso.get('winnerEntryId');
+
+    if (gia !== null && gia !== undefined) {
+      return false;
+    }
+
+    transazione.update(challenge.ref, {
+      ...(challenge.get('attesaGiudizio')
+        ? { attesaGiudizio: false, giudizioSolo: giudizio === 'vale' ? 'vale' : 'scaduto' }
+        : {}),
+      ...(fiammeVere ? { fiammeRicontate: true } : {}),
+      winnerEntryId: winner.id,
+      winnerUserId: winner.get('userId') || null,
+      winnerUsername: winner.get('authorName') || '',
+      winnerMediaUrl: winner.get('mediaUrl') || '',
+      winnerMediaKind: winner.get('mediaKind') || 'photo',
+      winnerVotes: fiammeDi(winner),
+    });
+    transazione.update(winner.ref, { isWinner: true });
+
+    for (const doc of correzioni) {
+      transazione.update(doc.ref, { votes: fiammeDi(doc) });
+    }
+
+    return true;
   });
-  batch.update(winner.ref, { isWinner: true });
-  await batch.commit();
+
+  if (!proclamata) {
+    logger.info(`Challenge ${challenge.id}: gia' chiusa da un altro giro.`);
+
+    return;
+  }
 
   logger.info(
     `Challenge ${challenge.id}: vince ${winner.id} con ` +
-      `${winner.get('votes') || 0} voti.`
+      `${fiammeDi(winner)} voti` +
+      (correzioni.length ? `, ${correzioni.length} contatori corretti.` : '.')
   );
 
   await avvisaCheEFinita(challenge, entries.docs);
@@ -1903,6 +2075,16 @@ exports.purgeUnverifiedAccounts = onSchedule('every 60 minutes', async () => {
 /** Quanto aspetta una fiamma prima di suonare: vedi `sendPushOnNotification`. */
 const ATTESA_FIAMMA_MS = 8 * 1000;
 
+/**
+ * I tipi di avviso che scrive un telefono, e non il server: gli stessi che le
+ * regole lasciano creare (vedi `notifications` in `firestore.rules`).
+ */
+const SCRITTI_DAI_TELEFONI = new Set([
+  'participation', 'fire', 'mention', 'comment',
+  'duel', 'duelAccepted', 'duelDeclined', 'duelCompleted',
+  'duelApproved', 'duelRejected',
+]);
+
 exports.sendPushOnNotification = onDocumentCreated(
   'users/{userId}/notifications/{notificationId}',
   async (event) => {
@@ -1960,10 +2142,63 @@ exports.sendPushOnNotification = onDocumentCreated(
       }
     }
 
+    // **Quello che ha scritto un telefono si ricontrolla alla fonte.**
+    //
+    // Questi avvisi li scrive l'app di chi fa la cosa, e chi scrive sul
+    // database da se' poteva metterci dentro quello che voleva: un titolo
+    // inventato, una "frase della sfida" con un indirizzo, verso chiunque e
+    // per tutte le volte che voleva. Sullo schermo bloccato arrivava come un
+    // avviso di CRASY. Il nome lo controllano gia' le regole; titolo e frase
+    // si prendono dalla gara vera, e una sfida deve essere davvero fra quei
+    // due. **E chi ti ha bloccato non ti fa squillare il telefono.**
+    let gara = dati.challengeTitle || '';
+    let rigaDellaSfida = String(dati.message || '').trim();
+
+    if (SCRITTI_DAI_TELEFONI.has(dati.kind) && dati.dalServer !== true) {
+      const actorId = String(dati.actorId || '');
+
+      if (actorId) {
+        const bloccato = await db
+          .collection('users')
+          .doc(userId)
+          .collection('blocked')
+          .doc(actorId)
+          .get();
+
+        if (bloccato.exists) {
+          logger.info('avviso da una persona bloccata: niente push', { userId });
+
+          return;
+        }
+      }
+
+      const challengeId = String(dati.challengeId || '');
+      const sfida = challengeId
+        ? await db.collection('challenges').doc(challengeId).get()
+        : null;
+
+      gara = sfida && sfida.exists ? sfida.get('title') || '' : '';
+
+      if (String(dati.kind).startsWith('duel')) {
+        const coppia = sfida && sfida.exists
+          ? [sfida.get('createdByUserId'), sfida.get('targetUserId')]
+          : [];
+
+        if (!coppia.includes(actorId) || !coppia.includes(userId)) {
+          logger.warn('avviso di una sfida che non e\' fra questi due: niente push', {
+            userId,
+          });
+
+          return;
+        }
+
+        rigaDellaSfida = String(sfida.get('duelMessage') || '').trim();
+      }
+    }
+
     const chi = dati.actorUsername || 'qualcuno';
     // **Chi si e' nascosto resta nascosto anche sullo schermo bloccato.**
     const tag = dati.anonimo === true ? 'Un anonimo' : `@${chi}`;
-    const gara = dati.challengeTitle || '';
 
     // Una riga per tipo. Corte apposta: sullo schermo bloccato di un telefono
     // ne entrano due, e la seconda la legge quasi nessuno.
@@ -2041,7 +2276,7 @@ exports.sendPushOnNotification = onDocumentCreated(
     // viene letta davvero. Si taglia a cento caratteri perche' oltre quelli
     // nessuna schermata bloccata la mostra intera, e mezza frase troncata a
     // caso legge peggio di una frase finita con i puntini.
-    const riga = String(dati.message || '').trim();
+    const riga = rigaDellaSfida;
 
     if (riga && dati.kind === 'duel') {
       corpo += `: "${riga.length > 100 ? `${riga.slice(0, 99)}…` : riga}"`;
@@ -2088,6 +2323,22 @@ exports.sendPushOnFriendRequest = onDocumentCreated(
     // Chi torna fra i follower dopo un'amicizia finita non ha appena
     // iniziato a seguire: seguiva gia'. Nessun avviso.
     if (event.data?.get('tornato') === true) {
+      return;
+    }
+
+    // **Una push sola per persona, per sempre.** Seguire, smettere e seguire
+    // di nuovo faceva squillare il telefono ogni volta: lo stesso segno che
+    // tiene a bada le fiamme tolte e rimesse.
+    try {
+      await db
+        .collection('users')
+        .doc(event.params.userId)
+        .collection('pushSeguiti')
+        .doc(String(event.params.fromId || ''))
+        .create({ at: admin.firestore.FieldValue.serverTimestamp() });
+    } catch {
+      logger.info('follower gia annunciato', { userId: event.params.userId });
+
       return;
     }
 
@@ -2850,7 +3101,15 @@ exports.openFriendChallengesToNewFriend = onDocumentCreated(
  * l'unica forma che regge due scritture arrivate nello stesso istante.
  */
 exports.countVote = onDocumentWritten(
-  'users/{userId}/votes/{voteId}',
+  {
+    document: 'users/{userId}/votes/{voteId}',
+    // **Se non riesce, riprova.** Prima ogni errore finiva in un avviso nei
+    // log e la fiamma restava data ma non contata: un numero piu' basso di
+    // quello che dicevano le notifiche, in una gara con dei soldi in palio.
+    // Riprovare e' sicuro perche' ogni evento si conta una volta sola: vedi
+    // il segno in `fiammeContate` qui sotto.
+    retry: true,
+  },
   async (event) => {
     const prima = event.data?.before;
     const dopo = event.data?.after;
@@ -2873,24 +3132,184 @@ exports.countVote = onDocumentWritten(
       return;
     }
 
+    // Una fiamma tolta qui sotto perche' oltre il limite non era mai stata
+    // contata: togliendola non si toglie niente.
+    if (!ce && dati.scartata === true) {
+      return;
+    }
+
+    const gara = await db.collection('challenges').doc(challengeId).get();
+
+    if (!gara.exists) {
+      return;
+    }
+
+    // **A conti rifatti non si tocca piu' niente.** Chiudendo la gara le
+    // fiamme si contano dai voti stessi — vedi `fiammeVereDi` — e i numeri
+    // giusti vengono riscritti. Un evento arrivato in ritardo li sposterebbe
+    // di nuovo, e la classifica finale non direbbe piu' chi ha vinto.
+    if (gara.get('fiammeRicontate') === true) {
+      return;
+    }
+
+    // **Dopo la sirena una fiamma non la toglie chi l'ha data**: le regole
+    // non lo lasciano fare. Se sparisce e' il server che ripulisce un account
+    // cancellato, e il risultato di una gara finita non cambia per questo.
+    const fine = gara.get('endsAt');
+
+    if (!ce && fine && Date.parse(event.time) >= fine.toMillis()) {
+      return;
+    }
+
+    // **Tre per gara, e lo sa anche il server.** L'app le conta da se', ma
+    // all'avvio — prima che arrivasse l'elenco dei voti — ne lasciava dare
+    // di piu', e chi scrive sul database direttamente non passa dall'app.
+    if (ce) {
+      const quante = await db
+        .collection('users')
+        .doc(event.params.userId)
+        .collection('votes')
+        .where('challengeId', '==', challengeId)
+        .count()
+        .get();
+
+      if (quante.data().count > FIAMME_PER_GARA) {
+        try {
+          await dopo.ref.update({ scartata: true });
+          await dopo.ref.delete();
+        } catch (error) {
+          // Tolta nel frattempo da chi l'aveva data: e' gia' a posto.
+          if (error.code !== 5) {
+            throw error;
+          }
+        }
+
+        logger.warn('fiamma oltre le tre della gara: tolta', {
+          userId: event.params.userId,
+          challengeId,
+        });
+
+        return;
+      }
+    }
+
     const foto = db
       .collection('challenges')
       .doc(challengeId)
       .collection('entries')
       .doc(entryId);
 
+    // **Ogni evento si conta una volta sola.** Firebase consegna questi
+    // eventi "almeno una volta": capita, di rado, che lo stesso arrivi due
+    // volte, e con il riprovare acceso capitera' di piu'. Il segno e
+    // l'incremento partono insieme: se il segno c'e' gia', non parte nessuno
+    // dei due.
+    const scrittura = db.batch();
+
+    scrittura.create(db.collection('fiammeContate').doc(event.id), {
+      at: admin.firestore.FieldValue.serverTimestamp(),
+      challengeId,
+      entryId,
+      delta: ce ? 1 : -1,
+    });
+    scrittura.update(foto, {
+      votes: admin.firestore.FieldValue.increment(ce ? 1 : -1),
+    });
+
     try {
-      await foto.update({
-        votes: admin.firestore.FieldValue.increment(ce ? 1 : -1),
-      });
+      await scrittura.commit();
     } catch (error) {
-      // **La foto puo' non esserci piu'.** Una gara cancellata, una foto tolta
-      // dalle segnalazioni: il voto resta nella cartella di chi l'ha dato e non
-      // ha piu' niente da contare. Non e' un guasto.
-      logger.warn(`Fiamma non contata su ${challengeId}/${entryId}.`, error);
+      // 6 = gia' esiste: questo evento e' gia' stato contato.
+      if (error.code === 6) {
+        return;
+      }
+
+      // 5 = non trovato. **La foto puo' non esserci piu'**: una gara
+      // cancellata, una foto tolta dalle segnalazioni. Il voto resta nella
+      // cartella di chi l'ha dato e non ha piu' niente da contare.
+      if (error.code === 5) {
+        logger.warn(`Fiamma non contata su ${challengeId}/${entryId}: la foto non c'e' piu'.`);
+
+        return;
+      }
+
+      throw error;
     }
   }
 );
+
+/** Quante fiamme ha ognuno in una gara: `Challenge.firesPerChallenge` nell'app. */
+const FIAMME_PER_GARA = 3;
+
+/**
+ * **Le fiamme di una gara contate dai voti, non dal contatore.**
+ *
+ * Il contatore sulla foto lo muove `countVote` un attimo dopo il voto: di
+ * solito un secondo, a volte di piu'. Chi apre la gara alla sirena la fa
+ * chiudere subito, e le fiamme degli ultimi secondi potevano non essere ancora
+ * arrivate sul numero: il premio andava a chi era primo un secondo prima.
+ *
+ * I voti invece sono gia' tutti li': dopo la sirena le regole non ne lasciano
+ * scrivere ne' togliere. Contarli e' il risultato esatto. E si contano come
+ * dice la gara, non come sono scritti: una fiamma per foto per persona, tre
+ * per persona, niente alla propria foto — anche per i voti scritti prima che
+ * le regole lo imponessero.
+ *
+ * Torna `null` se non si riesce (per esempio l'indice non e' ancora pronto):
+ * allora decide il contatore, come prima.
+ */
+async function fiammeVereDi(challengeId) {
+  try {
+    const voti = await db
+      .collectionGroup('votes')
+      .where('challengeId', '==', challengeId)
+      .get();
+    const perPersona = new Map();
+
+    for (const voto of voti.docs) {
+      const chi = voto.ref.parent.parent ? voto.ref.parent.parent.id : '';
+      const foto = String(voto.get('entryId') || '');
+
+      if (!chi || !foto || foto === chi) {
+        continue;
+      }
+
+      const quando = voto.get('createdAt');
+      const elenco = perPersona.get(chi) || [];
+
+      elenco.push({ foto, quando: quando ? quando.toMillis() : 0 });
+      perPersona.set(chi, elenco);
+    }
+
+    const conti = new Map();
+
+    for (const elenco of perPersona.values()) {
+      elenco.sort((a, b) => a.quando - b.quando);
+
+      const date = new Set();
+
+      for (const { foto } of elenco) {
+        if (date.size >= FIAMME_PER_GARA) {
+          break;
+        }
+
+        if (!date.has(foto)) {
+          date.add(foto);
+          conti.set(foto, (conti.get(foto) || 0) + 1);
+        }
+      }
+    }
+
+    return conti;
+  } catch (error) {
+    logger.warn('Fiamme non ricontate dai voti: decide il contatore.', {
+      challengeId,
+      errore: error.message,
+    });
+
+    return null;
+  }
+}
 
 /**
  * Tiene il conto di quanti sono in gara, al posto del telefono.
@@ -2966,6 +3385,22 @@ exports.freeSlotOnEntryRemoved = onDocumentDeleted(
         });
     } catch (error) {
       logger.error(`Lapide non scritta su ${challengeId}/${entryId}.`, error);
+    }
+
+    // Le fiamme che aveva preso tornano a chi gliele aveva date: la foto non
+    // si vede piu', e senza questo restavano contate fra le tre di ognuno.
+    // **Solo a gara aperta**: a gara finita le fiamme non servono piu' a
+    // nessuno, e qui passa anche lo spazzino che svuota le gare vecchie — una
+    // ricerca per ogni foto buttata sarebbe solo un conto da pagare.
+    try {
+      const gara = await db.collection('challenges').doc(challengeId).get();
+      const fine = gara.exists ? gara.get('endsAt') : null;
+
+      if (fine && fine.toMillis() > Date.now()) {
+        await liberaLeFiamme(challengeId, entryId);
+      }
+    } catch (error) {
+      logger.warn(`Fiamme di ${entryId} non restituite.`, error);
     }
 
     const path = dati.storagePath;
@@ -3380,7 +3815,7 @@ async function pushAggiornamento(testi) {
       apns: { payload: { aps: { sound: SUONO_APPLE, badge: 1 } } },
       android: {
         priority: 'high',
-        notification: { sound: SUONO_ANDROID, color: ROSSO },
+        notification: { sound: SUONO_ANDROID, color: ROSSO, channelId: CANALE_ANDROID },
       },
     };
 

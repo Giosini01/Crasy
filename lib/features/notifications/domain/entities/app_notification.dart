@@ -219,8 +219,13 @@ class AppNotification {
   /// la riga dice "Un anonimo" e al posto della foto c'e' una maschera.
   final bool anonimo;
 
-  /// Come si chiama chi l'ha fatta, nella frase: `@mario` o `Un anonimo`.
-  String get actorTag => anonimo ? 'Un anonimo' : '@$actorUsername';
+  /// Come si chiama chi l'ha fatta, nella frase: `@mario`, `Un anonimo`, o
+  /// `Qualcuno` quando il nome non e' arrivato — meglio di una `@` da sola.
+  String get actorTag => anonimo
+      ? 'Un anonimo'
+      : actorUsername.isEmpty
+      ? 'Qualcuno'
+      : '@$actorUsername';
 
   final DateTime? createdAt;
 
@@ -273,22 +278,15 @@ class AppNotification {
     NotificationKind.comment => '$actorTag ha commentato la tua foto',
   };
 
-  /// La sezione in cui finisce.
-  ///
-  /// **Le amicizie non hanno una sezione qui**, e non e' una dimenticanza: le
-  /// richieste ricevute stanno gia' nella scheda Amici, con i due comandi per
-  /// accettare o rifiutare. Ripeterle in campanella vuol dire farsi due elenchi
-  /// della stessa cosa, e poi doverli tenere d'accordo.
-  /// In quale delle quattro finisce.
+  /// In quale sezione finisce.
   ///
   /// **La gara finita sta con le vittorie**, e non e' una forzatura: quella
   /// notizia serve a una cosa sola — andare a vedere chi ha vinto — quindi
   /// arriva dove uno andrebbe a cercarla.
   ///
-  /// Le richieste di amicizia non hanno una sezione loro perche' **non
-  /// compaiono qui**: stanno nella scheda Amici, con i due comandi per
-  /// accettare o rifiutare. Il ramo resta perche' il tipo esiste ancora, non
-  /// perche' ci arrivi qualcosa.
+  /// **Chi ha iniziato a seguirti sta in RICHIESTE**: la riga si ricava
+  /// dall'elenco di chi ti segue, e toccandola si va a "Ti seguono", dove si
+  /// decide se ricambiare.
   NotificationGroup get group => switch (kind) {
     NotificationKind.fire => NotificationGroup.fires,
     NotificationKind.friendRequest => NotificationGroup.requests,
@@ -322,13 +320,21 @@ class AppNotification {
   static NotificationGroup groupOf(NotificationKind kind) =>
       AppNotification(id: '', kind: kind).group;
 
-  static NotificationKind kindFromName(String? value) {
+  /// Il tipo dal suo nome, o `null` se quest'app non lo conosce.
+  ///
+  /// **Un tipo sconosciuto non diventa una fiamma**, e prima lo diventava. Il
+  /// server impara tipi nuovi prima dei telefoni: quando e' arrivato `rival` —
+  /// "prova a batterti", a chi era gia' in gara — le app installate prima lo
+  /// mostravano come "@nicola ha dato una fiamma alla tua foto". Una fiamma
+  /// mai data, firmata da una persona vera, che giurava di non averla data: ed
+  /// era vero. Un tipo che non si sa leggere non si mostra.
+  static NotificationKind? kindFromName(String? value) {
     for (final kind in NotificationKind.values) {
       if (kind.name == value) {
         return kind;
       }
     }
 
-    return NotificationKind.fire;
+    return null;
   }
 }

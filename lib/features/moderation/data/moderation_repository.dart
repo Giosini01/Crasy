@@ -110,13 +110,92 @@ class ModerationRepository {
     }
 
     await batch.commit();
+
+    // La foto segnalata sparisce dalla vista di chi l'ha segnalata: la fiamma
+    // che le aveva dato torna sua. Vedi [_ritiraLaFiamma].
+    if (kind == ReportTargetKind.entry &&
+        challengeId.isNotEmpty &&
+        entryId.isNotEmpty) {
+      await _ritiraLaFiamma(
+        userId: reporterId,
+        challengeId: challengeId,
+        entryId: entryId,
+      );
+    }
   }
 
   /// Non voglio piu' vedere questa persona.
-  Future<void> block({required String userId, required String otherId}) {
-    return _blocked(
+  Future<void> block({required String userId, required String otherId}) async {
+    await _blocked(
       userId,
     ).doc(otherId).set({'createdAt': FieldValue.serverTimestamp()});
+
+    // **E le fiamme date alle sue foto tornano a chi blocca.** Da adesso
+    // quelle foto non le vede piu': restando contate fra le sue tre, erano
+    // fiamme perse su foto che non poteva nemmeno piu' togliere. Una
+    // partecipazione si chiama come chi l'ha mandata, quindi le sue foto sono
+    // i voti con il suo identificativo.
+    try {
+      final voti = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('votes')
+          .where('entryId', isEqualTo: otherId)
+          .get();
+
+      for (final voto in voti.docs) {
+        await _ritiraLaFiamma(
+          userId: userId,
+          challengeId: voto.data()['challengeId'] as String? ?? '',
+          entryId: otherId,
+        );
+      }
+    } on Object catch (_) {
+      // Il blocco e' fatto, ed e' quello che conta.
+    }
+  }
+
+  /// **Toglie la fiamma data a una foto che non si vede piu'**, e l'avviso
+  /// che l'aveva annunciata.
+  ///
+  /// Ognuno ne ha tre per gara: una foto segnalata, o di una persona
+  /// bloccata, sparisce dalla vista di chi segnala o blocca, e la fiamma che
+  /// le aveva dato restava contata — persa, senza nessun modo di riprendersela.
+  ///
+  /// A gara finita le regole non lasciano toglierla, ed e' giusto: li' le
+  /// fiamme hanno gia' deciso chi ha vinto. Non lancia mai.
+  Future<void> _ritiraLaFiamma({
+    required String userId,
+    required String challengeId,
+    required String entryId,
+  }) async {
+    if (challengeId.isEmpty) {
+      return;
+    }
+
+    final chiave = '${challengeId}__$entryId';
+
+    try {
+      final voto = _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('votes')
+          .doc(chiave);
+
+      if (!(await voto.get()).exists) {
+        return;
+      }
+
+      await voto.delete();
+      await _firestore
+          .collection('users')
+          .doc(entryId)
+          .collection('notifications')
+          .doc('fiamma_${chiave}_$userId')
+          .delete();
+    } on Object catch (_) {
+      // Gara finita, o rete assente: la fiamma resta dov'era.
+    }
   }
 
   Future<void> unblock({required String userId, required String otherId}) {

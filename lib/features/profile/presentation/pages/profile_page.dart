@@ -6,6 +6,8 @@ import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/count_dot.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
+import 'package:crasy/core/widgets/foto_dalla_rete.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/core/widgets/media_gestures.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
@@ -56,15 +58,53 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final profileState = ref.watch(currentUserProfileProvider);
-    final entries = ref.watch(myEntriesProvider).valueOrNull ?? const [];
-    final liveChallenges =
-        ref.watch(liveChallengesProvider).valueOrNull ?? const <Challenge>[];
+    final mieFoto = ref.watch(myEntriesProvider);
+    final gareAperte = ref.watch(liveChallengesProvider);
+    final mieiTrofei = ref.watch(myTrophiesProvider);
+    final mieLanciate = ref.watch(myCommissionsProvider);
+    final entries = mieFoto.valueOrNull ?? const [];
+    final liveChallenges = gareAperte.valueOrNull ?? const <Challenge>[];
     final live = liveChallenges.map((challenge) => challenge.id).toSet();
     final shown = liveEntries(entries, live);
-    final trophies = ref.watch(myTrophiesProvider).valueOrNull ?? const [];
-    final commissions = visibleCommissions(
-      ref.watch(myCommissionsProvider).valueOrNull ?? const [],
-    );
+    final trophies = mieiTrofei.valueOrNull ?? const [];
+    final commissions = visibleCommissions(mieLanciate.valueOrNull ?? const []);
+
+    // **Un numero che non si sa ancora e' un trattino, non uno zero.** Prima
+    // VINTE, LANCIATE, TI SEGUONO e SEGUI partivano tutti da 0 e salivano un
+    // attimo dopo: chi apre il proprio profilo, per quell'attimo, crede di
+    // aver perso tutto.
+    //
+    // Chi ti segue e chi segui li conta il server; dove quel contatore non
+    // c'e' ancora si contano gli elenchi (vedi `followersCountProvider`). Si
+    // aspetta quello da cui il numero viene davvero.
+    final mioSeguire = ref.watch(ownFollowProvider);
+    final amici = ref.watch(myFriendsProvider);
+    final richieste = ref.watch(incomingRequestsProvider);
+    final seguiti = ref.watch(myFollowingProvider);
+    final mioSeguireArrivato = mioSeguire.hasValue || mioSeguire.hasError;
+    final followersNoti =
+        mioSeguire.valueOrNull?.followersCount != null ||
+        (mioSeguireArrivato && amici.hasValue && richieste.hasValue);
+    final seguitiNoti =
+        mioSeguire.valueOrNull?.followingCount != null ||
+        (mioSeguireArrivato && amici.hasValue && seguiti.hasValue);
+    final followers = ref.watch(followersCountProvider);
+    final following = ref.watch(followingCountProvider);
+
+    // **Una foto del profilo che non sale si dice.** Prima non la guardava
+    // nessuno: si sceglieva la foto, e se il caricamento falliva restava
+    // quella di prima, senza una parola.
+    ref.listen<AsyncValue<void>>(caricamentoFotoProvider, (prima, adesso) {
+      if (adesso is AsyncError<void>) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Non siamo riusciti a cambiare la foto. Riprova fra poco.',
+            ),
+          ),
+        );
+      }
+    });
 
     return Scaffold(
       body: AppBackground(
@@ -138,7 +178,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               ),
               Expanded(
                 child: profileState.when(
-                  loading: () => const SizedBox.shrink(),
+                  // **Mentre arriva, la fiamma.** Prima sotto la barra restava
+                  // il bianco, come se il profilo non ci fosse.
+                  loading: () => const Center(child: FiammaCheGira()),
                   error: (_, _) => const Padding(
                     padding: EdgeInsets.symmetric(horizontal: AppSpacing.page),
                     child: EmptyState(
@@ -148,8 +190,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     ),
                   ),
                   data: (profile) {
+                    // Senza profilo si e' fra un'uscita e un'entrata, o il
+                    // documento non e' ancora scritto: e' un'attesa anche
+                    // questa, non una pagina vuota.
                     if (profile == null) {
-                      return const SizedBox.shrink();
+                      return const Center(child: FiammaCheGira());
                     }
 
                     return ListView(
@@ -172,10 +217,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         _Stats(
-                          wins: trophies.length,
-                          launched: commissions.length,
-                          followers: ref.watch(followersCountProvider),
-                          following: ref.watch(followingCountProvider),
+                          wins: mieiTrofei.hasValue ? trophies.length : null,
+                          launched: mieLanciate.hasValue
+                              ? commissions.length
+                              : null,
+                          followers: followersNoti ? followers : null,
+                          following: seguitiNoti ? following : null,
                           pending: ref.watch(newFollowersCountProvider),
                         ),
                         // **Il cassetto di chi conosci.** Si apre da qui e non
@@ -188,40 +235,51 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           selected: _shelf,
                           onPick: (shelf) => setState(() => _shelf = shelf),
                         ),
+                        // **Ogni mensola aspetta la sua fonte.** Prima la
+                        // scritta della mensola vuota compariva subito — "Non
+                        // sei in nessuna gara" a chi ne aveva tre — e le foto
+                        // arrivavano dopo, al suo posto. Vedi
+                        // `_mensolaInAttesa`.
                         switch (_shelf) {
                           ProfileShelf.live =>
-                            shown.isEmpty
-                                ? const _EmptyShelf(
-                                    title: 'Non sei in nessuna gara',
-                                    message:
-                                        'Le foto che mandi alle challenge aperte stanno qui '
-                                        'finché la gara non finisce.',
-                                  )
-                                : _EntryGrid(entries: shown),
+                            _mensolaInAttesa([mieFoto, gareAperte]) ??
+                                (shown.isEmpty
+                                    ? const _EmptyShelf(
+                                        title: 'Non sei in nessuna gara',
+                                        message:
+                                            'Le foto che mandi alle challenge aperte stanno qui '
+                                            'finché la gara non finisce.',
+                                      )
+                                    : _EntryGrid(entries: shown)),
                           ProfileShelf.trophies =>
-                            trophies.isEmpty
-                                ? const _EmptyShelf(
-                                    title: 'Nessun trofeo, per ora',
-                                    message:
-                                        'Qui finiscono le missioni che vinci: '
-                                        'la foto resta, con quanto ti ha fatto '
-                                        'incassare. Partecipa a una challenge '
-                                        'e prenditi la prima.',
-                                  )
-                                : TrophyGrid(
-                                    challenges: trophies,
-                                    kind: TrophyKind.won,
-                                  ),
+                            _mensolaInAttesa([mieiTrofei]) ??
+                                (trophies.isEmpty
+                                    ? const _EmptyShelf(
+                                        title: 'Nessun trofeo, per ora',
+                                        message:
+                                            'Qui finiscono le missioni che vinci: '
+                                            'la foto resta, con quanto ti ha fatto '
+                                            'incassare. Partecipa a una challenge '
+                                            'e prenditi la prima.',
+                                      )
+                                    : TrophyGrid(
+                                        challenges: trophies,
+                                        kind: TrophyKind.won,
+                                      )),
                           ProfileShelf.commissioned =>
-                            commissions.isEmpty
-                                ? const _EmptyShelf(
-                                    title: 'Non hai ancora fatto fare niente',
-                                    message:
-                                        'Lancia una challenge: la vedi qui finché è '
-                                        'aperta, e quando finisce resta la foto che ha '
-                                        'vinto — roba che hai fatto fare tu.',
-                                  )
-                                : CommissionedShelf(challenges: commissions),
+                            _mensolaInAttesa([mieLanciate]) ??
+                                (commissions.isEmpty
+                                    ? const _EmptyShelf(
+                                        title:
+                                            'Non hai ancora fatto fare niente',
+                                        message:
+                                            'Lancia una challenge: la vedi qui finché è '
+                                            'aperta, e quando finisce resta la foto che ha '
+                                            'vinto — roba che hai fatto fare tu.',
+                                      )
+                                    : CommissionedShelf(
+                                        challenges: commissions,
+                                      )),
                         },
                         const SizedBox(height: AppSpacing.xl),
                         // **Uscire resta in chiaro.** Non e' un'impostazione:
@@ -278,7 +336,13 @@ class _Identity extends ConsumerWidget {
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [_Avatar(profile: profile, onTap: () => _changePhoto(ref))],
+          children: [
+            _Avatar(
+              profile: profile,
+              onTap: () => _changePhoto(ref),
+              caricando: ref.watch(caricamentoFotoProvider).isLoading,
+            ),
+          ],
         ),
         const SizedBox(height: AppSpacing.md),
         Row(
@@ -337,16 +401,27 @@ class _Identity extends ConsumerWidget {
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.profile, required this.onTap});
+  const _Avatar({
+    required this.profile,
+    required this.onTap,
+    this.caricando = false,
+  });
 
   final UserProfile profile;
   final VoidCallback onTap;
+
+  /// Se una foto nuova sta salendo: vedi `caricamentoFotoProvider`.
+  final bool caricando;
 
   static const double _size = 76;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+
+    // Mentre una foto sale non se ne sceglie un'altra: si caricherebbero in
+    // due, e vincerebbe quella che arriva per ultima.
+    final cambia = caricando ? null : onTap;
 
     // **La propria foto si guarda, e si cambia dalla fotocamerina.** Prima il
     // tocco apriva solo la galleria: la propria faccia grande non la si poteva
@@ -358,7 +433,7 @@ class _Avatar extends StatelessWidget {
               url: profile.photoUrl!,
               caption: '@${profile.username}',
             )
-          : onTap,
+          : cambia,
       child: SizedBox(
         width: _size,
         height: _size,
@@ -367,23 +442,41 @@ class _Avatar extends StatelessWidget {
             Positioned.fill(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadius.pill),
+                // **Mentre la foto arriva, le iniziali.** Prima il cerchio
+                // restava vuoto finche' non era scaricata, e con poca rete non
+                // ci riprovava piu': da qui si riprova da sola, e una volta
+                // vista resta sul telefono.
                 child: profile.hasPhoto
-                    ? Image.network(
-                        profile.photoUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
+                    ? FotoDallaRete(
+                        url: profile.photoUrl!,
+                        inAttesa: (context) => _Initials(profile: profile),
+                        inErrore: (context, riprova) =>
                             _Initials(profile: profile),
                       )
                     : _Initials(profile: profile),
               ),
             ),
+            // **Mentre la foto nuova sale, la fiamma sopra quella vecchia.**
+            // Prima non si vedeva niente: restava la foto di prima per tutto
+            // il caricamento, e chi l'aveva appena scelta non sapeva se fosse
+            // partita.
+            if (caricando)
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  child: ColoredBox(
+                    color: palette.background.withValues(alpha: 0.6),
+                    child: const Center(child: FiammaCheGira(misura: 28)),
+                  ),
+                ),
+              ),
             // Il segno che la foto si puo' cambiare. Piccolo e sul bordo:
             // deve farsi trovare da chi lo cerca, non annunciarsi.
             Positioned(
               right: 0,
               bottom: 0,
               child: GestureDetector(
-                onTap: onTap,
+                onTap: cambia,
                 child: Container(
                   width: 22,
                   height: 22,
@@ -461,17 +554,22 @@ class _Stats extends StatelessWidget {
     this.pending = 0,
   });
 
-  final int wins;
-  final int launched;
+  /// I quattro numeri sono **nulli finche' non si sanno**, e allora al loro
+  /// posto va un trattino: vedi la pagina, dove si decide.
+  final int? wins;
+  final int? launched;
 
   /// Chi mi segue: gli amici, e chi mi segue senza che io lo segua.
-  final int followers;
+  final int? followers;
 
   /// Chi seguo: gli amici, e chi seguo senza che mi segua.
-  final int following;
+  final int? following;
 
   /// Chi mi segue e aspetta che io ricambi.
   final int pending;
+
+  /// Un numero, o il trattino se non e' ancora arrivato.
+  static String _cifra(int? numero) => numero == null ? '–' : '$numero';
 
   @override
   Widget build(BuildContext context) {
@@ -488,9 +586,9 @@ class _Stats extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Stat(label: 'VINTE', value: '$wins'),
+              _Stat(label: 'VINTE', value: _cifra(wins)),
               _Divider(color: palette.line),
-              _Stat(label: 'LANCIATE', value: '$launched'),
+              _Stat(label: 'LANCIATE', value: _cifra(launched)),
               _Divider(color: palette.line),
               // **"TI SEGUONO" e "SEGUI", non "FOLLOWER" e "SEGUITI".**
               //
@@ -507,7 +605,7 @@ class _Stats extends StatelessWidget {
               // Il pallino dice quanti ti seguono e aspettano che ricambi.
               _Stat(
                 label: 'TI SEGUONO',
-                value: '$followers',
+                value: _cifra(followers),
                 onTap: () => context.push(AppRoutes.friends),
                 waiting: pending,
               ),
@@ -515,7 +613,7 @@ class _Stats extends StatelessWidget {
               // Due porte diverse: chi segue te e chi segui tu.
               _Stat(
                 label: 'SEGUI',
-                value: '$following',
+                value: _cifra(following),
                 onTap: () => context.push(AppRoutes.following),
               ),
             ],
@@ -737,6 +835,44 @@ class _EmptyShelf extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
       child: EmptyState(title: title, message: message),
+    );
+  }
+}
+
+/// **La mensola, finche' quello che contiene non e' arrivato.**
+///
+/// La fiamma mentre arriva; la riga che lo dice, se non arriva. Nullo quando
+/// c'e' tutto: allora si mostra la mensola vera, piena o con la sua scritta
+/// da mensola vuota.
+///
+/// **Senza, il vuoto si diceva prima di saperlo.** "Non sei in nessuna gara"
+/// compariva a chi ne aveva tre, per l'attimo in cui le sue foto non erano
+/// ancora arrivate, e poi spariva sotto le foto. E un errore lasciava l'elenco
+/// vuoto per sempre, cioe' la stessa scritta: una bugia che non finiva.
+Widget? _mensolaInAttesa(List<AsyncValue<Object?>> fonti) {
+  if (fonti.any((fonte) => fonte.hasError && !fonte.hasValue)) {
+    return const _EmptyShelf(
+      title: 'Non disponibili',
+      message: 'Non riusciamo a caricarle. Riprova tra poco.',
+    );
+  }
+
+  if (fonti.any((fonte) => !fonte.hasValue)) {
+    return const _MensolaInArrivo();
+  }
+
+  return null;
+}
+
+/// La fiamma piccola al posto di una mensola che sta arrivando.
+class _MensolaInArrivo extends StatelessWidget {
+  const _MensolaInArrivo();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+      child: Center(child: FiammaCheGira(misura: 32)),
     );
   }
 }

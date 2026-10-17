@@ -20,25 +20,13 @@ import 'package:flutter/material.dart';
 /// **I passi non sono spariti.** Continuano ad arrivare e finiscono nei log:
 /// il giorno in cui qualcuno scrive "si blocca e non si apre niente", quella
 /// riga c'e' ancora. Non la si fa piu' leggere a chi aspetta.
-class FlameWaiting extends StatefulWidget {
-  const FlameWaiting({super.key});
+class FlameWaiting extends StatelessWidget {
+  const FlameWaiting({this.testo, super.key});
 
-  @override
-  State<FlameWaiting> createState() => _FlameWaitingState();
-}
-
-class _FlameWaitingState extends State<FlameWaiting>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _giro = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1100),
-  )..repeat();
-
-  @override
-  void dispose() {
-    _giro.dispose();
-    super.dispose();
-  }
+  /// Una riga sotto la fiamma, quando serve: quanto e' salito un invio. Senza
+  /// un numero, con poca rete, una fiamma che gira per un minuto non dice se
+  /// si sta muovendo qualcosa.
+  final String? testo;
 
   @override
   Widget build(BuildContext context) {
@@ -75,46 +63,23 @@ class _FlameWaitingState extends State<FlameWaiting>
               ),
             ],
           ),
-          child: Center(
-            child: SizedBox(
-              width: 64,
-              height: 64,
-              child: AnimatedBuilder(
-                animation: _giro,
-                builder: (context, fiamma) {
-                  return CustomPaint(
-                    // Di stagione gira una tela di ragno invece dell'arco. La
-                    // regola di sotto resta la sua: non un anello intero.
-                    painter:
-                        context.stagione.giostraDAttesa(
-                          giro: _giro.value,
-                          palette: palette,
-                        ) ??
-                        _Cerchio(
-                          giro: _giro.value,
-                          colore: palette.accent,
-                          scia: palette.line,
-                        ),
-                    child: fiamma,
-                  );
-                },
-                // La fiamma sta ferma al centro e **non gira con il cerchio**:
-                // una fiamma che ruota si legge come una fiamma capovolta, e
-                // il segno che dice CRASY non va capovolto per fare
-                // un'animazione.
-                child: Center(
-                  child: context.stagione.accompagnaAttesa(
-                    Icon(
-                      Icons.local_fire_department,
-                      size: 30,
-                      color: palette.accent,
-                    ),
-                    misura: 30,
-                    colore: palette.accent,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const FiammaCheGira(),
+              if (testo case final riga?) ...[
+                const SizedBox(height: 8),
+                Text(
+                  riga,
+                  style: TextStyle(
+                    color: palette.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
-              ),
-            ),
+              ],
+            ],
           ),
         ),
       ),
@@ -159,10 +124,18 @@ class _FlameWaitingState extends State<FlameWaiting>
 /// Dentro c'e' anche il divieto di tornare indietro: senza, si esce con il
 /// gesto laterale e il caricamento va avanti su una pagina che non c'e' piu'.
 class VeloDiAttesa extends StatelessWidget {
-  const VeloDiAttesa({required this.acceso, required this.child, super.key});
+  const VeloDiAttesa({
+    required this.acceso,
+    required this.child,
+    this.testo,
+    super.key,
+  });
 
   /// Se c'e' qualcosa in corso.
   final bool acceso;
+
+  /// Vedi [FlameWaiting.testo].
+  final String? testo;
 
   final Widget child;
 
@@ -176,8 +149,98 @@ class VeloDiAttesa extends StatelessWidget {
           // fermare le dita lascia che si tocchi PARTECIPA attraverso il velo,
           // e chi aspetta lo tocca — proprio perche' non vede che e' cambiato
           // qualcosa.
-          const Positioned.fill(child: AbsorbPointer(child: FlameWaiting())),
+          Positioned.fill(
+            child: AbsorbPointer(child: FlameWaiting(testo: testo)),
+          ),
       ],
+    );
+  }
+}
+
+/// **La fiamma con il cerchio che le gira intorno: l'unico segno di attesa.**
+///
+/// E' quella del velo, staccata dal velo: la stessa in ogni posto dove l'app
+/// aspetta qualcosa — una pagina che carica, una foto che arriva, un tasto
+/// premuto. Prima ogni posto aveva la sua rotella grigia di sistema, e
+/// l'attesa sembrava di un'altra app.
+///
+/// [misura] e' il lato del quadrato che la contiene: 64 nel velo, 18 dentro un
+/// tasto. Lo spessore del cerchio e la fiamma crescono con lei. [colore] serve
+/// sugli sfondi scuri — una foto che arriva su fondo nero — dove il rosso
+/// pieno si vede, ma la scia grigia del cerchio no.
+class FiammaCheGira extends StatefulWidget {
+  const FiammaCheGira({this.misura = 64, this.colore, super.key});
+
+  final double misura;
+  final Color? colore;
+
+  @override
+  State<FiammaCheGira> createState() => _FiammaCheGiraState();
+}
+
+class _FiammaCheGiraState extends State<FiammaCheGira>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _giro = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _giro.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final misura = widget.misura;
+    final colore = widget.colore ?? palette.accent;
+    final fiamma = misura * 30 / 64;
+
+    return Semantics(
+      label: 'Caricamento',
+      child: SizedBox(
+        width: misura,
+        height: misura,
+        child: AnimatedBuilder(
+          animation: _giro,
+          builder: (context, dentro) {
+            return CustomPaint(
+              // Di stagione gira una tela di ragno invece dell'arco. La regola
+              // di sotto resta la sua: non un anello intero.
+              painter:
+                  context.stagione.giostraDAttesa(
+                    giro: _giro.value,
+                    palette: palette,
+                  ) ??
+                  _Cerchio(
+                    giro: _giro.value,
+                    colore: colore,
+                    scia: widget.colore == null
+                        ? palette.line
+                        : colore.withValues(alpha: 0.25),
+                    spessore: math.max(1.5, misura * 3 / 64),
+                  ),
+              child: dentro,
+            );
+          },
+          // La fiamma sta ferma al centro e **non gira con il cerchio**: una
+          // fiamma che ruota si legge come una fiamma capovolta, e il segno che
+          // dice CRASY non va capovolto per fare un'animazione.
+          child: Center(
+            child: context.stagione.accompagnaAttesa(
+              Icon(
+                Icons.local_fire_department,
+                size: fiamma,
+                color: colore,
+              ),
+              misura: fiamma,
+              colore: colore,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -192,6 +255,7 @@ class _Cerchio extends CustomPainter {
     required this.giro,
     required this.colore,
     required this.scia,
+    this.spessore = 3,
   });
 
   /// Da 0 a 1, un giro completo.
@@ -203,17 +267,20 @@ class _Cerchio extends CustomPainter {
   /// frammento rotto invece che un pezzo di qualcosa che gira.
   final Color scia;
 
+  /// Quanto e' grosso il tratto: tre punti a misura piena, meno nei tasti.
+  final double spessore;
+
   @override
   void paint(Canvas canvas, Size size) {
     final centro = Offset(size.width / 2, size.height / 2);
-    final raggio = size.width / 2 - 2;
+    final raggio = size.width / 2 - spessore / 2 - 0.5;
 
     canvas.drawCircle(
       centro,
       raggio,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
+        ..strokeWidth = spessore
         ..color = scia,
     );
 
@@ -226,12 +293,13 @@ class _Cerchio extends CustomPainter {
       false,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
+        ..strokeWidth = spessore
         ..strokeCap = StrokeCap.round
         ..color = colore,
     );
   }
 
   @override
-  bool shouldRepaint(_Cerchio altro) => altro.giro != giro;
+  bool shouldRepaint(_Cerchio altro) =>
+      altro.giro != giro || altro.colore != colore || altro.spessore != spessore;
 }

@@ -4,6 +4,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
+import 'package:crasy/features/challenges/domain/entities/file_caricato.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/entities/ritaglio.dart';
 
@@ -98,6 +99,17 @@ abstract class ChallengeRepository {
     /// Se il video va guardato senza audio: lo decide chi lo manda.
     bool muted = false,
     Ritaglio? ritaglio,
+
+    /// Quanto e' salito il file, da 0 a 1: per chi aspetta.
+    void Function(double avanzamento)? suAvanzamento,
+
+    /// Il file salito in un tentativo precedente: non si rimanda, si scrive
+    /// solo la partecipazione. Vedi [FileCaricato].
+    FileCaricato? giaCaricato,
+
+    /// Chiamata appena il file e' salito, prima di scrivere la
+    /// partecipazione: e' il momento di tenerlo da parte.
+    void Function(FileCaricato caricato)? suCaricato,
   });
 
   /// I commenti sotto una foto, dal piu' vecchio.

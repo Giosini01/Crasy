@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:crasy/features/challenges/presentation/controllers/coda_invio_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
@@ -80,6 +81,11 @@ class _AutoRefreshState extends ConsumerState<AutoRefresh>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _refresh();
+
+      // **Gli scatti in coda riprovano subito.** Tornando nell'app la rete c'e'
+      // quasi sempre di nuovo, e aspettare la pausa che avevano preso — fino a
+      // cinque minuti — vorrebbe dire lasciarli fermi proprio adesso.
+      ref.read(codaInvioProvider.notifier).riprova();
 
       // **La seconda occasione per le notifiche.**
       //

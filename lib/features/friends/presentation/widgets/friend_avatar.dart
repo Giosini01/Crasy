@@ -1,5 +1,6 @@
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
+import 'package:crasy/core/widgets/foto_dalla_rete.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
@@ -81,11 +82,27 @@ class FriendAvatar extends ConsumerWidget {
         height: size,
         child: photoUrl == null || photoUrl.isEmpty
             ? _Initials(username: username, size: size)
-            : Image.network(
-                photoUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    _Initials(username: username, size: size),
+            // **Le iniziali restano sotto finche' la foto non si posa.**
+            //
+            // Prima, appena si sapeva l'indirizzo della foto, il cerchio si
+            // svuotava: `Image.network` non disegna niente mentre scarica, e
+            // per mezzo secondo — con poca rete molto di piu' — al posto della
+            // faccia c'era un buco. Adesso le iniziali stanno sotto e la foto
+            // ci entra sopra con la sua dissolvenza; se non arriva riprova da
+            // sola, e resta sul telefono per la volta dopo (vedi
+            // [FotoDallaRete]). Mentre aspetta, e se si arrende, ancora le
+            // iniziali: mai la fiamma, per la ragione scritta in cima.
+            : Stack(
+                fit: StackFit.expand,
+                children: [
+                  _Initials(username: username, size: size),
+                  FotoDallaRete(
+                    url: photoUrl,
+                    inAttesa: (_) => _Initials(username: username, size: size),
+                    inErrore: (_, _) =>
+                        _Initials(username: username, size: size),
+                  ),
+                ],
               ),
       ),
     );

@@ -26,17 +26,58 @@ class WalletRepository {
   DocumentReference<Map<String, dynamic>> _user(String userId) =>
       _firestore.collection('users').doc(userId);
 
-  Stream<int> watchWithdrawing(String userId) {
-    return _user(userId).snapshots().map(
-      (snapshot) =>
-          (snapshot.data()?['withdrawingCents'] as num?)?.toInt() ?? 0,
-    );
+  /// **I soldi di una persona, ovunque stiano.**
+  ///
+  /// Da quando i premi vanno sul conto Stripe di chi vince, il saldo vive in
+  /// tre caselle: `walletCents` (ancora su CRASY, in custodia), `stripeCents`
+  /// (sul suo conto Stripe) e `spostandoCents` (in viaggio fra i due). Per chi
+  /// guarda sono gli stessi soldi: il totale e' la somma, e quanto sta su
+  /// Stripe serve solo a dirgli dove sono.
+  Stream<({int totale, int suStripe, int inViaggio})> watchSaldo(
+    String userId,
+  ) {
+    return _user(userId).snapshots().map((snapshot) {
+      final dati = snapshot.data();
+      int cifra(String campo) => (dati?[campo] as num?)?.toInt() ?? 0;
+
+      final suStripe = cifra('stripeCents') + cifra('spostandoCents');
+
+      return (
+        totale: cifra('walletCents') + suStripe,
+        suStripe: suStripe,
+        inViaggio: cifra('withdrawingCents'),
+      );
+    });
   }
 
-  Stream<int> watchBalance(String userId) {
-    return _user(userId).snapshots().map(
-      (snapshot) => (snapshot.data()?['walletCents'] as num?)?.toInt() ?? 0,
-    );
+  /// Se il conto Stripe per ricevere i premi e' pronto. Lo scrive il server.
+  Stream<bool> watchContoPronto(String userId) {
+    return _user(
+      userId,
+    ).snapshots().map((snapshot) => snapshot.data()?['payoutReady'] == true);
+  }
+
+  /// **Il consenso a pagare le missioni con il saldo Stripe.**
+  ///
+  /// Si scrive una volta, nel registro dei consensi — dove le righe non si
+  /// modificano e non si cancellano — con il testo esatto che e' stato
+  /// accettato. Il server non addebita niente senza questa riga.
+  Future<void> accettaAddebitoDalSaldo(String userId, String testo) {
+    return _user(userId).collection('consents').doc('addebito_saldo').set({
+      'kind': 'addebitoSaldo',
+      'accepted': true,
+      'testo': testo,
+      'at': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Se il consenso qui sopra c'e' gia'.
+  Stream<bool> watchAddebitoAccettato(String userId) {
+    return _user(userId)
+        .collection('consents')
+        .doc('addebito_saldo')
+        .snapshots()
+        .map((snapshot) => snapshot.data()?['accepted'] == true);
   }
 
   /// **L'estratto conto: tutti i movimenti di denaro, anche quelli che il

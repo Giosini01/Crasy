@@ -258,6 +258,19 @@ int? visibleVotes(WidgetRef ref, ChallengeEntry entry) {
 /// esattamente quello che deve far venire voglia di tornare a guardare.
 String votesLabel(int? votes) => votes == null ? '?' : '$votes';
 
+/// **Se un doppio tocco su questa foto accenderebbe davvero una fiamma.**
+///
+/// Serve a chi fa sbocciare la fiamma sullo schermo: prima sbocciava anche
+/// sulla propria foto, su una sfida o a fiamme finite — una conferma per una
+/// cosa che un istante dopo [giveFire] rifiutava.
+bool fiammaDaAccendere(WidgetRef ref, ChallengeEntry entry) {
+  return !entry.isDuel &&
+      entry.userId != ref.read(currentUserIdProvider) &&
+      ref.read(challengeIsLiveProvider(entry.challengeId)) &&
+      !ref.read(entryVotedProvider(entry.voteKey)) &&
+      ref.read(firesLeftProvider(entry.challengeId)) > 0;
+}
+
 /// Accende o spegne la fiamma su una partecipazione.
 ///
 /// Sta qui e non dentro i widget perche' la chiamano da quattro posti — il
@@ -333,6 +346,25 @@ Future<VoteOutcome> giveFire(
   // mentre il tempo scadeva.
   if (!ref.read(challengeIsLiveProvider(entry.challengeId))) {
     return VoteOutcome.closed;
+  }
+
+  // **Prima di contare le fiamme rimaste, l'elenco dei voti dev'esserci.**
+  // All'avvio arriva un attimo dopo, e fino a quel momento valeva come vuoto:
+  // tre fiamme libere per chiunque, anche per chi le aveva gia' date tutte —
+  // la quarta e la quinta passavano. Si aspetta, con un limite: senza rete la
+  // scrittura non partirebbe comunque, e il server tiene il conto lo stesso.
+  if (voted && !ref.read(votedEntryIdsProvider).hasValue) {
+    try {
+      await ref
+          .read(votedEntryIdsProvider.future)
+          .timeout(const Duration(seconds: 5));
+    } on Object catch (_) {
+      // Si va avanti: decide il server.
+    }
+
+    if (!context.mounted) {
+      return VoteOutcome.done;
+    }
   }
 
   if (ref.read(entryVotedProvider(voteKey)) == voted) {
@@ -558,14 +590,18 @@ class VoteController {
       return;
     }
 
+    // **Il nome solo se il profilo e' davvero di chi ha votato.** Passando da
+    // un account all'altro, per un attimo resta in mano il profilo di prima:
+    // la fiamma partiva con l'identificativo nuovo e il nome vecchio.
     final me = _ref.read(currentUserProfileProvider).valueOrNull;
+    final nome = me != null && me.id == actorId ? me.username : '';
 
     await notifications.push(
       toUserId: entry.userId,
       id: id,
       kind: NotificationKind.fire,
       actorId: actorId,
-      actorUsername: me?.username ?? '',
+      actorUsername: nome,
       challengeId: entry.challengeId,
       challengeTitle: entry.challengeTitle,
     );

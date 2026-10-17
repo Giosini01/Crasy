@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:crasy/core/services/media/avanzamento_caricamento.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
@@ -17,8 +18,9 @@ const bool caricamentoDaDiscoDisponibile = true;
 Future<void> caricaDalDisco(
   Reference riferimento,
   String percorso,
-  SettableMetadata dati,
-) async {
+  SettableMetadata dati, {
+  void Function(double avanzamento)? suAvanzamento,
+}) async {
   final file = File(percorso);
 
   // **Un file vuoto non diventa una partecipazione.**
@@ -35,7 +37,7 @@ Future<void> caricaDalDisco(
     );
   }
 
-  await riferimento.putFile(file, dati);
+  await seguiIlCaricamento(riferimento.putFile(file, dati), suAvanzamento);
 }
 
 /// Porta il video appena registrato in una cartella **nostra**.

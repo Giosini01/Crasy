@@ -66,9 +66,13 @@ void main() {
     );
   });
 
-  test('un tipo sconosciuto non fa saltare la campanella', () {
-    expect(AppNotification.kindFromName('boh'), NotificationKind.fire);
+  test('un tipo sconosciuto non diventa una fiamma', () {
+    // Era cosi' che `rival`, sulle app di prima, diventava "@nicola ha dato una
+    // fiamma alla tua foto": un tipo nuovo letto come il ripiego di sempre.
+    expect(AppNotification.kindFromName('boh'), isNull);
+    expect(AppNotification.kindFromName(null), isNull);
     expect(AppNotification.kindFromName('win'), NotificationKind.win);
+    expect(AppNotification.kindFromName('rival'), NotificationKind.rival);
   });
 
   group('le sezioni e gli avvisi della scelta', () {
@@ -86,9 +90,7 @@ void main() {
         NotificationKind.participation: NotificationGroup.participations,
         NotificationKind.comment: NotificationGroup.comments,
         NotificationKind.mention: NotificationGroup.comments,
-        // Le richieste d'amicizia non compaiono qui: stanno nella scheda
-        // Amici, con i comandi per accettare o rifiutare. Il ramo esiste
-        // perche' il tipo esiste, non perche' ci arrivi qualcosa.
+        // Chi ha iniziato a seguirti: toccandola si va a "Ti seguono".
         NotificationKind.friendRequest: NotificationGroup.requests,
       };
 

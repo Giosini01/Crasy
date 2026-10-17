@@ -5,6 +5,7 @@ import 'package:crasy/core/widgets/count_dot.dart';
 import 'package:crasy/features/challenges/presentation/pages/challenges_page.dart';
 import 'package:crasy/features/challenges/presentation/pages/winners_page.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/challenges/presentation/widgets/invii_in_corso.dart';
 import 'package:crasy/features/friends/presentation/pages/friends_activity_page.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/profile/presentation/pages/profile_page.dart';
@@ -183,14 +184,26 @@ class _HomePageState extends State<HomePage> {
             PointerDeviceKind.stylus,
           },
         ),
-        child: PageView(
-          controller: _controller,
-          onPageChanged: _onSwiped,
-          // Le schede si scorrono una alla volta, come le pagine di un libro:
-          // un colpo di dito lungo che ne salta tre lascia in mano il dubbio di
-          // dove si e' finiti.
-          physics: const PageScrollPhysics(),
-          children: [for (final tab in HomePage.tabs) tab.page],
+        child: Stack(
+          children: [
+            PageView(
+              controller: _controller,
+              onPageChanged: _onSwiped,
+              // Le schede si scorrono una alla volta, come le pagine di un
+              // libro: un colpo di dito lungo che ne salta tre lascia in mano
+              // il dubbio di dove si e' finiti.
+              physics: const PageScrollPhysics(),
+              children: [for (final tab in HomePage.tabs) tab.page],
+            ),
+            // Gli scatti che stanno partendo, sopra qualunque scheda: vedi
+            // `InviiInCorso`.
+            const Positioned(
+              left: AppSpacing.page,
+              right: AppSpacing.page,
+              bottom: AppSpacing.md,
+              child: Center(child: InviiInCorso()),
+            ),
+          ],
         ),
       ),
       bottomNavigationBar: _NavBar(selected: _index, onTap: _onTapped),

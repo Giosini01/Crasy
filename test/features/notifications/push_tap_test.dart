@@ -52,4 +52,20 @@ void main() {
     expect(dove.apri, isNull);
     expect(dove.scheda, AppRoutes.challenges);
   });
+
+  test('il richiamo e gli annunci senza tipo portano alle gare', () {
+    // L'annuncio degli aggiornamenti non ha tipo: prima finiva fra i LIKE.
+    for (final dati in [
+      {'kind': 'comeback'},
+      {'kind': 'daily'},
+      {'kind': ''},
+      <String, String>{},
+      {'kind': 'un-tipo-che-ancora-non-esiste'},
+    ]) {
+      final dove = tocco(dati);
+
+      expect(dove.apri, isNull, reason: '$dati');
+      expect(dove.scheda, AppRoutes.challenges, reason: '$dati');
+    }
+  });
 }

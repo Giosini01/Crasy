@@ -1,28 +1,32 @@
 /// Il portafoglio di una persona.
 ///
-/// **I soldi vinti non escono subito: si fermano qui.** E' una scelta che
-/// conviene a chi vince, non a CRASY. Mandando un bonifico nell'istante in cui
-/// la gara si chiude, servirebbe che il vincitore fosse gia' registrato con
-/// documento e IBAN in quel preciso momento — cioe' quasi mai — e il premio
-/// resterebbe fermo in attesa di lui.
+/// **I premi vinti stanno su un conto Stripe a nome suo, non su CRASY.** Il
+/// conto si collega una volta, prima della prima gara con dei soldi; da li' in
+/// poi ogni premio ci va appena la gara si chiude, e si preleva verso la banca
+/// da dieci euro in su — o si usa per lanciare una missione.
 ///
-/// Cosi' invece i soldi sono suoi appena vince: li vede nel profilo, si
-/// sommano a quelli delle volte prima, e la registrazione la fa il giorno che
-/// decide di prelevare. Una volta sola, quando ne vale la pena.
-///
-/// Va detto senza giri di parole, ed e' scritto anche nel profilo: **finche'
-/// non li preleva, quei soldi stanno su CRASY.** Un portafoglio che non dice
-/// dove sono i soldi e' la cosa piu' vicina a una truffa che si possa costruire
-/// in buona fede.
+/// Una parte puo' essere ancora su CRASY, in custodia: premi vinti prima di
+/// collegare il conto, o in viaggio verso il conto. E' scritto nel portafoglio
+/// dove sono, perche' un portafoglio che non dice dove sono i soldi e' la cosa
+/// piu' vicina a una truffa che si possa costruire in buona fede.
 class Wallet {
   const Wallet({
     this.balanceCents = 0,
+    this.suStripeCents = 0,
     this.withdrawingCents = 0,
     this.movements = const [],
   });
 
-  /// Quanto c'e' dentro, in centesimi.
+  /// Quanto c'e' dentro, in centesimi: tutto, ovunque stia.
   final int balanceCents;
+
+  /// **Di cui sul conto Stripe a nome suo.** Il resto e' ancora su CRASY, in
+  /// custodia, e ci passa appena il conto e' collegato. Serve solo a dire dove
+  /// sono i soldi: per chi li guarda sono gli stessi.
+  final int suStripeCents;
+
+  /// Quanto e' ancora su CRASY.
+  int get inCustodiaCents => balanceCents - suStripeCents;
 
   /// Quanto e' gia' stato chiesto e sta arrivando sul conto.
   ///

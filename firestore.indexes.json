@@ -181,6 +181,29 @@
           "queryScope": "COLLECTION_GROUP"
         }
       ]
+    },
+    {
+      "comment": "Chiudendo una gara il server conta le fiamme dai voti stessi, non dal contatore che li insegue: e' una query sul gruppo di collezioni 'votes' per challengeId, e per quelle l'indice a campo singolo Firestore NON lo crea da se'. Senza, il conto torna al contatore, che puo' essere indietro di qualche secondo proprio alla sirena. Le tre voci con scope COLLECTION sono quelle automatiche (servono anche al limite delle tre fiamme), ripetute qui perche' un fieldOverride sostituisce l'automatismo invece di aggiungersi.",
+      "collectionGroup": "votes",
+      "fieldPath": "challengeId",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "arrayConfig": "CONTAINS",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
     }
   ]
 }

@@ -6,6 +6,7 @@ import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/features/challenges/domain/leaderboard.dart';
 import 'package:crasy/features/challenges/domain/leaderboard_showcase.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
@@ -80,10 +81,26 @@ class WinnersPage extends ConsumerWidget {
     // dimenticavano tutto cio' che aveva piu' di due giorni. Adesso i totali
     // stanno sui profili e si leggono venti documenti in tutto.
     final view = ref.watch(trendViewProvider);
-    final trovati =
-        ref.watch(_accountVetrinaProvider).valueOrNull ??
-        const <String, String>{};
+    final cercati = ref.watch(_accountVetrinaProvider);
+    final trovati = cercati.valueOrNull ?? const <String, String>{};
     final vetrina = ref.watch(classificaVetrinaProvider);
+
+    // **Prima di dire "ancora niente", si aspetta di saperlo.**
+    //
+    // La classifica arriva da una lettura, e la vetrina da una ricerca per
+    // nome: finche' non hanno risposto le righe sono zero, e la schermata
+    // apriva su "Ancora niente" per poi riempirsi il podio un attimo dopo. Su
+    // una schermata che esiste per dire che qualcuno vince davvero, quel
+    // secondo di vuoto dice il contrario. Finche' arrivano, la fiamma.
+    //
+    // Si guarda solo la classifica della scheda aperta: l'altra si legge
+    // quando la si apre, e aspettarla qui vorrebbe dire aspettare per niente.
+    final classifica = view == TrendView.winners
+        ? ref.watch(topWinnersProvider)
+        : ref.watch(topStakersProvider);
+    final caricando =
+        (!classifica.hasValue && !classifica.hasError) ||
+        (vetrina && !cercati.hasValue && !cercati.hasError);
 
     return Scaffold(
       body: AppBackground(
@@ -157,6 +174,8 @@ class WinnersPage extends ConsumerWidget {
                                 'palio, il podio si riempie da solo.'
                           : 'Quando qualcuno lancia una gara mettendoci dei '
                                 'soldi, lo trovi qui.',
+                      caricando: caricando,
+                      guasto: classifica.hasError && !classifica.hasValue,
                     ),
                   ],
                 ),
@@ -611,7 +630,12 @@ class _RigaClassifica extends ConsumerWidget {
 
 /// Una classifica intera: il podio e la coda.
 class _Classifica extends StatelessWidget {
-  const _Classifica({required this.righe, required this.vuota});
+  const _Classifica({
+    required this.righe,
+    required this.vuota,
+    this.caricando = false,
+    this.guasto = false,
+  });
 
   /// Fin dove arriva l'elenco sotto il podio.
   ///
@@ -628,9 +652,38 @@ class _Classifica extends StatelessWidget {
   /// Cosa dire quando non c'e' ancora nessuno.
   final String vuota;
 
+  /// Se le righe stanno ancora arrivando: al posto del podio, la fiamma.
+  final bool caricando;
+
+  /// Se la lettura della classifica non e' riuscita.
+  ///
+  /// **Non e' una classifica vuota, e non si dice "ancora niente".** Quella
+  /// frase promette che il podio si riempira' da solo; qui il podio c'e', e
+  /// siamo noi a non riuscire a vederlo.
+  final bool guasto;
+
   @override
   Widget build(BuildContext context) {
+    if (caricando) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+        child: Center(child: FiammaCheGira()),
+      );
+    }
+
     if (righe.isEmpty) {
+      if (guasto) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+          child: Text(
+            'Non riusciamo a leggere la classifica. Riprova fra poco.',
+            style: context.texts.bodyMedium?.copyWith(
+              color: context.palette.textSecondary,
+            ),
+          ),
+        );
+      }
+
       return EmptyState(title: 'Ancora niente', message: vuota);
     }
 

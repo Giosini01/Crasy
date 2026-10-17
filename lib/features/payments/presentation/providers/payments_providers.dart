@@ -95,14 +95,39 @@ final walletProvider = StreamProvider<Wallet>((ref) {
   // dell'interfaccia: sono soldi spesi che non vengono scalati.
   //
   // Vedi `combinaDue`, che li ascolta davvero tutti e due.
-  return combinaTre(
-    repository.watchBalance(userId),
-    repository.watchWithdrawing(userId),
+  return combinaDue(
+    repository.watchSaldo(userId),
     repository.watchMovements(userId),
-    (balance, inViaggio, movements) => Wallet(
-      balanceCents: balance,
-      withdrawingCents: inViaggio,
+    (saldo, movements) => Wallet(
+      balanceCents: saldo.totale,
+      suStripeCents: saldo.suStripe,
+      withdrawingCents: saldo.inViaggio,
       movements: movements,
     ),
   );
+});
+
+/// **Se il conto per ricevere i premi e' pronto.** Serve prima di entrare in
+/// una gara con dei soldi: vedi `assicuratiIlConto`.
+final contoProntoProvider = StreamProvider<bool>((ref) {
+  final repository = ref.watch(walletRepositoryProvider);
+  final userId = ref.watch(currentUserIdProvider);
+
+  if (repository == null || userId == null) {
+    return Stream.value(false);
+  }
+
+  return repository.watchContoPronto(userId);
+});
+
+/// Se ha gia' accettato di pagare le missioni con il saldo Stripe.
+final addebitoAccettatoProvider = StreamProvider<bool>((ref) {
+  final repository = ref.watch(walletRepositoryProvider);
+  final userId = ref.watch(currentUserIdProvider);
+
+  if (repository == null || userId == null) {
+    return Stream.value(false);
+  }
+
+  return repository.watchAddebitoAccettato(userId);
 });

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/services/share/invite_friend.dart';
@@ -6,6 +8,7 @@ import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/filter_field.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
@@ -271,82 +274,99 @@ class _FriendsPageState extends ConsumerState<FriendsPage> {
         child: RefreshIndicator(
           color: palette.accent,
           onRefresh: _ricarica,
-          child: ListView.builder(
-            controller: _scorrimento,
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.page,
-              AppSpacing.sm,
-              AppSpacing.page,
-              AppSpacing.xxl,
-            ),
-            // Una riga in piu' in testa quando c'e' il campo di ricerca, e una
-            // in piu' in fondo: la rotellina, il vuoto o l'errore.
-            itemCount: mostrate.length + 1 + (cercabile ? 1 : 0),
-            itemBuilder: (context, index) {
-              if (cercabile) {
-                if (index == 0) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: FilterField(
-                      hint: 'Cerca fra chi ti segue',
-                      onChanged: _cercaFra,
-                    ),
-                  );
-                }
-
-                index -= 1;
-              }
-
-              if (index == mostrate.length) {
-                if (_errore != null) {
-                  return _Fondo(
-                    testo:
-                        'Non riusciamo a caricare. Tira giu\' per riprovare.',
-                    colore: palette.accent,
-                  );
-                }
-
-                if (_caricando || !_amiciFiniti) {
-                  return const Padding(
-                    padding: EdgeInsets.all(AppSpacing.lg),
-                    child: Center(
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+          // Quanto e' alto lo spazio serve alla prima attesa: vedi la fiamma
+          // in fondo all'elenco.
+          child: LayoutBuilder(
+            builder: (context, spazio) => ListView.builder(
+              controller: _scorrimento,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.page,
+                AppSpacing.sm,
+                AppSpacing.page,
+                AppSpacing.xxl,
+              ),
+              // Una riga in piu' in testa quando c'e' il campo di ricerca, e
+              // una in piu' in fondo: la fiamma, il vuoto o l'errore.
+              itemCount: mostrate.length + 1 + (cercabile ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (cercabile) {
+                  if (index == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: FilterField(
+                        hint: 'Cerca fra chi ti segue',
+                        onChanged: _cercaFra,
                       ),
-                    ),
-                  );
+                    );
+                  }
+
+                  index -= 1;
                 }
 
-                // **Due vuoti diversi.** "Non ti segue nessuno" e "nessuno di
-                // chi ti segue si chiama cosi'" sono due notizie che non si
-                // somigliano, e dirle con la stessa frase manda a cercare un
-                // problema dove non c'e'.
-                if (mostrate.isEmpty && _cerca.trim().isNotEmpty) {
-                  return _Fondo(
-                    testo: 'Nessuno con questo nome fra chi ti segue.',
-                    colore: palette.textFaint,
-                  );
+                if (index == mostrate.length) {
+                  if (_errore != null) {
+                    return _Fondo(
+                      testo:
+                          'Non riusciamo a caricare. Tira giu\' per riprovare.',
+                      colore: palette.accent,
+                    );
+                  }
+
+                  if (_caricando || !_amiciFiniti) {
+                    // **La prima pagina al centro, le altre in fondo.**
+                    //
+                    // Finche' non c'e' nemmeno una riga la fiamma e' l'unica
+                    // cosa della schermata, e in cima, attaccata al titolo,
+                    // sembrava un pezzo di elenco rimasto a meta'. Al centro
+                    // si legge per quello che e': la pagina che arriva. Dalla
+                    // seconda pagina in poi sta in fondo, piccola, dove
+                    // l'elenco continua.
+                    if (_righe.isEmpty) {
+                      return SizedBox(
+                        height: math.max(
+                          0.0,
+                          spazio.maxHeight - AppSpacing.sm - AppSpacing.xxl,
+                        ),
+                        child: const Center(child: FiammaCheGira()),
+                      );
+                    }
+
+                    return const Padding(
+                      padding: EdgeInsets.all(AppSpacing.lg),
+                      child: Center(child: FiammaCheGira(misura: 24)),
+                    );
+                  }
+
+                  // **Due vuoti diversi.** "Non ti segue nessuno" e "nessuno di
+                  // chi ti segue si chiama cosi'" sono due notizie che non si
+                  // somigliano, e dirle con la stessa frase manda a cercare un
+                  // problema dove non c'e'.
+                  if (mostrate.isEmpty && _cerca.trim().isNotEmpty) {
+                    return _Fondo(
+                      testo: 'Nessuno con questo nome fra chi ti segue.',
+                      colore: palette.textFaint,
+                    );
+                  }
+
+                  if (_righe.isEmpty) {
+                    return const EmptyState(
+                      title: 'Nessun follower, per ora',
+                      message:
+                          'Quando qualcuno inizia a seguirti lo trovi qui. Se '
+                          'lo segui anche tu, diventate amici e potete '
+                          'sfidarvi.',
+                    );
+                  }
+
+                  return const SizedBox.shrink();
                 }
 
-                if (_righe.isEmpty) {
-                  return const EmptyState(
-                    title: 'Nessun follower, per ora',
-                    message:
-                        'Quando qualcuno inizia a seguirti lo trovi qui. Se lo '
-                        'segui anche tu, diventate amici e potete sfidarvi.',
-                  );
-                }
+                final riga = mostrate[index];
 
-                return const SizedBox.shrink();
-              }
-
-              final riga = mostrate[index];
-
-              return _FollowerRow(riga: riga, onSegui: () => _ricambia(riga));
-            },
+                return _FollowerRow(riga: riga, onSegui: () => _ricambia(riga));
+              },
+            ),
           ),
         ),
       ),

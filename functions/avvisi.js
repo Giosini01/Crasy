@@ -59,4 +59,31 @@ async function avvisaChiLHaMandata(autore, challengeId, titolo) {
   }
 }
 
-module.exports = { avvisaChiLHaMandata };
+/**
+ * **Toglie l'avviso "la tua foto e' stata tolta" quando la foto torna in gara.**
+ *
+ * Restava li': chi aveva ritrovato la propria foto in gara leggeva ancora in
+ * campanella che era stata tolta. E se la stessa foto veniva tolta una seconda
+ * volta, l'avviso c'era gia' — riscriverlo non lo fa nascere di nuovo, quindi
+ * non partiva nessuna notifica.
+ */
+async function togliLAvvisoDiRimozione(autore, challengeId) {
+  if (!autore || !challengeId) {
+    return;
+  }
+
+  try {
+    await admin
+      .firestore()
+      .collection('users')
+      .doc(autore)
+      .collection('notifications')
+      .doc('tolta_' + challengeId)
+      .delete();
+  } catch (error) {
+    // Un avviso di troppo non vale una foto rimessa a meta'.
+    logger.warn('avviso di rimozione non tolto', { autore, challengeId, error });
+  }
+}
+
+module.exports = { avvisaChiLHaMandata, togliLAvvisoDiRimozione };

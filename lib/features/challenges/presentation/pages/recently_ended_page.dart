@@ -2,6 +2,7 @@ import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/recent_winners.dart';
 import 'package:flutter/material.dart';
@@ -49,7 +50,10 @@ class RecentlyEndedPage extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.xl),
               challenges.when(
-                loading: () => const SizedBox.shrink(),
+                loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+                  child: Center(child: FiammaCheGira()),
+                ),
                 error: (_, _) => const EmptyState(
                   title: 'Non disponibile',
                   message:

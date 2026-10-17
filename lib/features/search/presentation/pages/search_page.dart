@@ -6,7 +6,9 @@ import 'package:crasy/core/utils/app_date_utils.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
+import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
@@ -88,12 +90,29 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final live = ref.watch(liveChallengeResultsProvider);
     final people = ref.watch(peopleResultsProvider);
     final peopleFound = people.valueOrNull ?? const <UserProfile>[];
+    final cerca = query.length >= searchMinimumLength;
+    // **Anche le missioni possono essere ancora per strada.** Si cercano fra
+    // le gare aperte che l'app ha gia' in mano, e appena aperta non le ha
+    // ancora: senza guardarlo, chi cercava subito si sentiva dire "niente" di
+    // una gara che c'era.
+    final aperte = ref.watch(liveChallengesProvider);
     final waiting =
-        filter.wantsPeople &&
-        query.length >= searchMinimumLength &&
-        people.isLoading;
+        (filter.wantsPeople && cerca && people.isLoading) ||
+        (filter.wantsChallenges &&
+            cerca &&
+            !aperte.hasValue &&
+            !aperte.hasError);
+    // **Una ricerca andata male non e' una ricerca vuota.** Prima un errore —
+    // la rete che cade a meta' — finiva in "Niente", e chi cercava un amico
+    // concludeva che non era iscritto.
+    final guasto =
+        filter.wantsPeople && cerca && people.hasError && !people.isLoading;
     final nothing =
-        query.isNotEmpty && !waiting && live.isEmpty && peopleFound.isEmpty;
+        query.isNotEmpty &&
+        !waiting &&
+        !guasto &&
+        live.isEmpty &&
+        peopleFound.isEmpty;
 
     return Scaffold(
       body: AppBackground(
@@ -173,6 +192,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   people: peopleFound,
                   waiting: waiting,
                   nothing: nothing,
+                  guasto: guasto,
                 ),
               ),
             ],
@@ -240,6 +260,7 @@ class _Results extends StatelessWidget {
     required this.people,
     required this.waiting,
     required this.nothing,
+    this.guasto = false,
   });
 
   final String query;
@@ -247,6 +268,9 @@ class _Results extends StatelessWidget {
   final List<UserProfile> people;
   final bool waiting;
   final bool nothing;
+
+  /// Se la ricerca delle persone non e' riuscita: vedi `SearchPage`.
+  final bool guasto;
 
   @override
   Widget build(BuildContext context) {
@@ -292,13 +316,22 @@ class _Results extends StatelessWidget {
           _SectionLabel(label: 'PERSONE', count: people.length),
           for (final profile in people) _PersonResult(profile: profile),
         ],
+        // **Mentre cerca, la fiamma.** Prima c'era una riga grigia, "Cerco le
+        // persone...", che si leggeva a fatica ed era l'unica attesa dell'app
+        // scritta a parole: qui gira la stessa fiamma di tutte le altre.
         if (waiting && people.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: AppSpacing.md),
+            child: Center(child: FiammaCheGira(misura: 28)),
+          ),
+        if (guasto && people.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.sm),
             child: Text(
-              'Cerco le persone...',
-              style: context.texts.labelSmall?.copyWith(
-                color: context.palette.textFaint,
+              'Non siamo riusciti a cercare le persone: controlla la '
+              'connessione e riprova.',
+              style: context.texts.bodyMedium?.copyWith(
+                color: context.palette.textSecondary,
               ),
             ),
           ),

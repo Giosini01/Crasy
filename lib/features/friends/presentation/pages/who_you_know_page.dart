@@ -1,6 +1,7 @@
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/friends/data/repositories/contacts_repository.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
@@ -32,20 +33,31 @@ class WhoYouKnowPage extends ConsumerStatefulWidget {
 class _WhoYouKnowPageState extends ConsumerState<WhoYouKnowPage> {
   bool _chiudendo = false;
 
+  /// Se ad andare avanti e' stato "Salta", in alto, e non il tasto in fondo.
+  ///
+  /// **La fiamma gira dove si e' toccato.** Tutti e due portano avanti e tutti
+  /// e due si spengono mentre si segna la casellina: senza saperlo, chi tocca
+  /// "Salta" vedrebbe girare la fiamma in fondo allo schermo, lontano dal dito,
+  /// su un tasto che non ha toccato.
+  bool _saltando = false;
+
   /// Segna che e' stata vista e lascia andare avanti il muro.
   ///
   /// Se la scrittura non riesce si entra lo stesso: il peggio che puo'
   /// succedere e' rivedere questa schermata al prossimo avvio, mentre tenere
   /// qualcuno fuori dall'app perche' non siamo riusciti a segnare una
   /// casellina sarebbe molto peggio.
-  Future<void> _vaiAvanti() async {
+  Future<void> _vaiAvanti({bool saltando = false}) async {
     final sessione = ref.read(authStateProvider);
 
     if (sessione is! AuthenticatedAuthState || _chiudendo) {
       return;
     }
 
-    setState(() => _chiudendo = true);
+    setState(() {
+      _chiudendo = true;
+      _saltando = saltando;
+    });
 
     try {
       await ref
@@ -78,11 +90,19 @@ class _WhoYouKnowPageState extends ConsumerState<WhoYouKnowPage> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: _chiudendo ? null : _vaiAvanti,
-                  child: Text(
-                    'Salta',
-                    style: texts.bodyMedium?.copyWith(color: palette.textFaint),
-                  ),
+                  onPressed: _chiudendo
+                      ? null
+                      : () => _vaiAvanti(saltando: true),
+                  // Spento e basta non diceva niente: si ritoccava, convinti
+                  // di non aver premuto. Mentre segna, la fiamma al suo posto.
+                  child: _chiudendo && _saltando
+                      ? const FiammaCheGira(misura: 20)
+                      : Text(
+                          'Salta',
+                          style: texts.bodyMedium?.copyWith(
+                            color: palette.textFaint,
+                          ),
+                        ),
                 ),
               ),
               Padding(
@@ -149,11 +169,15 @@ class _WhoYouKnowPageState extends ConsumerState<WhoYouKnowPage> {
                               .read(suggestedFriendsProvider.notifier)
                               .cerca()
                         : _vaiAvanti,
-                    child: Text(
-                      trovati == null && !negato
-                          ? 'GUARDA CHI C’È'
-                          : 'CONTINUA',
-                    ),
+                    // **Mentre si va avanti, la fiamma al posto della
+                    // scritta**: la stessa del tasto rosso e di ogni attesa.
+                    child: _chiudendo && !_saltando
+                        ? const FiammaCheGira(misura: 20)
+                        : Text(
+                            trovati == null && !negato
+                                ? 'GUARDA CHI C’È'
+                                : 'CONTINUA',
+                          ),
                   ),
                 ),
               ),
@@ -178,10 +202,8 @@ class _Corpo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.palette;
-
     if (stato.isLoading) {
-      return Center(child: CircularProgressIndicator(color: palette.accent));
+      return const Center(child: FiammaCheGira());
     }
 
     if (negato) {

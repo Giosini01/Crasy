@@ -5,6 +5,7 @@ import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
@@ -141,6 +142,48 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
     final sent = ref.watch(sentDuelsProvider);
     final problema = ref.watch(friendActivityProblemProvider);
 
+    // **Prima di dire "nessuna", si aspetta di saperlo.**
+    //
+    // Le liste qui sopra leggono con `valueOrNull`, e finche' le letture del
+    // database non arrivano sono vuote: la scheda apriva su "Nessuna sfida
+    // personale" e un attimo dopo si riempiva, con i numeri accanto alle
+    // schede che spuntavano dal niente. Si guardano le letture da cui esce
+    // **la scheda aperta** — non tutte: aspettare le gare pubbliche per
+    // mostrare le sfide personali vorrebbe dire far aspettare per niente — e
+    // finche' una sta ancora arrivando, sotto la fila delle schede gira la
+    // fiamma.
+    //
+    // Si aspettano anche le mie partecipazioni, che quasi sempre ci sono
+    // gia': decidono l'ordine — prima quello che aspetta me — e una lista che
+    // si riordina sotto gli occhi e' un altro modo di sembrare rotta.
+    final riservate = ref.watch(reservedChallengesProvider);
+    final finiteDiRecente = ref.watch(recentlyClosedProvider);
+    final mie = ref.watch(myEntriesProvider);
+    final fonti = switch (view) {
+      FriendActivityView.personal => <AsyncValue<Object?>>[riservate, mie],
+      FriendActivityView.group => <AsyncValue<Object?>>[
+        riservate,
+        finiteDiRecente,
+        mie,
+      ],
+      FriendActivityView.open => <AsyncValue<Object?>>[
+        ref.watch(myFriendsProvider),
+        ref.watch(liveChallengesProvider),
+        mie,
+      ],
+      FriendActivityView.done => <AsyncValue<Object?>>[
+        riservate,
+        finiteDiRecente,
+      ],
+    };
+    final caricando = fonti.any((fonte) => !fonte.hasValue && !fonte.hasError);
+
+    // Una lettura che non ha risposto per niente non e' una scheda vuota:
+    // si dice con la stessa riga dei guasti degli amici, non con "nessuna".
+    final guasto =
+        problema != null ||
+        fonti.any((fonte) => fonte.hasError && !fonte.hasValue);
+
     // **Quello che ho gia' fatto**, per nome di missione. E' l'unica cosa che
     // serve a dividere "aspetta me" da "sta andando avanti": una sfida a cui
     // ho gia' risposto e una missione in cui ho gia' mandato uno scatto non
@@ -242,7 +285,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                       daRispondere: ref.watch(pendingDuelsCountProvider),
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    if (problema != null) ...[
+                    if (guasto) ...[
                       const InlineBanner(
                         message:
                             'Non riusciamo a leggere cosa stanno facendo i tuoi '
@@ -251,16 +294,22 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
                       ),
                       const SizedBox(height: AppSpacing.lg),
                     ],
-                    ..._sezione(
-                      view: view,
-                      personali: personali,
-                      gruppo: gruppo,
-                      fuoriDalParty: fuoriDalParty,
-                      sent: sent,
-                      closed: finite,
-                      rejected: bocciate,
-                      meId: meId,
-                    ),
+                    if (caricando)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+                        child: Center(child: FiammaCheGira()),
+                      )
+                    else
+                      ..._sezione(
+                        view: view,
+                        personali: personali,
+                        gruppo: gruppo,
+                        fuoriDalParty: fuoriDalParty,
+                        sent: sent,
+                        closed: finite,
+                        rejected: bocciate,
+                        meId: meId,
+                      ),
                   ],
                 ),
               ),
@@ -621,6 +670,46 @@ class _LaunchForFriends extends StatelessWidget {
   }
 }
 
+/// **Quale sfida sta aspettando la mia risposta, e quale risposta.**
+///
+/// Prima c'era un segno solo per tutta la schermata — il controllore delle
+/// sfide al lavoro — e toccando ACCETTO su una riga si spegnevano i tasti di
+/// tutte le altre, senza che nessuna dicesse quale stava lavorando. Qui si
+/// tiene a mente la riga toccata: la fiamma gira sul tasto premuto, e le
+/// altre righe restano come sono.
+///
+/// Sta fuori dalla riga, e non dentro, perche' la risposta dura piu' della
+/// riga: chi cambia scheda e torna mentre viaggia deve ritrovare la fiamma,
+/// non un tasto da toccare una seconda volta.
+final _risposteInCorsoProvider = StateProvider<Map<String, DuelStatus>>(
+  (ref) => const <String, DuelStatus>{},
+);
+
+/// Manda una risposta a una sfida e tiene la fiamma sulla sua riga finche'
+/// non e' arrivata.
+Future<void> _rispondi(
+  WidgetRef ref,
+  Challenge challenge,
+  DuelStatus risposta,
+  Future<void> Function(Challenge challenge) manda,
+) async {
+  // Preso prima di aspettare: a risposta arrivata la riga puo' non esserci
+  // piu' — una sfida accettata cambia posto — e il suo `ref` con lei.
+  final inCorso = ref.read(_risposteInCorsoProvider.notifier);
+
+  if (inCorso.state.containsKey(challenge.id)) {
+    return;
+  }
+
+  inCorso.update((tutte) => {...tutte, challenge.id: risposta});
+
+  try {
+    await manda(challenge);
+  } finally {
+    inCorso.update((tutte) => {...tutte}..remove(challenge.id));
+  }
+}
+
 /// Una sfida mirata in elenco.
 ///
 /// **E' una scheda e non una riga, ed e' l'unica di questa schermata.** Le
@@ -643,7 +732,11 @@ class _DuelRow extends ConsumerWidget {
     final texts = context.texts;
     final state = challenge.duelStateAt(DateTime.now());
     final controller = ref.watch(duelControllerProvider.notifier);
-    final busy = ref.watch(duelControllerProvider).isLoading;
+    // **Occupata solo questa riga, e solo se l'ho toccata io**: vedi
+    // [_risposteInCorsoProvider]. Nullo vuol dire che non sta partendo niente.
+    final inCorso = ref.watch(
+      _risposteInCorsoProvider.select((tutte) => tutte[challenge.id]),
+    );
 
     final chiId = received ? challenge.createdByUserId : challenge.targetUserId;
     final chiNome = received
@@ -791,23 +884,39 @@ class _DuelRow extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: FilledButton(
-                        onPressed: busy
+                        onPressed: inCorso != null
                             ? null
-                            : () => controller.accept(challenge),
-                        child: const Text('ACCETTO'),
+                            : () => _rispondi(
+                                ref,
+                                challenge,
+                                DuelStatus.accepted,
+                                controller.accept,
+                              ),
+                        // Mentre la risposta parte, la fiamma al posto della
+                        // parola: spento e basta, il tasto non diceva niente.
+                        child: inCorso == DuelStatus.accepted
+                            ? const FiammaCheGira(misura: 20)
+                            : const Text('ACCETTO'),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     TextButton(
-                      onPressed: busy
+                      onPressed: inCorso != null
                           ? null
-                          : () => controller.decline(challenge),
-                      child: Text(
-                        'RIFIUTA',
-                        style: texts.labelSmall?.copyWith(
-                          color: palette.textFaint,
-                        ),
-                      ),
+                          : () => _rispondi(
+                              ref,
+                              challenge,
+                              DuelStatus.declined,
+                              controller.decline,
+                            ),
+                      child: inCorso == DuelStatus.declined
+                          ? const FiammaCheGira(misura: 20)
+                          : Text(
+                              'RIFIUTA',
+                              style: texts.labelSmall?.copyWith(
+                                color: palette.textFaint,
+                              ),
+                            ),
                     ),
                   ],
                 ),
@@ -830,8 +939,17 @@ class _DuelRow extends ConsumerWidget {
               if (received && challenge.canReconsiderAt(DateTime.now())) ...[
                 const SizedBox(height: AppSpacing.sm),
                 OutlinedButton(
-                  onPressed: busy ? null : () => controller.accept(challenge),
-                  child: const Text('CI HO RIPENSATO'),
+                  onPressed: inCorso != null
+                      ? null
+                      : () => _rispondi(
+                          ref,
+                          challenge,
+                          DuelStatus.accepted,
+                          controller.accept,
+                        ),
+                  child: inCorso != null
+                      ? const FiammaCheGira(misura: 20)
+                      : const Text('CI HO RIPENSATO'),
                 ),
               ],
               // **Il giudizio non si da' da qui.**

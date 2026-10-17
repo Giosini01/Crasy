@@ -222,8 +222,13 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     // le dita. Fra il tocco e il foglio di Stripe passano dei secondi, e in
     // quei secondi un bottone ancora premibile significa due pagamenti aperti
     // per la stessa gara.
+    //
+    // **Anche col portafoglio.** Il velo c'era solo per la carta, e pagare col
+    // saldo puo' durare di piu' — il server chiede a Stripe e poi addebita,
+    // fino a mezzo minuto — con il bottone premibile e niente a dire che
+    // stesse succedendo qualcosa.
     return VeloDiAttesa(
-      acceso: _passo != null && _error == null,
+      acceso: (_passo != null || _dalPortafoglio) && _error == null,
       child: Scaffold(
         appBar: AppBar(
           title: Text(widget.forFriends ? 'Sfida i tuoi amici' : 'Crea'),
@@ -580,6 +585,10 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
   /// A che punto e' il pagamento, mentre si aspetta.
   String? _passo;
 
+  /// Se si sta pagando col portafoglio: tiene acceso il velo come [_passo]
+  /// lo tiene acceso per la carta.
+  bool _dalPortafoglio = false;
+
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
@@ -588,6 +597,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     setState(() {
       _error = null;
       _passo = null;
+      _dalPortafoglio = false;
     });
 
     // Il controllo del modulo e' appena passato, quindi qui c'e' un importo
@@ -681,6 +691,8 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
         }
 
         if (scelta == PayChoice.portafoglio) {
+          setState(() => _dalPortafoglio = true);
+
           final esito = await ref
               .read(paymentsServiceProvider)
               .payChallengeFromWallet(challengeId);
@@ -691,11 +703,22 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
 
           if (!esito.pagata) {
             setState(() {
+              _dalPortafoglio = false;
               _error = esito.saldoBasso
                   // Fra l'apertura del foglio e il tocco puo' essere partito un
                   // prelievo: il saldo di un attimo fa non e' una promessa.
                   ? "Il portafoglio non basta più. La challenge è "
                         "salvata: riprova, o paga con la carta."
+                  // Un premio appena vinto arriva sul conto Stripe "in
+                  // arrivo", e si puo' spendere qualche giorno dopo.
+                  : esito.inArrivo
+                  ? 'I tuoi premi più recenti sono ancora in arrivo sul tuo '
+                        'conto: potrai usarli fra qualche giorno. La challenge '
+                        'è salvata: intanto puoi pagarla con la carta.'
+                  : esito.consensoMancante
+                  ? 'Per usare i premi del tuo conto Stripe serve il tuo '
+                        'permesso, una volta: lo dai dal portafoglio, con '
+                        '“Usa i premi per le missioni”. La challenge è salvata.'
                   : 'Non siamo riusciti a pagare dal portafoglio. La challenge '
                         'è salvata: riprova fra poco.';
             });
@@ -710,6 +733,9 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
           // vuota dopo avergli chiesto dei soldi e' il modo migliore di fargli
           // credere di essere stato truffato. Dal portafoglio il premio e' gia'
           // dentro e la gara e' gia' aperta: e' la prova che e' andata bene.
+          //
+          // Il velo resta acceso fino a che questa pagina non se ne va: come
+          // dopo la carta, non c'e' piu' niente da toccare qui.
           context.pushReplacement(AppRoutes.challengeDetailOf(challengeId));
 
           return;

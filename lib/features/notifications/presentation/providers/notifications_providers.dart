@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/services/firebase/firebase_providers.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/notifications/data/icon_badge.dart';
 import 'package:crasy/features/notifications/data/push_registry.dart';
 import 'package:crasy/features/notifications/data/repositories/firestore_notifications_repository.dart';
@@ -77,6 +78,7 @@ final notificationsSeenAtProvider = StreamProvider<DateTime?>((ref) {
 /// riga vorrebbe dire tenere sincronizzate due verita' invece di leggerne una.
 final notificationsProvider = Provider<List<AppNotification>>((ref) {
   final stored = ref.watch(storedNotificationsProvider).valueOrNull ?? const [];
+  final seguono = ref.watch(incomingRequestsProvider).valueOrNull ?? const [];
   final myEntries = ref.watch(myEntriesProvider).valueOrNull ?? const [];
   final ended = ref.watch(endedChallengesProvider).valueOrNull ?? const [];
   final viste = ref.watch(revealsSeenProvider).valueOrNull ?? const <String>{};
@@ -91,6 +93,22 @@ final notificationsProvider = Provider<List<AppNotification>>((ref) {
 
   final all = <AppNotification>[
     ...stored,
+    // **Chi ha iniziato a seguirti, nella sezione RICHIESTE.**
+    //
+    // Si ricava dall'elenco di chi ti segue senza che tu ricambi, come prima di
+    // agosto, e il nome e' quello che la push porta con se' — `amicizia_{chi}` —
+    // cosi' toccando la push la riga si accende. La sezione c'era, con il suo
+    // numero e il tocco che porta a "Ti seguono": mancavano le righe, e la push
+    // atterrava su "Niente in RICHIESTE". Quando ricambi la riga sparisce da
+    // sola, perche' sparisce la richiesta.
+    for (final richiesta in seguono)
+      AppNotification(
+        id: 'amicizia_${richiesta.fromUserId}',
+        kind: NotificationKind.friendRequest,
+        actorId: richiesta.fromUserId,
+        actorUsername: richiesta.fromUsername,
+        createdAt: richiesta.createdAt,
+      ),
     // **Chi ha partecipato sa che la gara e' chiusa.**
     //
     // Una gara che finisce e poi tace e' il modo piu' rapido di far pensare che
@@ -356,11 +374,18 @@ final pushTapsProvider = StreamProvider<PushTap>((ref) async* {
 /// aperta. Due copie della stessa regola si direbbero cose diverse al primo
 /// cambiamento.
 PushTap pushTapOf(Map<String, dynamic> dati, {required bool daFermo}) {
-  final kind = dati['kind'] ?? '';
+  final valore = dati['kind'];
+  final kind = AppNotification.kindFromName(valore is String ? valore : null);
 
   // Una missione nuova o la sfida del giorno riguardano **una gara**: si va
   // dove stanno le gare, e non c'e' niente da aprire sopra.
-  if (kind == 'newChallenge' || kind == 'daily') {
+  //
+  // **E ci finiscono anche il richiamo e gli annunci senza tipo.** Il richiamo
+  // dice "ci sono missioni nuove" e non nomina nessuna gara: in campanella
+  // diventava una riga che toccata non faceva niente. Un annuncio senza tipo —
+  // quello degli aggiornamenti — prima finiva fra i LIKE, perche' un tipo
+  // sconosciuto si leggeva come una fiamma.
+  if (kind == null || kind == NotificationKind.comeback) {
     return (
       scheda: AppRoutes.challenges,
       apri: null,
@@ -383,9 +408,7 @@ PushTap pushTapOf(Map<String, dynamic> dati, {required bool daFermo}) {
   // La sezione viaggia nell'indirizzo: la riga puo' non essere ancora
   // arrivata quando la pagina si apre, e la sezione giusta va scelta lo
   // stesso.
-  final sezione = AppNotification.groupOf(
-    AppNotification.kindFromName(kind as String?),
-  );
+  final sezione = AppNotification.groupOf(kind);
 
   return (
     scheda: AppRoutes.challenges,

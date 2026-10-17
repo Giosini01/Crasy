@@ -166,6 +166,56 @@ void main() {
       await c.close();
     });
   });
+
+  group('combinaTutti', () {
+    test('aspetta tutti, poi segue ognuno; e smette quando si smette', () async {
+      final gruppi = [
+        StreamController<List<String>>(),
+        StreamController<List<String>>(),
+        StreamController<List<String>>(),
+      ];
+      final visti = <List<List<String>>>[];
+
+      final sub = combinaTutti([
+        for (final gruppo in gruppi) gruppo.stream,
+      ]).listen(visti.add);
+
+      // Le foto dei primi trenta da sole non bastano: mancherebbero gli altri.
+      gruppi[0].add(['a']);
+      gruppi[1].add(['b']);
+      await pump();
+      expect(visti, isEmpty);
+
+      gruppi[2].add(['c']);
+      await pump();
+      gruppi[1].add(['b', 'b2']);
+      await pump();
+
+      expect(visti, [
+        [
+          ['a'],
+          ['b'],
+          ['c'],
+        ],
+        [
+          ['a'],
+          ['b', 'b2'],
+          ['c'],
+        ],
+      ]);
+
+      await sub.cancel();
+
+      for (final gruppo in gruppi) {
+        expect(gruppo.hasListener, isFalse);
+        await gruppo.close();
+      }
+    });
+
+    test('nessun flusso: un elenco vuoto, subito', () async {
+      expect(await combinaTutti(<Stream<int>>[]).first, isEmpty);
+    });
+  });
 }
 
 /// Lascia girare la coda degli eventi: i flussi consegnano in modo asincrono,

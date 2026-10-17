@@ -52,27 +52,72 @@ class PaymentsService {
   /// il secondo tocco su un tasto deve finire bene come il primo.
   ///
   /// `saldoBasso` dice l'unico "no" che non e' un guasto: i soldi non bastano.
+  /// `inArrivo`: basterebbero, ma una parte e' un premio appena vinto che
+  /// Stripe rende spendibile fra qualche giorno. `consensoMancante`: i premi
+  /// sono sul conto Stripe e per usarli serve l'autorizzazione, data una volta.
+  ///
   /// Gli altri motivi — la gara non e' tua, non c'e' piu', e' gratis — sono
   /// casi che l'app non dovrebbe nemmeno riuscire a produrre, e se succede e'
   /// un difetto nostro, non una cosa da spiegare a chi guarda.
-  Future<({bool pagata, bool saldoBasso})> payChallengeFromWallet(
-    String challengeId,
-  ) async {
+  Future<({bool pagata, bool saldoBasso, bool inArrivo, bool consensoMancante})>
+  payChallengeFromWallet(String challengeId) async {
     try {
       final risposta = await _functions
           .httpsCallable('payChallengeFromWallet')
           .call<Map<String, dynamic>>({'challengeId': challengeId})
-          .timeout(_pazienza);
+          // Piu' paziente del solito: se i premi sono sul conto Stripe, il
+          // server chiede a Stripe il saldo e poi addebita, e sono due giri.
+          .timeout(const Duration(seconds: 30));
 
       final dati = risposta.data;
 
       return (
         pagata: dati['ok'] == true,
         saldoBasso: dati['reason'] == 'saldo-basso',
+        inArrivo: dati['reason'] == 'saldo-in-arrivo',
+        consensoMancante: dati['reason'] == 'consenso-mancante',
       );
     } on Object {
-      return (pagata: false, saldoBasso: false);
+      return (
+        pagata: false,
+        saldoBasso: false,
+        inArrivo: false,
+        consensoMancante: false,
+      );
     }
+  }
+
+  /// **A che punto e' il conto per ricevere i premi.** Lo chiede a Stripe il
+  /// server, non la copia sul profilo: e' quella che si guarda tornando dalla
+  /// pagina di Stripe, quando la copia puo' essere ancora vecchia.
+  Future<
+    ({
+      bool collegato,
+      bool pronto,
+      bool compilato,
+      bool prelievi,
+      int disponibileCents,
+      int inArrivoCents,
+    })
+  >
+  statoConto() async {
+    final risposta = await _functions
+        .httpsCallable('statoConto')
+        .call<Map<Object?, Object?>>()
+        .timeout(const Duration(seconds: 30));
+    final dati = risposta.data;
+    int cifra(String campo) => (dati[campo] as num?)?.toInt() ?? 0;
+
+    return (
+      collegato: dati['collegato'] == true,
+      pronto: dati['pronto'] == true,
+      // **Il modulo di Stripe e' stato compilato**, anche se la verifica non
+      // e' finita. Vedi `assicuratiIlConto`.
+      compilato: dati['compilato'] == true || dati['pronto'] == true,
+      prelievi: dati['prelievi'] == true,
+      disponibileCents: cifra('disponibileCents'),
+      inArrivoCents: cifra('inArrivoCents'),
+    );
   }
 
   Future<bool> payChallenge(
@@ -341,11 +386,14 @@ class PaymentsService {
         );
   }
 
-  /// Apre la registrazione di chi deve incassare: nome, documento, IBAN.
+  /// Apre la registrazione su Stripe del conto che riceve i premi.
   ///
-  /// Si fa una volta sola, alla prima vittoria. Non e' un modulo che abbiamo
-  /// deciso noi: pagare qualcuno senza sapere chi e' e' vietato, e nessuna app
-  /// puo' saltarlo.
+  /// Si fa una volta sola. Non e' un modulo che abbiamo deciso noi: pagare
+  /// qualcuno senza sapere chi e' e' vietato, e nessuna app puo' saltarlo.
+  ///
+  /// Torna `true` se il conto e' **gia' pronto** e non c'e' niente da aprire,
+  /// `false` se si e' aperta (o non si e' potuta aprire) la pagina di Stripe:
+  /// in quel caso chi chiama dice di finire li' e tornare.
   Future<bool> startPayoutOnboarding() async {
     final result = await _functions
         .httpsCallable('createPayoutOnboarding')
@@ -356,37 +404,56 @@ class PaymentsService {
           if (kIsWeb) 'appUrl': '${Uri.base.origin}${Uri.base.path}',
         });
 
+    if (result.data['pronto'] == true) {
+      return true;
+    }
+
+    await _open(result.data['url']);
+
+    return false;
+  }
+
+  /// Apre la dashboard Stripe del proprio conto: saldo, movimenti, banca.
+  Future<bool> apriContoStripe() async {
+    final result = await _functions
+        .httpsCallable('linkContoStripe')
+        .call<Map<Object?, Object?>>()
+        .timeout(const Duration(seconds: 30));
+
     return _open(result.data['url']);
   }
 
-  /// Preleva tutto quello che c'e' nel portafoglio.
+  /// **Preleva: dal conto Stripe a nome suo, verso la sua banca.**
   ///
-  /// Torna il motivo per cui **non** e' partito, oppure `null` se e' partito.
-  /// Non lancia per il caso piu' comune — l'account che non c'e' ancora — che
-  /// non e' un errore ma il primo passo: chi chiama apre la registrazione.
-  /// Chiede il prelievo. Torna il motivo per cui **non** e' partito, oppure
-  /// `null` se e' partito.
+  /// I premi stanno gia' sul suo conto Stripe; prelevare vuol dire chiedere a
+  /// Stripe di mandarli sul suo IBAN. Quello che fosse ancora su CRASY e non
+  /// si riesce a spostare va in fila per un bonifico a mano: nessuno resta con
+  /// dei soldi che non puo' avere.
   ///
-  /// **Si mette in fila, non parte da sola.** Il bonifico automatico ha bisogno
-  /// di un conto collegato su Stripe, e quei conti oggi non si possono creare:
-  /// non e' un guasto nostro. Restava da scegliere fra dire "non si puo'
-  /// prelevare" a chi ha vinto dei soldi veri — una promessa rotta — e far
-  /// finta che il bonifico fosse partito, che e' peggio.
-  ///
-  /// Quindi si fa la cosa che si faceva prima delle macchine: la richiesta
-  /// entra in una fila e il bonifico lo fa una persona, con i dati che sono
-  /// gia' stati controllati. Dal lato di chi ha vinto cambia solo il tempo:
-  /// i soldi escono dal saldo subito e arrivano in qualche giorno.
-  Future<String?> withdraw() async {
+  /// `motivo` e' `null` se e' partito qualcosa. Altrimenti dice perche' no:
+  /// `account-mancante` (va collegato il conto), `account-incompleto` (Stripe
+  /// vuole un dato in piu' per mandare in banca), `in-arrivo` (i soldi ci sono
+  /// ma Stripe li rende disponibili fra qualche giorno), `saldo-basso`,
+  /// `gia-in-corso`.
+  Future<
+    ({String? motivo, int suStripeCents, int manualeCents, int inArrivoCents})
+  >
+  withdraw() async {
     final result = await _functions
-        .httpsCallable('requestPayout')
-        .call<Map<Object?, Object?>>();
+        .httpsCallable('withdrawWallet')
+        .call<Map<Object?, Object?>>()
+        .timeout(const Duration(seconds: 30));
+    final dati = result.data;
+    int cifra(String campo) => (dati[campo] as num?)?.toInt() ?? 0;
 
-    if (result.data['ok'] == true) {
-      return null;
-    }
-
-    return result.data['reason'] as String? ?? 'sconosciuto';
+    return (
+      motivo: dati['ok'] == true
+          ? null
+          : dati['reason'] as String? ?? 'sconosciuto',
+      suStripeCents: cifra('stripeCents'),
+      manualeCents: cifra('manualeCents'),
+      inArrivoCents: cifra('inArrivoCents'),
+    );
   }
 
   Future<bool> _open(Object? url) async {

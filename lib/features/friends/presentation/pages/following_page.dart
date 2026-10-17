@@ -4,6 +4,7 @@ import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/filter_field.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
@@ -38,6 +39,25 @@ class _FollowingPageState extends ConsumerState<FollowingPage> {
   Widget build(BuildContext context) {
     // I piu' recenti in cima: l'elenco nel profilo cresce in coda.
     final tutti = ref.watch(followedIdsProvider).reversed.toList();
+
+    // **Prima di dire "non segui nessuno", si aspetta di saperlo.**
+    //
+    // L'elenco esce da tre ascolti — gli amici, la cartella `following`, il
+    // mio documento — e finche' non hanno risposto e' vuoto: la schermata
+    // apriva su "Non segui ancora nessuno" e un attimo dopo si riempiva. Un
+    // vuoto che poi si riempie e' una bugia detta per un secondo, e il numero
+    // nel titolo cresceva sotto gli occhi. Finche' anche uno solo dei tre sta
+    // arrivando, la fiamma.
+    final fonti = <AsyncValue<Object?>>[
+      ref.watch(myFriendsProvider),
+      ref.watch(myFollowingProvider),
+      ref.watch(ownFollowProvider),
+    ];
+    final caricando = fonti.any((fonte) => !fonte.hasValue && !fonte.hasError);
+
+    // Un ascolto che non ha risposto per niente non e' un elenco vuoto: e' un
+    // elenco che non conosciamo, e si dice con un'altra frase.
+    final guasto = fonti.any((fonte) => fonte.hasError && !fonte.hasValue);
 
     // **I nomi arrivano da un'altra parte.** Questa pagina ha in mano solo gli
     // identificativi — il nome lo legge ogni riga per conto suo, dal profilo di
@@ -88,19 +108,39 @@ class _FollowingPageState extends ConsumerState<FollowingPage> {
         // Un titolo che litiga con la lista che gli sta sotto fa sembrare rotta
         // tutta la schermata, ed e' peggio di un titolo senza numero.
         title: Text(
-          seguiti.isNotEmpty ? 'Chi segui · ${seguiti.length}' : 'Chi segui',
+          seguiti.isNotEmpty && !caricando
+              ? 'Chi segui · ${seguiti.length}'
+              : 'Chi segui',
         ),
       ),
       body: AppBackground(
-        child: tutti.isEmpty
-            ? const Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.page),
-                child: EmptyState(
-                  title: 'Non segui ancora nessuno',
-                  message:
-                      'Segui chi conosci: vedi in quali gare sta, adesso. Se ti '
-                      'segue anche lui siete amici, e potete sfidarvi.',
+        child: caricando
+            ? const Center(child: FiammaCheGira())
+            : tutti.isEmpty
+            ? Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.page,
                 ),
+                child: guasto
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.xxl,
+                        ),
+                        child: Text(
+                          'Non riusciamo a leggere chi segui. Riprova fra '
+                          'poco.',
+                          style: context.texts.bodyMedium?.copyWith(
+                            color: context.palette.textSecondary,
+                          ),
+                        ),
+                      )
+                    : const EmptyState(
+                        title: 'Non segui ancora nessuno',
+                        message:
+                            'Segui chi conosci: vedi in quali gare sta, '
+                            'adesso. Se ti segue anche lui siete amici, e '
+                            'potete sfidarvi.',
+                      ),
               )
             : ListView.builder(
                 padding: const EdgeInsets.fromLTRB(
@@ -167,9 +207,11 @@ class _FollowingRow extends ConsumerWidget {
     final texts = context.texts;
     final nome =
         ref.watch(publicProfileProvider(userId)).valueOrNull?.username ?? '';
-    final stato =
-        ref.watch(friendshipStatusProvider(userId)).valueOrNull ??
-        FriendshipStatus.requestSent;
+    // **Finche' non si sa, non si dice.** Prima, mentre lo stato arrivava,
+    // ogni riga diceva NON TI SEGUE — anche sotto gli amici — e un attimo dopo
+    // cambiava idea. Una riga che dice una cosa falsa per un secondo si legge
+    // lo stesso, e fa in tempo a far preoccupare. Nullo vuol dire "in arrivo".
+    final stato = ref.watch(friendshipStatusProvider(userId)).valueOrNull;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -189,8 +231,12 @@ class _FollowingRow extends ConsumerWidget {
                     text: nome.isEmpty ? '' : '@$nome',
                     style: texts.titleMedium,
                   ),
+                  // Vuota e non assente, mentre arriva: la riga tiene la sua
+                  // altezza, e il nome sopra non salta quando lo stato si posa.
                   Text(
-                    stato == FriendshipStatus.friends
+                    stato == null
+                        ? ''
+                        : stato == FriendshipStatus.friends
                         ? 'VI SEGUITE · AMICI'
                         : 'NON TI SEGUE',
                     style: texts.labelSmall?.copyWith(
@@ -205,20 +251,30 @@ class _FollowingRow extends ConsumerWidget {
           ),
           // Si smette anche con gli amici: li' si chiede prima conferma, perche'
           // si perde l'amicizia. Con chi non ti segue e' un tocco e basta.
+          //
+          // **Finche' lo stato non c'e', il tasto aspetta.** Sono due gesti
+          // diversi — con un amico si smette di essere amici, con gli altri si
+          // smette di seguire e basta — e senza sapere quale dei due, un tocco
+          // svelto faceva quello sbagliato.
           TextButton(
-            onPressed: () async {
-              final azioni = ref.read(friendActionsProvider);
+            onPressed: stato == null
+                ? null
+                : () async {
+                    final azioni = ref.read(friendActionsProvider);
 
-              if (stato != FriendshipStatus.friends) {
-                await azioni.cancel(userId);
+                    if (stato != FriendshipStatus.friends) {
+                      await azioni.cancel(userId);
 
-                return;
-              }
+                      return;
+                    }
 
-              if (await confermaSmettiDiSeguire(context, username: nome)) {
-                await azioni.unfollowFriend(userId);
-              }
-            },
+                    if (await confermaSmettiDiSeguire(
+                      context,
+                      username: nome,
+                    )) {
+                      await azioni.unfollowFriend(userId);
+                    }
+                  },
             child: Text(
               'Smetti',
               style: texts.titleMedium?.copyWith(color: palette.textFaint),

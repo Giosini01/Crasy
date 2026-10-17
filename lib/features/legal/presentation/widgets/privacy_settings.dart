@@ -1,6 +1,7 @@
 import 'package:crasy/core/legal/legal_documents.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
 import 'package:crasy/features/legal/presentation/controllers/consent_controller.dart';
 import 'package:crasy/features/legal/presentation/widgets/legal_sheet.dart';
@@ -36,10 +37,34 @@ class _PrivacySettings extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
     final texts = context.texts;
-    final profile = ref.watch(currentUserProfileProvider).valueOrNull;
+    final letto = ref.watch(currentUserProfileProvider);
+    final profile = letto.valueOrNull;
     final saving = ref.watch(consentControllerProvider).isLoading;
 
     if (profile == null) {
+      // **Mentre il profilo arriva, la fiamma.** Prima il foglio restava
+      // vuoto — il titolo, "Chiudi", e in mezzo niente — e sembrava che non ci
+      // fosse niente da scegliere, proprio sul foglio che esiste per dire che
+      // si puo' scegliere.
+      if (!letto.hasValue && !letto.hasError) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+          child: Center(child: FiammaCheGira(misura: 28)),
+        );
+      }
+
+      // Un profilo che non si legge non e' un profilo senza scelte: va detto,
+      // invece di lasciare il foglio muto.
+      if (letto.hasError) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.md),
+          child: Text(
+            'Non riusciamo a leggere le tue scelte. Riprova fra poco.',
+            style: texts.bodyMedium?.copyWith(color: palette.textSecondary),
+          ),
+        );
+      }
+
       return const SizedBox.shrink();
     }
 

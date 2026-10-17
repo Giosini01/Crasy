@@ -8,6 +8,20 @@ final profileEditControllerProvider =
       ProfileEditController.new,
     );
 
+/// **La foto del profilo, mentre sale e com'e' andata.**
+///
+/// `AsyncLoading` finche' sale, `AsyncError` se non e' arrivata. Serve al
+/// profilo per mettere la fiamma sulla foto e per dire quando non e' andata:
+/// prima non lo guardava nessuno, e una foto che non saliva restava quella di
+/// prima senza una parola.
+///
+/// **Sta a parte dallo stato del controller** perche' quello e' lo stesso
+/// anche per la biografia: guardando lui, la fiamma sulla foto girerebbe
+/// anche mentre si salva una riga di testo.
+final caricamentoFotoProvider = StateProvider<AsyncValue<void>>(
+  (ref) => const AsyncData<void>(null),
+);
+
 /// Le modifiche a un profilo gia' esistente.
 class ProfileEditController extends AsyncNotifier<void> {
   @override
@@ -42,7 +56,9 @@ class ProfileEditController extends AsyncNotifier<void> {
     }
 
     final bytes = await picked.readAsBytes();
+    final foto = ref.read(caricamentoFotoProvider.notifier);
 
+    foto.state = const AsyncLoading<void>();
     state = const AsyncLoading<void>();
     state = await AsyncValue.guard(
       () => ref
@@ -53,6 +69,7 @@ class ProfileEditController extends AsyncNotifier<void> {
             contentType: picked.mimeType,
           ),
     );
+    foto.state = state;
 
     return true;
   }

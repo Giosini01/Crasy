@@ -8,6 +8,16 @@ void main() {
     expect(const Wallet().canWithdraw, isFalse);
   });
 
+  test('il saldo e\' uno solo, ovunque stiano i soldi', () {
+    // I premi sul conto Stripe e quelli ancora su CRASY sono gli stessi soldi
+    // per chi li guarda: il prelievo si apre sul totale.
+    const wallet = Wallet(balanceCents: 1200, suStripeCents: 900);
+
+    expect(wallet.canWithdraw, isTrue);
+    expect(wallet.inCustodiaCents, 300);
+    expect(const Wallet(balanceCents: 500).inCustodiaCents, 500);
+  });
+
   test('un premio si legge in entrata, un prelievo in uscita', () {
     const prize = WalletMovement(
       id: 'a',

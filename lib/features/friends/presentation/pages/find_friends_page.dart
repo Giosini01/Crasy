@@ -2,6 +2,7 @@ import 'package:crasy/core/services/share/invite_friend.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/features/friends/data/repositories/contacts_repository.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/suggested_friend_row.dart';
@@ -102,7 +103,29 @@ class _FindFriendsPageState extends ConsumerState<FindFriendsPage> {
     // Null vuol dire "non ancora cercato", che non e' una rubrica vuota: vedi
     // il guasto che diceva "nessuno" prima ancora di guardare.
     if (rubrica == null) {
-      return Center(child: CircularProgressIndicator(color: palette.accent));
+      // **Senza chi legge la rubrica, la ricerca non parte mai.** Il
+      // notificatore dei suggeriti esce senza fare niente quando quel
+      // repository manca, e lo stato resta "non ancora cercato" per sempre: la
+      // fiamma avrebbe girato all'infinito su una cosa che non stava
+      // succedendo. Si dice in una riga, e si smette di aspettare.
+      if (ref.watch(contactsRepositoryProvider) == null) {
+        return ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(AppSpacing.page),
+          children: [
+            Text(
+              'Adesso non riusciamo a cercare nella rubrica. Riprova più '
+              'tardi.',
+              style: context.texts.bodyMedium?.copyWith(
+                color: palette.textFaint,
+              ),
+            ),
+          ],
+        );
+      }
+
+      // **Mentre cerca, la fiamma**: la stessa di ogni attesa dell'app.
+      return const Center(child: FiammaCheGira());
     }
 
     return ListView(

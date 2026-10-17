@@ -4,6 +4,7 @@ import 'package:crasy/core/utils/app_date_utils.dart';
 import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/features/payments/domain/entities/ledger_entry.dart';
 import 'package:crasy/features/payments/presentation/providers/payments_providers.dart';
 import 'package:flutter/material.dart';
@@ -39,7 +40,8 @@ class LedgerPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
-    final movimenti = ref.watch(ledgerProvider).valueOrNull;
+    final registro = ref.watch(ledgerProvider);
+    final movimenti = registro.valueOrNull;
 
     return Scaffold(
       appBar: AppBar(
@@ -48,9 +50,19 @@ class LedgerPage extends ConsumerWidget {
       ),
       body: AppBackground(
         child: switch (movimenti) {
-          null => Center(
-            child: CircularProgressIndicator(color: palette.accent),
+          // **Un guasto non e' un'attesa.** Anche un errore lascia l'elenco
+          // vuoto, e prima per questo la rotella girava per sempre: chi
+          // aspettava i suoi movimenti non avrebbe mai saputo che non
+          // sarebbero arrivati.
+          null when registro.hasError => const Padding(
+            padding: EdgeInsets.symmetric(horizontal: AppSpacing.page),
+            child: EmptyState(
+              title: 'Movimenti non disponibili',
+              message: 'Non riusciamo a leggerli. Riprova tra poco.',
+            ),
           ),
+          // Mentre arrivano, la fiamma: la stessa di ogni attesa dell'app.
+          null => const Center(child: FiammaCheGira()),
           [] => const Padding(
             padding: EdgeInsets.symmetric(horizontal: AppSpacing.page),
             child: EmptyState(

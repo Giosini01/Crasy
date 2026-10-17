@@ -4,6 +4,7 @@ import 'package:crasy/core/services/update/update_gate.dart';
 import 'package:crasy/core/theme/app_theme.dart';
 import 'package:crasy/core/widgets/keyboard_closer.dart';
 import 'package:crasy/core/widgets/opening_curtain.dart';
+import 'package:crasy/features/challenges/presentation/controllers/coda_invio_controller.dart';
 import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:crasy/routing/app_router.dart';
 import 'package:flutter/material.dart';
@@ -53,7 +54,12 @@ class _CrasyAppState extends ConsumerState<CrasyApp> {
     // Ad app aperta no: sotto c'e' gia' quello che si stava guardando, e
     // rimettere la scheda delle gare sarebbe strappare via una schermata per
     // farne scivolare un'altra sopra — due movimenti per una cosa sola.
-    if (dove.daFermo) {
+    //
+    // **Tranne quando la scheda e' la destinazione.** Una missione nuova o la
+    // sfida del giorno non aprono niente sopra: senza questo, toccandole con
+    // l'app in sottofondo si restava dove si era, come se il tocco non fosse
+    // arrivato.
+    if (dove.daFermo || dove.apri == null) {
       router.go(dove.scheda);
     }
 
@@ -124,6 +130,40 @@ class _CrasyAppState extends ConsumerState<CrasyApp> {
     // per le notifiche che arrivano ad app aperta: il ritorno in primo piano lo
     // vede il codice nativo, questo caso lo vede solo Dart.
     ref.watch(pushBadgeProvider);
+
+    // **La coda d'invio si accende con l'app**, non con la pagina da cui si
+    // manda: gli scatti rimasti in sospeso dall'ultima volta ripartono appena
+    // si apre, e quelli lenti continuano mentre si guarda altro.
+    ref.watch(codaInvioProvider);
+
+    // **E quando uno arriva, o non puo' piu' arrivare, lo si dice**, dovunque
+    // si sia. La pagina da cui era partito e' chiusa da un pezzo.
+    ref.listen(esitiInvioProvider, (_, arrivo) {
+      final esito = arrivo.valueOrNull;
+
+      if (esito == null) {
+        return;
+      }
+
+      final per = esito.invio.challengeTitle.isEmpty
+          ? ''
+          : ' per "${esito.invio.challengeTitle}"';
+      final testo = esito.inGara
+          ? (esito.invio.isVideo
+                ? 'Il tuo video$per è in gara.'
+                : 'La tua foto$per è in gara.')
+          : esito.messaggio ?? 'Lo scatto non è partito.';
+
+      _avvisi.currentState
+        ?..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(testo),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+    });
 
     // **E qui si ascolta chi tocca una notifica.** Sta accanto al registro per
     // lo stesso motivo: il tocco puo' arrivare in qualunque momento — anche

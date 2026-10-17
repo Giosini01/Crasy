@@ -8,6 +8,7 @@ import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/birth_date_picker.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/onboarding/presentation/controllers/onboarding_controller.dart';
@@ -424,12 +425,8 @@ class _UsernameMark extends ConsumerWidget {
         .watch(usernameCheckProvider(username))
         .when(
           loading: () => const Padding(
-            padding: EdgeInsets.all(AppSpacing.sm),
-            child: SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
+            padding: EdgeInsets.all(AppSpacing.xs),
+            child: FiammaCheGira(misura: 24),
           ),
           // Se la lettura non riesce non si dice ne' si' ne' no: il nome verra'
           // controllato comunque al salvataggio, e una croce per un problema di

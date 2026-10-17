@@ -18,10 +18,12 @@ import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/entities/ritaglio.dart';
+import 'package:crasy/features/challenges/presentation/controllers/coda_invio_controller.dart';
 import 'package:crasy/features/challenges/presentation/controllers/participation_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/photo_editor.dart';
 import 'package:crasy/features/challenges/presentation/widgets/privacy_note.dart';
+import 'package:crasy/features/payments/presentation/widgets/collega_conto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
@@ -111,6 +113,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
     final challengeState = ref.watch(challengeProvider(widget.challengeId));
     final submitting = ref.watch(participationControllerProvider).isLoading;
     final myEntry = ref.watch(myEntryForChallengeProvider(widget.challengeId));
+    final inViaggio = ref.watch(invioPerGaraProvider(widget.challengeId));
 
     // **Mentre si lavora non si esce.**
     //
@@ -138,6 +141,11 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
     // si ritocca, si torna indietro, si chiude.
     return VeloDiAttesa(
       acceso: occupato,
+      // Mentre sale, quanto e' salito: con poca rete un video ci mette un
+      // minuto, e un numero che cresce dice che si sta muovendo.
+      testo: submitting && inViaggio != null && inViaggio.avanzamento > 0
+          ? '${(inViaggio.avanzamento * 100).round()}%'
+          : null,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Partecipa'),
@@ -147,7 +155,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
           children: [
             AppBackground(
               child: challengeState.when(
-                loading: () => const SizedBox.shrink(),
+                loading: () => const Center(child: FiammaCheGira()),
                 error: (_, _) => const _Notice(
                   title: 'Challenge non disponibile',
                   message: 'Non riusciamo a caricarla. Riprova tra poco.',
@@ -184,6 +192,14 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
                     );
                   }
 
+                  // **Finche' non si sa se sono gia' dentro, la fiamma.** Prima si
+                  // vedeva la fotocamera e un attimo dopo "hai gia' partecipato".
+                  final mie = ref.watch(myEntriesProvider);
+
+                  if (!mie.hasValue && !mie.hasError) {
+                    return const Center(child: FiammaCheGira());
+                  }
+
                   // Chi ha gia' mandato la sua foto non vede nemmeno la fotocamera:
                   // il limite si spiega prima, non dopo lo scatto.
                   if (myEntry != null) {
@@ -192,6 +208,24 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
                       message:
                           'Si manda una foto sola per challenge, e la tua è già '
                           'in gara. La trovi nel feed insieme a quelle degli altri.',
+                    );
+                  }
+
+                  // **Lo scatto c'e' gia', sta solo salendo.** Con poca rete
+                  // resta in coda sul telefono e parte da solo: rifarlo qui
+                  // vorrebbe dire mandarne due per una gara che ne accetta uno.
+                  if (inViaggio != null && !submitting) {
+                    final cosa = inViaggio.isVideo
+                        ? 'Il tuo video è salvato'
+                        : 'La tua foto è salvata';
+
+                    return _Notice(
+                      title: 'Sta partendo',
+                      message:
+                          '$cosa sul telefono e sta salendo'
+                          '${inViaggio.avanzamento > 0 ? ' (${(inViaggio.avanzamento * 100).round()}%)' : ''}. '
+                          'Parte da sola anche se chiudi questa pagina: ti '
+                          'avvisiamo quando è in gara.',
                     );
                   }
 
@@ -236,6 +270,17 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
   }
 
   Future<void> _capture(Challenge challenge) async {
+    // **Una gara con dei soldi chiede, prima, il conto per riceverli.** Il
+    // premio va su un conto Stripe a nome di chi vince, non su CRASY: va
+    // collegato una volta, e il momento giusto e' prima dello scatto — dopo,
+    // con la foto gia' fatta, sarebbe un modulo fra la persona e l'invio.
+    // Le gare gratis non chiedono niente.
+    if (challenge.prizeCents > 0 && !challenge.isDaily) {
+      if (!await assicuratiIlConto(context, ref) || !mounted) {
+        return;
+      }
+    }
+
     // L'anteprima si spegne **prima** che la fotocamera parta, non dopo: il
     // microfono lo si contende all'apertura.
     setState(() {
@@ -554,7 +599,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
       return;
     }
 
-    final sent = await ref
+    final esito = await ref
         .read(participationControllerProvider.notifier)
         .submit(
           challengeId: challenge.id,
@@ -569,7 +614,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
       return;
     }
 
-    if (!sent) {
+    if (esito == EsitoPartecipazione.fallita) {
       final error = ref.read(participationControllerProvider).error;
 
       setState(() {
@@ -586,7 +631,23 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
     final messenger = ScaffoldMessenger.of(context);
 
     Navigator.of(context).pop();
-    messenger.showSnackBar(const SnackBar(content: Text('Sei in gara.')));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          esito == EsitoPartecipazione.inGara
+              ? 'Sei in gara.'
+              // **Con poca rete non si aspetta qui.** Lo scatto e' gia' sul
+              // telefono e parte da solo: si puo' usare l'app, e quando e' in
+              // gara arriva l'avviso.
+              : media.isVideo
+              ? 'La rete è lenta: il video è salvato e sta partendo. Ti '
+                    'avvisiamo quando è in gara.'
+              : 'La rete è lenta: la foto è salvata e sta partendo. Ti '
+                    'avvisiamo quando è in gara.',
+        ),
+        duration: const Duration(seconds: 5),
+      ),
+    );
   }
 }
 

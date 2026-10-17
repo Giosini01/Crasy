@@ -1,4 +1,5 @@
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:flutter/material.dart';
 
 /// Il comando principale: rosso pieno, a tutta larghezza, etichetta maiuscola.
@@ -29,15 +30,10 @@ class CrasyButton extends StatelessWidget {
 
     return ElevatedButton(
       onPressed: loading ? null : onPressed,
+      // **Mentre lavora, la fiamma che gira**: la stessa del velo e di ogni
+      // altra attesa dell'app, piccola quanto l'etichetta che sostituisce.
       child: loading
-          ? SizedBox(
-              height: 18,
-              width: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: palette.textFaint,
-              ),
-            )
+          ? FiammaCheGira(misura: 22, colore: palette.accent)
           : Text(label.toUpperCase()),
     );
   }

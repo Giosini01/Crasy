@@ -60,6 +60,9 @@ class CommentSender {
 
     final profile = _ref.read(currentUserProfileProvider).valueOrNull;
     final autore = profile?.username ?? 'anonimo';
+    // Negli avvisi il nome vero o nessuno: le regole rifiutano un avviso
+    // firmato con un nome che non e' il proprio, e "anonimo" non lo e'.
+    final firma = profile?.username ?? '';
 
     // Solo i nominati che compaiono davvero nel testo. Fra il tocco sul
     // suggerimento e l'invio si puo' cancellare mezzo commento, e chi e' stato
@@ -102,7 +105,7 @@ class CommentSender {
       _avvisaNominati(
         nominati,
         actorId: authState.user.id,
-        actorUsername: autore,
+        actorUsername: firma,
         challengeId: challengeId,
         entryId: entryId,
         commentId: commentId,
@@ -124,7 +127,7 @@ class CommentSender {
           entryId,
           commentId: commentId,
           actorId: authState.user.id,
-          actorUsername: autore,
+          actorUsername: firma,
           challengeId: challengeId,
           challengeTitle: challengeTitle,
         ),

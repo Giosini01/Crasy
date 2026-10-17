@@ -227,12 +227,16 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
     // **`private` c'e' dentro, e prima non c'era.** Li' stanno il numero di
     // telefono e i dati per il bonifico: cancellare l'account lasciandoli
     // indietro vuol dire promettere l'oblio e tenersi il codice fiscale.
+    // **E i telefoni.** Senza, il recapito restava sotto un account che non
+    // esiste piu', e le regole lasciano cancellarlo solo finche' si e' dentro:
+    // questo e' l'ultimo momento in cui si puo'.
     for (final collezione in [
       'notifications',
       'votes',
       'friendRequests',
       'following',
       'private',
+      'devices',
     ]) {
       await _eraseCollection(user.collection(collezione));
     }

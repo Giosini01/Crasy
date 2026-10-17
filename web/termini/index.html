@@ -91,27 +91,39 @@ footer a { margin-right: 18px; text-decoration: none; }
 </div>
 <div class="foglio">
   <h1>Termini e Condizioni<span class="punto">.</span></h1>
-  <p class="data">Versione 0.1-bozza</p>
+  <p class="data">Versione 0.2-bozza</p>
   <p>Documento in versione di prova per la fase beta. Il testo definitivo sarà pubblicato prima dell'apertura al pubblico, e ti verrà chiesto di prenderne visione.</p>
 <h2>1. COS'È CRASY</h2>
-<p>CRASY è un'applicazione in cui una persona lancia una missione mettendo in palio del denaro e altre persone vi partecipano con una foto o un video. Chi altre persone vi partecipano con una foto o un video. Alla scadenza il premio va all'opera che ha ricevuto più apprezzamenti dagli altri utenti. Non è un gioco di sorte e non è una scommessa: l'esito dipende dal valore riconosciuto all'opera, non dal caso, e non si paga nulla per partecipare.</p>
+<p>CRASY è un'applicazione in cui una persona lancia una missione mettendo in palio del denaro e altre persone vi partecipano con una foto o un video. Alla scadenza il premio va all'opera che ha ricevuto più apprezzamenti dagli altri utenti. Non è un gioco di sorte e non è una scommessa: l'esito dipende dal valore riconosciuto all'opera, non dal caso, e non si paga nulla per partecipare.</p>
 <h2>2. CHI PUÒ ISCRIVERSI</h2>
 <p>Solo chi ha compiuto 18 anni. Un account per persona, con dati veri. Un account può essere sospeso o chiuso se i dati sono falsi, se si creano più account per la stessa persona o se si violano queste regole.</p>
 <h2>3. PARTECIPARE</h2>
 <p>La partecipazione è gratuita. Ogni giorno si può partecipare a un numero limitato di missioni e si dispone di un numero limitato di fiamme per missione: i limiti sono indicati nell'app e possono cambiare. È vietato partecipare con contenuti non propri, con contenuti che ritraggono altre persone senza il loro consenso, con contenuti illegali, violenti, sessuali, diffamatori o che mettano in pericolo chi li realizza.</p>
 <h2>4. IL PREMIO</h2>
-<p>Chi lancia la missione mette in palio una somma e la versa a CRASY, che la trattiene fino alla chiusura. Alla scadenza il premio va alla partecipazione che ha ricevuto più fiamme dagli altri utenti; a parità di fiamme vince chi ha inviato per primo. Sul premio CRASY trattiene una percentuale, indicata nell'app prima del pagamento. Il resto viene accreditato al vincitore. Le somme sono corrispettivi per un'opera: possono avere rilevanza fiscale per chi le riceve, ed è responsabilità del percettore dichiararle secondo la normativa applicabile.</p>
-<h2>5. LE MISSIONI VIETATE</h2>
+<p>Chi lancia la missione mette in palio una somma e la paga tramite Stripe, l'istituto di pagamento di cui CRASY si serve. Fino alla chiusura della missione la somma resta sul conto di pagamento di CRASY presso Stripe. Alla scadenza il premio va alla partecipazione che ha ricevuto più fiamme dagli altri utenti; a parità di fiamme vince chi ha inviato per primo.</p>
+<p>CRASY riceve il premio <strong>in nome e per conto di chi lo ha messo in palio</strong>, al solo scopo di consegnarlo al vincitore. Quelle somme non sono ricavi di CRASY e restano di chi le ha versate fino al momento in cui vengono trasferite al vincitore. Il corrispettivo di CRASY è unicamente la percentuale trattenuta sul premio, indicata nell'app prima del pagamento; il resto va al vincitore.</p>
+<p>Le somme ricevute dal vincitore sono corrispettivi per un'opera: possono avere rilevanza fiscale per chi le riceve, ed è responsabilità del percettore dichiararle secondo la normativa applicabile.</p>
+<h2>5. IL CONTO PER RICEVERE I PREMI</h2>
+<p>Per partecipare alle missioni con un premio in denaro serve un conto di pagamento a proprio nome presso Stripe (servizio Stripe Connect). Si apre una volta, fornendo i dati richiesti dalla legge per chi riceve denaro: identità, codice fiscale, IBAN e, quando Stripe lo richiede, un documento d'identità. Il conto è intestato a chi lo apre ed è regolato dalle condizioni di Stripe, che si accettano aprendolo.</p>
+<p>CRASY non custodisce le somme vinte. Alla chiusura della missione il premio, al netto della percentuale di CRASY, viene trasferito sul conto Stripe del vincitore. Da lì il vincitore può trasferirlo sul proprio conto bancario a partire dall'importo minimo indicato nell'app. Le somme possono diventare disponibili alcuni giorni dopo la vittoria, secondo i tempi di Stripe.</p>
+<p>Se il trasferimento non è possibile, per esempio perché il conto non è ancora stato aperto, CRASY tiene la somma in nome e per conto del vincitore finché il trasferimento diventa possibile, oppure gliela versa con bonifico sul conto bancario da lui indicato.</p>
+<h2>6. USARE I PREMI PER LANCIARE UNA MISSIONE</h2>
+<p>Chi ne dà espresso consenso nell'app autorizza CRASY ad addebitare sul proprio conto Stripe l'importo del premio di una missione che sceglie di pagare con il proprio saldo: solo nel momento in cui lo sceglie, e solo per quella missione. Il consenso si può revocare in qualunque momento scrivendo al contatto indicato; la revoca non riguarda le missioni già pagate.</p>
+<h2>7. QUANDO IL PREMIO TORNA INDIETRO</h2>
+<p>Se alla missione non partecipa nessuno, il premio torna per intero a chi lo aveva messo, spese comprese.</p>
+<p>Se invece è chi ha lanciato la missione a cancellarla, torna indietro il premio: restano fuori le spese del pagamento, già sostenute e non recuperabili, e la percentuale di CRASY. Una missione non si può cancellare dal momento in cui qualcuno vi ha partecipato.</p>
+<p>I rimborsi vengono disposti subito ma l'accredito sulla carta dipende dalla banca di chi lo riceve, e richiede di norma alcuni giorni lavorativi.</p>
+<h2>8. LE MISSIONI VIETATE</h2>
 <p>Non si possono lanciare missioni che chiedano di compiere reati, di mettersi in pericolo, di farsi del male, di molestare o riprendere persone che non hanno acconsentito, o che abbiano contenuto sessuale. CRASY può rimuovere una missione e restituire il premio a chi l'ha messo.</p>
-<h2>6. MODERAZIONE</h2>
+<h2>9. MODERAZIONE</h2>
 <p>CRASY può rimuovere contenuti e sospendere account che violano queste regole, anche senza preavviso quando il contenuto è gravemente lesivo. Chi ritiene la rimozione sbagliata può contestarla scrivendo al contatto indicato.</p>
-<h2>7. RESPONSABILITÀ</h2>
+<h2>10. RESPONSABILITÀ</h2>
 <p>CRASY mette a disposizione una piattaforma. Quello che le persone fanno per partecipare lo fanno sotto la propria responsabilità: CRASY non è il datore di lavoro di nessuno e non è presente quando un contenuto viene realizzato. CRASY non risponde di danni derivanti da condotte imprudenti o illecite di chi partecipa, né dei rapporti fra utenti. Nulla in queste condizioni esclude o limita la responsabilità che la legge non consente di escludere, in particolare verso i consumatori.</p>
-<h2>8. CHIUDERE L'ACCOUNT</h2>
-<p>Si può chiudere il proprio account in qualunque momento. Le somme già maturate restano dovute; i contenuti già pubblicati vengono rimossi secondo quanto indicato nell'informativa privacy.</p>
-<h2>9. MODIFICHE</h2>
+<h2>11. CHIUDERE L'ACCOUNT</h2>
+<p>Si può chiudere il proprio account in qualunque momento. Le somme già maturate restano dovute: quelle sul conto Stripe restano del titolare del conto, e vanno trasferite sul proprio conto bancario prima della chiusura. I contenuti già pubblicati vengono rimossi secondo quanto indicato nell'informativa privacy.</p>
+<h2>12. MODIFICHE</h2>
 <p>Queste condizioni possono cambiare. Le modifiche rilevanti vengono comunicate e richiedono una nuova accettazione prima di continuare a usare l'app.</p>
-<h2>10. LEGGE E FORO</h2>
+<h2>13. LEGGE E FORO</h2>
 <p>Si applica la legge italiana. Per i consumatori resta ferma la competenza del giudice del luogo di residenza o domicilio.</p>
   <footer>
     <a href="/">CRASY</a>

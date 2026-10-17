@@ -40,7 +40,8 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
-const { avvisaChiLHaMandata } = require('./avvisi');
+const { avvisaChiLHaMandata, togliLAvvisoDiRimozione } = require('./avvisi');
+const { liberaLeFiamme } = require('./fiamme');
 
 const db = admin.firestore();
 
@@ -334,6 +335,9 @@ exports.adminResolveReport = onCall(
           String(dati.challengeId || ''),
           String(adesso.get('challengeTitle') || dati.challengeTitle || '')
         );
+
+        // Le fiamme che aveva preso tornano a chi gliele aveva date.
+        await liberaLeFiamme(String(dati.challengeId || ''), foto.id);
       }
 
       if (decisione === 'fake') {
@@ -360,6 +364,13 @@ exports.adminResolveReport = onCall(
         }
 
         await foto.update(rimessa);
+
+        if (rimessa.moderation === 'approved') {
+          await togliLAvvisoDiRimozione(
+            String(dati.reportedUserId || adesso.get('userId') || ''),
+            String(dati.challengeId || '')
+          );
+        }
       }
     }
   }
@@ -528,6 +539,11 @@ exports.adminRimettiFoto = onCall(async (request) => {
 
   if (esito === 'sparita') {
     throw new HttpsError('not-found', 'La foto non c\'è più.');
+  }
+
+  if (esito === 'rimessa') {
+    // La partecipazione si chiama come chi l'ha mandata.
+    await togliLAvvisoDiRimozione(entryId, challengeId);
   }
 
   logger.info('foto rimessa in gara', { challengeId, entryId, admin: chi, esito });

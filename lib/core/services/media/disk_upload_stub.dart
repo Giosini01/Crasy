@@ -10,8 +10,9 @@ const bool caricamentoDaDiscoDisponibile = false;
 Future<void> caricaDalDisco(
   Reference riferimento,
   String percorso,
-  SettableMetadata dati,
-) => throw UnsupportedError('Sul web non ci sono file su disco.');
+  SettableMetadata dati, {
+  void Function(double avanzamento)? suAvanzamento,
+}) => throw UnsupportedError('Sul web non ci sono file su disco.');
 
 /// Sul web non c'e' nessun file da mettere al riparo.
 Future<String> mettiAlSicuro(String origine) async => '';

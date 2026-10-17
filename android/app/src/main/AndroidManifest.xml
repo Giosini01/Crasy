@@ -100,6 +100,12 @@
         <meta-data
             android:name="com.google.android.gms.wallet.api.enabled"
             android:value="true" />
+        <!-- Il canale con il suono di CRASY: lo crea MainActivity, e qui
+             diventa quello di tutte le notifiche che non ne dicono un altro.
+             Da Android 8 il suono lo decide il canale, non chi manda. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="crasy" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

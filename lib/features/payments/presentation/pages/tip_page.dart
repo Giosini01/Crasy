@@ -2,6 +2,7 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/payments/presentation/providers/payments_providers.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
@@ -83,6 +84,11 @@ class _TipPageState extends ConsumerState<TipPage> {
       }
 
       if (fatto) {
+        // **Il velo si spegne prima del grazie.** Il pagamento e' finito, e
+        // lasciato acceso starebbe sotto il dialogo: una fiamma che gira dietro
+        // "Grazie!", come se mancasse ancora qualcosa.
+        setState(() => _pago = false);
+
         await showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
@@ -124,107 +130,115 @@ class _TipPageState extends ConsumerState<TipPage> {
     final euro = _importo;
     final conSpunta = euro >= _perIlVerificato;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Sostieni CRASY')),
-      body: AppBackground(
-        child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.page),
-          children: [
-            Text(
-              'CRASY lo fanno poche persone, la sera, dopo il lavoro. Una mancia '
-              'le aiuta a tenerlo vivo.',
-              style: texts.bodyMedium?.copyWith(color: palette.textSecondary),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: palette.accentTint,
-                borderRadius: BorderRadius.circular(12),
+    // **Mentre si paga, lo schermo e' coperto**, come per le missioni. Fra il
+    // tocco e il foglio di Stripe passano dei secondi, e in quei secondi i
+    // campi, le cifre e la freccia indietro restavano li', toccabili: si
+    // cambiava l'importo di un pagamento gia' partito, o si usciva lasciandolo
+    // a meta'.
+    return VeloDiAttesa(
+      acceso: _pago,
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Sostieni CRASY')),
+        body: AppBackground(
+          child: ListView(
+            padding: const EdgeInsets.all(AppSpacing.page),
+            children: [
+              Text(
+                'CRASY lo fanno poche persone, la sera, dopo il lavoro. Una mancia '
+                'le aiuta a tenerlo vivo.',
+                style: texts.bodyMedium?.copyWith(color: palette.textSecondary),
               ),
-              child: Row(
-                children: [
-                  const VerifiedBadge(size: 22),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      'Da $_perIlVerificato € in su, il nome che scrivi qui '
-                      'sotto diventa verificato per sempre.',
-                      style: texts.bodySmall,
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: palette.accentTint,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const VerifiedBadge(size: 22),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        'Da $_perIlVerificato € in su, il nome che scrivi qui '
+                        'sotto diventa verificato per sempre.',
+                        style: texts.bodySmall,
+                      ),
                     ),
-                  ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              Text(
+                'QUANTO',
+                style: texts.labelSmall?.copyWith(color: palette.textFaint),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  for (final e in _scelte)
+                    ChoiceChip(
+                      label: Text('$e €'),
+                      selected: _altro.text.isEmpty && _euro == e,
+                      onSelected: (_) => setState(() {
+                        _euro = e;
+                        _altro.clear();
+                      }),
+                    ),
                 ],
               ),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            Text(
-              'QUANTO',
-              style: texts.labelSmall?.copyWith(color: palette.textFaint),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Wrap(
-              spacing: AppSpacing.xs,
-              runSpacing: AppSpacing.xs,
-              children: [
-                for (final e in _scelte)
-                  ChoiceChip(
-                    label: Text('$e €'),
-                    selected: _altro.text.isEmpty && _euro == e,
-                    onSelected: (_) => setState(() {
-                      _euro = e;
-                      _altro.clear();
-                    }),
-                  ),
+              const SizedBox(height: AppSpacing.sm),
+              TextField(
+                controller: _altro,
+                decoration: const InputDecoration(
+                  labelText: 'Altra cifra, in euro',
+                  hintText: 'da 1 a 500',
+                ),
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                textInputAction: TextInputAction.done,
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              Text(
+                'CHI RICEVE LA SPUNTA',
+                style: texts.labelSmall?.copyWith(color: palette.textFaint),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              TextField(
+                controller: _username,
+                decoration: const InputDecoration(
+                  prefixText: '@',
+                  hintText: 'nome utente, anche il tuo',
+                ),
+                autocorrect: false,
+                textInputAction: TextInputAction.done,
+              ),
+              if (!conSpunta) ...[
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  'Sotto i $_perIlVerificato € è solo una mancia: la spunta no.',
+                  style: texts.bodySmall?.copyWith(color: palette.textFaint),
+                ),
               ],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            TextField(
-              controller: _altro,
-              decoration: const InputDecoration(
-                labelText: 'Altra cifra, in euro',
-                hintText: 'da 1 a 500',
-              ),
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              textInputAction: TextInputAction.done,
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            Text(
-              'CHI RICEVE LA SPUNTA',
-              style: texts.labelSmall?.copyWith(color: palette.textFaint),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            TextField(
-              controller: _username,
-              decoration: const InputDecoration(
-                prefixText: '@',
-                hintText: 'nome utente, anche il tuo',
-              ),
-              autocorrect: false,
-              textInputAction: TextInputAction.done,
-            ),
-            if (!conSpunta) ...[
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                'Sotto i $_perIlVerificato € è solo una mancia: la spunta no.',
-                style: texts.bodySmall?.copyWith(color: palette.textFaint),
+              if (_errore != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  _errore!,
+                  style: texts.bodySmall?.copyWith(color: palette.accent),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.xl),
+              CrasyButton(
+                label: conSpunta ? 'Dona $euro € e verifica' : 'Dona $euro €',
+                loading: _pago,
+                onPressed: _pago ? null : _paga,
               ),
             ],
-            if (_errore != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                _errore!,
-                style: texts.bodySmall?.copyWith(color: palette.accent),
-              ),
-            ],
-            const SizedBox(height: AppSpacing.xl),
-            CrasyButton(
-              label: conSpunta ? 'Dona $euro € e verifica' : 'Dona $euro €',
-              loading: _pago,
-              onPressed: _pago ? null : _paga,
-            ),
-          ],
+          ),
         ),
       ),
     );

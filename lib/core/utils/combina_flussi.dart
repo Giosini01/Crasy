@@ -112,3 +112,64 @@ Stream<R> combinaTre<A, B, C, R>(
     (coppia, c) => unisci(coppia.$1, coppia.$2, c),
   );
 }
+
+/// Come [combinaDue], con quanti flussi si vuole: emette l'elenco degli ultimi
+/// valori, nell'ordine dei flussi, appena **tutti** hanno detto qualcosa.
+Stream<List<T>> combinaTutti<T>(List<Stream<T>> flussi) {
+  if (flussi.isEmpty) {
+    return Stream.value(<T>[]);
+  }
+
+  if (flussi.length == 1) {
+    return flussi.single.map((valore) => [valore]);
+  }
+
+  late StreamController<List<T>> uscita;
+  final ascolti = <StreamSubscription<T>>[];
+  final ultimi = List<T?>.filled(flussi.length, null);
+  final arrivati = List<bool>.filled(flussi.length, false);
+
+  void parti() {
+    for (var i = 0; i < flussi.length; i++) {
+      ascolti.add(
+        flussi[i].listen(
+          (valore) {
+            ultimi[i] = valore;
+            arrivati[i] = true;
+
+            if (arrivati.every((arrivato) => arrivato)) {
+              uscita.add([for (final ultimo in ultimi) ultimo as T]);
+            }
+          },
+          // Vedi [combinaDue]: l'errore passa, non ferma.
+          onError: uscita.addError,
+        ),
+      );
+    }
+  }
+
+  Future<void> ferma() async {
+    for (final ascolto in ascolti) {
+      await ascolto.cancel();
+    }
+
+    ascolti.clear();
+  }
+
+  uscita = StreamController<List<T>>(
+    onListen: parti,
+    onCancel: ferma,
+    onPause: () {
+      for (final ascolto in ascolti) {
+        ascolto.pause();
+      }
+    },
+    onResume: () {
+      for (final ascolto in ascolti) {
+        ascolto.resume();
+      }
+    },
+  );
+
+  return uscita.stream;
+}

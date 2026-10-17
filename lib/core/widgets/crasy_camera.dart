@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:crasy/core/theme/app_colors.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -203,6 +204,14 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
         // che facciamo comunque e' stringerla.
         ResolutionPreset.high,
         enableAudio: widget.video,
+        // **Un video leggero sale prima, e arriva.** Senza un tetto il
+        // telefono registrava a quanto gli pareva — dieci megabit al secondo e
+        // piu' — e venti secondi diventavano venticinque megabyte: con poca
+        // rete non partivano proprio. A tre megabit lo stesso video pesa
+        // circa un terzo, e su uno schermo da telefono non si vede la
+        // differenza.
+        videoBitrate: widget.video ? 3000000 : null,
+        audioBitrate: widget.video ? 96000 : null,
       );
 
       await controller.initialize();
@@ -431,15 +440,9 @@ class _Riquadro extends StatelessWidget {
     }
 
     if (controller == null) {
+      // La fotocamera che si accende: la fiamma che gira, chiara sul nero.
       return const Center(
-        child: SizedBox(
-          width: 28,
-          height: 28,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: AppColors.paper,
-          ),
-        ),
+        child: FiammaCheGira(misura: 48, colore: AppColors.paper),
       );
     }
 

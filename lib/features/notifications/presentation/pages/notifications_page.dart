@@ -7,6 +7,7 @@ import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/utils/app_date_utils.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
@@ -143,6 +144,36 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
         unawaited(repository.markSeen(userId));
       }
     });
+  }
+
+  /// **Una push toccata con la campanella gia' aperta arriva qui.**
+  ///
+  /// L'app non apre una seconda campanella sopra la prima: rimpiazza quella
+  /// che c'e', e il router tiene in vita la stessa pagina con i parametri
+  /// nuovi. Senza questo, sezione e riga da accendere restavano quelle
+  /// dell'apertura: si toccava "nuovo commento" e la campanella restava ferma
+  /// sui LIKE, senza accendere niente.
+  @override
+  void didUpdateWidget(NotificationsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.sezione == oldWidget.sezione &&
+        widget.evidenzia == oldWidget.evidenzia) {
+      return;
+    }
+
+    _spegnimento?.cancel();
+    _spegnimento = null;
+    _accesa = widget.evidenzia;
+    _sezioneScelta = false;
+
+    // E' arrivata una notizia mentre si guardava: anche questa e' vista.
+    final repository = ref.read(notificationsRepositoryProvider);
+    final userId = ref.read(currentUserIdProvider);
+
+    if (repository != null && userId != null) {
+      unawaited(repository.markSeen(userId));
+    }
   }
 
   @override
@@ -291,10 +322,18 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
         if (riga.createdAt != null && riga.createdAt!.isBefore(soglia)) riga,
     ];
 
+    // **Mentre arrivano, la fiamma.** La lista si costruisce da piu' letture, e
+    // finche' la prima non e' arrivata e' vuota: prima compariva "Non ci sono
+    // notifiche" a chi ne aveva dieci nuove.
+    final scritte = ref.watch(storedNotificationsProvider);
+    final inArrivo = !scritte.hasValue && !scritte.hasError;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Notifiche')),
       body: AppBackground(
-        child: notifications.isEmpty
+        child: inArrivo && notifications.isEmpty
+            ? const Center(child: FiammaCheGira())
+            : notifications.isEmpty
             ? const Padding(
                 padding: EdgeInsets.symmetric(horizontal: AppSpacing.page),
                 child: EmptyState(
@@ -347,11 +386,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
 
 /// Cosa si sta guardando nella campanella.
 ///
-/// **Due sole, e una e' sempre scelta.** Il "tutto" di prima rimetteva insieme
-/// quello che le sezioni erano state fatte per separare, e le richieste di
-/// amicizia sono sparite del tutto: hanno gia' la loro scheda, con i comandi
-/// per accettare o rifiutare, e tenerne due elenchi vuol dire doverli tenere
-/// d'accordo.
+/// **Una e' sempre scelta.** Il "tutto" di prima rimetteva insieme quello che
+/// le sezioni erano state fatte per separare.
 final notificationFilterProvider = StateProvider.autoDispose<NotificationGroup>(
   (ref) => NotificationGroup.wins,
 );

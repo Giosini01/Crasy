@@ -8,7 +8,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/entities/ritaglio.dart';
-import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
+import 'package:crasy/features/challenges/presentation/controllers/coda_invio_controller.dart';
 import 'package:crasy/features/challenges/presentation/controllers/duel_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/notifications/data/repositories/firestore_notifications_repository.dart';
@@ -115,6 +115,19 @@ class PickedMedia {
   bool get inMemoria => bytes.isNotEmpty;
 }
 
+/// Com'e' andato un invio, visto dalla pagina che l'ha fatto partire.
+enum EsitoPartecipazione {
+  /// E' in gara.
+  inGara,
+
+  /// E' salvato sul telefono e sta partendo da solo: con poca rete ci mette
+  /// di piu', e non serve aspettarlo qui.
+  partira,
+
+  /// Non e' partito: il perche' sta nello stato del controllore.
+  fallita,
+}
+
 final participationControllerProvider =
     AsyncNotifierProvider<ParticipationController, void>(
       ParticipationController.new,
@@ -152,12 +165,9 @@ class DuelDeclinedException implements Exception {
 }
 
 class ParticipationController extends AsyncNotifier<void> {
-  late final ChallengeRepository _challenges;
-
+  // L'invio passa dalla coda: qui non serve tenere niente.
   @override
-  void build() {
-    _challenges = ref.watch(challengeRepositoryProvider);
-  }
+  void build() {}
 
   /// Apre la fotocamera. Torna `null` se l'utente ha rinunciato, che non e' un
   /// errore e non deve produrre un messaggio.
@@ -364,9 +374,10 @@ class ParticipationController extends AsyncNotifier<void> {
     );
   }
 
-  /// Manda la partecipazione. Torna `true` solo se e' arrivata a destinazione,
-  /// cosi' la schermata sa se puo' chiudersi.
-  Future<bool> submit({
+  /// Manda la partecipazione, passando dalla coda d'invio: vedi
+  /// `InvioInAttesa`. Dice alla schermata se e' gia' in gara, se sta partendo
+  /// da sola, o se non e' partita affatto.
+  Future<EsitoPartecipazione> submit({
     required String challengeId,
     required PickedMedia media,
     String caption = '',
@@ -382,7 +393,7 @@ class ParticipationController extends AsyncNotifier<void> {
         StackTrace.current,
       );
 
-      return false;
+      return EsitoPartecipazione.fallita;
     }
 
     // **Cinque gare al giorno, e poi si aspetta domani.** Il controllo sta qui
@@ -411,69 +422,88 @@ class ParticipationController extends AsyncNotifier<void> {
         StackTrace.current,
       );
 
-      return false;
+      return EsitoPartecipazione.fallita;
     }
 
-    if (!daily && !sfidaMirata && ref.read(livesLeftProvider) <= 0) {
+    // **Le partecipazioni in viaggio contano gia'.** Con poca rete restano in
+    // coda per un po', e senza contarle se ne potevano mandare sei.
+    final rimaste =
+        ref.read(livesLeftProvider) - ref.read(partecipazioniInViaggioProvider);
+
+    if (!daily && !sfidaMirata && rimaste <= 0) {
       state = AsyncError<void>(const OutOfLivesException(), StackTrace.current);
 
-      return false;
+      return EsitoPartecipazione.fallita;
     }
 
     final profile = ref.read(currentUserProfileProvider).valueOrNull;
 
     state = const AsyncLoading<void>();
-    final result = await AsyncValue.guard(
-      () => _challenges.submitEntry(
+
+    try {
+      // **Prima si salva sul telefono, poi parte.** Si aspetta un po' — con
+      // una rete normale e' in gara prima che finisca la fiamma — e se ci
+      // mette di piu' continua da sola: la pagina si chiude e si puo' usare
+      // l'app. Vedi `CodaInvio`.
+      final arrivata = await ref
+          .read(codaInvioProvider.notifier)
+          .manda(
+            challengeId: challengeId,
+            challengeTitle: sfida?.title ?? '',
+            userId: authState.user.id,
+            // Il nome viaggia insieme alla partecipazione. Il feed mostra foto
+            // di persone diverse: senza questo campo ogni riga costringerebbe
+            // a leggere anche il profilo di chi l'ha scattata.
+            authorName: profile?.username ?? 'anonimo',
+            media: media,
+            // La didascalia viaggia con la foto e nasce con lei: le regole non
+            // danno all'autore nessun permesso di aggiornare la propria
+            // partecipazione, quindi non si potrebbe aggiungere dopo nemmeno
+            // volendo.
+            caption: caption,
+            muted: muted,
+            daily: daily || sfidaMirata,
+            ritaglio: ritaglio,
+            attesa: const Duration(seconds: 25),
+          );
+
+      state = const AsyncData<void>(null);
+
+      return arrivata
+          ? EsitoPartecipazione.inGara
+          : EsitoPartecipazione.partira;
+    } on Object catch (errore, traccia) {
+      state = AsyncError<void>(errore, traccia);
+
+      return EsitoPartecipazione.fallita;
+    }
+  }
+
+  /// **Quello che succede quando una partecipazione arriva in gara.** Lo
+  /// chiama la coda d'invio, che puo' finire anche molto dopo che la pagina si
+  /// e' chiusa.
+  Future<void> dopoLInvio({
+    required String challengeId,
+    required String userId,
+    required String username,
+  }) async {
+    // Chi ha lanciato la challenge deve sapere che qualcuno l'ha raccolta.
+    // E' la notizia piu' importante che l'app abbia da dare: ha messo dei
+    // soldi e qualcuno e' uscito di casa per prenderli.
+    unawaited(
+      _notifyOwner(
         challengeId: challengeId,
-        mediaKind: media.isVideo ? MediaKind.video : MediaKind.photo,
-        userId: authState.user.id,
-        // Il nome viaggia insieme alla partecipazione. Il feed mostra foto di
-        // persone diverse: senza questo campo ogni riga costringerebbe a
-        // leggere anche il profilo di chi l'ha scattata.
-        authorName: profile?.username ?? 'anonimo',
-        bytes: media.bytes,
-        filePath: media.filePath,
-        contentType: media.contentType,
-        // La didascalia viaggia con la foto e nasce con lei: le regole non
-        // danno all'autore nessun permesso di aggiornare la propria
-        // partecipazione, quindi non si potrebbe aggiungere dopo nemmeno
-        // volendo.
-        caption: caption,
-        muted: muted,
-        ritaglio: ritaglio,
+        actorId: userId,
+        actorUsername: username,
       ),
     );
 
-    state = result.hasError
-        ? AsyncError<void>(result.error!, result.stackTrace!)
-        : const AsyncData<void>(null);
-
-    if (!result.hasError) {
-      // La copia ha fatto il suo mestiere: se restasse, ogni video registrato
-      // occuperebbe il telefono per sempre.
-      unawaited(buttaLaCopia(media.filePath ?? ''));
-
-      // Chi ha lanciato la challenge deve sapere che qualcuno l'ha raccolta.
-      // E' la notizia piu' importante che l'app abbia da dare: ha messo dei
-      // soldi e qualcuno e' uscito di casa per prenderli.
-      unawaited(
-        _notifyOwner(
-          challengeId: challengeId,
-          actorId: authState.user.id,
-          actorUsername: profile?.username ?? '',
-        ),
-      );
-
-      // **Una sfida si chiude mandando la foto, non premendo un tasto.**
-      //
-      // Un comando "l'ho fatta" separato dallo scatto sarebbe una promessa che
-      // chiunque puo' scrivere senza fare niente, e su una cosa che sta in
-      // piedi sull'onore quella e' l'unica cosa che non deve poter succedere.
-      unawaited(_chiudiLaSfida(challengeId, authState.user.id));
-    }
-
-    return !result.hasError;
+    // **Una sfida si chiude mandando la foto, non premendo un tasto.**
+    //
+    // Un comando "l'ho fatta" separato dallo scatto sarebbe una promessa che
+    // chiunque puo' scrivere senza fare niente, e su una cosa che sta in
+    // piedi sull'onore quella e' l'unica cosa che non deve poter succedere.
+    unawaited(_chiudiLaSfida(challengeId, userId));
   }
 
   /// Segna come portata a termine la sfida a cui questa foto risponde.
@@ -501,7 +531,10 @@ class ParticipationController extends AsyncNotifier<void> {
     final notifications = ref.read(notificationsRepositoryProvider);
     final challenge = ref.read(challengeProvider(challengeId)).valueOrNull;
 
-    if (notifications == null || challenge == null) {
+    // **Su una sfida la notizia e' "l'ha portata a termine"**, e la manda
+    // gia' `_chiudiLaSfida`: con questa in piu' a chi l'aveva lanciata
+    // arrivavano due notifiche per la stessa foto.
+    if (notifications == null || challenge == null || challenge.isDuel) {
       return;
     }
 

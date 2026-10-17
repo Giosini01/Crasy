@@ -1,4 +1,6 @@
 import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
+import 'package:crasy/core/widgets/foto_dalla_rete.dart';
 import 'package:flutter/material.dart';
 
 /// Una foto sola, grande quanto lo schermo.
@@ -56,14 +58,22 @@ class _PhotoViewer extends StatelessWidget {
                 // nero e non si sa piu' come riportarla a posto.
                 child: InteractiveViewer(
                   maxScale: 4,
-                  child: Image.network(
-                    url,
+                  // Riprova da sola se la rete cede: vedi [FotoDallaRete].
+                  child: FotoDallaRete(
+                    url: url,
                     fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => const Padding(
-                      padding: EdgeInsets.all(AppSpacing.page),
-                      child: Text(
-                        'La foto non si carica.',
-                        style: TextStyle(color: Colors.white70),
+                    inAttesa: (context) => const Center(
+                      child: FiammaCheGira(colore: Colors.white),
+                    ),
+                    inErrore: (context, riprova) => GestureDetector(
+                      onTap: riprova,
+                      behavior: HitTestBehavior.opaque,
+                      child: const Padding(
+                        padding: EdgeInsets.all(AppSpacing.page),
+                        child: Text(
+                          'La foto non si carica. Tocca per riprovare.',
+                          style: TextStyle(color: Colors.white70),
+                        ),
                       ),
                     ),
                   ),

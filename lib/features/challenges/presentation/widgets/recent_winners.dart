@@ -3,6 +3,7 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/core/widgets/media_gestures.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
@@ -67,13 +68,23 @@ class _WinnerBlock extends ConsumerWidget {
     final palette = context.palette;
     final texts = context.texts;
     final winnerId = challenge.winnerEntryId;
-    final entries =
-        ref.watch(challengeEntriesProvider(challenge.id)).valueOrNull ??
-        const <ChallengeEntry>[];
+    final foto = ref.watch(challengeEntriesProvider(challenge.id));
+    final entries = foto.valueOrNull ?? const <ChallengeEntry>[];
 
     final winner = winnerId == null || winnerId.isEmpty
         ? null
         : entries.where((entry) => entry.id == winnerId).firstOrNull;
+
+    // **Il vincitore c'e', e la sua foto sta arrivando.** Prima questo
+    // momento diceva "Vincitore in arrivo." — la stessa frase di una gara che
+    // il vincitore non l'ha ancora — e un attimo dopo compariva la foto: si
+    // leggeva come una gara che cambiava idea. Mentre le foto arrivano, il
+    // riquadro della foto con la fiamma dentro.
+    final fotoInArrivo =
+        winnerId != null &&
+        winnerId.isNotEmpty &&
+        !foto.hasValue &&
+        !foto.hasError;
 
     return GestureDetector(
       onTap: () => context.push(AppRoutes.challengeDetailOf(challenge.id)),
@@ -109,6 +120,8 @@ class _WinnerBlock extends ConsumerWidget {
               'Non ha partecipato nessuno. Il premio torna a chi l\'ha messo.',
               style: texts.bodyMedium,
             )
+          else if (fotoInArrivo)
+            const _FotoInArrivo()
           else if (winner == null)
             Text('Vincitore in arrivo.', style: texts.bodyMedium)
           else ...[
@@ -180,6 +193,29 @@ class _WinnerBlock extends ConsumerWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Il posto della foto vincitrice, mentre arriva.
+///
+/// **Della stessa misura della foto**, quattro quinti a tutta larghezza, con
+/// lo stesso fondo e la stessa fiamma del riquadro di una foto che si carica:
+/// quando la foto si posa, la riga sotto non salta.
+class _FotoInArrivo extends StatelessWidget {
+  const _FotoInArrivo();
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.media),
+      child: AspectRatio(
+        aspectRatio: 4 / 5,
+        child: ColoredBox(
+          color: context.palette.surfaceMuted,
+          child: const Center(child: FiammaCheGira(misura: 32)),
+        ),
       ),
     );
   }

@@ -6,6 +6,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
+import 'package:crasy/features/challenges/domain/entities/file_caricato.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/entities/ritaglio.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
@@ -145,6 +146,9 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
     String caption = '',
     bool muted = false,
     Ritaglio? ritaglio,
+    void Function(double avanzamento)? suAvanzamento,
+    FileCaricato? giaCaricato,
+    void Function(FileCaricato caricato)? suCaricato,
   }) {
     return _forChallenge(challengeId).submitEntry(
       challengeId: challengeId,
@@ -160,6 +164,9 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
       caption: caption,
       muted: muted,
       ritaglio: ritaglio,
+      suAvanzamento: suAvanzamento,
+      giaCaricato: giaCaricato,
+      suCaricato: suCaricato,
     );
   }
 

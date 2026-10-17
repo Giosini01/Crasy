@@ -6,6 +6,8 @@ import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
+import 'package:crasy/core/widgets/foto_dalla_rete.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/core/widgets/media_gestures.dart';
 import 'package:crasy/core/widgets/photo_viewer.dart';
@@ -87,7 +89,9 @@ class PublicProfilePage extends ConsumerWidget {
       ),
       body: AppBackground(
         child: profileState.when(
-          loading: () => const SizedBox.shrink(),
+          // **Mentre arriva, la fiamma.** Prima sotto la barra restava il
+          // bianco, e chi arrivava da un link pensava che non ci fosse niente.
+          loading: () => const Center(child: FiammaCheGira()),
           error: (_, _) => const Padding(
             padding: EdgeInsets.symmetric(horizontal: AppSpacing.page),
             child: EmptyState(
@@ -131,23 +135,22 @@ class _BodyState extends ConsumerState<_Body> {
     final profile = widget.profile;
     final palette = context.palette;
     final texts = context.texts;
-    final entries =
-        ref.watch(entriesOfProvider(profile.id)).valueOrNull ?? const [];
-    final friends =
-        ref.watch(friendsOfProvider(profile.id)).valueOrNull ?? const [];
+    final suoiScatti = ref.watch(entriesOfProvider(profile.id));
+    final suoiAmici = ref.watch(friendsOfProvider(profile.id));
+    final gareAperte = ref.watch(liveChallengesProvider);
+    final suoiTrofei = ref.watch(trophiesOfProvider(profile.id));
+    final sueLanciate = ref.watch(commissionsOfProvider(profile.id));
+    final entries = suoiScatti.valueOrNull ?? const [];
+    final friends = suoiAmici.valueOrNull ?? const [];
     final prizeCents = ref.watch(prizeCentsOfProvider(profile.id));
     final wins = entries.where((entry) => entry.isWinner).length;
-    final liveChallenges =
-        ref.watch(liveChallengesProvider).valueOrNull ?? const <Challenge>[];
+    final liveChallenges = gareAperte.valueOrNull ?? const <Challenge>[];
     final shown = liveEntries(
       entries,
       liveChallenges.map((challenge) => challenge.id).toSet(),
     );
-    final trophies =
-        ref.watch(trophiesOfProvider(profile.id)).valueOrNull ?? const [];
-    final commissions = visibleCommissions(
-      ref.watch(commissionsOfProvider(profile.id)).valueOrNull ?? const [],
-    );
+    final trophies = suoiTrofei.valueOrNull ?? const [];
+    final commissions = visibleCommissions(sueLanciate.valueOrNull ?? const []);
 
     return ListView(
       padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
@@ -223,15 +226,26 @@ class _BodyState extends ConsumerState<_Body> {
           // soldi uno tenga sul conto adesso non e' affare di nessuno, e
           // scenderebbe ogni volta che preleva — cioe' proprio quando la
           // promessa e' stata mantenuta meglio.
+          //
+          // **Mentre i trofei arrivano, la fiamma al posto della cifra**: il
+          // totale si conta da quelli (vedi `prizeCentsOfProvider`), e prima
+          // il riquadro partiva grigio con "€ 0,00" anche per chi aveva vinto.
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
-            child: PrizeTotalCard(prizeCents: prizeCents),
+            child: PrizeTotalCard(
+              prizeCents: suoiTrofei.hasValue ? prizeCents : null,
+              caricando: !suoiTrofei.hasValue && !suoiTrofei.hasError,
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
+          // **Un numero che non si sa ancora e' un trattino, non uno zero.**
+          // SCATTI e VINTE vengono dalle sue partecipazioni, AMICI dal suo
+          // elenco: finche' non arrivano, uno zero direbbe di una persona che
+          // non ha mai fatto niente.
           _Stats(
-            entries: entries.length,
-            wins: wins,
-            friends: friends.length,
+            entries: suoiScatti.hasValue ? entries.length : null,
+            wins: suoiScatti.hasValue ? wins : null,
+            friends: suoiAmici.hasValue ? friends.length : null,
             onFriends: friends.isEmpty
                 ? null
                 : () => _mostraGliAmici(context, profile, friends),
@@ -241,32 +255,37 @@ class _BodyState extends ConsumerState<_Body> {
             selected: _shelf,
             onPick: (shelf) => setState(() => _shelf = shelf),
           ),
+          // **Ogni mensola aspetta la sua fonte**, come nel proprio profilo:
+          // vedi `_mensolaInAttesa`.
           switch (_shelf) {
             ProfileShelf.live =>
-              shown.isEmpty
-                  ? const _EmptyShelf(
-                      title: 'Non è in nessuna gara',
-                      message:
-                          'Quando partecipa a una challenge aperta lo vedi qui.',
-                    )
-                  : _EntryGrid(entries: shown),
+              _mensolaInAttesa([suoiScatti, gareAperte]) ??
+                  (shown.isEmpty
+                      ? const _EmptyShelf(
+                          title: 'Non è in nessuna gara',
+                          message:
+                              'Quando partecipa a una challenge aperta lo vedi qui.',
+                        )
+                      : _EntryGrid(entries: shown)),
             ProfileShelf.trophies =>
-              trophies.isEmpty
-                  ? const _EmptyShelf(
-                      title: 'Non ha ancora vinto',
-                      message: 'Le foto con cui vince restano qui.',
-                    )
-                  : TrophyGrid(challenges: trophies, kind: TrophyKind.won),
+              _mensolaInAttesa([suoiTrofei]) ??
+                  (trophies.isEmpty
+                      ? const _EmptyShelf(
+                          title: 'Non ha ancora vinto',
+                          message: 'Le foto con cui vince restano qui.',
+                        )
+                      : TrophyGrid(challenges: trophies, kind: TrophyKind.won)),
             ProfileShelf.commissioned =>
-              commissions.isEmpty
-                  ? const _EmptyShelf(
-                      title: 'Non ha ancora fatto fare niente',
-                      message:
-                          'Qui trovi le challenge che ha lanciato: quelle ancora '
-                          'aperte, in cui puoi entrare adesso, e le foto che ha '
-                          'fatto fare mettendo dei soldi in palio.',
-                    )
-                  : CommissionedShelf(challenges: commissions),
+              _mensolaInAttesa([sueLanciate]) ??
+                  (commissions.isEmpty
+                      ? const _EmptyShelf(
+                          title: 'Non ha ancora fatto fare niente',
+                          message:
+                              'Qui trovi le challenge che ha lanciato: quelle ancora '
+                              'aperte, in cui puoi entrare adesso, e le foto che ha '
+                              'fatto fare mettendo dei soldi in palio.',
+                        )
+                      : CommissionedShelf(challenges: commissions)),
           },
         ],
       ],
@@ -335,17 +354,71 @@ class _OfficialNote extends StatelessWidget {
 ///
 /// **Si segue da soli, si diventa amici in due.** Seguire fa vedere dove
 /// gareggia; se l'altro ricambia siete amici, e da li' si puo' sfidare.
-class _FriendshipAction extends ConsumerWidget {
+class _FriendshipAction extends ConsumerStatefulWidget {
   const _FriendshipAction({required this.profile});
 
   final UserProfile profile;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_FriendshipAction> createState() => _FriendshipActionState();
+}
+
+class _FriendshipActionState extends ConsumerState<_FriendshipAction> {
+  /// Se un tocco sta ancora scrivendo.
+  bool _occupato = false;
+
+  /// **Un tocco alla volta.** Seguire, smettere e ricambiare sono due o tre
+  /// scritture una dopo l'altra, e il tasto restava toccabile per tutto il
+  /// tempo: un secondo "Segui" a meta' strada mandava la richiesta due volte,
+  /// e un "Segui già" toccato nel mezzo la cancellava prima che finisse di
+  /// arrivare. Finche' non hanno finito, al posto del tasto gira la fiamma.
+  Future<void> _fai(Future<void> Function() azione) async {
+    if (_occupato) {
+      return;
+    }
+
+    setState(() => _occupato = true);
+
+    try {
+      await azione();
+    } on Object {
+      // Prima un rifiuto si perdeva per strada: il tasto tornava com'era e
+      // nessuno diceva che non era andata.
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(
+            content: Text('Non ci siamo riusciti. Riprova fra poco.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _occupato = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = widget.profile;
     final palette = context.palette;
-    final status =
-        ref.watch(friendshipStatusProvider(profile.id)).valueOrNull ??
-        FriendshipStatus.none;
+    final rapporto = ref.watch(friendshipStatusProvider(profile.id));
+
+    // Sul proprio profilo non c'e' niente da aspettare: il tasto non c'e'.
+    if (profile.id == ref.watch(currentUserIdProvider)) {
+      return const SizedBox.shrink();
+    }
+
+    // **Finche' non si sa che rapporto c'e', non si propone niente.** Prima
+    // compariva subito il rosso "Segui", anche sul profilo di un amico, e un
+    // attimo dopo diventava un'altra cosa: chi era svelto lo toccava, e
+    // mandava una richiesta a chi seguiva gia'. Un errore vale come prima:
+    // nessun rapporto.
+    if (!rapporto.hasValue && !rapporto.hasError) {
+      return const _TastoInAttesa();
+    }
+
+    final status = rapporto.valueOrNull ?? FriendshipStatus.none;
     final actions = ref.read(friendActionsProvider);
 
     switch (status) {
@@ -355,8 +428,10 @@ class _FriendshipAction extends ConsumerWidget {
       case FriendshipStatus.none:
         return CrasyButton(
           label: 'Segui',
-          onPressed: () =>
-              actions.send(profile.id, toUsername: profile.username),
+          loading: _occupato,
+          onPressed: () => _fai(
+            () => actions.send(profile.id, toUsername: profile.username),
+          ),
         );
 
       // Lo segui, lui non ancora: toccando si smette di seguirlo.
@@ -370,20 +445,29 @@ class _FriendshipAction extends ConsumerWidget {
           );
         }
 
+        // `SecondaryButton` non ha un'attesa sua: mentre lavora, il tasto
+        // lascia il posto alla fiamma.
+        if (_occupato) {
+          return const _TastoInAttesa();
+        }
+
         return SecondaryButton(
           label: 'Segui già',
           icon: Icons.check_rounded,
-          onPressed: () => actions.cancel(profile.id),
+          onPressed: () => _fai(() => actions.cancel(profile.id)),
         );
 
       // Ti segue: ricambiare vi fa diventare amici.
       case FriendshipStatus.requestReceived:
         return CrasyButton(
           label: 'Segui',
-          onPressed: () => actions.accept(
-            FriendRequest(
-              fromUserId: profile.id,
-              fromUsername: profile.username,
+          loading: _occupato,
+          onPressed: () => _fai(
+            () => actions.accept(
+              FriendRequest(
+                fromUserId: profile.id,
+                fromUsername: profile.username,
+              ),
             ),
           ),
         );
@@ -403,22 +487,29 @@ class _FriendshipAction extends ConsumerWidget {
                   ),
                 ),
                 const Spacer(),
-                TextButton(
-                  onPressed: () async {
-                    if (await confermaSmettiDiSeguire(
-                      context,
-                      username: profile.username,
-                    )) {
-                      await actions.unfollowFriend(profile.id);
-                    }
-                  },
-                  child: Text(
-                    'Smetti',
-                    style: context.texts.titleMedium?.copyWith(
-                      color: palette.textFaint,
+                if (_occupato)
+                  // Mentre smette di seguirlo, la fiamma al posto di "Smetti".
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                    child: FiammaCheGira(misura: 24),
+                  )
+                else
+                  TextButton(
+                    onPressed: () async {
+                      if (await confermaSmettiDiSeguire(
+                        context,
+                        username: profile.username,
+                      )) {
+                        await _fai(() => actions.unfollowFriend(profile.id));
+                      }
+                    },
+                    child: Text(
+                      'Smetti',
+                      style: context.texts.titleMedium?.copyWith(
+                        color: palette.textFaint,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -469,12 +560,14 @@ class _Avatar extends StatelessWidget {
                   color: context.palette.accent,
                 ),
               )
+            // **Mentre la foto arriva, le iniziali**, e se non arriva si
+            // riprova da sola: prima il cerchio restava vuoto finche' non era
+            // scaricata, e con poca rete restava vuoto e basta.
             : profile.hasPhoto
-            ? Image.network(
-                photoUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    _Initials(profile: profile),
+            ? FotoDallaRete(
+                url: photoUrl!,
+                inAttesa: (context) => _Initials(profile: profile),
+                inErrore: (context, riprova) => _Initials(profile: profile),
               )
             : _Initials(profile: profile),
       ),
@@ -538,12 +631,17 @@ class _Stats extends StatelessWidget {
     this.onFriends,
   });
 
-  final int entries;
-  final int wins;
-  final int friends;
+  /// I tre numeri sono **nulli finche' non si sanno**, e allora al loro posto
+  /// va un trattino: vedi la pagina, dove si decide.
+  final int? entries;
+  final int? wins;
+  final int? friends;
 
   /// Toccando AMICI si vede chi sono.
   final VoidCallback? onFriends;
+
+  /// Un numero, o il trattino se non e' ancora arrivato.
+  static String _cifra(int? numero) => numero == null ? '–' : '$numero';
 
   @override
   Widget build(BuildContext context) {
@@ -560,11 +658,11 @@ class _Stats extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Stat(label: 'SCATTI', value: '$entries'),
+              _Stat(label: 'SCATTI', value: _cifra(entries)),
               _Divider(color: palette.line),
-              _Stat(label: 'VINTE', value: '$wins'),
+              _Stat(label: 'VINTE', value: _cifra(wins)),
               _Divider(color: palette.line),
-              _Stat(label: 'AMICI', value: '$friends', onTap: onFriends),
+              _Stat(label: 'AMICI', value: _cifra(friends), onTap: onFriends),
             ],
           ),
         ),
@@ -754,6 +852,62 @@ class _EmptyShelf extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
       child: EmptyState(title: title, message: message),
+    );
+  }
+}
+
+/// **La mensola, finche' quello che contiene non e' arrivato.**
+///
+/// La fiamma mentre arriva; la riga che lo dice, se non arriva. Nullo quando
+/// c'e' tutto: allora si mostra la mensola vera, piena o con la sua scritta
+/// da mensola vuota.
+///
+/// **Senza, il vuoto si diceva prima di saperlo.** "Non ha ancora vinto"
+/// compariva sul profilo di chi aveva vinto dieci volte, per l'attimo in cui
+/// i suoi trofei non erano ancora arrivati — e chi arriva da un link non
+/// aspetta l'attimo dopo per farsi un'idea. E un errore lasciava l'elenco
+/// vuoto per sempre, cioe' la stessa scritta: una bugia che non finiva.
+Widget? _mensolaInAttesa(List<AsyncValue<Object?>> fonti) {
+  if (fonti.any((fonte) => fonte.hasError && !fonte.hasValue)) {
+    return const _EmptyShelf(
+      title: 'Non disponibili',
+      message: 'Non riusciamo a caricarle. Riprova tra poco.',
+    );
+  }
+
+  if (fonti.any((fonte) => !fonte.hasValue)) {
+    return const _MensolaInArrivo();
+  }
+
+  return null;
+}
+
+/// La fiamma piccola al posto di una mensola che sta arrivando.
+class _MensolaInArrivo extends StatelessWidget {
+  const _MensolaInArrivo();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+      child: Center(child: FiammaCheGira(misura: 32)),
+    );
+  }
+}
+
+/// La fiamma piccola al posto del tasto per seguire, finche' non si sa quale
+/// tasto mettere o mentre quello toccato sta ancora scrivendo.
+///
+/// **Alta quanto un tasto**, perche' lo sta tenendo al suo posto: quando
+/// arriva, quello che c'e' sotto non salta.
+class _TastoInAttesa extends StatelessWidget {
+  const _TastoInAttesa();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      height: 56,
+      child: Center(child: FiammaCheGira(misura: 24)),
     );
   }
 }

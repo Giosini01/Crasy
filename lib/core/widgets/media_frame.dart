@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
+import 'package:crasy/core/widgets/foto_dalla_rete.dart';
 import 'package:crasy/core/widgets/video_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/ritaglio.dart';
 import 'package:flutter/material.dart';
@@ -192,40 +194,36 @@ class _Surface extends StatelessWidget {
       );
     }
 
-    return Image.network(
-      url,
+    // **Se non arriva, riprova da sola**, e resta sul telefono: vedi
+    // [FotoDallaRete]. Mentre arriva, la fiamma che gira sopra il riquadro;
+    // se dopo tutti i tentativi non e' arrivata, un tocco per riprovare.
+    return FotoDallaRete(
+      url: url,
       fit: fit,
-      // Su web Flutter scarica le immagini con `fetch` e le disegna sulla tela,
-      // e questo richiede che il server mandi le intestazioni CORS. Il bucket
-      // di Firebase Storage non le manda finche' non gliele si configura a
-      // mano, e il risultato e' che **le foto non compaiono e nessuno dice
-      // perche'**: niente errore, solo un riquadro vuoto.
-      //
-      // Con questo, quando il disegno sulla tela fallisce, Flutter ripiega su
-      // un vero elemento `<img>` del browser — che le foto le mostra da sempre
-      // senza chiedere permesso a nessuno. Su telefono la riga non ha alcun
-      // effetto.
-      webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
-      // La foto entra con una dissolvenza breve invece di apparire di scatto.
-      // E' l'unica animazione dell'immagine, e dura meno di un battito.
-      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-        if (wasSynchronouslyLoaded) {
-          return child;
-        }
-
-        return AnimatedOpacity(
-          opacity: frame == null ? 0 : 1,
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          child: child,
-        );
-      },
-      loadingBuilder: (context, child, progress) {
-        return progress == null ? child : _Placeholder(caption: caption);
-      },
-      errorBuilder: (context, error, stackTrace) {
-        return _Placeholder(caption: caption);
-      },
+      inAttesa: (context) => Stack(
+        fit: StackFit.expand,
+        children: [
+          _Placeholder(caption: caption),
+          const Center(child: FiammaCheGira(misura: 32)),
+        ],
+      ),
+      inErrore: (context, riprova) => GestureDetector(
+        onTap: riprova,
+        behavior: HitTestBehavior.opaque,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _Placeholder(caption: caption),
+            Center(
+              child: Icon(
+                Icons.refresh_rounded,
+                color: context.palette.textFaint,
+                semanticLabel: 'Riprova a caricare la foto',
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

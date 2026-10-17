@@ -1,18 +1,24 @@
+import 'dart:async';
+
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/services/share/share_entry.dart';
 import 'package:crasy/core/theme/app_colors.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
+import 'package:crasy/core/widgets/foto_dalla_rete.dart';
 import 'package:crasy/core/widgets/video_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_comments.dart';
+import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/moderation/domain/report_reason.dart';
 import 'package:crasy/features/moderation/presentation/widgets/report_sheet.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -233,13 +239,45 @@ class _FullscreenMediaState extends ConsumerState<FullscreenMedia> {
 /// vincono con i dettagli — cosa c'e' scritto sul cartello, che faccia ha fatto
 /// lo sconosciuto — e su un telefono quei dettagli si vedono solo
 /// avvicinandosi.
-class _Slide extends ConsumerWidget {
+class _Slide extends ConsumerStatefulWidget {
   const _Slide({required this.entry});
 
   final ChallengeEntry entry;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_Slide> createState() => _SlideState();
+}
+
+class _SlideState extends ConsumerState<_Slide>
+    with SingleTickerProviderStateMixin {
+  /// **La fiamma che sboccia anche qui.** Il doppio tocco a schermo intero
+  /// dava la fiamma senza far vedere niente, e il doppio tocco e' anche il
+  /// gesto che si fa per ingrandire: c'era chi metteva un like senza saperlo,
+  /// e poi giurava di non averlo mai messo.
+  late final AnimationController _sboccia = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 650),
+  );
+
+  @override
+  void dispose() {
+    _sboccia.dispose();
+    super.dispose();
+  }
+
+  Future<void> _doppioTocco() async {
+    if (fiammaDaAccendere(ref, widget.entry)) {
+      _sboccia.forward(from: 0);
+      unawaited(HapticFeedback.lightImpact());
+    }
+
+    await giveFire(context, ref, widget.entry, voted: true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final entry = widget.entry;
+
     // L'originale se c'e', altrimenti la miniatura: a gara finita il server
     // butta gli originali di chi non ha vinto e tiene solo le miniature.
     // Vedi `ChallengeEntry.urlGrande`.
@@ -277,10 +315,16 @@ class _Slide extends ConsumerWidget {
       // nessuno ripete lo stesso gesto per disfare quello che ha appena fatto.
       // A fermarlo e' `giveFire`, che ignora la richiesta di accendere una
       // fiamma gia' accesa — la regola sta in un posto solo.
-      onDoubleTap: () => giveFire(context, ref, entry, voted: true),
+      onDoubleTap: _doppioTocco,
       // `giveFire` sa gia' che a gara finita non si vota, e sa anche che una
       // fiamma gia' accesa non si riaccende: la regola sta in un posto solo.
-      child: Center(child: media),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Center(child: media),
+          IgnorePointer(child: FireBurst(animation: _sboccia)),
+        ],
+      ),
     );
   }
 }
@@ -343,7 +387,28 @@ class _Photo extends StatelessWidget {
     return InteractiveViewer(
       minScale: 1,
       maxScale: 4,
-      child: Center(child: Image.network(url, fit: BoxFit.contain)),
+      // Riprova da sola se la rete cede: vedi [FotoDallaRete]. Mentre arriva,
+      // la fiamma che gira sul nero.
+      child: Center(
+        child: FotoDallaRete(
+          url: url,
+          fit: BoxFit.contain,
+          inAttesa: (context) =>
+              const Center(child: FiammaCheGira(colore: AppColors.paper)),
+          inErrore: (context, riprova) => GestureDetector(
+            onTap: riprova,
+            behavior: HitTestBehavior.opaque,
+            child: const Padding(
+              padding: EdgeInsets.all(AppSpacing.page),
+              child: Text(
+                'La foto non si carica. Tocca per riprovare.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.paper),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

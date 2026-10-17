@@ -5,6 +5,7 @@ import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_sort.dart';
@@ -108,8 +109,12 @@ class ChallengesPage extends ConsumerWidget {
                     ? const _Seguiti()
                     : RefreshIndicator(
                         color: context.palette.accent,
-                        onRefresh: () async =>
-                            ref.invalidate(liveChallengesProvider),
+                        // **Il cerchio resta finche' le gare non arrivano.**
+                        // Prima si chiudeva subito, mentre la lista si stava
+                        // ancora ricaricando: sembrava fatto, e non lo era.
+                        onRefresh: () => _aspetta([
+                          ref.refresh(liveChallengesProvider.future),
+                        ]),
                         child: CustomScrollView(
                           slivers: [
                             // **La sfida del giorno sta prima di tutto.**
@@ -124,8 +129,11 @@ class ChallengesPage extends ConsumerWidget {
                             // significa scorrere la home dentro una finestrella.
                             if (oggi != null) _Daily(challenge: oggi),
                             challenges.when(
+                              // **Mentre arrivano, la fiamma che gira.** Prima
+                              // c'era il vuoto sotto l'intestazione, e con poca
+                              // rete sembrava una home senza gare.
                               loading: () => const SliverToBoxAdapter(
-                                child: SizedBox.shrink(),
+                                child: _InArrivo(),
                               ),
                               error: (_, _) => const _Message(
                                 title: 'Niente da mostrare',
@@ -465,6 +473,17 @@ class _Seguiti extends ConsumerWidget {
     final foto = ref.watch(followedEntriesProvider);
     final problema = ref.watch(friendActivityProblemProvider);
 
+    // **Mentre si sa chi segui, e dove sono in gara, la fiamma.** Le due liste
+    // qui sopra leggono con `valueOrNull`, e finche' i dati non arrivano sono
+    // vuote: prima compariva "Non segui ancora nessuno" a chi ne seguiva
+    // venti, e "Nessuno in gara adesso" un attimo prima delle loro foto.
+    final caricando =
+        _inArrivo(ref.watch(myFriendsProvider)) ||
+        _inArrivo(ref.watch(myFollowingProvider)) ||
+        _inArrivo(ref.watch(ownFollowProvider)) ||
+        (seguiti.isNotEmpty &&
+            _inArrivo(ref.watch(entriesOfManyProvider(usersKey(seguiti)))));
+
     Widget vuoto(String titolo, String messaggio, {bool cerca = false}) {
       return ListView(
         padding: const EdgeInsets.fromLTRB(0, AppSpacing.xl, 0, AppSpacing.xxl),
@@ -502,7 +521,11 @@ class _Seguiti extends ConsumerWidget {
 
     final Widget corpo;
 
-    if (seguiti.isEmpty) {
+    if (caricando) {
+      // Una lista e non un riquadro fisso: cosi' si puo' tirare giu' anche
+      // mentre carica.
+      corpo = ListView(children: const [_InArrivo()]);
+    } else if (seguiti.isEmpty) {
       corpo = vuoto(
         'Non segui ancora nessuno',
         'Segui chi conosci: qui vedi in quali gare sono dentro, adesso. Se ti '
@@ -550,12 +573,11 @@ class _Seguiti extends ConsumerWidget {
 
     return RefreshIndicator(
       color: palette.accent,
-      onRefresh: () async {
-        ref
-          ..invalidate(liveChallengesProvider)
-          ..invalidate(myFriendsProvider)
-          ..invalidate(myFollowingProvider);
-      },
+      onRefresh: () => _aspetta([
+        ref.refresh(liveChallengesProvider.future),
+        ref.refresh(myFriendsProvider.future),
+        ref.refresh(myFollowingProvider.future),
+      ]),
       child: corpo,
     );
   }
@@ -963,6 +985,37 @@ class _ChallengeList extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// Se un dato e' ancora in viaggio: ne' arrivato, ne' andato storto.
+///
+/// Un errore non e' un caricamento: con `!hasValue` soltanto, una lettura
+/// fallita avrebbe fatto girare la fiamma per sempre.
+bool _inArrivo(AsyncValue<Object?> valore) =>
+    !valore.hasValue && !valore.hasError;
+
+/// Aspetta che le liste ricaricate arrivino, **anche se una va storta**: il
+/// cerchio del dito che tira giu' si chiude comunque, e l'errore lo dice la
+/// lista stessa.
+Future<void> _aspetta(List<Future<Object?>> ricariche) async {
+  try {
+    await Future.wait(ricariche);
+  } on Object catch (_) {
+    // Vedi sopra.
+  }
+}
+
+/// La fiamma che gira, dove stanno per arrivare le gare.
+class _InArrivo extends StatelessWidget {
+  const _InArrivo();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl * 2),
+      child: Center(child: FiammaCheGira()),
     );
   }
 }

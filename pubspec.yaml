@@ -40,6 +40,8 @@ dependencies:
   flutter_contacts: ^2.5.0
   # Il numero della build installata, per sapere se c'e' da aggiornare.
   package_info_plus: ^10.2.2
+  cached_network_image: ^4.0.3
+  flutter_cache_manager: ^3.4.5
 
 dev_dependencies:
   flutter_test:

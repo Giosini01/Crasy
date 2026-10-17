@@ -3,6 +3,8 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/utils/app_money.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
+import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 import 'package:crasy/features/payments/domain/entities/wallet.dart';
 import 'package:crasy/features/payments/presentation/providers/payments_providers.dart';
@@ -31,8 +33,23 @@ class WalletCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
     final texts = context.texts;
-    final wallet = ref.watch(walletProvider).valueOrNull ?? const Wallet();
+    final portafoglio = ref.watch(walletProvider);
+    final wallet = portafoglio.valueOrNull ?? const Wallet();
     final balance = ref.watch(walletBalanceProvider);
+
+    // **Finche' la cifra non arriva, la fiamma al suo posto.** Prima il
+    // riquadro partiva da "€ 0,00" con sotto "Qui finiscono i premi che
+    // vinci", e un attimo dopo diceva un'altra cosa: chi ha dei soldi qui
+    // dentro, per quell'attimo, li vedeva spariti.
+    //
+    // Senza pagamenti la cifra si conta dai trofei, non dal portafoglio: vedi
+    // `walletBalanceProvider`.
+    final fonte = paymentsEnabled ? portafoglio : ref.watch(myTrophiesProvider);
+    final caricando = !fonte.hasValue && !fonte.hasError;
+
+    // Se non si legge, un trattino e la riga che lo dice: uno zero sarebbe
+    // una cifra, e non e' quella vera.
+    final guasto = fonte.hasError && !fonte.hasValue;
 
     return GestureDetector(
       onTap: () => context.push(AppRoutes.wallet),
@@ -62,15 +79,22 @@ class WalletCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.xs),
-            Text(
-              AppMoney.format(balance),
-              style: texts.displaySmall?.copyWith(color: palette.accent),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              _note(wallet),
-              style: texts.bodySmall?.copyWith(color: palette.textSecondary),
-            ),
+            if (caricando)
+              const _CifraInArrivo()
+            else ...[
+              Text(
+                guasto ? '–' : AppMoney.format(balance),
+                style: texts.displaySmall?.copyWith(color: palette.accent),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                guasto
+                    ? 'Non riusciamo a leggere il portafoglio. Riprova tra '
+                          'poco.'
+                    : _note(wallet),
+                style: texts.bodySmall?.copyWith(color: palette.textSecondary),
+              ),
+            ],
           ],
         ),
       ),
@@ -87,14 +111,18 @@ class WalletCard extends ConsumerWidget {
     }
 
     if (wallet.balanceCents <= 0) {
-      return 'Qui finiscono i premi che vinci. Restano su CRASY finché non li '
-          'prelevi.';
+      return 'Qui finiscono i premi che vinci, su un conto Stripe a nome tuo: '
+          'CRASY non tiene i tuoi soldi.';
     }
 
     if (!wallet.canWithdraw) {
-      return 'I soldi sono tuoi e stanno su CRASY. Da '
-          '${AppMoney.format(Wallet.minimumWithdrawalCents)} in su li puoi '
-          'prelevare sul tuo conto.';
+      return wallet.inCustodiaCents > 0
+          ? 'I soldi sono tuoi: passano sul tuo conto Stripe appena lo '
+                'colleghi. Da ${AppMoney.format(Wallet.minimumWithdrawalCents)} '
+                'in su li puoi prelevare.'
+          : 'I soldi sono tuoi, sul tuo conto Stripe. Da '
+                '${AppMoney.format(Wallet.minimumWithdrawalCents)} in su li '
+                'puoi prelevare.';
     }
 
     return 'Puoi prelevarli: tocca qui.';
@@ -109,15 +137,29 @@ class WalletCard extends ConsumerWidget {
 /// promessa meglio — e sarebbe assurdo che il profilo di chi ha vinto e
 /// incassato mille euro dicesse zero.
 class PrizeTotalCard extends StatelessWidget {
-  const PrizeTotalCard({required this.prizeCents, super.key});
+  const PrizeTotalCard({
+    required this.prizeCents,
+    this.caricando = false,
+    super.key,
+  });
 
-  final int prizeCents;
+  /// Quanto ha vinto. **Nullo se non si sa**: la lettura e' fallita, e al
+  /// posto della cifra va un trattino — "€ 0,00" direbbe che non ha mai vinto
+  /// niente, che e' un'altra cosa.
+  final int? prizeCents;
+
+  /// **Mentre arriva, la fiamma al posto della cifra.** Prima il riquadro
+  /// partiva grigio con "€ 0,00" e diventava rosso un attimo dopo: per
+  /// quell'attimo, chi aveva vinto mille euro sembrava non averne mai visto
+  /// uno.
+  final bool caricando;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
     final texts = context.texts;
-    final won = prizeCents > 0;
+    final cents = prizeCents;
+    final won = cents != null && cents > 0;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -138,13 +180,35 @@ class PrizeTotalCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
-          Text(
-            AppMoney.format(prizeCents),
-            style: texts.displaySmall?.copyWith(
-              color: won ? palette.accent : palette.textFaint,
+          if (caricando)
+            const _CifraInArrivo()
+          else
+            Text(
+              cents == null ? '–' : AppMoney.format(cents),
+              style: texts.displaySmall?.copyWith(
+                color: won ? palette.accent : palette.textFaint,
+              ),
             ),
-          ),
         ],
+      ),
+    );
+  }
+}
+
+/// La fiamma piccola al posto di una cifra che sta arrivando.
+///
+/// **Alta quanto la cifra che sostituisce**: quando il numero arriva si mette
+/// esattamente dove girava la fiamma, e la sua riga non cambia altezza.
+class _CifraInArrivo extends StatelessWidget {
+  const _CifraInArrivo();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      height: 32,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: FiammaCheGira(misura: 28),
       ),
     );
   }

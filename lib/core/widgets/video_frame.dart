@@ -1,11 +1,15 @@
 import 'dart:async';
 
 import 'package:crasy/core/theme/app_palette.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/core/widgets/media_gestures.dart';
 import 'package:crasy/core/widgets/video/html_video_stub.dart'
     if (dart.library.js_interop) 'package:crasy/core/widgets/video/html_video_web.dart';
+import 'package:crasy/core/widgets/video/local_video_stub.dart'
+    if (dart.library.io) 'package:crasy/core/widgets/video/local_video_io.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
@@ -165,6 +169,12 @@ class _VideoFrameState extends State<VideoFrame> {
   int _tentativi = 0;
   bool _controls = false;
 
+  /// Quante volte riprova senza chiedere niente a nessuno.
+  static const _tentativiDaSolo = 2;
+
+  /// Il prossimo tentativo in programma, se ce n'e' uno.
+  Timer? _riprovaFra;
+
   @override
   void initState() {
     super.initState();
@@ -180,6 +190,7 @@ class _VideoFrameState extends State<VideoFrame> {
     super.didUpdateWidget(oldWidget);
 
     if (oldWidget.url != widget.url) {
+      _riprovaFra?.cancel();
       _controller?.dispose();
       _controller = null;
       _failed = false;
@@ -203,7 +214,7 @@ class _VideoFrameState extends State<VideoFrame> {
       return;
     }
 
-    final controller = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+    final controller = await _lettore();
     var pronto = false;
 
     try {
@@ -233,10 +244,21 @@ class _VideoFrameState extends State<VideoFrame> {
       await controller.dispose();
 
       if (mounted) {
-        setState(() {
-          _failed = true;
-          _tentativi += 1;
-        });
+        _tentativi += 1;
+
+        // **Le prime due volte riprova da solo.** Un'apertura andata male e'
+        // quasi sempre la rete che e' calata un attimo: si aspetta poco — e
+        // sempre un po' di piu' — e si riprova, con la fiamma che continua a
+        // girare. Solo dopo si chiede un tocco.
+        if (_tentativi <= _tentativiDaSolo) {
+          _riprovaFra = Timer(Duration(seconds: 2 * _tentativi), () {
+            if (mounted) {
+              unawaited(_open());
+            }
+          });
+        } else {
+          setState(() => _failed = true);
+        }
       }
     } finally {
       // **Il posto si lascia qui, e si lascia sempre.**
@@ -294,9 +316,50 @@ class _VideoFrameState extends State<VideoFrame> {
 
   @override
   void dispose() {
+    _riprovaFra?.cancel();
     _hide?.cancel();
     _controller?.dispose();
     super.dispose();
+  }
+
+  /// **Il lettore: dal telefono se il video e' gia' arrivato una volta, dalla
+  /// rete se no.**
+  ///
+  /// Un video gia' guardato a schermo intero resta sul telefono: la seconda
+  /// volta parte subito, anche con poca rete o senza. E un video aperto a
+  /// schermo intero per la prima volta si scarica intanto per la prossima — e
+  /// se lo streaming si pianta, il tentativo dopo lo trova gia' qui.
+  ///
+  /// Nelle griglie no: si vede solo il primo fotogramma, e scaricare per
+  /// intero ogni video che passa sullo schermo consumerebbe i dati di chi
+  /// scorre.
+  Future<VideoPlayerController> _lettore() async {
+    if (!kIsWeb) {
+      try {
+        final salvato = await DefaultCacheManager().getFileFromCache(
+          widget.url,
+        );
+        final locale = salvato == null
+            ? null
+            : lettoreDalDisco(salvato.file.path);
+
+        if (locale != null) {
+          return locale;
+        }
+      } on Object catch (_) {
+        // Senza la memoria si va in rete, come prima.
+      }
+
+      if (widget.immersive || widget.autoplay) {
+        unawaited(
+          DefaultCacheManager()
+              .downloadFile(widget.url)
+              .then<void>((_) {}, onError: (Object _) {}),
+        );
+      }
+    }
+
+    return VideoPlayerController.networkUrl(Uri.parse(widget.url));
   }
 
   /// Accende i comandi e mette in conto quando spegnerli.
@@ -408,7 +471,21 @@ class _VideoFrameState extends State<VideoFrame> {
       );
 
       if (video != null) {
-        return video;
+        // **La fiamma sotto il video.** L'elemento del browser e' trasparente
+        // finche' non arriva il primo fotogramma: sotto c'era il vuoto, e con
+        // poca rete sembrava che il video non ci fosse. Appena parte, la copre.
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Center(
+              child: FiammaCheGira(
+                misura: widget.immersive ? 64 : 32,
+                colore: widget.immersive ? Colors.white : null,
+              ),
+            ),
+            video,
+          ],
+        );
       }
     }
 
@@ -425,7 +502,7 @@ class _VideoFrameState extends State<VideoFrame> {
       // Dal secondo tentativo in poi cambia la diagnosi: quel file li' non si
       // apre, e insistere con lo stesso lettore non serve. Allora si offre il
       // browser di sistema, che i formati li legge tutti.
-      final riprova = _tentativi < 2;
+      final riprova = _tentativi <= _tentativiDaSolo + 1;
 
       return ColoredBox(
         color: palette.surfaceMuted,
@@ -441,7 +518,10 @@ class _VideoFrameState extends State<VideoFrame> {
                 return;
               }
 
-              setState(() => _failed = false);
+              setState(() {
+                _failed = false;
+                _tentativi = 0;
+              });
               _open();
             },
             child: Text(
@@ -453,8 +533,19 @@ class _VideoFrameState extends State<VideoFrame> {
       );
     }
 
+    // **Mentre si apre, la fiamma che gira.** Prima c'era un riquadro grigio
+    // vuoto, e a schermo intero nemmeno quello: dentro un `Center` un riquadro
+    // senza misura sparisce, e restava lo schermo nero.
     if (controller == null) {
-      return ColoredBox(color: palette.surfaceMuted);
+      return ColoredBox(
+        color: widget.immersive ? Colors.transparent : palette.surfaceMuted,
+        child: Center(
+          child: FiammaCheGira(
+            misura: widget.immersive ? 64 : 32,
+            colore: widget.immersive ? Colors.white : null,
+          ),
+        ),
+      );
     }
 
     final playing = controller.value.isPlaying;
@@ -476,6 +567,18 @@ class _VideoFrameState extends State<VideoFrame> {
             height: controller.value.size.height,
             child: VideoPlayer(controller),
           ),
+        ),
+        // **Si e' fermato a caricare: la fiamma.** Con poca rete il video si
+        // ferma su un fotogramma, e senza un segno sembra rotto.
+        ValueListenableBuilder<VideoPlayerValue>(
+          valueListenable: controller,
+          builder: (context, valore, _) => valore.isBuffering
+              ? const IgnorePointer(
+                  child: Center(
+                    child: FiammaCheGira(misura: 48, colore: Colors.white),
+                  ),
+                )
+              : const SizedBox.shrink(),
         ),
         // Il play grande al centro c'e' **solo** quando il video e' fermo e i
         // comandi non ci sono: e' un invito, non una decorazione, e sopra un

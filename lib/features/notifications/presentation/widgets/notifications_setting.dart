@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/notifications/domain/entities/notification_topic.dart';
@@ -58,6 +59,15 @@ class _NotificheState extends ConsumerState<_Notifiche> {
   AuthorizationStatus? _stato;
   bool _lavorando = false;
 
+  /// Se il telefono ha gia' risposto alla prima domanda, bene o male.
+  ///
+  /// **Finche' non risponde, non si dice niente.** Prima il foglio si apriva
+  /// su "Sono spente" con il tasto per accenderle — anche a chi le aveva
+  /// accese — e un attimo dopo cambiava idea. A chi le ha accese quella riga
+  /// dice che qualcosa si e' rotto; a chi tocca svelto, fa ricomparire una
+  /// domanda a cui ha gia' risposto.
+  bool _letto = false;
+
   @override
   void initState() {
     super.initState();
@@ -74,6 +84,13 @@ class _NotificheState extends ConsumerState<_Notifiche> {
     } on Object {
       // Senza Firebase — nelle prove, sul web — resta null e si mostra la riga
       // neutra: meglio non dire niente che dire una cosa sbagliata.
+    } finally {
+      // Riuscita o no, l'attesa finisce qui: senza Firebase la lettura
+      // fallisce, e una fiamma che girasse per sempre sarebbe peggio della
+      // riga neutra.
+      if (mounted && !_letto) {
+        setState(() => _letto = true);
+      }
     }
   }
 
@@ -152,46 +169,66 @@ class _NotificheState extends ConsumerState<_Notifiche> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            accese
-                ? 'Sono accese. Ti avvisiamo quando qualcuno mette una fiamma '
-                      'sulla tua foto, ti commenta, ti sfida o ti chiede '
-                      'l\'amicizia.'
-                : rifiutate
-                ? 'Sono spente, e da qui non possiamo riaccenderle: il telefono '
-                      'non ripropone la domanda a chi ha già risposto di no.'
-                : 'Sono spente. Senza, una sfida arriva e non lo sai: la scopri '
-                      'riaprendo l\'app, spesso quando è già scaduta.',
-            style: texts.bodyMedium,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          if (rifiutate)
+          if (!_letto)
+            // Finche' il telefono non ha detto come stanno, la fiamma: vedi
+            // [_letto].
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              child: Center(child: FiammaCheGira(misura: 28)),
+            )
+          else ...[
             Text(
-              'Si riaccendono dalle impostazioni del telefono: cerca CRASY '
-              'nell\'elenco delle app, apri Notifiche e consenti.',
-              style: texts.bodySmall?.copyWith(color: palette.textSecondary),
-            )
-          else if (!accese)
-            FilledButton(
-              onPressed: _lavorando ? null : _accendi,
-              style: FilledButton.styleFrom(
-                backgroundColor: palette.accentDeep,
-                foregroundColor: palette.onAccent,
-              ),
-              child: Text(_lavorando ? 'Un attimo…' : 'Accendi le notifiche'),
-            )
-          else
-            // **Anche con il permesso acceso c'e' un tasto**, e non e' inutile:
-            // il permesso sta sul telefono, il recapito sta sul nostro server, e
-            // i due si possono separare — app reinstallata, telefono cambiato,
-            // registrazione fallita in silenzio. Questo rimette il recapito.
-            TextButton(
-              onPressed: _lavorando ? null : _accendi,
-              child: Text(
-                _lavorando ? 'Un attimo…' : 'NON ARRIVANO? TOCCA QUI',
-                style: texts.labelSmall?.copyWith(color: palette.accent),
-              ),
+              accese
+                  ? 'Sono accese. Ti avvisiamo quando qualcuno mette una '
+                        'fiamma sulla tua foto, ti commenta, ti sfida o ti '
+                        'chiede l\'amicizia.'
+                  : rifiutate
+                  ? 'Sono spente, e da qui non possiamo riaccenderle: il '
+                        'telefono non ripropone la domanda a chi ha già '
+                        'risposto di no.'
+                  : 'Sono spente. Senza, una sfida arriva e non lo sai: la '
+                        'scopri riaprendo l\'app, spesso quando è già '
+                        'scaduta.',
+              style: texts.bodyMedium,
             ),
+            const SizedBox(height: AppSpacing.md),
+            if (rifiutate)
+              Text(
+                'Si riaccendono dalle impostazioni del telefono: cerca CRASY '
+                'nell\'elenco delle app, apri Notifiche e consenti.',
+                style: texts.bodySmall?.copyWith(color: palette.textSecondary),
+              )
+            else if (!accese)
+              FilledButton(
+                onPressed: _lavorando ? null : _accendi,
+                style: FilledButton.styleFrom(
+                  backgroundColor: palette.accentDeep,
+                  foregroundColor: palette.onAccent,
+                ),
+                // **Mentre chiede e registra, la fiamma.** Prima c'era scritto
+                // "Un attimo…", l'unica attesa dell'app detta a parole.
+                child: _lavorando
+                    ? const FiammaCheGira(misura: 20)
+                    : const Text('Accendi le notifiche'),
+              )
+            else
+              // **Anche con il permesso acceso c'e' un tasto**, e non e'
+              // inutile: il permesso sta sul telefono, il recapito sta sul
+              // nostro server, e i due si possono separare — app reinstallata,
+              // telefono cambiato, registrazione fallita in silenzio. Questo
+              // rimette il recapito.
+              TextButton(
+                onPressed: _lavorando ? null : _accendi,
+                child: _lavorando
+                    ? const FiammaCheGira(misura: 18)
+                    : Text(
+                        'NON ARRIVANO? TOCCA QUI',
+                        style: texts.labelSmall?.copyWith(
+                          color: palette.accent,
+                        ),
+                      ),
+              ),
+          ],
           // **Gli interruttori si mostrano anche con le notifiche spente.**
           //
           // Sembra inutile — non arriva niente comunque — e invece e' il caso

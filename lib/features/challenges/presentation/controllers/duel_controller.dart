@@ -145,22 +145,11 @@ class DuelController extends AsyncNotifier<void> {
       return null;
     }
 
-    // **La notizia si manda da qui e non dal server**, come per le fiamme e i
-    // commenti: chi lancia la sfida e' l'unico che lo sa nel momento in cui
-    // succede. Il nome del documento porta dentro l'identificativo della
-    // missione, quindi la stessa sfida non puo' suonare due volte.
-    await _notify(
-      toUserId: targetUserId,
-      kind: NotificationKind.duel,
-      challengeId: nata.id,
-      challengeTitle: nata.title,
-      // **La riga viaggia con l'avviso.** Se restasse solo sulla sfida, chi la
-      // riceve la leggerebbe solo entrando: una provocazione letta il giorno
-      // dopo non e' piu' una provocazione.
-      message: nata.duelMessage,
-      anonimo: anonimo,
-    );
-
+    // **La sfida all'amico la annuncia il server, non piu' da qui.** Da qui
+    // partiva subito, anche quando il premio non era ancora pagato: se il
+    // pagamento non andava, l'amico si trovava una sfida a cui non poteva
+    // partecipare. E su una sfida anonima l'avviso, scritto da questo
+    // telefono, portava dentro chi la lanciava. Vedi `annunciaLaSfida`.
     return nata.id;
   }
 
@@ -242,16 +231,9 @@ class DuelController extends AsyncNotifier<void> {
       return;
     }
 
-    await _notify(
-      toUserId: challenge.targetUserId,
-      kind: approved
-          ? NotificationKind.duelApproved
-          : NotificationKind.duelRejected,
-      challengeId: challenge.id,
-      challengeTitle: challenge.title,
-      // Il verdetto lo da' chi ha lanciato: se si era nascosto, resta nascosto.
-      anonimo: challenge.anonimo,
-    );
+    // Il verdetto all'altra persona lo annuncia il server, insieme al
+    // giudizio: se chi ha lanciato si era nascosto, resta nascosto anche nel
+    // database. Vedi `giudicaSfidaMirata`.
   }
 
   /// Rifiuta una sfida.
@@ -349,9 +331,10 @@ class DuelController extends AsyncNotifier<void> {
       ),
       kind: kind,
       actorId: meId,
+      // Vuoto e non "qualcuno", se il profilo non e' ancora arrivato: le
+      // regole accettano solo il proprio nome, o nessun nome.
       actorUsername:
-          ref.read(currentUserProfileProvider).valueOrNull?.username ??
-          'qualcuno',
+          ref.read(currentUserProfileProvider).valueOrNull?.username ?? '',
       challengeId: challengeId,
       challengeTitle: challengeTitle,
       message: message,

@@ -136,7 +136,7 @@ abstract final class LegalTexts {
   /// di alzare il suo numero.
   ///
   /// Con la parola `bozza` dentro finche' i testi non sono quelli di un legale.
-  static const String version = '0.1-bozza';
+  static const String version = '0.2-bozza';
 
   /// Chi risponde di questi dati. **Da completare con i dati veri prima di
   /// aprire al pubblico**: senza titolare identificabile l'informativa non e'
@@ -158,9 +158,9 @@ $draftWarning
 
 1. COS'E' CRASY
 CRASY e' un'applicazione in cui una persona lancia una missione mettendo in
-palio del denaro e altre persone vi partecipano con una foto o un video. Chi
-altre persone vi partecipano con una foto o un video. Alla scadenza il premio va
-all'opera che ha ricevuto piu' apprezzamenti dagli altri utenti. Non e' un gioco
+palio del denaro e altre persone vi partecipano con una foto o un video. Alla
+scadenza il premio va all'opera che ha ricevuto piu' apprezzamenti dagli altri
+utenti. Non e' un gioco
 di sorte e non e' una scommessa: l'esito dipende dal valore riconosciuto
 all'opera, non dal caso, e non si paga nulla per partecipare.
 
@@ -178,23 +178,49 @@ altre persone senza il loro consenso, con contenuti illegali, violenti, sessuali
 diffamatori o che mettano in pericolo chi li realizza.
 
 4. IL PREMIO
-Chi lancia la missione mette in palio una somma e la versa a CRASY, che la
-trattiene fino alla chiusura. Alla scadenza il premio va alla partecipazione che
-ha ricevuto piu' fiamme dagli altri utenti; a parita' di fiamme vince chi ha
-inviato per primo.
+Chi lancia la missione mette in palio una somma e la paga tramite Stripe,
+l'istituto di pagamento di cui CRASY si serve. Fino alla chiusura della
+missione la somma resta sul conto di pagamento di CRASY presso Stripe. Alla
+scadenza il premio va alla partecipazione che ha ricevuto piu' fiamme dagli
+altri utenti; a parita' di fiamme vince chi ha inviato per primo.
 
-CRASY riceve e custodisce il premio **in nome e per conto di chi lo ha messo in
-palio**, al solo scopo di consegnarlo al vincitore. Quelle somme non sono
-ricavi di CRASY e restano di chi le ha versate fino al momento in cui vengono
-accreditate al vincitore. Il corrispettivo di CRASY e' unicamente la
-percentuale trattenuta sul premio, indicata nell'app prima del pagamento; il
-resto viene accreditato al vincitore.
+CRASY riceve il premio **in nome e per conto di chi lo ha messo in palio**, al
+solo scopo di consegnarlo al vincitore. Quelle somme non sono ricavi di CRASY e
+restano di chi le ha versate fino al momento in cui vengono trasferite al
+vincitore. Il corrispettivo di CRASY e' unicamente la percentuale trattenuta
+sul premio, indicata nell'app prima del pagamento; il resto va al vincitore.
 
-Le somme accreditate al vincitore sono corrispettivi per un'opera: possono
-avere rilevanza fiscale per chi le riceve, ed e' responsabilita' del percettore
+Le somme ricevute dal vincitore sono corrispettivi per un'opera: possono avere
+rilevanza fiscale per chi le riceve, ed e' responsabilita' del percettore
 dichiararle secondo la normativa applicabile.
 
-5. QUANDO IL PREMIO TORNA INDIETRO
+5. IL CONTO PER RICEVERE I PREMI
+Per partecipare alle missioni con un premio in denaro serve un conto di
+pagamento a proprio nome presso Stripe (servizio Stripe Connect). Si apre una
+volta, fornendo i dati richiesti dalla legge per chi riceve denaro: identita',
+codice fiscale, IBAN e, quando Stripe lo richiede, un documento d'identita'. Il
+conto e' intestato a chi lo apre ed e' regolato dalle condizioni di Stripe, che
+si accettano aprendolo.
+
+CRASY non custodisce le somme vinte. Alla chiusura della missione il premio, al
+netto della percentuale di CRASY, viene trasferito sul conto Stripe del
+vincitore. Da li' il vincitore puo' trasferirlo sul proprio conto bancario a
+partire dall'importo minimo indicato nell'app. Le somme possono diventare
+disponibili alcuni giorni dopo la vittoria, secondo i tempi di Stripe.
+
+Se il trasferimento non e' possibile, per esempio perche' il conto non e'
+ancora stato aperto, CRASY tiene la somma in nome e per conto del vincitore
+finche' il trasferimento diventa possibile, oppure gliela versa con bonifico
+sul conto bancario da lui indicato.
+
+6. USARE I PREMI PER LANCIARE UNA MISSIONE
+Chi ne da' espresso consenso nell'app autorizza CRASY ad addebitare sul proprio
+conto Stripe l'importo del premio di una missione che sceglie di pagare con il
+proprio saldo: solo nel momento in cui lo sceglie, e solo per quella missione.
+Il consenso si puo' revocare in qualunque momento scrivendo al contatto
+indicato; la revoca non riguarda le missioni gia' pagate.
+
+7. QUANDO IL PREMIO TORNA INDIETRO
 Se alla missione non partecipa nessuno, il premio torna per intero a chi lo
 aveva messo, spese comprese.
 
@@ -206,18 +232,18 @@ dal momento in cui qualcuno vi ha partecipato.
 I rimborsi vengono disposti subito ma l'accredito sulla carta dipende dalla
 banca di chi lo riceve, e richiede di norma alcuni giorni lavorativi.
 
-6. LE MISSIONI VIETATE
+8. LE MISSIONI VIETATE
 Non si possono lanciare missioni che chiedano di compiere reati, di mettersi in
 pericolo, di farsi del male, di molestare o riprendere persone che non hanno
 acconsentito, o che abbiano contenuto sessuale. CRASY puo' rimuovere una
 missione e restituire il premio a chi l'ha messo.
 
-7. MODERAZIONE
+9. MODERAZIONE
 CRASY puo' rimuovere contenuti e sospendere account che violano queste regole,
 anche senza preavviso quando il contenuto e' gravemente lesivo. Chi ritiene la
 rimozione sbagliata puo' contestarla scrivendo al contatto indicato.
 
-8. RESPONSABILITA'
+10. RESPONSABILITA'
 CRASY mette a disposizione una piattaforma. Quello che le persone fanno per
 partecipare lo fanno sotto la propria responsabilita': CRASY non e' il datore di
 lavoro di nessuno e non e' presente quando un contenuto viene realizzato.
@@ -226,16 +252,18 @@ partecipa, ne' dei rapporti fra utenti.
 Nulla in queste condizioni esclude o limita la responsabilita' che la legge non
 consente di escludere, in particolare verso i consumatori.
 
-9. CHIUDERE L'ACCOUNT
+11. CHIUDERE L'ACCOUNT
 Si puo' chiudere il proprio account in qualunque momento. Le somme gia'
-maturate restano dovute; i contenuti gia' pubblicati vengono rimossi secondo
-quanto indicato nell'informativa privacy.
+maturate restano dovute: quelle sul conto Stripe restano del titolare del
+conto, e vanno trasferite sul proprio conto bancario prima della chiusura. I
+contenuti gia' pubblicati vengono rimossi secondo quanto indicato
+nell'informativa privacy.
 
-10. MODIFICHE
+12. MODIFICHE
 Queste condizioni possono cambiare. Le modifiche rilevanti vengono comunicate e
 richiedono una nuova accettazione prima di continuare a usare l'app.
 
-11. LEGGE E FORO
+13. LEGGE E FORO
 Si applica la legge italiana. Per i consumatori resta ferma la competenza del
 giudice del luogo di residenza o domicilio.
 ''',

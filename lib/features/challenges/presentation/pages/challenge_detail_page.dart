@@ -14,6 +14,7 @@ import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/countdown_text.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
 import 'package:crasy/features/challenges/data/reveal_seen_store.dart';
@@ -105,7 +106,9 @@ class ChallengeDetailPage extends ConsumerWidget {
       ),
       body: AppBackground(
         child: challengeState.when(
-          loading: () => const SizedBox.shrink(),
+          // Mentre arriva, la fiamma che gira: prima la pagina restava bianca
+          // sotto la barra, come se la gara non ci fosse.
+          loading: () => const Center(child: FiammaCheGira()),
           error: (_, _) => const EmptyState(
             title: 'Challenge non disponibile',
             message: 'Non riusciamo a caricarla. Riprova tra poco.',
@@ -338,7 +341,10 @@ class _Body extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         entries.when(
-          loading: () => const SizedBox.shrink(),
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+            child: Center(child: FiammaCheGira(misura: 44)),
+          ),
           error: (_, _) => Text(
             'Non riusciamo a caricare le partecipazioni.',
             style: texts.bodyMedium,
@@ -815,6 +821,12 @@ class _BottomAction extends ConsumerWidget {
     final isMine = ref.watch(isMyChallengeProvider(challenge.id));
     final meId = ref.watch(currentUserIdProvider);
 
+    // **Finche' non arrivano le mie partecipazioni, non si sa se sono gia'
+    // dentro.** Prima compariva "Partecipa" e un attimo dopo diventava "sei in
+    // gara": il tasto ora gira finche' non lo si sa.
+    final mie = ref.watch(myEntriesProvider);
+    final mieInArrivo = !mie.hasValue && !mie.hasError;
+
     // **Mia e chiusa a me**: e' il solo caso in cui chi ha lanciato non vede il
     // tasto per partecipare. Succede fra amici e nelle private, dove il
     // vincitore lo scegli lui. In una gara pubblica la gara e' mia e ci
@@ -913,6 +925,7 @@ class _BottomAction extends ConsumerWidget {
               child: context.stagione.decoraTasto(
                 CrasyButton(
                   label: 'Partecipa',
+                  loading: mieInArrivo,
                   onPressed: () =>
                       context.push(AppRoutes.participateOf(challenge.id)),
                 ),
@@ -1022,7 +1035,8 @@ class _DuelAnswer extends ConsumerWidget {
             Expanded(
               child: CrasyButton(
                 label: 'Accetto',
-                onPressed: busy ? null : () => controller.accept(challenge),
+                loading: busy,
+                onPressed: () => controller.accept(challenge),
               ),
             ),
             const SizedBox(width: AppSpacing.md),
@@ -1232,9 +1246,12 @@ class _RitiraLaFotoState extends ConsumerState<_RitiraLaFoto> {
 
     return TextButton(
       onPressed: _lavorando ? null : _chiedi,
-      child: Text(
-        _lavorando ? 'TOLGO…' : 'TOGLI',
-        style: context.texts.labelSmall?.copyWith(color: palette.textFaint),
+      child: _ConLaFiamma(
+        lavora: _lavorando,
+        child: Text(
+          'TOGLI',
+          style: context.texts.labelSmall?.copyWith(color: palette.textFaint),
+        ),
       ),
     );
   }
@@ -1256,9 +1273,14 @@ class _DeleteChallengeState extends ConsumerState<_DeleteChallenge> {
   Widget build(BuildContext context) {
     return TextButton(
       onPressed: _working ? null : _ask,
-      child: Text(
-        'Cancella',
-        style: context.texts.bodySmall?.copyWith(color: context.palette.accent),
+      child: _ConLaFiamma(
+        lavora: _working,
+        child: Text(
+          'Cancella',
+          style: context.texts.bodySmall?.copyWith(
+            color: context.palette.accent,
+          ),
+        ),
       ),
     );
   }
@@ -1639,7 +1661,10 @@ class _Reconsider extends ConsumerWidget {
       onPressed: busy
           ? null
           : () => ref.read(duelControllerProvider.notifier).accept(challenge),
-      child: const Text('CI HO RIPENSATO'),
+      child: _ConLaFiamma(
+        lavora: busy,
+        child: const Text('CI HO RIPENSATO'),
+      ),
     );
   }
 }
@@ -1734,7 +1759,10 @@ class _DuelJudgement extends ConsumerWidget {
                           approved: true,
                           entry: entry,
                         ),
-                  child: const Text('CE L\'HA FATTA'),
+                  child: _ConLaFiamma(
+                    lavora: busy,
+                    child: const Text('CE L\'HA FATTA'),
+                  ),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -1849,7 +1877,10 @@ class _SoloJudgementState extends ConsumerState<_SoloJudgement> {
               Expanded(
                 child: FilledButton(
                   onPressed: _busy ? null : () => _decidi(vale: true),
-                  child: const Text('HA VINTO'),
+                  child: _ConLaFiamma(
+                    lavora: _busy,
+                    child: const Text('HA VINTO'),
+                  ),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -1953,7 +1984,10 @@ class _PickWinnerState extends ConsumerState<_PickWinner> {
             const SizedBox(height: AppSpacing.xs),
             FilledButton(
               onPressed: _busy ? null : () => _scegli(entry),
-              child: Text('HA VINTO @${entry.authorName.toUpperCase()}'),
+              child: _ConLaFiamma(
+                lavora: _busy,
+                child: Text('HA VINTO @${entry.authorName.toUpperCase()}'),
+              ),
             ),
           ],
           const SizedBox(height: AppSpacing.lg),
@@ -2530,4 +2564,21 @@ class _DuelMessage extends StatelessWidget {
       ),
     );
   }
+}
+
+/// **Il tasto premuto gira finche' il server non risponde.**
+///
+/// Questi tasti decidono una gara — chi ha vinto, se una sfida vale, se si
+/// cancella con il rimborso — e prima si spegnevano soltanto: un tasto grigio
+/// che non dice niente si ripreme, o si esce pensando che non sia successo
+/// niente. Al posto della scritta, la fiamma che gira.
+class _ConLaFiamma extends StatelessWidget {
+  const _ConLaFiamma({required this.lavora, required this.child});
+
+  final bool lavora;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) =>
+      lavora ? const FiammaCheGira(misura: 20) : child;
 }

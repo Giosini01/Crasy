@@ -1,11 +1,13 @@
 import 'dart:async';
-import 'dart:typed_data';
+import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:crasy/core/services/media/avanzamento_caricamento.dart';
 import 'package:crasy/core/services/media/disk_upload_stub.dart'
     if (dart.library.io) 'package:crasy/core/services/media/disk_upload_io.dart';
 import 'package:crasy/core/services/media/photo_compressor.dart';
+import 'package:crasy/core/utils/combina_flussi.dart';
 import 'package:crasy/features/challenges/data/mappers/challenge_mapper.dart';
 import 'package:crasy/features/challenges/domain/commissioned_order.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
@@ -13,10 +15,12 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
+import 'package:crasy/features/challenges/domain/entities/file_caricato.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/entities/ritaglio.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 
 /// Le challenge su Firestore.
 ///
@@ -369,6 +373,9 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     String caption = '',
     bool muted = false,
     Ritaglio? ritaglio,
+    void Function(double avanzamento)? suAvanzamento,
+    FileCaricato? giaCaricato,
+    void Function(FileCaricato caricato)? suCaricato,
   }) async {
     final challengeRef = _challenges.doc(challengeId);
     final challengeSnapshot = await challengeRef.get();
@@ -389,6 +396,86 @@ class FirestoreChallengeRepository implements ChallengeRepository {
 
     final entryRef = _entries(challengeId).doc(userId);
 
+    // **Se il file e' gia' salito, non si rimanda.** Un tentativo precedente si
+    // e' fermato fra la salita del file e la scrittura in gara: resta da fare
+    // solo la seconda. Vedi [FileCaricato].
+    final caricato =
+        giaCaricato ??
+        await _caricaIlFile(
+          challengeId: challengeId,
+          userId: userId,
+          bytes: bytes,
+          filePath: filePath,
+          mediaKind: mediaKind,
+          contentType: contentType,
+          suAvanzamento: suAvanzamento,
+        );
+
+    if (giaCaricato == null) {
+      suCaricato?.call(caricato);
+    }
+
+    final entry = ChallengeEntry(
+      id: userId,
+      challengeId: challengeId,
+      challengeTitle: challenge.title,
+      userId: userId,
+      authorName: authorName,
+      mediaUrl: caricato.mediaUrl,
+      thumbUrl: caricato.thumbUrl,
+      storagePath: caricato.storagePath,
+      mediaKind: mediaKind,
+      caption: caption.trim(),
+      // Vale solo sui video: su una foto non vuol dire niente, e un campo che
+      // su meta' delle righe non significa nulla prima o poi viene letto come
+      // se significasse qualcosa.
+      muted: muted && mediaKind.isVideo,
+      // Se questa gara e' una sfida mirata, la foto se lo porta scritto
+      // dentro: e' quel segno a far si' che una sfida non consumi una delle
+      // cinque partecipazioni del giorno, anche molto dopo che la sfida e'
+      // scaduta e sparita da ogni elenco.
+      isDuel: challenge.isDuel,
+      ritaglio: mediaKind.isVideo ? null : ritaglio,
+    );
+
+    // **Una foto sola, e non si cambia.** Il controllo sta dentro la
+    // transazione e non prima: fra una lettura e una scrittura separate ci
+    // starebbe comodamente un secondo invio partito da un altro dispositivo.
+    //
+    // Il rifiuto e' voluto anche a challenge aperta. Poter sostituire la
+    // propria foto dopo aver visto quante fiamme prende significherebbe
+    // cambiare la mano dopo aver guardato le carte degli altri.
+    await _firestore.runTransaction((transaction) async {
+      final existing = await transaction.get(entryRef);
+
+      if (existing.exists) {
+        // **Era gia' entrata, con questo stesso file.** Il tentativo di prima
+        // ha scritto la partecipazione ma la risposta non e' tornata indietro
+        // — con poca rete succede — e chi riprova non sta mandando una
+        // seconda foto: sta finendo di mandare la stessa.
+        if (existing.data()?['storagePath'] == caricato.storagePath) {
+          return;
+        }
+
+        throw const AlreadyParticipatingException();
+      }
+
+      transaction.set(entryRef, ChallengeEntryMapper.toCreateMap(entry));
+    });
+
+    return entry;
+  }
+
+  /// Fa salire il file su Storage, con la sua miniatura se e' una foto.
+  Future<FileCaricato> _caricaIlFile({
+    required String challengeId,
+    required String userId,
+    required Uint8List bytes,
+    required String? filePath,
+    required MediaKind mediaKind,
+    required String? contentType,
+    required void Function(double avanzamento)? suAvanzamento,
+  }) async {
     // Il nome del file e' casuale, la cartella no.
     //
     // La cartella porta l'identificativo di chi carica, ed e' quella a
@@ -438,7 +525,12 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     // da quanto e' lungo il video. Vale solo dove esiste un disco — sul web il
     // file non ha un percorso e si resta ai byte, che li' arrivano comunque
     // dal selettore gia' in memoria.
-    final dati = SettableMetadata(contentType: type);
+    //
+    // **E resta in cache per sempre**: vedi [perSempreInCache].
+    final dati = SettableMetadata(
+      contentType: type,
+      cacheControl: perSempreInCache,
+    );
 
     // **Il file se c'e', i byte se non c'e'.**
     //
@@ -474,9 +566,14 @@ class FirestoreChallengeRepository implements ChallengeRepository {
       throw StateError("Il file da mandare non c'è più. Riprova a registrare.");
     }
 
-    await (daDisco
-        ? caricaDalDisco(reference, filePath, dati)
-        : reference.putData(bytes, dati));
+    final principale = daDisco
+        ? caricaDalDisco(
+            reference,
+            filePath,
+            dati,
+            suAvanzamento: suAvanzamento,
+          )
+        : seguiIlCaricamento(reference.putData(bytes, dati), suAvanzamento);
 
     // **La copia piccola sale insieme all'originale.**
     //
@@ -489,70 +586,59 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     // stesso e negli elenchi si continua a mostrare l'originale: una foto
     // pesante e' un problema di conto a fine mese, una partecipazione persa e'
     // un problema di chi l'ha mandata.
-    var thumbUrl = '';
-
-    if (!mediaKind.isVideo) {
-      final small = PhotoCompressor.thumbnail(bytes);
-
-      if (small != null) {
-        try {
-          final thumbRef = _storage.ref(
+    //
+    // **E sale insieme, non dopo.** Prima si aspettava la fine dell'originale
+    // per cominciare la miniatura: con poca rete erano due attese in fila per
+    // una cosa sola.
+    final miniatura = mediaKind.isVideo
+        ? Future<String>.value('')
+        : _caricaLaMiniatura(
+            bytes,
             'entries/$challengeId/$userId/${uploadId}_thumb.jpg',
           );
 
-          await thumbRef.putData(
-            small,
-            SettableMetadata(contentType: 'image/jpeg'),
-          );
+    await principale;
 
-          thumbUrl = await thumbRef.getDownloadURL();
-        } on Exception catch (_) {
-          thumbUrl = '';
-        }
-      }
-    }
+    final indirizzi = await Future.wait([
+      reference.getDownloadURL(),
+      miniatura,
+    ]);
 
-    final entry = ChallengeEntry(
-      id: userId,
-      challengeId: challengeId,
-      challengeTitle: challenge.title,
-      userId: userId,
-      authorName: authorName,
-      mediaUrl: await reference.getDownloadURL(),
-      thumbUrl: thumbUrl,
+    return FileCaricato(
       storagePath: storagePath,
-      mediaKind: mediaKind,
-      caption: caption.trim(),
-      // Vale solo sui video: su una foto non vuol dire niente, e un campo che
-      // su meta' delle righe non significa nulla prima o poi viene letto come
-      // se significasse qualcosa.
-      muted: muted && mediaKind.isVideo,
-      // Se questa gara e' una sfida mirata, la foto se lo porta scritto
-      // dentro: e' quel segno a far si' che una sfida non consumi una delle
-      // cinque partecipazioni del giorno, anche molto dopo che la sfida e'
-      // scaduta e sparita da ogni elenco.
-      isDuel: challenge.isDuel,
-      ritaglio: mediaKind.isVideo ? null : ritaglio,
+      mediaUrl: indirizzi[0],
+      thumbUrl: indirizzi[1],
     );
+  }
 
-    // **Una foto sola, e non si cambia.** Il controllo sta dentro la
-    // transazione e non prima: fra una lettura e una scrittura separate ci
-    // starebbe comodamente un secondo invio partito da un altro dispositivo.
-    //
-    // Il rifiuto e' voluto anche a challenge aperta. Poter sostituire la
-    // propria foto dopo aver visto quante fiamme prende significherebbe
-    // cambiare la mano dopo aver guardato le carte degli altri.
-    await _firestore.runTransaction((transaction) async {
-      final existing = await transaction.get(entryRef);
+  /// La miniatura di una foto, o `''` se non si riesce: vedi sopra, non e'
+  /// un motivo per fermare niente.
+  ///
+  /// **Si stringe fuori dal filo dell'interfaccia.** Stringere una foto da
+  /// milleseicento pixel prende qualche decimo di secondo, e fatto qui in mezzo
+  /// fermava la fiamma che gira proprio mentre si aspettava l'invio.
+  Future<String> _caricaLaMiniatura(Uint8List bytes, String percorso) async {
+    try {
+      final small = await compute(PhotoCompressor.thumbnail, bytes);
 
-      if (existing.exists) {
-        throw const AlreadyParticipatingException();
+      if (small == null) {
+        return '';
       }
 
-      transaction.set(entryRef, ChallengeEntryMapper.toCreateMap(entry));
-    });
+      final thumbRef = _storage.ref(percorso);
 
-    return entry;
+      await thumbRef.putData(
+        small,
+        SettableMetadata(
+          contentType: 'image/jpeg',
+          cacheControl: perSempreInCache,
+        ),
+      );
+
+      return await thumbRef.getDownloadURL();
+    } on Object catch (_) {
+      return '';
+    }
   }
 
   CollectionReference<Map<String, dynamic>> _comments(
@@ -811,22 +897,42 @@ class FirestoreChallengeRepository implements ChallengeRepository {
 
   @override
   Stream<List<ChallengeEntry>> watchEntriesByUsers(List<String> userIds) {
-    final cercati = userIds.take(30).toList();
-
-    if (cercati.isEmpty) {
+    if (userIds.isEmpty) {
       return Stream.value(const []);
     }
 
-    // Trenta e' il massimo che Firestore accetta in un `whereIn`. Oltre quel
-    // numero di amici la riga "in gara" non compare per gli ultimi: e' una
-    // perdita accettabile per una cosa di contorno, e molto meglio di trenta
-    // richieste separate.
-    return _firestore
-        .collectionGroup('entries')
-        .where('userId', whereIn: cercati)
-        .limit(200)
-        .snapshots()
-        .map(_entriesFrom);
+    // **Solo le foto recenti, dalla piu' nuova, e di tutti quelli che segui.**
+    //
+    // Prima si chiedevano le partecipazioni delle prime trenta persone, al
+    // massimo duecento, in nessun ordine: dentro c'erano anche quelle delle
+    // gare finite, che restano nel database ancora per due giorni. Diciannove
+    // persone seguite avevano duecentottantuno partecipazioni, e un'ottantina
+    // restava fuori a caso — anche di gare ancora aperte. In SEGUITI mancavano
+    // foto, senza nessun motivo visibile.
+    //
+    // Adesso si chiedono solo quelle degli ultimi sette giorni — una gara dura
+    // al massimo un giorno, quindi una foto in gara e' per forza piu' recente —
+    // dalla piu' nuova, e per tutti: a gruppi di trenta, che e' il massimo che
+    // Firestore accetta in un `whereIn`, messi insieme in un elenco solo.
+    final dal = Timestamp.fromDate(
+      DateTime.now().subtract(const Duration(days: 7)),
+    );
+    final gruppi = [
+      for (var i = 0; i < userIds.length; i += 30)
+        userIds.sublist(i, math.min(i + 30, userIds.length)),
+    ];
+
+    return combinaTutti([
+      for (final gruppo in gruppi)
+        _firestore
+            .collectionGroup('entries')
+            .where('userId', whereIn: gruppo)
+            .where('createdAt', isGreaterThan: dal)
+            .orderBy('createdAt', descending: true)
+            .limit(500)
+            .snapshots()
+            .map(_entriesFrom),
+    ]).map((elenchi) => [for (final elenco in elenchi) ...elenco]);
   }
 
   @override

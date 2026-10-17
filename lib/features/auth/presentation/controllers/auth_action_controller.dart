@@ -1,5 +1,6 @@
 import 'package:crasy/features/auth/domain/repositories/auth_repository.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
+import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final authActionControllerProvider =
@@ -35,7 +36,32 @@ class AuthActionController extends AsyncNotifier<void> {
 
   Future<void> signOut() async {
     state = const AsyncLoading<void>();
-    state = await AsyncValue.guard(_authRepository.signOut);
+    state = await AsyncValue.guard(() async {
+      await _staccaIlTelefono();
+      await _authRepository.signOut();
+    });
+  }
+
+  /// **Il telefono esce dal registro prima dell'account, non dopo.**
+  ///
+  /// Lo toglieva gia' il registro, accorgendosi che non c'era piu' nessuno: ma
+  /// a quel punto l'uscita era fatta, e le regole lasciano cancellare il
+  /// recapito di un telefono solo al suo padrone **collegato**. La
+  /// cancellazione veniva rifiutata in silenzio, e il telefono continuava a
+  /// ricevere le notifiche di chi era uscito — le sfide con il nome e la frase
+  /// dentro — anche nelle mani di un altro.
+  ///
+  /// Con un limite: senza rete si esce lo stesso, non si resta chiusi dentro
+  /// per un recapito.
+  Future<void> _staccaIlTelefono() async {
+    try {
+      await ref
+          .read(pushRegistryProvider)
+          ?.forget()
+          .timeout(const Duration(seconds: 5));
+    } on Object catch (_) {
+      // Pazienza: ci riprova il registro, all'uscita.
+    }
   }
 
   Future<void> resendVerificationEmail() async {

@@ -95,7 +95,7 @@ class FirestoreNotificationsRepository {
     ) {
       final items = [
         for (final document in snapshot.docs)
-          _from(document.id, document.data()),
+          ?_from(document.id, document.data()),
       ];
 
       items.sort((a, b) {
@@ -282,10 +282,18 @@ class FirestoreNotificationsRepository {
     required String actorId,
   }) => 'gara_${challengeId}_$actorId';
 
-  AppNotification _from(String id, Map<String, dynamic> data) {
+  /// La riga, o `null` per un tipo che quest'app non sa leggere: vedi
+  /// [AppNotification.kindFromName].
+  AppNotification? _from(String id, Map<String, dynamic> data) {
+    final kind = AppNotification.kindFromName(data['kind'] as String?);
+
+    if (kind == null) {
+      return null;
+    }
+
     return AppNotification(
       id: id,
-      kind: AppNotification.kindFromName(data['kind'] as String?),
+      kind: kind,
       actorId: data['actorId'] as String? ?? '',
       actorUsername: data['actorUsername'] as String? ?? '',
       challengeId: data['challengeId'] as String? ?? '',

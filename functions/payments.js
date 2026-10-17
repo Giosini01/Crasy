@@ -34,6 +34,7 @@
  */
 
 const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { defineSecret } = require('firebase-functions/params');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
@@ -824,12 +825,14 @@ async function onChargeRefunded(charge) {
  * premio resterebbe fermo finche' non torna a premere un bottone.
  */
 async function onAccountUpdated(account) {
-  // **Utile, non necessaria.** Chi preleva controlla comunque da se' com'e'
-  // messo il proprio account (vedi `withdrawWallet`): questa riga serve solo a
+  // **Utile, non necessaria.** Chi gioca o preleva controlla comunque da se'
+  // com'e' messo il proprio conto (vedi `statoConto`): questa riga serve solo a
   // risparmiargli quella domanda, quando l'avviso arriva. Se il webhook degli
   // account collegati non e' registrato, non succede niente di male — nessuno
   // resta con i soldi bloccati.
-  const ready = account.payouts_enabled === true;
+  const ready = Boolean(
+    account.capabilities && account.capabilities.transfers === 'active'
+  );
   const users = await db
     .collection('users')
     .where('stripeAccountId', '==', account.id)
@@ -847,10 +850,528 @@ async function onAccountUpdated(account) {
     return;
   }
 
-  // Non c'e' nient'altro da fare: i premi sono gia' nel portafoglio da quando
-  // la gara si e' chiusa. Questa registrazione serve solo a poterli prelevare,
-  // ed e' il prelievo che la usa.
+  // Il conto e' pronto: quello che aveva vinto prima di collegarlo passa li'.
+  await spostaSuStripe(userId);
 }
+
+// ---------------------------------------------------------------------------
+// I soldi dei vincitori stanno a nome loro
+// ---------------------------------------------------------------------------
+//
+// **CRASY non tiene i soldi di chi vince.** Il premio di una gara aperta sta
+// sul saldo di CRASY finche' la gara non si chiude — prima non si sa di chi
+// sia. Appena c'e' un vincitore va sul **suo** conto Stripe: un conto
+// collegato, intestato a lui, che custodisce Stripe. Da li' lo preleva verso
+// la sua banca, o lo usa per lanciare una missione.
+//
+// `walletCents` resta, e vuol dire una cosa sola: **soldi di qualcuno che sono
+// ancora su CRASY**. Premi vinti prima di collegare il conto, o un
+// trasferimento che Stripe non ha accettato in quel momento. Non e' uno stato
+// normale: e' una custodia che aspetta di essere spostata, e la sposta
+// `spostaSuStripe` appena puo' — alla vittoria, al collegamento del conto, al
+// prelievo, e una volta al giorno per quelli rimasti indietro.
+//
+// `stripeCents` e' la nostra copia di quanto c'e' sul conto Stripe di quella
+// persona grazie a CRASY: serve all'app per mostrare il saldo senza chiederlo a
+// Stripe a ogni apertura. **Per pagare o prelevare non ci si fida della copia**:
+// si chiede a Stripe il saldo vero.
+
+/** Il consenso a usare il saldo Stripe per pagare le missioni. */
+const CONSENSO_ADDEBITO = 'addebito_saldo';
+
+/**
+ * **Com'e' messo il conto Stripe di una persona, chiesto a Stripe.**
+ *
+ * Pronto vuol dire che puo' ricevere i premi (`transfers` attivo). I prelievi
+ * verso la banca sono un passo in piu' (`payouts_enabled`): Stripe puo'
+ * chiedere un documento dopo, quando le cifre crescono.
+ *
+ * **I prelievi del vincitore li decide lui, non un calendario.** Lasciati
+ * automatici, Stripe manderebbe in banca ogni premio appena disponibile — anche
+ * novanta centesimi — e ogni mese con un prelievo costa due euro a CRASY. Si
+ * mettono su manuale: partono quando la persona preme "Preleva".
+ */
+async function statoDelConto(stripe, userRef, accountId) {
+  const account = await stripe.accounts.retrieve(accountId);
+  const pronto = Boolean(
+    account.capabilities && account.capabilities.transfers === 'active'
+  );
+  const prelievi = account.payouts_enabled === true;
+  // Il modulo di Stripe e' stato mandato: la verifica puo' essere ancora in
+  // corso, ma la persona ha fatto la sua parte. Vedi `assicuratiIlConto`.
+  const compilato = account.details_submitted === true;
+  const giro =
+    account.settings &&
+    account.settings.payouts &&
+    account.settings.payouts.schedule &&
+    account.settings.payouts.schedule.interval;
+
+  if (pronto && giro && giro !== 'manual') {
+    try {
+      await stripe.accounts.update(accountId, {
+        settings: { payouts: { schedule: { interval: 'manual' } } },
+      });
+    } catch (errore) {
+      logger.warn('Calendario dei prelievi non messo su manuale.', {
+        accountId,
+        errore: String((errore && errore.message) || errore).slice(0, 300),
+      });
+    }
+  }
+
+  await userRef.set({ payoutReady: pronto }, { merge: true });
+
+  return { pronto, prelievi, compilato };
+}
+
+/** Il saldo vero sul conto Stripe di una persona, in euro: disponibile e in arrivo. */
+async function saldoDelConto(stripe, accountId) {
+  const saldo = await stripe.balance.retrieve({}, { stripeAccount: accountId });
+  const somma = (righe) =>
+    (righe || [])
+      .filter((riga) => riga.currency === 'eur')
+      .reduce((totale, riga) => totale + (riga.amount || 0), 0);
+
+  return {
+    disponibile: Math.max(0, somma(saldo.available)),
+    inArrivo: Math.max(0, somma(saldo.pending)),
+  };
+}
+
+/**
+ * Il pagamento con cui e' stato messo in palio il premio di una gara, se e'
+ * passato da una carta. Le gare pagate col fondo o col saldo non ne hanno uno.
+ */
+async function caricoDellaGara(stripe, challengeId) {
+  const gara = await db.collection('challenges').doc(challengeId).get();
+
+  if (
+    !gara.exists ||
+    gara.get('paidFromWallet') === true ||
+    gara.get('pagataDalFondo') === true
+  ) {
+    return null;
+  }
+
+  const pagamento = gara.get('stripePaymentIntentId');
+
+  if (!pagamento) {
+    return null;
+  }
+
+  const intent = await stripe.paymentIntents.retrieve(pagamento);
+  const carico = intent.latest_charge;
+
+  return typeof carico === 'string' ? carico : (carico && carico.id) || null;
+}
+
+/**
+ * Un errore di Stripe che dice "no" e non "riprova": i 4xx, tranne due.
+ *
+ * Il 409 vuol dire che la stessa richiesta e' ancora in corso, e il 429 che ne
+ * sono arrivate troppe: in tutti e due i casi il trasferimento **potrebbe**
+ * partire, e rimettere i soldi in custodia vorrebbe dire rischiare di pagarli
+ * due volte. Restano in viaggio, e si chiariscono dopo.
+ */
+function eUnNoDefinitivo(errore) {
+  const codice = errore && errore.statusCode;
+
+  return (
+    typeof codice === 'number' &&
+    codice >= 400 &&
+    codice < 500 &&
+    codice !== 409 &&
+    codice !== 429
+  );
+}
+
+/**
+ * **Sposta la custodia di una persona sul suo conto Stripe.**
+ *
+ * `importo` limita quanto spostare (un premio appena vinto); senza, si sposta
+ * tutta la custodia. `sorgente` e' il pagamento da cui viene il premio: con
+ * quello Stripe accetta il trasferimento anche se il saldo di CRASY in quel
+ * momento e' basso, e lo esegue quando i soldi di quel pagamento sono
+ * disponibili.
+ *
+ * ## Mai due volte, mai zero volte
+ *
+ * L'ordine e' quello del prelievo a mano: prima la custodia passa in una
+ * casella "in viaggio" (`spostandoCents`), poi si chiede a Stripe, poi si
+ * chiude. Se Stripe dice di no, la custodia torna dov'era. Se invece non si sa
+ * — la rete e' caduta a meta' — lo spostamento resta in viaggio e non si
+ * rifa' niente finche' non si e' capito com'e' andata: rifarlo alla cieca
+ * vorrebbe dire pagare due volte. Vedi `chiudiLoSpostamentoAppeso`.
+ *
+ * Non lancia: torna quanto ha spostato, anche zero.
+ */
+async function spostaSuStripe(userId, { importo = null, sorgente = null } = {}) {
+  const userRef = db.collection('users').doc(userId);
+  const utente = await userRef.get();
+  const accountId = utente.get('stripeAccountId');
+
+  if (!accountId || utente.get('payoutReady') !== true) {
+    return 0;
+  }
+
+  const stripe = stripePayoutClient();
+
+  if ((utente.get('spostandoCents') || 0) > 0) {
+    const chiuso = await chiudiLoSpostamentoAppeso(stripe, userRef, accountId);
+
+    if (!chiuso) {
+      return 0;
+    }
+  }
+
+  const spostamentoRef = userRef.collection('spostamenti').doc();
+
+  const quanto = await db.runTransaction(async (transaction) => {
+    const fresco = await transaction.get(userRef);
+
+    if ((fresco.get('spostandoCents') || 0) > 0) {
+      return 0;
+    }
+
+    const custodia = fresco.get('walletCents') || 0;
+    const q = importo === null ? custodia : Math.min(importo, custodia);
+
+    if (q <= 0) {
+      return 0;
+    }
+
+    transaction.update(userRef, {
+      walletCents: admin.firestore.FieldValue.increment(-q),
+      spostandoCents: q,
+      spostamentoId: spostamentoRef.id,
+    });
+    transaction.set(spostamentoRef, {
+      amountCents: q,
+      sorgente: sorgente || null,
+      stato: 'in-viaggio',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return q;
+  });
+
+  if (quanto <= 0) {
+    return 0;
+  }
+
+  return eseguiLoSpostamento(stripe, userRef, accountId, spostamentoRef, {
+    amountCents: quanto,
+    sorgente,
+  });
+}
+
+/** Chiede a Stripe il trasferimento di uno spostamento, e lo chiude. */
+async function eseguiLoSpostamento(stripe, userRef, accountId, spostamentoRef, { amountCents, sorgente }) {
+  try {
+    const trasferimento = await stripe.transfers.create(
+      {
+        amount: amountCents,
+        currency: 'eur',
+        destination: accountId,
+        description: 'Premi vinti su CRASY',
+        metadata: { userId: userRef.id, spostamentoId: spostamentoRef.id },
+        ...(sorgente ? { source_transaction: sorgente } : {}),
+      },
+      // La chiave e' lo spostamento: ripetere la stessa richiesta restituisce
+      // lo stesso trasferimento, non ne fa un secondo.
+      { idempotencyKey: `sposta-${spostamentoRef.id}` }
+    );
+
+    await chiudiLoSpostamento(userRef, spostamentoRef, amountCents, trasferimento.id);
+
+    logger.info('premi spostati sul conto Stripe', {
+      userId: userRef.id,
+      amountCents,
+      transferId: trasferimento.id,
+    });
+
+    return amountCents;
+  } catch (errore) {
+    if (eUnNoDefinitivo(errore)) {
+      // Stripe ha detto di no — di solito il saldo di CRASY non basta ancora.
+      // La custodia torna dov'era e si riprova piu' tardi.
+      await annullaLoSpostamento(userRef, spostamentoRef, amountCents, errore);
+
+      return 0;
+    }
+
+    // Non si sa com'e' andata: resta in viaggio, e la prossima volta si
+    // ripete la stessa richiesta con la stessa chiave.
+    logger.error('Spostamento rimasto in viaggio.', {
+      userId: userRef.id,
+      spostamentoId: spostamentoRef.id,
+      errore: String((errore && errore.message) || errore).slice(0, 300),
+    });
+
+    return 0;
+  }
+}
+
+async function chiudiLoSpostamento(userRef, spostamentoRef, amountCents, transferId) {
+  await db.runTransaction(async (transaction) => {
+    const fresco = await transaction.get(userRef);
+
+    if (fresco.get('spostamentoId') !== spostamentoRef.id) {
+      return;
+    }
+
+    transaction.update(userRef, {
+      spostandoCents: 0,
+      spostamentoId: admin.firestore.FieldValue.delete(),
+      stripeCents: admin.firestore.FieldValue.increment(amountCents),
+    });
+    transaction.update(spostamentoRef, {
+      stato: 'fatto',
+      transferId,
+      chiusoAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  });
+}
+
+async function annullaLoSpostamento(userRef, spostamentoRef, amountCents, errore) {
+  await db.runTransaction(async (transaction) => {
+    const fresco = await transaction.get(userRef);
+
+    if (fresco.get('spostamentoId') !== spostamentoRef.id) {
+      return;
+    }
+
+    transaction.update(userRef, {
+      walletCents: admin.firestore.FieldValue.increment(amountCents),
+      spostandoCents: 0,
+      spostamentoId: admin.firestore.FieldValue.delete(),
+    });
+    transaction.update(spostamentoRef, {
+      stato: 'annullato',
+      errore: String((errore && (errore.code || errore.message)) || errore).slice(0, 300),
+      chiusoAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  });
+
+  logger.warn('Spostamento annullato: i premi restano in custodia.', {
+    userId: userRef.id,
+    amountCents,
+    errore: String((errore && (errore.code || errore.message)) || errore).slice(0, 300),
+  });
+}
+
+/**
+ * **Uno spostamento rimasto a meta': si capisce com'e' andata, poi si chiude.**
+ *
+ * Nei primi dieci minuti non si tocca — la richiesta potrebbe essere ancora in
+ * corso. Dopo, entro il giorno, si ripete la stessa richiesta con la stessa
+ * chiave: se era arrivata Stripe restituisce lo stesso trasferimento, se non
+ * era arrivata la esegue adesso. Oltre il giorno la chiave non vale piu', e si
+ * cerca il trasferimento fra quelli fatti verso quel conto.
+ *
+ * Torna `true` se lo spostamento e' chiuso (fatto o annullato).
+ */
+async function chiudiLoSpostamentoAppeso(stripe, userRef, accountId) {
+  const utente = await userRef.get();
+  const id = utente.get('spostamentoId');
+
+  if (!id) {
+    return (utente.get('spostandoCents') || 0) === 0;
+  }
+
+  const spostamentoRef = userRef.collection('spostamenti').doc(id);
+  const spostamento = await spostamentoRef.get();
+
+  if (!spostamento.exists) {
+    logger.error('Spostamento in viaggio senza traccia: serve un controllo a mano.', {
+      userId: userRef.id,
+      spostamentoId: id,
+    });
+
+    return false;
+  }
+
+  const nato = spostamento.get('createdAt');
+  const eta = nato ? Date.now() - nato.toMillis() : 0;
+  const amountCents = spostamento.get('amountCents') || 0;
+
+  if (eta < 10 * 60 * 1000) {
+    return false;
+  }
+
+  if (eta < 23 * 60 * 60 * 1000) {
+    const fatti = await eseguiLoSpostamento(stripe, userRef, accountId, spostamentoRef, {
+      amountCents,
+      sorgente: spostamento.get('sorgente') || null,
+    });
+    const dopo = await userRef.get();
+
+    return fatti > 0 || !dopo.get('spostamentoId');
+  }
+
+  const elenco = await stripe.transfers.list({ destination: accountId, limit: 100 });
+  const trovato = elenco.data.find(
+    (trasferimento) =>
+      trasferimento.metadata && trasferimento.metadata.spostamentoId === id
+  );
+
+  if (trovato) {
+    await chiudiLoSpostamento(userRef, spostamentoRef, amountCents, trovato.id);
+  } else {
+    await annullaLoSpostamento(userRef, spostamentoRef, amountCents, 'non trovato su Stripe');
+  }
+
+  return true;
+}
+
+/**
+ * **Una volta al giorno, la custodia rimasta indietro passa sui conti.**
+ *
+ * Succede quando il saldo di CRASY non bastava al momento della vittoria, o
+ * quando uno spostamento e' rimasto a meta'. Senza questo giro quei soldi
+ * resterebbero su CRASY finche' la persona non torna a premere qualcosa.
+ */
+exports.spostaLeCustodie = onSchedule(
+  {
+    schedule: 'every day 07:00',
+    timeZone: 'Europe/Rome',
+    secrets: [STRIPE_SECRET_KEY, STRIPE_PAYOUT_KEY],
+    timeoutSeconds: 300,
+  },
+  async () => {
+    const [conCustodia, inViaggio] = await Promise.all([
+      db.collection('users').where('walletCents', '>', 0).limit(200).get(),
+      db.collection('users').where('spostandoCents', '>', 0).limit(50).get(),
+    ]);
+
+    const chi = new Set(
+      [...conCustodia.docs, ...inViaggio.docs]
+        .filter((utente) => utente.get('payoutReady') === true && utente.get('stripeAccountId'))
+        .map((utente) => utente.id)
+    );
+
+    let spostati = 0;
+
+    for (const userId of chi) {
+      try {
+        spostati += await spostaSuStripe(userId);
+      } catch (errore) {
+        logger.warn('Custodia non spostata.', {
+          userId,
+          errore: String((errore && errore.message) || errore).slice(0, 300),
+        });
+      }
+    }
+
+    logger.info('giro delle custodie', { persone: chi.size, spostatiCents: spostati });
+  }
+);
+
+/**
+ * **A che punto e' il conto per ricevere i premi.** Lo chiede l'app prima di
+ * far entrare qualcuno in una gara con dei soldi, e quando torna dalla pagina
+ * di Stripe. Se il conto e' pronto, intanto ci sposta la custodia.
+ */
+exports.statoConto = onCall(
+  { secrets: [STRIPE_SECRET_KEY, STRIPE_PAYOUT_KEY] },
+  async (request) => {
+    const userId = request.auth && request.auth.uid;
+
+    if (!userId) {
+      throw new HttpsError('unauthenticated', 'Serve un account.');
+    }
+
+    const userRef = db.collection('users').doc(userId);
+    const utente = await userRef.get();
+    const accountId = utente.get('stripeAccountId');
+
+    if (!accountId) {
+      return { collegato: false, pronto: false, compilato: false, prelievi: false };
+    }
+
+    const stripe = stripePayoutClient();
+    const conto = await statoDelConto(stripe, userRef, accountId);
+
+    if (!conto.pronto) {
+      return {
+        collegato: true,
+        pronto: false,
+        compilato: conto.compilato,
+        prelievi: conto.prelievi,
+      };
+    }
+
+    await spostaSuStripe(userId);
+
+    // **Il saldo e' un di piu'.** Se Stripe non lo da' — la chiave senza il
+    // permesso di leggerlo, un attimo di rete — il conto resta pronto lo
+    // stesso: chi deve solo entrare in gara non deve restare fuori per un
+    // numero da mostrare.
+    let saldo = { disponibile: 0, inArrivo: 0 };
+
+    try {
+      saldo = await saldoDelConto(stripe, accountId);
+    } catch (errore) {
+      logger.warn('Saldo del conto non letto.', {
+        userId,
+        errore: String((errore && errore.message) || errore).slice(0, 300),
+      });
+    }
+
+    return {
+      collegato: true,
+      pronto: true,
+      compilato: true,
+      prelievi: conto.prelievi,
+      disponibileCents: saldo.disponibile,
+      inArrivoCents: saldo.inArrivo,
+    };
+  }
+);
+
+/** Dove chi ha un conto Express entra da solo, con email e codice. */
+const INGRESSO_STRIPE_EXPRESS = 'https://connect.stripe.com/express_login';
+
+/**
+ * **L'ingresso al proprio conto Stripe.** Li' si vede quanto c'e', cosa e'
+ * arrivato e cosa e' partito, e si cambia la banca: e' un conto a nome suo, e
+ * deve poterlo guardare senza chiedere a CRASY.
+ */
+exports.linkContoStripe = onCall(
+  { secrets: [STRIPE_SECRET_KEY, STRIPE_PAYOUT_KEY] },
+  async (request) => {
+    const userId = request.auth && request.auth.uid;
+
+    if (!userId) {
+      throw new HttpsError('unauthenticated', 'Serve un account.');
+    }
+
+    const utente = await db.collection('users').doc(userId).get();
+    const accountId = utente.get('stripeAccountId');
+
+    if (!accountId) {
+      throw new HttpsError('failed-precondition', 'account-mancante');
+    }
+
+    // **Il link personale non lo puo' fare una chiave limitata**, qualunque
+    // permesso abbia: Stripe lo riserva alla chiave segreta intera, e qui ci
+    // sono solo chiavi limitate. Si prova lo stesso — il giorno in cui la
+    // chiave cambia funziona da solo — e altrimenti si manda all'ingresso
+    // generale di Stripe Express, dove si entra con l'email del conto e un
+    // codice: stesso posto, un passaggio in piu'.
+    try {
+      const link = await stripePayoutClient().accounts.createLoginLink(accountId);
+
+      return { url: link.url };
+    } catch (errore) {
+      logger.info('Link personale al conto non creato: si usa l\'ingresso di Stripe Express.', {
+        codice: errore.code || errore.type,
+      });
+
+      return { url: INGRESSO_STRIPE_EXPRESS };
+    }
+  }
+);
 
 // ---------------------------------------------------------------------------
 // 3. Incassare
@@ -896,6 +1417,19 @@ exports.createPayoutOnboarding = onCall(
 
     let accountId = user.get('stripeAccountId');
 
+    // **Gia' pronto: non c'e' nessuna pagina da aprire.** Chi torna qui con il
+    // conto a posto — dal portafoglio, o entrando in una gara — non deve
+    // ritrovarsi su Stripe per niente.
+    if (accountId) {
+      const conto = await statoDelConto(stripe, userRef, accountId);
+
+      if (conto.pronto && conto.prelievi) {
+        await spostaSuStripe(userId);
+
+        return { pronto: true };
+      }
+    }
+
     if (!accountId) {
       // **Questa riga oggi fallisce, e non per colpa sua.**
       //
@@ -933,6 +1467,14 @@ exports.createPayoutOnboarding = onCall(
           capabilities: { transfers: { requested: true } },
           business_type: 'individual',
           metadata: { userId },
+          // **I prelievi partono quando li chiede lui**, non da soli: vedi
+          // `statoDelConto`.
+          settings: { payouts: { schedule: { interval: 'manual' } } },
+          // Stripe chiede a cosa serve il conto: lo diciamo noi, cosi' non
+          // deve inventarselo chi ha appena vinto un euro.
+          business_profile: {
+            product_description: 'Premi vinti nelle sfide fotografiche di CRASY',
+          },
           // **Quello che sappiamo gia', Stripe non lo richiede.**
           //
           // Sono gli stessi dati che la persona ha appena scritto nell'app:
@@ -979,6 +1521,10 @@ exports.createPayoutOnboarding = onCall(
     const link = await stripe.accountLinks.create({
       account: accountId,
       type: 'account_onboarding',
+      // **A piccoli passi.** Adesso si chiede solo quello che serve adesso;
+      // il resto — un documento, quando le cifre crescono — Stripe lo chiede
+      // quando servira', e l'app lo dira'.
+      collection_options: { fields: 'currently_due' },
       // Si torna da dove si era partiti, come per il pagamento: l'app manda
       // il proprio indirizzo, e chi non lo manda — il telefono — ripiega sul
       // sito. Vedi `indirizzoDiRitorno`.
@@ -1096,6 +1642,42 @@ async function payWinner(challengeId) {
       `${paid.winnerUserId}.`
   );
 
+  // **Il premio non resta su CRASY: va sul conto Stripe di chi ha vinto.**
+  //
+  // L'accredito qui sopra e' la rete di sicurezza — se il vincitore non ha
+  // ancora un conto collegato, o Stripe non risponde, i soldi sono comunque
+  // suoi e scritti. Ma appena si puo' escono dal saldo di CRASY: i soldi dei
+  // vincitori li tiene Stripe a nome loro, non noi.
+  //
+  // **Legato al pagamento di chi l'ha lanciata**, quando c'e': cosi' il
+  // trasferimento parte anche se il saldo di CRASY in quel momento e' basso,
+  // e i soldi diventano disponibili al vincitore quando lo diventano quelli
+  // del pagamento. Vedi `spostaSuStripe`.
+  try {
+    // **Il pagamento si legge con la chiave che incassa**, che i pagamenti
+    // li crea e quindi li sa leggere: la chiave dei prelievi e' fatta per far
+    // uscire soldi, e leggere un pagamento non e' fra i suoi permessi. E se
+    // non si riesce, il trasferimento parte lo stesso, dal saldo di CRASY.
+    let sorgente = null;
+
+    try {
+      sorgente = await caricoDellaGara(stripeClient(), challengeId);
+    } catch (errore) {
+      logger.warn('Pagamento della gara non letto: si trasferisce dal saldo.', {
+        challengeId,
+        errore: String((errore && errore.message) || errore).slice(0, 300),
+      });
+    }
+
+    await spostaSuStripe(paid.winnerUserId, { importo: paid.amount, sorgente });
+    // Quello che c'era gia' in custodia prima di questo premio, se c'era.
+    await spostaSuStripe(paid.winnerUserId);
+  } catch (errore) {
+    logger.warn(`Premio di ${challengeId} rimasto in custodia: si riprova.`, {
+      errore: String((errore && errore.message) || errore).slice(0, 300),
+    });
+  }
+
   return { paid: true, amountCents: paid.amount };
 }
 
@@ -1157,17 +1739,22 @@ async function scriviNelRegistro(userId, id, riga) {
 const MIN_WITHDRAWAL_CENTS = 1000;
 
 /**
- * Prelevare quello che si ha nel portafoglio.
+ * **Prelevare: dal conto Stripe del vincitore alla sua banca.**
  *
- * L'ordine delle operazioni e' l'unica cosa che conta qui, ed e' questo: prima
- * si **sposta** il saldo in una casella "in uscita", poi si bonifica, poi si
- * chiude. Non e' pignoleria contabile — se si bonificasse prima di segnare, una
- * funzione che muore in mezzo lascerebbe dei soldi usciti e un saldo intatto, e
- * il prelievo successivo li farebbe uscire di nuovo.
+ * I premi stanno gia' sul suo conto Stripe (vedi `spostaSuStripe`): prelevare
+ * vuol dire chiedere a Stripe di mandarli sul suo IBAN. CRASY non tocca quei
+ * soldi — da' solo il via.
  *
- * Se il bonifico fallisce, il saldo torna dov'era. Il caso peggiore e' un
- * prelievo che non funziona e va rifatto; quello che non puo' succedere e' che
- * spariscano dei soldi.
+ * Prima si sposta sul conto anche la custodia rimasta su CRASY, se c'e'. Quella
+ * che non si riesce a spostare — soldi vecchi, o il saldo di CRASY
+ * momentaneamente scoperto — **non resta ferma**: va nella fila dei bonifici a
+ * mano, come si faceva prima. Nessuno deve sentirsi dire "i tuoi soldi ci sono
+ * ma non li puoi avere".
+ *
+ * **Si preleva solo il disponibile.** Un premio appena vinto con la carta di
+ * qualcun altro arriva sul conto "in arrivo" e diventa disponibile qualche
+ * giorno dopo, quando Stripe ha incassato davvero quel pagamento: lo si dice,
+ * con la cifra.
  */
 exports.withdrawWallet = onCall(
   { secrets: [STRIPE_SECRET_KEY, STRIPE_PAYOUT_KEY] },
@@ -1181,97 +1768,95 @@ exports.withdrawWallet = onCall(
     const stripe = stripePayoutClient();
     const userRef = db.collection('users').doc(userId);
     const user = await userRef.get();
-    const balance = user.get('walletCents') || 0;
-
-    if (balance < MIN_WITHDRAWAL_CENTS) {
-      return { paid: false, reason: 'saldo-basso', minimumCents: MIN_WITHDRAWAL_CENTS };
-    }
-
     const accountId = user.get('stripeAccountId');
 
     if (!accountId) {
       // Non e' un errore: e' la prima volta. Chi chiama apre la registrazione.
-      return { paid: false, reason: 'account-mancante' };
+      return { ok: false, reason: 'account-mancante' };
     }
 
-    // **Se non risulta pronto, si chiede a Stripe invece di crederci.**
-    //
-    // `payoutReady` e' una copia: la scrive il webhook quando Stripe avvisa che
-    // quella registrazione e' andata a buon fine. Ma quell'avviso riguarda un
-    // account *collegato*, e Stripe lo manda solo a una destinazione di tipo
-    // "account connessi" — un secondo indirizzo, con un secondo segreto, da
-    // tenere in piedi per una riga di copia.
-    //
-    // Qui si evita tutto: **al momento del prelievo si domanda a Stripe com'e'
-    // messo quell'account**, che e' l'unico momento in cui la risposta serve
-    // davvero. Una chiamata sola, fatta da una persona che sta gia' aspettando
-    // dei soldi, e la risposta non puo' essere vecchia — cosa che una copia
-    // scritta giorni prima invece puo'.
-    if (user.get('payoutReady') !== true) {
-      const account = await stripe.accounts.retrieve(accountId);
+    // **Si chiede a Stripe, non alla copia.** `payoutReady` la scrive un
+    // avviso che puo' non arrivare: al momento del prelievo si domanda com'e'
+    // messo il conto, che e' l'unico momento in cui la risposta serve davvero.
+    const conto = await statoDelConto(stripe, userRef, accountId);
 
-      if (account.payouts_enabled !== true) {
-        return { paid: false, reason: 'account-mancante' };
+    if (!conto.pronto) {
+      return { ok: false, reason: 'account-mancante' };
+    }
+
+    await spostaSuStripe(userId);
+
+    const saldo = await saldoDelConto(stripe, accountId);
+    let suStripe = 0;
+
+    if (saldo.disponibile >= MIN_WITHDRAWAL_CENTS) {
+      // Il conto riceve i premi ma non puo' ancora mandarli in banca: Stripe
+      // vuole un dato in piu'. Chi chiama riapre la pagina di Stripe.
+      if (!conto.prelievi) {
+        return { ok: false, reason: 'account-incompleto' };
       }
 
-      await userRef.update({ payoutReady: true });
-    }
+      const movementRef = userRef.collection('wallet').doc();
 
-    const movementRef = userRef.collection('wallet').doc();
-
-    const amount = await db.runTransaction(async (transaction) => {
-      const fresh = await transaction.get(userRef);
-      const current = fresh.get('walletCents') || 0;
-
-      if (current < MIN_WITHDRAWAL_CENTS) {
-        return 0;
-      }
-
-      transaction.update(userRef, {
-        walletCents: 0,
-        withdrawingCents: current,
-      });
-
-      return current;
-    });
-
-    if (amount <= 0) {
-      return { paid: false, reason: 'saldo-basso' };
-    }
-
-    try {
-      await stripe.transfers.create(
+      await stripe.payouts.create(
         {
-          amount,
+          amount: saldo.disponibile,
           currency: 'eur',
-          destination: accountId,
-          description: 'Prelievo CRASY',
+          description: 'Premi vinti su CRASY',
           metadata: { userId, movementId: movementRef.id },
         },
-        { idempotencyKey: `wallet-withdrawal-${movementRef.id}` }
+        { stripeAccount: accountId, idempotencyKey: `prelievo-${movementRef.id}` }
       );
-    } catch (error) {
-      // Il saldo torna dov'era: i soldi non sono usciti.
-      await userRef.update({
-        walletCents: admin.firestore.FieldValue.increment(amount),
-        withdrawingCents: 0,
+
+      suStripe = saldo.disponibile;
+
+      await db.runTransaction(async (transaction) => {
+        const fresco = await transaction.get(userRef);
+
+        transaction.update(userRef, {
+          stripeCents: Math.max(0, (fresco.get('stripeCents') || 0) - suStripe),
+        });
+        transaction.set(movementRef, {
+          kind: 'withdrawal',
+          amountCents: -suStripe,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
       });
 
-      logger.error(`Prelievo di ${userId} fallito: saldo ripristinato.`, error);
+      await scriviNelRegistro(userId, `prelievo_${movementRef.id}`, {
+        kind: 'withdrawal',
+        amountCents: -suStripe,
+        source: 'bank',
+        note: 'Prelievo: dal tuo conto Stripe alla tua banca',
+      });
 
-      throw new HttpsError('unavailable', 'Prelievo non riuscito.');
+      logger.info(`${userId} ha prelevato ${suStripe} centesimi dal suo conto Stripe.`);
     }
 
-    await userRef.update({ withdrawingCents: 0 });
-    await movementRef.set({
-      kind: 'withdrawal',
-      amountCents: -amount,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    // La custodia che non e' potuta passare sul conto: bonifico a mano.
+    const aMano = await mettiInFilaIlBonifico(userId);
 
-    logger.info(`${userId} ha prelevato ${amount} centesimi.`);
+    if (suStripe === 0 && aMano.quanto <= 0) {
+      return {
+        ok: false,
+        reason:
+          aMano.reason === 'gia-in-corso'
+            ? 'gia-in-corso'
+            : saldo.inArrivo > 0
+            ? 'in-arrivo'
+            : 'saldo-basso',
+        disponibileCents: saldo.disponibile,
+        inArrivoCents: saldo.inArrivo,
+        minimumCents: MIN_WITHDRAWAL_CENTS,
+      };
+    }
 
-    return { paid: true, amountCents: amount };
+    return {
+      ok: true,
+      stripeCents: suStripe,
+      manualeCents: Math.max(0, aMano.quanto),
+      inArrivoCents: saldo.inArrivo,
+    };
   }
 );
 
@@ -1410,6 +1995,17 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
           challengeTitle: snapshot.get('title') || '',
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
+
+      // Il premio tornato non resta su CRASY: va sul suo conto Stripe, se ce
+      // l'ha. Se no resta in custodia, e passa quando lo collega.
+      try {
+        await spostaSuStripe(haPagato);
+      } catch (errore) {
+        logger.warn('Rimborso rimasto in custodia.', {
+          userId: haPagato,
+          errore: String((errore && errore.message) || errore).slice(0, 300),
+        });
+      }
     }
   } else {
     const rimborso = await stripe.refunds.create(
@@ -1564,6 +2160,10 @@ exports.cancelChallenge = onCall(
 );
 
 module.exports.scriviNelRegistro = scriviNelRegistro;
+// Le chiavi servono anche alle funzioni che chiudono le gare: pagano il
+// vincitore e rimborsano, e senza chiave Stripe non risponde.
+module.exports.STRIPE_SECRET_KEY = STRIPE_SECRET_KEY;
+module.exports.STRIPE_PAYOUT_KEY = STRIPE_PAYOUT_KEY;
 module.exports.payWinner = payWinner;
 module.exports.refundChallenge = refundChallenge;
 module.exports.commissionCents = commissionCents;
@@ -1628,7 +2228,9 @@ module.exports.chargeCents = chargeCents;
  * prima che l'altro scriva, e scalerebbero il premio due volte per una gara
  * sola. Riletta li' dentro, la seconda trova `held` e si ferma.
  */
-exports.payChallengeFromWallet = onCall(async (request) => {
+exports.payChallengeFromWallet = onCall(
+  { secrets: [STRIPE_SECRET_KEY, STRIPE_PAYOUT_KEY] },
+  async (request) => {
   const userId = request.auth && request.auth.uid;
 
   if (!userId) {
@@ -1737,6 +2339,13 @@ exports.payChallengeFromWallet = onCall(async (request) => {
     return { ok: true, amountCents: premio };
   });
 
+  // **La custodia non basta: si paga con il saldo del suo conto Stripe.** E'
+  // dove stanno i premi da quando vanno a nome di chi vince. Vedi
+  // `pagaDalContoStripe`.
+  if (esito.reason === 'saldo-basso') {
+    return pagaDalContoStripe(userId, challengeId);
+  }
+
   if (esito.ok && !esito.giaPagata) {
     // **Il registro anche di qui.** Una gara pagata col portafoglio non passa
     // dal webhook di Stripe — e' quello a scrivere la riga per i pagamenti con
@@ -1762,7 +2371,224 @@ exports.payChallengeFromWallet = onCall(async (request) => {
   }
 
   return esito;
-});
+  }
+);
+
+/**
+ * **Pagare una missione con i premi che stanno sul proprio conto Stripe.**
+ *
+ * I premi vinti sono sul conto Stripe di chi ha vinto, non su CRASY: per
+ * metterli in palio CRASY li preleva da li' con un addebito sul conto
+ * collegato. Stripe lo consente per pagare un servizio della piattaforma — e
+ * lanciare una missione lo e' — a tre condizioni, tutte rispettate qui:
+ *
+ * - **il consenso**, dato una volta, esplicito, e scritto con la data
+ *   (`consents/addebito_saldo`). Senza, non si tocca niente;
+ * - **i soldi disponibili**, non quelli in arrivo: un premio appena vinto
+ *   diventa spendibile quando Stripe ha incassato il pagamento da cui viene;
+ * - **solo quando lo chiede lui**, toccando "paga col portafoglio".
+ *
+ * Costa a CRASY l'1,4% dell'importo: meno della carta, ed e' gia' compreso nel
+ * dieci per cento che resta a CRASY quando la gara si chiude.
+ *
+ * Se la gara intanto si e' gia' pagata in un altro modo, l'addebito torna
+ * indietro sul suo conto: e' la correzione di un errore, che Stripe consente.
+ */
+async function pagaDalContoStripe(userId, challengeId) {
+  const userRef = db.collection('users').doc(userId);
+  const challengeRef = db.collection('challenges').doc(challengeId);
+  const [utente, gara] = await Promise.all([userRef.get(), challengeRef.get()]);
+  const premio = gara.get('prizeCents') || 0;
+  const custodia = utente.get('walletCents') || 0;
+  const accountId = utente.get('stripeAccountId');
+
+  if (!accountId || utente.get('payoutReady') !== true) {
+    return { ok: false, reason: 'saldo-basso', walletCents: custodia };
+  }
+
+  const consenso = await userRef.collection('consents').doc(CONSENSO_ADDEBITO).get();
+
+  if (!consenso.exists || consenso.get('accepted') !== true) {
+    return { ok: false, reason: 'consenso-mancante' };
+  }
+
+  const stripe = stripePayoutClient();
+
+  // La custodia rimasta raggiunge il resto sul conto: si paga da un posto solo.
+  if (custodia > 0) {
+    await spostaSuStripe(userId);
+  }
+
+  const saldo = await saldoDelConto(stripe, accountId);
+
+  if (saldo.disponibile < premio) {
+    return {
+      ok: false,
+      reason:
+        saldo.disponibile + saldo.inArrivo >= premio ? 'saldo-in-arrivo' : 'saldo-basso',
+      disponibileCents: saldo.disponibile,
+      inArrivoCents: saldo.inArrivo,
+    };
+  }
+
+  // **Quante volte un addebito per questa gara e' gia' tornato indietro.**
+  // Entra nella chiave: dopo una restituzione, riprovando, Stripe deve fare un
+  // addebito nuovo — con la chiave di prima restituirebbe quello vecchio, i
+  // cui soldi sono gia' tornati, e la gara risulterebbe pagata gratis.
+  const restituzioniRef = db
+    .collection('addebitiRestituiti')
+    .doc(`${challengeId}_${userId}`);
+  const restituzioni = (await restituzioniRef.get()).get('volte') || 0;
+
+  const addebito = await stripe.charges.create(
+    {
+      amount: premio,
+      currency: 'eur',
+      source: accountId,
+      description: `Premio: ${gara.get('title') || 'missione CRASY'}`,
+      // Nel metadato la gara e il premio: il riquadro dei guadagni lo legge
+      // come il pagamento di una missione, e divide fra vincitore e CRASY.
+      metadata: {
+        kind: 'addebitoSaldo',
+        challengeId,
+        userId,
+        prizeCents: String(premio),
+      },
+    },
+    // Un addebito per gara: il secondo tocco riceve lo stesso, non un altro.
+    {
+      idempotencyKey: restituzioni
+        ? `addebito-${challengeId}-${restituzioni}`
+        : `addebito-${challengeId}`,
+    }
+  );
+
+  const movimentoRef = userRef.collection('wallet').doc(`addebito_${challengeId}`);
+
+  const restituisci = async (motivo) => {
+    await stripe.transfers.create(
+      {
+        amount: premio,
+        currency: 'eur',
+        destination: accountId,
+        description: 'Restituzione: la missione non e\' stata pagata con il saldo',
+        metadata: { userId, challengeId, addebitoId: addebito.id },
+      },
+      { idempotencyKey: `restituisci-${addebito.id}` }
+    );
+
+    await restituzioniRef.set(
+      { volte: admin.firestore.FieldValue.increment(1), ultimo: addebito.id },
+      { merge: true }
+    );
+
+    logger.warn(`Addebito restituito: ${motivo}.`, { userId, challengeId });
+  };
+
+  // **L'addebito e' gia' fatto: se la scrittura non va, i soldi tornano.**
+  // Prima restavano a CRASY senza che la gara risultasse pagata, e senza
+  // nessuno che se ne accorgesse.
+  let esito;
+
+  try {
+    esito = await db.runTransaction(async (transaction) => {
+      const [fresca, fresco] = await Promise.all([
+        transaction.get(challengeRef),
+        transaction.get(userRef),
+      ]);
+
+      if (!fresca.exists) {
+        return { ok: false, reason: 'gara-sparita', restituisci: true };
+      }
+
+      const stato = fresca.get('prizeStatus');
+
+      if (stato === 'held' || stato === 'paidOut') {
+        // Pagata da questo stesso addebito: e' il secondo tocco, va bene cosi'.
+        // Pagata in un altro modo: l'addebito non ha pagato niente e torna.
+        return fresca.get('addebitoId') === addebito.id
+          ? { ok: true, giaPagata: true }
+          : { ok: true, giaPagata: true, restituisci: true };
+      }
+
+      const adesso = admin.firestore.Timestamp.now();
+      const startsAt = fresca.get('startsAt');
+      const endsAt = fresca.get('endsAt');
+      const durataMs =
+        startsAt && endsAt ? endsAt.toMillis() - startsAt.toMillis() : 0;
+      const durata = durataMs >= 60 * 1000 ? durataMs : 60 * 60 * 1000;
+
+      transaction.update(userRef, {
+        stripeCents: Math.max(0, (fresco.get('stripeCents') || 0) - premio),
+        ...(fresca.get('anonimo') === true
+          ? {}
+          : {
+              totalStakedCents: admin.firestore.FieldValue.increment(premio),
+              totalStakedCount: admin.firestore.FieldValue.increment(1),
+            }),
+      });
+
+      transaction.update(challengeRef, {
+        prizeStatus: 'held',
+        paidAt: adesso,
+        // Come le gare pagate dalla custodia: se si annulla, il premio torna nel
+        // portafoglio — e da li' sul conto Stripe.
+        paidFromWallet: true,
+        addebitoId: addebito.id,
+        startsAt: adesso,
+        endsAt: admin.firestore.Timestamp.fromMillis(adesso.toMillis() + durata),
+      });
+
+      transaction.set(movimentoRef, {
+        kind: 'challengePayment',
+        amountCents: -premio,
+        challengeId,
+        challengeTitle: fresca.get('title') || '',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return { ok: true, amountCents: premio };
+    });
+  } catch (errore) {
+    // Puo' essere andata a buon fine e aver risposto male: si guarda.
+    const dopo = await challengeRef.get();
+
+    if (dopo.get('addebitoId') !== addebito.id) {
+      await restituisci('la scrittura della gara non e\' andata');
+
+      throw new HttpsError('aborted', 'Non siamo riusciti a pagare: riprova.');
+    }
+
+    logger.warn('Transazione con errore ma gara pagata da questo addebito.', {
+      challengeId,
+      errore: String((errore && errore.message) || errore).slice(0, 300),
+    });
+    esito = { ok: true, amountCents: premio };
+  }
+
+  if (esito.restituisci) {
+    await restituisci('la missione era gia\' pagata o sparita');
+
+    const { restituisci: _restituita, ...risposta } = esito;
+
+    return risposta;
+  }
+
+  if (esito.ok && !esito.giaPagata) {
+    await scriviNelRegistro(userId, `pagamento_${challengeId}`, {
+      kind: 'challengePayment',
+      amountCents: -premio,
+      challengeId,
+      challengeTitle: gara.get('title') || '',
+      source: 'wallet',
+      note: 'Premio messo in palio, pagato con il tuo saldo Stripe',
+    });
+
+    logger.info(`${userId} ha pagato ${challengeId} con il saldo Stripe.`);
+  }
+
+  return esito;
+}
 
 exports.requestPayout = onCall(async (request) => {
   const userId = request.auth && request.auth.uid;
@@ -1771,11 +2597,35 @@ exports.requestPayout = onCall(async (request) => {
     throw new HttpsError('unauthenticated', 'Serve un account.');
   }
 
+  const esito = await mettiInFilaIlBonifico(userId);
+
+  if (esito.reason === 'dati-mancanti') {
+    throw new HttpsError('failed-precondition', 'dati-mancanti');
+  }
+
+  if (esito.quanto <= 0) {
+    return esito.reason === 'gia-in-corso'
+      ? { ok: false, reason: 'gia-in-corso' }
+      : { ok: false, reason: 'saldo-basso', minimumCents: MIN_WITHDRAWAL_CENTS };
+  }
+
+  return { ok: true, amountCents: esito.quanto };
+});
+
+/**
+ * **La custodia che va pagata a mano: un bonifico in fila.**
+ *
+ * E' la strada di prima, e resta per quello che non puo' passare dal conto
+ * Stripe: le versioni vecchie dell'app, e i soldi rimasti su CRASY quando il
+ * suo saldo non bastava a spostarli. Torna quanto e' entrato in fila, oppure
+ * zero con il motivo.
+ */
+async function mettiInFilaIlBonifico(userId) {
   const userRef = db.collection('users').doc(userId);
   const dati = (await userRef.collection('private').doc('payout').get()).data();
 
   if (!dati || !dati.iban || !dati.firstName || !dati.lastName) {
-    throw new HttpsError('failed-precondition', 'dati-mancanti');
+    return { quanto: 0, reason: 'dati-mancanti' };
   }
 
   const richiestaRef = db.collection('payoutRequests').doc();
@@ -1820,11 +2670,11 @@ exports.requestPayout = onCall(async (request) => {
   });
 
   if (quanto === 0) {
-    return { ok: false, reason: 'saldo-basso', minimumCents: MIN_WITHDRAWAL_CENTS };
+    return { quanto: 0, reason: 'saldo-basso' };
   }
 
   if (quanto < 0) {
-    return { ok: false, reason: 'gia-in-corso' };
+    return { quanto: 0, reason: 'gia-in-corso' };
   }
 
   await scriviNelRegistro(userId, `prelievo_${richiestaRef.id}`, {
@@ -1836,8 +2686,8 @@ exports.requestPayout = onCall(async (request) => {
 
   logger.info(`Prelievo chiesto da ${userId}: ${quanto} centesimi.`);
 
-  return { ok: true, amountCents: quanto };
-});
+  return { quanto };
+}
 
 /** L'elenco dei bonifici da fare. Solo per chi tiene CRASY. */
 /**

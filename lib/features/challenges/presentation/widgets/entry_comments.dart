@@ -2,6 +2,7 @@ import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/utils/app_date_utils.dart';
+import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/presentation/controllers/comment_controller.dart';
@@ -207,16 +208,19 @@ class _CommentsSheetState extends ConsumerState<_CommentsSheet> {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final texts = context.texts;
-    final commenti =
-        ref
-            .watch(
-              entryCommentsProvider((
-                challengeId: widget.entry.challengeId,
-                entryId: widget.entry.id,
-              )),
-            )
-            .valueOrNull ??
-        const <EntryComment>[];
+    final letti = ref.watch(
+      entryCommentsProvider((
+        challengeId: widget.entry.challengeId,
+        entryId: widget.entry.id,
+      )),
+    );
+    final commenti = letti.valueOrNull ?? const <EntryComment>[];
+
+    // **Mentre i commenti arrivano, ne' "0" ne' "ancora nessuno".** Prima il
+    // foglio si apriva dicendo che non aveva scritto nessuno, e un attimo dopo
+    // si riempiva: chi apriva per leggere una risposta si sentiva dire che non
+    // c'era. Finche' arrivano, la fiamma al posto dell'elenco e niente numero.
+    final caricando = !letti.hasValue && !letti.hasError;
 
     final tag = _tagInCorso;
 
@@ -263,23 +267,33 @@ class _CommentsSheetState extends ConsumerState<_CommentsSheet> {
                       ),
                     ),
                     const Spacer(),
-                    Text(
-                      '${commenti.length}',
-                      style: texts.labelSmall?.copyWith(
-                        color: palette.textFaint,
+                    if (!caricando)
+                      Text(
+                        '${commenti.length}',
+                        style: texts.labelSmall?.copyWith(
+                          color: palette.textFaint,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
               Expanded(
-                child: commenti.isEmpty
+                child: caricando
+                    ? const Center(child: FiammaCheGira())
+                    : commenti.isEmpty
                     ? Padding(
                         padding: const EdgeInsets.all(AppSpacing.xl),
                         child: Text(
-                          'Ancora nessuno. Comincia tu: con la chiocciola nomini '
-                          'chi vuoi, e gli arriva la notizia.',
+                          // Una lettura che non e' riuscita non e' un foglio
+                          // vuoto: "comincia tu" sotto commenti che ci sono
+                          // farebbe scrivere al buio.
+                          letti.hasError
+                              ? 'Non riusciamo a leggere i commenti. Riprova '
+                                    'fra poco.'
+                              : 'Ancora nessuno. Comincia tu: con la '
+                                    'chiocciola nomini chi vuoi, e gli arriva '
+                                    'la notizia.',
                           textAlign: TextAlign.center,
                           style: texts.bodyMedium?.copyWith(
                             color: palette.textSecondary,
@@ -341,7 +355,12 @@ class _CommentsSheetState extends ConsumerState<_CommentsSheet> {
                     const SizedBox(width: AppSpacing.xs),
                     IconButton(
                       onPressed: _mandando ? null : _manda,
-                      icon: Icon(Icons.send_rounded, color: palette.accent),
+                      // **Mentre parte, la fiamma al posto della freccia.** Il
+                      // tasto spento e basta non diceva niente: si ritoccava,
+                      // convinti di non aver premuto.
+                      icon: _mandando
+                          ? const FiammaCheGira(misura: 24)
+                          : Icon(Icons.send_rounded, color: palette.accent),
                       tooltip: 'Manda',
                     ),
                   ],

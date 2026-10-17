@@ -60,7 +60,12 @@ class _FireTapState extends ConsumerState<FireTap>
       return;
     }
 
-    _controller.forward(from: 0);
+    // Sboccia solo se la fiamma si accende davvero: sulla propria foto o a
+    // fiamme finite resta la riga che lo spiega, non una conferma finta.
+    if (fiammaDaAccendere(ref, widget.entry)) {
+      _controller.forward(from: 0);
+    }
+
     await giveFire(context, ref, widget.entry, voted: true);
   }
 
@@ -85,15 +90,20 @@ class _FireTapState extends ConsumerState<FireTap>
           // `IgnorePointer` e non un semplice widget sopra: la fiamma copre
           // tutta la foto mentre e' visibile, e senza si mangerebbe i tocchi
           // successivi proprio nel mezzo del doppio tocco.
-          IgnorePointer(child: _FireBurst(animation: _controller)),
+          IgnorePointer(child: FireBurst(animation: _controller)),
         ],
       ),
     );
   }
 }
 
-class _FireBurst extends StatelessWidget {
-  const _FireBurst({required this.animation});
+/// La fiamma che sboccia al centro e sparisce: la conferma del doppio tocco.
+///
+/// Pubblica perche' serve anche a schermo intero, dove il doppio tocco dava la
+/// fiamma senza far vedere niente — e chi aveva toccato due volte per
+/// ingrandire si ritrovava ad aver messo un like senza saperlo.
+class FireBurst extends StatelessWidget {
+  const FireBurst({required this.animation, super.key});
 
   final Animation<double> animation;
 

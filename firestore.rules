@@ -255,6 +255,11 @@ service cloud.firestore {
                && !('lastPlayedOn' in request.resource.data.diff(resource.data).affectedKeys())
                && !('walletCents' in request.resource.data.diff(resource.data).affectedKeys())
                && !('withdrawingCents' in request.resource.data.diff(resource.data).affectedKeys())
+               // I premi sul conto Stripe di chi ha vinto, e quelli in viaggio
+               // verso il conto: li muove solo il server, come il saldo.
+               && !('stripeCents' in request.resource.data.diff(resource.data).affectedKeys())
+               && !('spostandoCents' in request.resource.data.diff(resource.data).affectedKeys())
+               && !('spostamentoId' in request.resource.data.diff(resource.data).affectedKeys())
                && !('stripeAccountId' in request.resource.data.diff(resource.data).affectedKeys())
                && !('payoutReady' in request.resource.data.diff(resource.data).affectedKeys())
                && !('verificato' in request.resource.data.diff(resource.data).affectedKeys())
@@ -282,6 +287,8 @@ service cloud.firestore {
                     && isAdultProfile()
                     && noPhoneInPublicProfile()
                     && !('walletCents' in request.resource.data)
+                    && !('stripeCents' in request.resource.data)
+                    && !('spostandoCents' in request.resource.data)
                     // Il verificato lo da' solo il server: chi si iscrive
                     // non puo' nascere con la spunta.
                     && !('verificato' in request.resource.data)
@@ -308,7 +315,9 @@ service cloud.firestore {
       allow delete: if signedIn()
                     && request.auth.uid == userId
                     && resource.data.get('walletCents', 0) == 0
-                    && resource.data.get('withdrawingCents', 0) == 0;
+                    && resource.data.get('withdrawingCents', 0) == 0
+                    && resource.data.get('stripeCents', 0) == 0
+                    && resource.data.get('spostandoCents', 0) == 0;
 
       // **Il registro dei consensi. Si scrive e non si tocca piu'.**
       //
@@ -334,7 +343,7 @@ service cloud.firestore {
       // Sta sotto chi ha votato e non sotto la foto votata: cosi' "ho gia'
       // votato questa?" e' una lettura della propria sottocollezione, e nessuno
       // puo' sapere chi ha votato cosa.
-      match /votes/{entryId} {
+      match /votes/{voteId} {
         function gara(id) {
           return get(/databases/$(database)/documents/challenges/$(id)).data;
         }
@@ -378,10 +387,21 @@ service cloud.firestore {
         // L'app lo impedisce gia' e mostra una riga che se ne va da sola. Se la
         // regola vivesse solo li', pero', sarebbe una regola dell'interfaccia:
         // nessuna difesa per chi scrive sul database direttamente.
+        // **Un voto per foto, e il nome lo dice.** Il voto si chiama
+        // `{gara}__{foto}`, ed e' quel nome a impedire di votare due volte la
+        // stessa foto: due scritture, lo stesso documento. Ma il nome lo
+        // sceglie chi scrive, e finche' non era legato al contenuto bastava
+        // chiamare i voti `a1`, `a2`, `a3`… con dentro la stessa foto, e il
+        // server contava una fiamma per ognuno. Adesso nome e contenuto devono
+        // combaciare, e dentro non c'e' altro.
         allow create: if signedIn()
                       && request.auth.uid == userId
+                      && request.resource.data.keys().hasOnly(['challengeId', 'entryId', 'createdAt'])
+                      && request.resource.data.entryId is string
+                      && request.resource.data.entryId != ''
                       && request.resource.data.entryId != userId
-                      && siPuoAncoraVotare(request.resource.data.challengeId);
+                      && siPuoAncoraVotare(request.resource.data.challengeId)
+                      && voteId == request.resource.data.challengeId + '__' + request.resource.data.entryId;
 
         allow delete: if signedIn()
                       && request.auth.uid == userId
@@ -448,13 +468,38 @@ service cloud.firestore {
         // scritto**, perche' il confronto e' con `actorId`, che al momento
         // della creazione le regole hanno gia' obbligato a essere chi scriveva.
         // Nessuno puo' zittire le notifiche di qualcun altro.
+        // **E chi l'ha provocata cancella solo le fiamme.** E' l'unica che
+        // l'app toglie dalla casella di un altro. Prima valeva per tutte, e
+        // anche per quelle scritte dal server a nome di qualcuno: l'unico
+        // partecipante di una missione poteva togliere a chi l'aveva lanciata
+        // l'avviso "decidi se ha vinto" — e senza giudizio, dopo due giorni, il
+        // premio andava a lui.
         allow delete: if signedIn()
                       && (request.auth.uid == userId
-                          || request.auth.uid == resource.data.actorId);
+                          || (request.auth.uid == resource.data.actorId
+                              && resource.data.kind == 'fire'));
 
         allow create: if signedIn()
                       && request.resource.data.actorId == request.auth.uid
                       && request.auth.uid != userId
+                      // **Il nome dev'essere il proprio.** Si legge sul
+                      // profilo: senza, chiunque scrivendo sul database poteva
+                      // firmare un avviso come "@crasy" e farlo comparire sullo
+                      // schermo bloccato di chi voleva. Vuoto solo in anonimo.
+                      && (
+                           request.resource.data.actorUsername == ''
+                           || request.resource.data.actorUsername
+                              == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('username', '')
+                         )
+                      && request.resource.data.keys().hasOnly([
+                           'kind', 'actorId', 'actorUsername', 'anonimo',
+                           'challengeId', 'challengeTitle', 'entryId',
+                           'message', 'createdAt'
+                         ])
+                      && request.resource.data.get('challengeTitle', '') is string
+                      && request.resource.data.get('challengeTitle', '').size() <= 120
+                      && request.resource.data.get('message', '') is string
+                      && request.resource.data.get('message', '').size() <= 300
                       // `mention` sta qui insieme alle altre due perche' e'
                       // scritta dallo stesso posto: chi commenta nominando
                       // qualcuno gli scrive la notizia nella campanella. Le
@@ -788,6 +833,23 @@ service cloud.firestore {
                     // telefono a scrivere `held`.
                     && request.resource.data.get('prizeStatus', 'unpaid')
                        == 'unpaid'
+                    // **E nessuno dei segni che mette il server.**
+                    //
+                    // Da dove sono arrivati i soldi lo decide il server, ed e'
+                    // quel segno a dire dove tornano: chi nasceva con
+                    // `paidFromWallet` scritto da se' e poi pagava con la carta,
+                    // cancellando la gara riceveva il rimborso nel portafoglio
+                    // — prelevabile — invece che sulla carta. Un vincitore
+                    // scritto alla nascita, su una sfida mai fatta, si prendeva
+                    // il premio alla chiusura. Le app non li scrivono: li vieta
+                    // solo a chi scrive sul database da se'.
+                    && !request.resource.data.keys().hasAny([
+                         'paidFromWallet', 'pagataDalFondo', 'addebitoId',
+                         'stripePaymentIntentId', 'winnerUserId',
+                         'winnerUsername', 'winnerMediaUrl', 'winnerVotes',
+                         'duelVerdict', 'attesaGiudizio', 'giudizioEntro',
+                         'giudizioSolo'
+                       ])
                     && request.resource.data.startsAt is timestamp
                     && request.resource.data.endsAt is timestamp
                     && request.resource.data.endsAt > request.resource.data.startsAt
@@ -821,6 +883,13 @@ service cloud.firestore {
                                  != request.auth.uid
                               && request.resource.data.get('duelStatus', '')
                                  == 'pending'
+                              // **E non a chi ti ha bloccato.** Il blocco non
+                              // si scavalca con una sfida — tanto meno con una
+                              // anonima, dove chi la riceve non saprebbe
+                              // nemmeno da chi si sta difendendo. Le regole
+                              // vedono la lista dei bloccati anche se chi
+                              // scrive non la puo' leggere.
+                              && !exists(/databases/$(database)/documents/users/$(request.resource.data.targetUserId)/blocked/$(request.auth.uid))
                             )
                        )
                     // **La riga per l'amico: corta, e solo sulle sfide.**
