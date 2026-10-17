@@ -536,6 +536,220 @@ exports.adminRimettiFoto = onCall(async (request) => {
 });
 
 /**
+ * **Quanto guadagna davvero CRASY, incasso per incasso.**
+ *
+ * Su Stripe arrivano soldi che non sono ricavi: chi lancia una missione da 2 €
+ * ne paga 2,29, Stripe ne trattiene circa 0,28, 1,80 vanno al vincitore, e
+ * quello che resta e' di CRASY. Il cruscotto di Stripe mostra solo il totale;
+ * questa funzione fa la divisione, riga per riga.
+ *
+ * **Le spese di Stripe sono quelle vere**, lette dal registro dei movimenti,
+ * non calcolate con la formula: una carta extra europea costa di piu', e la
+ * differenza la paga CRASY.
+ *
+ * E' la stessa regola di `tool/contabilita.js`, che resta per il
+ * commercialista; questa e' per guardarla al volo.
+ */
+exports.adminGuadagni = onCall(
+  { secrets: [STRIPE_SECRET_KEY] },
+  async (request) => {
+    soloAdmin(request);
+
+    const giorni = Math.min(
+      Math.max(Number((request.data && request.data.giorni) || 30), 1),
+      365
+    );
+    const daQuando = Math.floor(Date.now() / 1000) - giorni * 24 * 60 * 60;
+
+    const stripe = require('stripe')(STRIPE_SECRET_KEY.value());
+
+    const righe = [];
+    const totali = {
+      incassato: 0,
+      speseStripe: 0,
+      aiVincitori: 0,
+      guadagno: 0,
+      guadagnoInAttesa: 0,
+      mance: 0,
+      altro: 0,
+    };
+
+    // Le gare si leggono una volta sola anche se ricorrono.
+    const gare = new Map();
+
+    async function gara(id) {
+      if (!gare.has(id)) {
+        gare.set(id, await db.collection('challenges').doc(id).get());
+      }
+
+      return gare.get(id);
+    }
+
+    // **Dal registro di Stripe, non dai pagamenti**: e' l'unico posto in cui
+    // la commissione e' quella vera.
+    for await (const movimento of stripe.balanceTransactions.list({
+      limit: 100,
+      created: { gte: daQuando },
+      expand: ['data.source'],
+    })) {
+      if (movimento.type !== 'charge' && movimento.type !== 'payment') {
+        continue;
+      }
+
+      const fonte = movimento.source || {};
+      let meta = { ...(fonte.metadata || {}) };
+
+      // **I metadati non sempre arrivano sull'addebito.** Un pagamento fatto
+      // dalla pagina di Stripe li tiene sulla sessione, non qui. Si guarda il
+      // pagamento, e se nemmeno li' c'e' la gara, la si cerca fra quelle
+      // pagate con quel pagamento.
+      if (!meta.challengeId && !meta.kind && fonte.payment_intent) {
+        const piId =
+          typeof fonte.payment_intent === 'string'
+            ? fonte.payment_intent
+            : fonte.payment_intent.id;
+
+        try {
+          const pi = await stripe.paymentIntents.retrieve(piId);
+          meta = { ...(pi.metadata || {}), ...meta };
+        } catch (errore) {
+          logger.warn('pagamento non letto', { piId });
+        }
+
+        if (!meta.challengeId && !meta.kind) {
+          const pagata = await db
+            .collection('challenges')
+            .where('stripePaymentIntentId', '==', piId)
+            .limit(1)
+            .get();
+
+          if (!pagata.empty) {
+            meta.challengeId = pagata.docs[0].id;
+          }
+        }
+      }
+
+      const reso = fonte.amount_refunded || 0;
+      const netto = movimento.amount - reso;
+      const quando = movimento.created * 1000;
+
+      totali.incassato += movimento.amount;
+      totali.speseStripe += movimento.fee;
+
+      // La mancia e' tutta di CRASY, meno quello che si prende Stripe.
+      if (meta.kind === 'mancia') {
+        const tuo = netto - movimento.fee;
+
+        totali.mance += tuo;
+        totali.guadagno += tuo;
+        righe.push({
+          quando,
+          cosa: 'Mancia',
+          titolo: meta.beneficiarioUsername ? `per @${meta.beneficiarioUsername}` : '',
+          pagato: movimento.amount,
+          reso,
+          stripe: movimento.fee,
+          alVincitore: 0,
+          tuo,
+          stato: 'incassata',
+        });
+
+        continue;
+      }
+
+      // **Senza una gara dietro non e' un guadagno**: una ricarica del fondo,
+      // un pagamento fatto a mano. Si mostra, ma non si conta come tuo.
+      // **Una missione annullata non c'e' piu' nel database**, ma il rimborso
+      // su Stripe si': e' un premio tornato indietro, e quello che resta —
+      // le spese trattenute, meno quelle di Stripe — e' tuo, anche in perdita.
+      if (!meta.challengeId && reso > 0) {
+        const tuo = netto - movimento.fee;
+
+        totali.guadagno += tuo;
+        righe.push({
+          quando,
+          cosa: 'Missione',
+          titolo: fonte.description || '(missione annullata)',
+          pagato: movimento.amount,
+          reso,
+          stripe: movimento.fee,
+          alVincitore: 0,
+          tuo,
+          stato: reso >= movimento.amount ? 'rimborsata' : 'annullata, premio reso',
+        });
+
+        continue;
+      }
+
+      if (!meta.challengeId) {
+        totali.altro += netto - movimento.fee;
+        righe.push({
+          quando,
+          cosa: 'Altro',
+          titolo: fonte.description || 'Pagamento senza missione (ricarica fondo?)',
+          pagato: movimento.amount,
+          reso,
+          stripe: movimento.fee,
+          alVincitore: 0,
+          tuo: 0,
+          stato: 'non e\' guadagno',
+        });
+
+        continue;
+      }
+
+      const doc = await gara(meta.challengeId);
+      const premio = Number(meta.prizeCents || 0) || (doc.exists ? doc.get('prizeCents') || 0 : 0);
+
+      // Il vincitore riceve il premio meno il dieci per cento. Se il rimborso
+      // ha gia' restituito tutto, non gli resta niente da ricevere.
+      const perIlVincitore = premio - Math.floor(premio / 10);
+      const alVincitore = Math.max(0, Math.min(perIlVincitore, netto));
+
+      // Le spese di Stripe restano anche sui rimborsi: una missione annullata
+      // lascia CRASY sotto di qualche centesimo.
+      const tuo = netto - alVincitore - movimento.fee;
+
+      const statoPremio = doc.exists ? String(doc.get('prizeStatus') || '') : 'cancellata';
+      const stato = reso >= movimento.amount
+        ? 'rimborsata'
+        : reso > 0
+        ? 'annullata, premio reso'
+        : statoPremio === 'paidOut'
+        ? 'pagata al vincitore'
+        : statoPremio === 'held'
+        ? 'in gara / da pagare'
+        : statoPremio || 'cancellata';
+
+      totali.aiVincitori += alVincitore;
+      totali.guadagno += tuo;
+
+      // **In attesa** finche' i soldi del vincitore non sono usciti: la gara
+      // puo' ancora chiudersi senza nessuno e tornare tutta indietro.
+      if (statoPremio === 'held' && reso === 0) {
+        totali.guadagnoInAttesa += tuo;
+      }
+
+      righe.push({
+        quando,
+        cosa: 'Missione',
+        titolo: doc.exists ? String(doc.get('title') || '') : '(missione cancellata)',
+        pagato: movimento.amount,
+        reso,
+        stripe: movimento.fee,
+        alVincitore,
+        tuo,
+        stato,
+      });
+    }
+
+    righe.sort((a, b) => b.quando - a.quando);
+
+    return { giorni, totali, righe };
+  }
+);
+
+/**
  * Toglie di mezzo una missione, le sue foto e i suoi file.
  *
  * **Il premio prima di tutto.** Si restituisce finche' la missione c'e'

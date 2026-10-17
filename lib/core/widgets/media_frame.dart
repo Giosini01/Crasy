@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/widgets/video_frame.dart';
+import 'package:crasy/features/challenges/domain/entities/ritaglio.dart';
 import 'package:flutter/material.dart';
 
 /// Il riquadro in cui vive una foto.
@@ -32,6 +33,7 @@ class MediaFrame extends StatelessWidget {
     this.muted = false,
     this.soundOnTap = false,
     this.mine = false,
+    this.ritaglio,
     super.key,
   });
 
@@ -70,6 +72,13 @@ class MediaFrame extends StatelessWidget {
   final double aspectRatio;
   final double radius;
 
+  /// **La cornice scelta nell'editor**, se c'e'. La foto e' intera; qui se ne
+  /// mostra solo la parte inquadrata, come la si e' vista prima di mandarla.
+  /// Vale solo nei riquadri quattro quinti, che sono quelli dell'editor: in
+  /// un riquadro di altra forma la cornice si deformerebbe, e si torna al
+  /// taglio al centro.
+  final Ritaglio? ritaglio;
+
   /// Cosa scrivere sul riquadro mentre la foto sta arrivando.
   final String? caption;
 
@@ -102,7 +111,11 @@ class MediaFrame extends StatelessWidget {
                 muted: muted,
               )
             else
-              _Surface(url: url!, caption: caption),
+              _Surface(
+                url: url!,
+                caption: caption,
+                ritaglio: (aspectRatio - 4 / 5).abs() < 0.01 ? ritaglio : null,
+              ),
             ?overlay,
             if (mine)
               IgnorePointer(
@@ -121,10 +134,11 @@ class MediaFrame extends StatelessWidget {
 }
 
 class _Surface extends StatelessWidget {
-  const _Surface({required this.url, required this.caption});
+  const _Surface({required this.url, required this.caption, this.ritaglio});
 
   final String url;
   final String? caption;
+  final Ritaglio? ritaglio;
 
   /// Una foto che non e' su nessun server: i byte stanno dentro l'indirizzo.
   ///
@@ -135,10 +149,44 @@ class _Surface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cornice = ritaglio;
+
+    if (cornice == null) {
+      return _immagine(BoxFit.cover);
+    }
+
+    // **La foto intera, ingrandita e spostata fino a riempire il riquadro con
+    // la sola parte inquadrata.** In frazioni: se la cornice e' meta' della
+    // foto, la foto si disegna due volte il riquadro, e si sposta indietro di
+    // quanto la cornice stava avanti.
+    return LayoutBuilder(
+      builder: (context, vincoli) {
+        final larga = vincoli.maxWidth / cornice.larghezza;
+        final alta = vincoli.maxHeight / cornice.altezza;
+
+        return ClipRect(
+          child: Stack(
+            clipBehavior: Clip.hardEdge,
+            children: [
+              Positioned(
+                left: -cornice.x * larga,
+                top: -cornice.y * alta,
+                width: larga,
+                height: alta,
+                child: _immagine(BoxFit.fill),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _immagine(BoxFit fit) {
     if (url.startsWith(_dataPrefix)) {
       return Image.memory(
         _decodeDataUri(url),
-        fit: BoxFit.cover,
+        fit: fit,
         errorBuilder: (context, error, stackTrace) =>
             _Placeholder(caption: caption),
       );
@@ -146,7 +194,7 @@ class _Surface extends StatelessWidget {
 
     return Image.network(
       url,
-      fit: BoxFit.cover,
+      fit: fit,
       // Su web Flutter scarica le immagini con `fetch` e le disegna sulla tela,
       // e questo richiede che il server mandi le intestazioni CORS. Il bucket
       // di Firebase Storage non le manda finche' non gliele si configura a

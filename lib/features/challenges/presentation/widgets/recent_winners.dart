@@ -125,7 +125,8 @@ class _WinnerBlock extends ConsumerWidget {
                 // A tutta larghezza: l'originale.
                 url: winner.mediaUrl,
                 video: winner.isVideo,
-                aspectRatio: 1,
+                // Intera, come e' stata scattata: vedi `MediaFrame`.
+                aspectRatio: 4 / 5,
                 // **Il nome non sta sulla foto.** Ce l'ha gia' la riga qui
                 // sotto, dove sta dentro una frase che dice anche quanto ha
                 // vinto e con quante fiamme: scritto anche sull'immagine e' la

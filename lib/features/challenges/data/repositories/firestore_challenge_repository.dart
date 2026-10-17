@@ -14,6 +14,7 @@ import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
+import 'package:crasy/features/challenges/domain/entities/ritaglio.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
@@ -367,6 +368,7 @@ class FirestoreChallengeRepository implements ChallengeRepository {
     String? contentType,
     String caption = '',
     bool muted = false,
+    Ritaglio? ritaglio,
   }) async {
     final challengeRef = _challenges.doc(challengeId);
     final challengeSnapshot = await challengeRef.get();
@@ -530,6 +532,7 @@ class FirestoreChallengeRepository implements ChallengeRepository {
       // cinque partecipazioni del giorno, anche molto dopo che la sfida e'
       // scaduta e sparita da ogni elenco.
       isDuel: challenge.isDuel,
+      ritaglio: mediaKind.isVideo ? null : ritaglio,
     );
 
     // **Una foto sola, e non si cambia.** Il controllo sta dentro la

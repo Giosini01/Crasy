@@ -248,7 +248,7 @@ class AppNotification {
     NotificationKind.rival => '$actorTag prova a batterti',
     NotificationKind.fire => '$actorTag ha dato una fiamma alla tua foto',
     NotificationKind.mention => '$actorTag ti ha nominato in un commento',
-    NotificationKind.friendRequest => '$actorTag ha iniziato a seguirti',
+    NotificationKind.friendRequest => '$actorTag ti ha seguito',
     NotificationKind.comeback => 'Ci sono missioni nuove che ti aspettano',
     NotificationKind.duel => '$actorTag ti ha sfidato',
     NotificationKind.duelAccepted => '$actorTag ha accettato la tua sfida',

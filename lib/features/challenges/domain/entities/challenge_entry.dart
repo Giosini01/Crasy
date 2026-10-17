@@ -1,5 +1,6 @@
 import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
+import 'package:crasy/features/challenges/domain/entities/ritaglio.dart';
 
 /// Una partecipazione: la foto che qualcuno ha mandato per una challenge.
 class ChallengeEntry {
@@ -21,6 +22,7 @@ class ChallengeEntry {
     this.caption = '',
     this.muted = false,
     this.isDuel = false,
+    this.ritaglio,
   });
 
   final String id;
@@ -132,6 +134,12 @@ class ChallengeEntry {
   /// Falso su tutte le partecipazioni scritte prima che le sfide esistessero,
   /// ed e' la verita': non erano risposte a nessuna sfida.
   final bool isDuel;
+
+  /// **Quale parte della foto mostrare nelle anteprime.** La foto e' intera;
+  /// questa e' solo la cornice scelta nell'editor. `null` per le foto
+  /// caricate prima, che erano gia' tagliate a quattro quinti: si mostrano
+  /// come sempre.
+  final Ritaglio? ritaglio;
 
   bool get hasCaption => caption.trim().isNotEmpty;
 
@@ -278,6 +286,7 @@ class ChallengeEntry {
     bool? muted,
     String? caption,
     bool? isDuel,
+    Ritaglio? ritaglio,
   }) {
     return ChallengeEntry(
       id: id ?? this.id,
@@ -297,6 +306,7 @@ class ChallengeEntry {
       muted: muted ?? this.muted,
       caption: caption ?? this.caption,
       isDuel: isDuel ?? this.isDuel,
+      ritaglio: ritaglio ?? this.ritaglio,
     );
   }
 
@@ -319,7 +329,8 @@ class ChallengeEntry {
         other.isWinner == isWinner &&
         other.moderation == moderation &&
         other.mediaKind == mediaKind &&
-        other.caption == caption;
+        other.caption == caption &&
+        other.ritaglio == ritaglio;
   }
 
   @override
@@ -337,6 +348,7 @@ class ChallengeEntry {
     moderation,
     mediaKind,
     caption,
+    ritaglio,
   );
 }
 

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:crasy/core/errors/error_message_mapper.dart';
 import 'package:crasy/core/moderation/content_policy.dart';
+import 'package:crasy/core/services/media/photo_compressor.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
@@ -16,12 +17,12 @@ import 'package:crasy/core/widgets/video/local_video_stub.dart'
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
+import 'package:crasy/features/challenges/domain/entities/ritaglio.dart';
 import 'package:crasy/features/challenges/presentation/controllers/participation_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/photo_editor.dart';
 import 'package:crasy/features/challenges/presentation/widgets/privacy_note.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 
@@ -300,7 +301,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
       var definitiva = media;
 
       if (!kind.isVideo && mounted) {
-        final sistemata = await Navigator.of(context).push<Uint8List>(
+        final sistemata = await Navigator.of(context).push<FotoSistemata>(
           MaterialPageRoute(
             // **Vale per l'archivio e per gli scatti, allo stesso modo.**
             //
@@ -347,13 +348,30 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
           return;
         }
 
-        definitiva = definitiva.conNuoviByte(sistemata);
+        // **La foto sale intera.** Senza frasi e' esattamente quella
+        // scattata; con le frasi e' la stessa foto con le frasi disegnate
+        // sopra, che si ristringe in JPEG come ogni altra.
+        if (sistemata.cambiata) {
+          final ristretta = PhotoCompressor.shrink(sistemata.bytes);
+
+          definitiva = identical(ristretta, sistemata.bytes)
+              ? definitiva.conNuoviByte(ristretta)
+              : PickedMedia(
+                  bytes: ristretta,
+                  contentType: 'image/jpeg',
+                  isVideo: false,
+                );
+        }
 
         setState(() => _media = definitiva);
 
         // Si manda subito: e' il tasto che e' stato premuto, e l'avviso
         // l'aveva gia' sotto gli occhi. Nessuna seconda conferma.
-        await _submit(challenge, confermata: true);
+        await _submit(
+          challenge,
+          confermata: true,
+          ritaglio: sistemata.ritaglio,
+        );
 
         return;
       }
@@ -498,7 +516,14 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
   /// [confermata]: il tasto premuto era gia' quello che manda, con l'avviso
   /// dell'unico scatto scritto sopra — vedi `PhotoEditor.nota`. Chiedere di
   /// nuovo "la mandi?" sarebbe far premere due volte la stessa cosa.
-  Future<void> _submit(Challenge challenge, {bool confermata = false}) async {
+  ///
+  /// [ritaglio]: la cornice delle anteprime scelta nell'editor. La foto sale
+  /// intera; questa dice solo quale parte mostrare nei riquadri.
+  Future<void> _submit(
+    Challenge challenge, {
+    bool confermata = false,
+    Ritaglio? ritaglio,
+  }) async {
     final media = _media;
 
     if (media == null) {
@@ -537,6 +562,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
           caption: didascalia,
           muted: _muto,
           daily: challenge.isDaily || challenge.isDuel,
+          ritaglio: ritaglio,
         );
 
     if (!mounted) {

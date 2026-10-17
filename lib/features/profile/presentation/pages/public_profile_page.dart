@@ -709,6 +709,8 @@ class _EntryGrid extends StatelessWidget {
         crossAxisCount: 3,
         crossAxisSpacing: 2,
         mainAxisSpacing: 2,
+        // Le foto sono quattro quinti: un quadrato ne tagliava un quinto.
+        childAspectRatio: 4 / 5,
       ),
       itemCount: entries.length,
       itemBuilder: (context, index) {
@@ -721,10 +723,12 @@ class _EntryGrid extends StatelessWidget {
           child: MediaFrame(
             url: entry.previewUrl,
             video: entry.isVideo,
+            // La cornice scelta nell'editor: la foto e' intera.
+            ritaglio: entry.ritaglio,
             // Ferma sul primo fotogramma: e' una griglia, non un feed.
             // Vedi `MediaFrame.autoplay`.
             autoplay: false,
-            aspectRatio: 1,
+            aspectRatio: 4 / 5,
             radius: AppRadius.media,
             caption: entry.challengeTitle,
           ),

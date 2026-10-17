@@ -6,8 +6,8 @@ import 'package:crasy/core/theme/app_colors.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/features/challenges/domain/entities/ritaglio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 /// **La foto come sara': si inquadra e ci si scrive sopra, in una schermata.**
@@ -439,34 +439,132 @@ class _PhotoEditorState extends State<PhotoEditor> {
     });
   }
 
-  /// **Fotografa il riquadro e torna i byte.**
+  /// **Torna la foto intera, e la cornice scelta.**
   ///
-  /// Il rapporto di tre non e' a caso: il riquadro e' largo quanto lo schermo
-  /// meno i margini — sui trecentocinquanta punti — e per tre fa poco piu' di
-  /// mille pixel sul lato lungo. La catena che segue stringe comunque a
-  /// milleseicento, quindi di piu' sarebbe lavoro buttato; di meno si
-  /// vedrebbe.
+  /// Prima si fotografava il riquadro, e quello che restava fuori si perdeva:
+  /// toccando la foto in gara se ne vedeva solo il pezzo inquadrato. Adesso
+  /// l'inquadratura e' soltanto la cornice delle anteprime — la foto sale
+  /// intera, e a schermo intero si vede tutta.
+  ///
+  /// Le frasi invece vanno **dentro** la foto: si disegnano sull'originale,
+  /// nello stesso punto rispetto a quello che c'e' sotto.
   Future<void> _conferma() async {
-    final confine =
-        _riquadro.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    final confine = _riquadro.currentContext?.findRenderObject() as RenderBox?;
+    final proporzioni = _proporzioni;
 
-    if (confine == null) {
+    if (confine == null || proporzioni == null) {
       Navigator.of(context).pop();
 
       return;
     }
 
-    final immagine = await confine.toImage(pixelRatio: 3);
-    final dati = await immagine.toByteData(format: ui.ImageByteFormat.png);
-    immagine.dispose();
+    final riquadro = confine.size;
+    final ritaglio = _ritaglioAttuale(riquadro, proporzioni);
+    final bytes = _scritte.isEmpty
+        ? widget.bytes
+        : await _conLeScritte(riquadro, ritaglio);
 
     if (!mounted) {
       return;
     }
 
-    Navigator.of(context).pop(dati?.buffer.asUint8List());
+    Navigator.of(context).pop<FotoSistemata>((
+      bytes: bytes,
+      ritaglio: ritaglio,
+      cambiata: _scritte.isNotEmpty,
+    ));
+  }
+
+  /// **La parte di foto che si vede nel riquadro**, in frazioni della foto.
+  ///
+  /// La foto sta nel visore alla misura con cui copre il riquadro (vedi
+  /// `_DaInquadrare`), spostata e ingrandita dal controller: quello che si vede
+  /// e' il riquadro riportato indietro attraverso quello spostamento.
+  Ritaglio _ritaglioAttuale(Size riquadro, double proporzioni) {
+    final piuAlta = proporzioni < widget.aspectRatio;
+    final fotoLarga = piuAlta ? riquadro.width : riquadro.height * proporzioni;
+    final fotoAlta = piuAlta ? riquadro.width / proporzioni : riquadro.height;
+
+    final matrice = _inquadratura.value;
+    final scala = matrice.getMaxScaleOnAxis();
+    final spostamento = matrice.getTranslation();
+
+    final larghezza = (riquadro.width / scala / fotoLarga).clamp(0.0, 1.0);
+    final altezza = (riquadro.height / scala / fotoAlta).clamp(0.0, 1.0);
+
+    return Ritaglio(
+      x: (-spostamento.x / scala / fotoLarga).clamp(0.0, 1.0 - larghezza),
+      y: (-spostamento.y / scala / fotoAlta).clamp(0.0, 1.0 - altezza),
+      larghezza: larghezza,
+      altezza: altezza,
+    );
+  }
+
+  /// **Disegna le frasi sulla foto intera.**
+  ///
+  /// La frase sta nel riquadro a una certa misura; nella foto intera il
+  /// riquadro e' piu' grande in pixel, e la frase cresce con lui — cosi' copre
+  /// la stessa parte di cio' che c'e' sotto, come la si e' vista.
+  Future<Uint8List> _conLeScritte(Size riquadro, Ritaglio ritaglio) async {
+    final codec = await ui.instantiateImageCodec(widget.bytes);
+    final fotogramma = await codec.getNextFrame();
+    final foto = fotogramma.image;
+    final larga = foto.width.toDouble();
+    final alta = foto.height.toDouble();
+
+    final registratore = ui.PictureRecorder();
+    final tela = Canvas(registratore);
+
+    tela.drawImage(
+      foto,
+      Offset.zero,
+      Paint()..filterQuality = FilterQuality.high,
+    );
+
+    // Quanti pixel della foto vale un punto del riquadro.
+    final fattore = ritaglio.larghezza * larga / riquadro.width;
+
+    for (final scritta in _scritte) {
+      final base = _stile(scritta.scala);
+      final stile = base.copyWith(
+        fontSize: (base.fontSize ?? 22) * fattore,
+        shadows: [
+          for (final ombra in base.shadows ?? const <Shadow>[])
+            Shadow(color: ombra.color, blurRadius: ombra.blurRadius * fattore),
+        ],
+      );
+
+      final pittore = TextPainter(
+        text: TextSpan(text: scritta.testo, style: stile),
+        textAlign: TextAlign.center,
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: riquadro.width * 0.9 * fattore);
+
+      final centro = Offset(
+        (ritaglio.x + scritta.posizione.dx * ritaglio.larghezza) * larga,
+        (ritaglio.y + scritta.posizione.dy * ritaglio.altezza) * alta,
+      );
+
+      pittore.paint(
+        tela,
+        centro - Offset(pittore.width / 2, pittore.height / 2),
+      );
+    }
+
+    final disegno = registratore.endRecording();
+    final finale = await disegno.toImage(foto.width, foto.height);
+    final dati = await finale.toByteData(format: ui.ImageByteFormat.png);
+
+    foto.dispose();
+    finale.dispose();
+
+    return dati?.buffer.asUint8List() ?? widget.bytes;
   }
 }
+
+/// Quello che esce dall'editor: la foto **intera** (con le frasi, se ce ne
+/// sono), la cornice scelta per le anteprime, e se i byte sono cambiati.
+typedef FotoSistemata = ({Uint8List bytes, Ritaglio ritaglio, bool cambiata});
 
 /// **La foto dentro il riquadro, alla sua misura vera e spostabile.**
 ///

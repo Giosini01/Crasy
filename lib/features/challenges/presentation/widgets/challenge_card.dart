@@ -308,7 +308,11 @@ class ChallengeShowcase extends StatelessWidget {
               // A tutta larghezza: l'originale. Vedi `EntryTile`.
               url: entry.mediaUrl,
               video: entry.isVideo,
-              aspectRatio: 0.9,
+              // La cornice scelta nell'editor: la foto e' intera.
+              ritaglio: entry.ritaglio,
+              // **Quattro quinti, il formato dello scatto.** A 0,9 si perdeva
+              // un decimo della foto, sopra e sotto.
+              aspectRatio: 4 / 5,
               caption: entry.authorName,
             ),
           ),

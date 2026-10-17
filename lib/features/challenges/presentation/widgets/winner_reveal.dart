@@ -696,8 +696,11 @@ class _Faccia extends StatelessWidget {
     // sparisce perche' l'immagine non e' arrivata farebbe saltare in mezzo allo
     // schermo tutto quello che gli sta sotto, proprio nell'istante della
     // rivelazione.
+    //
+    // **Quattro quinti, come e' stata scattata**: un quadrato ne tagliava un
+    // quinto proprio nel momento in cui tutti la guardano.
     return AspectRatio(
-      aspectRatio: 1,
+      aspectRatio: 4 / 5,
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
@@ -715,7 +718,7 @@ class _Faccia extends StatelessWidget {
           child: MediaFrame(
             url: entry.mediaUrl,
             video: entry.isVideo,
-            aspectRatio: 1,
+            aspectRatio: 4 / 5,
             radius: 15,
           ),
         ),

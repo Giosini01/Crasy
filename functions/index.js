@@ -308,6 +308,8 @@ exports.adminImpostaVerificato = amministrazione.adminImpostaVerificato;
 // Le foto scartate dal controllo automatico, e il tasto per rimetterle.
 exports.adminFotoScartate = amministrazione.adminFotoScartate;
 exports.adminRimettiFoto = amministrazione.adminRimettiFoto;
+// Quanto resta davvero a CRASY di ogni incasso.
+exports.adminGuadagni = amministrazione.adminGuadagni;
 
 /**
  * Manda una notifica ai telefoni di una persona sola.

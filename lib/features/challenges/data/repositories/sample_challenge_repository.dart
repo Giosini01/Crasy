@@ -10,6 +10,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
+import 'package:crasy/features/challenges/domain/entities/ritaglio.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 
 /// Le challenge tenute in memoria.
@@ -205,6 +206,7 @@ class SampleChallengeRepository implements ChallengeRepository {
     String? contentType,
     String caption = '',
     bool muted = false,
+    Ritaglio? ritaglio,
   }) async {
     final challenge = _challenges[challengeId];
 
@@ -235,6 +237,7 @@ class SampleChallengeRepository implements ChallengeRepository {
       mediaKind: mediaKind,
       caption: caption.trim(),
       isDuel: challenge.isDuel,
+      ritaglio: ritaglio,
       createdAt: DateTime.now(),
     );
 

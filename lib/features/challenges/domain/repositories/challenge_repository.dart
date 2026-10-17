@@ -5,6 +5,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
+import 'package:crasy/features/challenges/domain/entities/ritaglio.dart';
 
 /// L'unico punto da cui l'app prende e scrive le challenge.
 ///
@@ -96,6 +97,7 @@ abstract class ChallengeRepository {
 
     /// Se il video va guardato senza audio: lo decide chi lo manda.
     bool muted = false,
+    Ritaglio? ritaglio,
   });
 
   /// I commenti sotto una foto, dal piu' vecchio.

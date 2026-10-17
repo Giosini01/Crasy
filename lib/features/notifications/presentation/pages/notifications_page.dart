@@ -85,16 +85,6 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   /// Se la sezione di partenza e' gia' stata scelta.
   bool _sezioneScelta = false;
 
-  /// Le sezioni che sono state guardate da quando si e' aperta la campanella.
-  ///
-  /// **Il numero accanto a una sezione sparisce mentre la si legge.** I conti
-  /// restano congelati per tutte le altre — e' quello che si e' venuti a
-  /// vedere — ma tenere il numero anche su quella che si ha davanti agli occhi
-  /// e' come lasciare acceso un avviso su una cosa gia' fatta: dopo due volte
-  /// non lo si guarda piu', e il giorno che significa qualcosa non se ne
-  /// accorge nessuno.
-  final _viste = <NotificationGroup>{};
-
   /// La riga accesa, finche' dura.
   String? _accesa;
 
@@ -181,7 +171,6 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
     // vedere i commenti, non una sezione scelta a caso mentre la rete carica.
     if (widget.sezione case final sezione?) {
       _sezioneScelta = true;
-      _viste.add(sezione);
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -208,7 +197,6 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       final riga = notifiche.where((n) => n.id == puntata).firstOrNull;
 
       if (riga != null) {
-        _viste.add(riga.group);
         _accendi();
 
         // **Un commento o una nomina aprono il commento.** Si arriva qui da una
@@ -251,7 +239,6 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
     }
 
     final prima = conNovita.first;
-    _viste.add(prima);
 
     // Dopo la frame: cambiare lo stato di un provider mentre l'albero si sta
     // costruendo e' il modo classico di prendersi un errore che non nomina la
@@ -320,12 +307,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
               )
             : Column(
                 children: [
-                  _Filters(
-                    notifications: notifications,
-                    seenAt: seenAt,
-                    viste: _viste,
-                    onGuardata: (gruppo) => setState(() => _viste.add(gruppo)),
-                  ),
+                  _Filters(notifications: notifications, seenAt: seenAt),
                   Expanded(
                     child: visibili.isEmpty
                         ? const _NothingHere()
@@ -374,6 +356,17 @@ final notificationFilterProvider = StateProvider.autoDispose<NotificationGroup>(
   (ref) => NotificationGroup.wins,
 );
 
+/// **Le notifiche toccate mentre la campanella e' aperta.**
+///
+/// I numeri delle sezioni restano fermi finche' si e' qui dentro — e' quello
+/// che si e' venuti a vedere — ma una riga **toccata** e' una cosa fatta: chi
+/// apre "@mario ti ha seguito", va a "Ti seguono" e torna indietro, deve
+/// trovare RICHIESTE con un numero in meno. Muore con la pagina: rientrando,
+/// e' gia' tutto letto.
+final notificheToccateProvider = StateProvider.autoDispose<Set<String>>(
+  (ref) => const <String>{},
+);
+
 /// Le due parole in cima.
 ///
 /// **Il rosso dice due cose diverse, e non si accavallano**: il colore della
@@ -381,21 +374,10 @@ final notificationFilterProvider = StateProvider.autoDispose<NotificationGroup>(
 /// notizie nuove ci sono la' dentro. Le gia' lette non si contano — un numero
 /// che non cala mai smette di voler dire qualcosa dopo due giorni.
 class _Filters extends ConsumerWidget {
-  const _Filters({
-    required this.notifications,
-    required this.seenAt,
-    required this.viste,
-    required this.onGuardata,
-  });
+  const _Filters({required this.notifications, required this.seenAt});
 
   final List<AppNotification> notifications;
   final DateTime? seenAt;
-
-  /// Le sezioni gia' guardate: il loro numero non si mostra piu'.
-  final Set<NotificationGroup> viste;
-
-  /// Si chiama quando si passa a una sezione.
-  final ValueChanged<NotificationGroup> onGuardata;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -403,15 +385,21 @@ class _Filters extends ConsumerWidget {
     final palette = context.palette;
     final texts = context.texts;
 
-    int nuove(NotificationGroup group) {
-      // Guardata: il conto sparisce. Non e' un dato diverso, e' lo stesso dato
-      // che ha finito di servire.
-      if (viste.contains(group)) {
-        return 0;
-      }
+    // **I conti restano fermi finche' si e' qui dentro**, anche sulla sezione
+    // gia' guardata. Prima il numero spariva appena la si apriva: si passava
+    // da PARTECIPAZIONI a RICHIESTE e non si capiva piu' dove fossero le
+    // novita' appena viste. Si spengono uscendo e rientrando: e' quella
+    // l'occhiata che conta.
+    final toccate = ref.watch(notificheToccateProvider);
 
+    int nuove(NotificationGroup group) {
       return notifications
-          .where((riga) => riga.group == group && riga.isUnreadSince(seenAt))
+          .where(
+            (riga) =>
+                riga.group == group &&
+                riga.isUnreadSince(seenAt) &&
+                !toccate.contains(riga.id),
+          )
           .length;
     }
 
@@ -431,10 +419,8 @@ class _Filters extends ConsumerWidget {
           children: [
             for (final group in NotificationGroup.values)
               GestureDetector(
-                onTap: () {
-                  onGuardata(group);
-                  ref.read(notificationFilterProvider.notifier).state = group;
-                },
+                onTap: () =>
+                    ref.read(notificationFilterProvider.notifier).state = group,
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
                   padding: const EdgeInsets.only(right: AppSpacing.md),
@@ -566,6 +552,12 @@ class _Row extends ConsumerWidget {
   final bool accesa;
 
   void _open(BuildContext context, WidgetRef ref) {
+    // Toccata: non conta piu' fra le nuove della sua sezione.
+    final toccate = ref.read(notificheToccateProvider.notifier);
+    toccate.state = {...toccate.state, notification.id};
+
+    // **Una richiesta porta dritta a "Ti seguono"**, dove si decide se
+    // ricambiare: e' l'unica cosa da fare con quella notizia.
     if (notification.kind == NotificationKind.friendRequest) {
       context.push(AppRoutes.friends);
 
@@ -600,7 +592,9 @@ class _Row extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
     final texts = context.texts;
-    final unread = notification.isUnreadSince(seenAt);
+    final unread =
+        notification.isUnreadSince(seenAt) &&
+        !ref.watch(notificheToccateProvider).contains(notification.id);
     final createdAt = notification.createdAt;
     final isWin = notification.kind == NotificationKind.win;
 

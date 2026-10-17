@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:crasy/core/services/media/disk_upload_stub.dart'
     if (dart.library.io) 'package:crasy/core/services/media/disk_upload_io.dart';
 import 'package:crasy/core/services/media/photo_compressor.dart';
@@ -6,6 +7,7 @@ import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
+import 'package:crasy/features/challenges/domain/entities/ritaglio.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 import 'package:crasy/features/challenges/presentation/controllers/duel_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
@@ -370,6 +372,7 @@ class ParticipationController extends AsyncNotifier<void> {
     String caption = '',
     bool muted = false,
     bool daily = false,
+    Ritaglio? ritaglio,
   }) async {
     final authState = ref.read(authStateProvider);
 
@@ -438,6 +441,7 @@ class ParticipationController extends AsyncNotifier<void> {
         // volendo.
         caption: caption,
         muted: muted,
+        ritaglio: ritaglio,
       ),
     );
 

@@ -7,6 +7,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
+import 'package:crasy/features/challenges/domain/entities/ritaglio.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 
 /// Firestore davanti, le challenge di esempio dietro.
@@ -143,6 +144,7 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
     String? contentType,
     String caption = '',
     bool muted = false,
+    Ritaglio? ritaglio,
   }) {
     return _forChallenge(challengeId).submitEntry(
       challengeId: challengeId,
@@ -157,6 +159,7 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
       contentType: contentType,
       caption: caption,
       muted: muted,
+      ritaglio: ritaglio,
     );
   }
 

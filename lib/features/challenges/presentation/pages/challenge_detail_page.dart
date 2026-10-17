@@ -705,22 +705,29 @@ class _EntriesState extends ConsumerState<_Entries> {
           _FireBudget(challengeId: challenge.id),
           const SizedBox(height: AppSpacing.md),
         ],
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: EdgeInsets.zero,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: AppSpacing.xs,
-            mainAxisSpacing: AppSpacing.lg,
-            // Il quadrato della foto piu' la riga sotto. Fissato invece che
-            // calcolato da un rapporto, cosi' la riga non si schiaccia quando la
-            // colonna si stringe.
-            mainAxisExtent: 210,
-          ),
-          itemCount: entries.length,
-          itemBuilder: (context, index) =>
-              _EntryGridTile(entry: entries[index], entries: entries),
+        LayoutBuilder(
+          builder: (context, vincoli) {
+            // La foto in quattro quinti, larga quanto la colonna, piu' la riga
+            // col nome sotto. Si calcola dalla larghezza vera: un'altezza
+            // fissa andava bene per un quadrato, e il quadrato tagliava un
+            // quinto di ogni foto.
+            final colonna = (vincoli.maxWidth - AppSpacing.xs) / 2;
+
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: AppSpacing.xs,
+                mainAxisSpacing: AppSpacing.lg,
+                mainAxisExtent: colonna * 5 / 4 + 44,
+              ),
+              itemCount: entries.length,
+              itemBuilder: (context, index) =>
+                  _EntryGridTile(entry: entries[index], entries: entries),
+            );
+          },
         ),
       ],
     );
@@ -754,6 +761,8 @@ class _EntryGridTile extends ConsumerWidget {
             // con margine. L'originale si scarica toccandola.
             url: entry.previewUrl,
             video: entry.isVideo,
+            // La cornice scelta nell'editor: la foto e' intera.
+            ritaglio: entry.ritaglio,
             // **Ferma sul primo fotogramma.** Questa griglia costruisce tutti
             // i riquadri insieme, anche quelli sotto lo schermo: con i video
             // accesi erano venti file scaricati in ciclo per venti
@@ -761,7 +770,7 @@ class _EntryGridTile extends ConsumerWidget {
             // il suo turno dietro gli altri diciannove. Si tocca e si apre
             // grande.
             autoplay: false,
-            aspectRatio: 1,
+            aspectRatio: 4 / 5,
             caption: entry.authorName,
             mine: entry.userId == ref.watch(currentUserIdProvider),
           ),

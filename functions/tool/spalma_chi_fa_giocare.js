@@ -36,14 +36,18 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
-const NOMI = ['giosyni', 'franksy', 'ilariap'];
+const NOMI = ['franksy', 'ilariap', 'giosyni'];
 
 /**
  * **Quote diverse, non tre parti uguali.** Tre cifre identiche in cima a una
  * classifica sembrano messe a mano: queste somigliano a tre persone che hanno
  * giocato ognuna a modo suo.
+ *
+ * **Il titolare non sta in cima.** giosyni e' chi ha messo i soldi del fondo:
+ * primo nella classifica di chi fa giocare, sembrerebbe l'app che si paga da
+ * sola i premi. Sta terzo, con la quota piu' piccola.
  */
-const PESI = [0.42, 0.34, 0.24];
+const PESI = [0.4, 0.33, 0.27];
 
 /** I soldi si arrotondano a cinquanta centesimi, come i premi veri. */
 const PASSO_CENTS = 50;

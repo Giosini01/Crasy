@@ -63,6 +63,8 @@ class EntryTile extends ConsumerWidget {
       // una fila di riquadri vuoti con sotto i nomi. Vedi `urlGrande`.
       url: entry.urlGrande,
       video: entry.isVideo,
+      // La cornice scelta nell'editor: la foto e' intera.
+      ritaglio: entry.ritaglio,
       caption: entry.authorName,
       mine: entry.userId == ref.watch(currentUserIdProvider),
       // La propria foto in attesa si vede, con scritto che e' in coda:

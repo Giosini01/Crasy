@@ -327,6 +327,20 @@
       <div id="fondo"></div>
     </div>
 
+    <!-- **Quanto resta davvero a CRASY.** Su Stripe arriva tutto insieme:
+         premi di altri, spese di Stripe e la parte di CRASY. Qui si divide,
+         incasso per incasso, con le spese vere lette da Stripe. -->
+    <div class="scatola">
+      <h2>Guadagni</h2>
+      <div class="filtri" id="periodoGuadagni">
+        <button data-giorni="7">7 giorni</button>
+        <button data-giorni="30" class="scelto">30 giorni</button>
+        <button data-giorni="90">90 giorni</button>
+        <button data-giorni="365">Un anno</button>
+      </div>
+      <div id="guadagni"></div>
+    </div>
+
     <div class="scatola">
       <h2>Prelievi da pagare</h2>
       <div id="prelievi"></div>
@@ -413,6 +427,7 @@ const lanciaDalFondo = httpsCallable(functions, 'adminLanciaDalFondo');
 const saltaLaProssima = httpsCallable(functions, 'adminSaltaLaProssima');
 const chiediScartate = httpsCallable(functions, 'adminFotoScartate');
 const rimettiFoto = httpsCallable(functions, 'adminRimettiFoto');
+const chiediGuadagni = httpsCallable(functions, 'adminGuadagni');
 
 const $ = (id) => document.getElementById(id);
 const accesso = $('accesso');
@@ -822,6 +837,82 @@ async function caricaScartate() {
   }
 }
 
+let giorniGuadagni = 30;
+
+async function caricaGuadagni() {
+  const dove = $('guadagni');
+
+  dove.innerHTML = '<p class="nota">Carico da Stripe…</p>';
+
+  try {
+    const { data } = await chiediGuadagni({ giorni: giorniGuadagni });
+    const t = data.totali;
+
+    // **Il numero grande e' il tuo.** Gli altri spiegano da dove viene: chi
+    // guarda questo riquadro vuole sapere una cosa sola, e il resto serve a
+    // fidarsi di quella.
+    const riepilogo =
+      '<p><strong style="font-size:28px">' + euro(t.guadagno) + '</strong> tuoi</p>' +
+      '<p class="nota">' +
+      (t.guadagnoInAttesa
+        ? 'di cui ' + euro(t.guadagnoInAttesa) + ' su missioni ancora in gara (possono tornare indietro) · '
+        : '') +
+      (t.mance ? 'mance ' + euro(t.mance) + ' · ' : '') +
+      'incassato ' + euro(t.incassato) +
+      ' · spese Stripe ' + euro(t.speseStripe) +
+      ' · per i vincitori ' + euro(t.aiVincitori) +
+      (t.altro ? ' · altri pagamenti (non guadagno) ' + euro(t.altro) : '') +
+      '</p>';
+
+    const righe = data.righe || [];
+
+    if (righe.length === 0) {
+      dove.innerHTML = riepilogo + '<p class="nota">Nessun incasso nel periodo.</p>';
+
+      return;
+    }
+
+    const tabella =
+      '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">' +
+      '<thead><tr style="text-align:left">' +
+      '<th>Quando</th><th>Cosa</th><th>Pagato</th><th>Reso</th>' +
+      '<th>Stripe</th><th>Al vincitore</th><th>Tuo</th><th>Stato</th>' +
+      '</tr></thead><tbody>' +
+      righe
+        .map(
+          (r) =>
+            '<tr style="border-top:1px solid #eee">' +
+            '<td>' + quando(r.quando) + '</td>' +
+            '<td>' + testo(r.cosa) + (r.titolo ? '<br><span class="nota">' + testo(r.titolo) + '</span>' : '') + '</td>' +
+            '<td>' + euro(r.pagato) + '</td>' +
+            '<td>' + (r.reso ? euro(r.reso) : '—') + '</td>' +
+            '<td>' + euro(r.stripe) + '</td>' +
+            '<td>' + (r.alVincitore ? euro(r.alVincitore) : '—') + '</td>' +
+            '<td><strong style="color:' + (r.tuo < 0 ? '#c00' : 'inherit') + '">' + euro(r.tuo) + '</strong></td>' +
+            '<td class="nota">' + testo(r.stato) + '</td>' +
+            '</tr>'
+        )
+        .join('') +
+      '</tbody></table></div>';
+
+    dove.innerHTML = riepilogo + tabella;
+  } catch (errore) {
+    dove.innerHTML = '';
+    dillo(errore.message || 'Non riusciamo a leggere i guadagni.');
+  }
+}
+
+for (const tasto of document.querySelectorAll('#periodoGuadagni [data-giorni]')) {
+  tasto.addEventListener('click', () => {
+    for (const altro of document.querySelectorAll('#periodoGuadagni button')) {
+      altro.classList.toggle('scelto', altro === tasto);
+    }
+
+    giorniGuadagni = Number(tasto.dataset.giorni);
+    caricaGuadagni();
+  });
+}
+
 async function caricaMance() {
   const dove = document.getElementById('mance');
   const totale = document.getElementById('totaleMance');
@@ -1016,6 +1107,7 @@ onAuthStateChanged(auth, async (utente) => {
   mostra(tavolo, true);
   carica();
   caricaScartate();
+  caricaGuadagni();
   caricaPrelievi();
   caricaMance();
   caricaPresenze();

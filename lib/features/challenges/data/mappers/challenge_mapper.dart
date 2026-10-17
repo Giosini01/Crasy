@@ -7,6 +7,7 @@ import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_moderation.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
+import 'package:crasy/features/challenges/domain/entities/ritaglio.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 
 abstract final class ChallengeMapper {
@@ -189,6 +190,8 @@ abstract final class ChallengeEntryMapper {
       // Falso su tutte le partecipazioni nate prima delle sfide mirate, ed e'
       // la verita': non erano risposte a nessuna sfida.
       isDuel: data['isDuel'] as bool? ?? false,
+      // La cornice delle anteprime: manca sulle foto nate gia' tagliate.
+      ritaglio: Ritaglio.fromMap(data['ritaglio']),
     );
   }
 
@@ -221,6 +224,8 @@ abstract final class ChallengeEntryMapper {
       // gara da cui viene, ventiquattro ore dopo, non c'e' piu' in nessun
       // elenco da cui ricavarlo.
       'isDuel': entry.isDuel,
+      // **La foto e' intera; questa e' la cornice delle anteprime.**
+      if (entry.ritaglio case final ritaglio?) 'ritaglio': ritaglio.toMap(),
       'votes': 0,
       // Con il controllo acceso la foto nasce in attesa e la vede solo chi
       // l'ha mandata, finche' il server non l'ha guardata. Spento, nasce
