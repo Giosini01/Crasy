@@ -701,10 +701,14 @@ exports.adminGuadagni = onCall(
       const doc = await gara(meta.challengeId);
       const premio = Number(meta.prizeCents || 0) || (doc.exists ? doc.get('prizeCents') || 0 : 0);
 
-      // Il vincitore riceve il premio meno il dieci per cento. Se il rimborso
-      // ha gia' restituito tutto, non gli resta niente da ricevere.
+      // Il vincitore riceve il premio meno il dieci per cento. **Se c'e' stato
+      // un rimborso non c'e' nessun vincitore**: la missione e' stata annullata
+      // (torna il premio) o e' finita senza nessuno (torna tutto). Quello che
+      // resta sono le spese di incasso trattenute, e sono di CRASY — prima qui
+      // finivano "al vincitore", e una missione annullata risultava in perdita.
       const perIlVincitore = premio - Math.floor(premio / 10);
-      const alVincitore = Math.max(0, Math.min(perIlVincitore, netto));
+      const alVincitore =
+        reso > 0 ? 0 : Math.max(0, Math.min(perIlVincitore, netto));
 
       // Le spese di Stripe restano anche sui rimborsi: una missione annullata
       // lascia CRASY sotto di qualche centesimo.

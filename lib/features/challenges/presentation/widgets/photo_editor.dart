@@ -218,7 +218,9 @@ class _PhotoEditorState extends State<PhotoEditor> {
                       ),
                       child: _Passo(
                         numero: _inquadrata ? 2 : 1,
-                        nome: _inquadrata ? 'AGGIUNGI TESTO' : 'INQUADRA',
+                        nome: _inquadrata
+                            ? 'Scrivi sulla foto'
+                            : 'Riquadra la foto',
                         titolo: widget.titolo,
                       ),
                     ),
@@ -1111,7 +1113,7 @@ class _TastoAa extends StatelessWidget {
               ),
               SizedBox(width: AppSpacing.xs),
               Text(
-                'Scrivi sulla foto',
+                'Aggiungi testo',
                 style: TextStyle(
                   color: Colors.black87,
                   fontSize: 13,
@@ -1139,42 +1141,46 @@ class _Passo extends StatelessWidget {
   final String nome;
   final String titolo;
 
+  /// **Come si scrive in CRASY**: una frase, e il punto rosso in fondo — la
+  /// stessa voce di "La mandi?" e dei titoli dell'app. Non in grassetto: e'
+  /// un'istruzione, non un annuncio.
   @override
   Widget build(BuildContext context) {
+    final texts = context.texts;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        Text(
+          'FASE $numero',
+          textAlign: TextAlign.center,
+          style: texts.labelSmall?.copyWith(color: Colors.black45),
+        ),
+        const SizedBox(height: AppSpacing.xxs),
         Text.rich(
           TextSpan(
             children: [
-              TextSpan(
-                text: '$numero di 2  ·  ',
-                style: const TextStyle(color: AppColors.crasyRed),
-              ),
               TextSpan(text: nome),
+              const TextSpan(
+                text: '.',
+                style: TextStyle(color: AppColors.crasyRed),
+              ),
             ],
           ),
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: texts.headlineMedium?.copyWith(
             color: Colors.black,
-            fontSize: 15,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1,
+            fontWeight: FontWeight.w400,
           ),
         ),
         if (titolo.isNotEmpty) ...[
-          const SizedBox(height: 2),
+          const SizedBox(height: AppSpacing.xxs),
           Text(
-            titolo.toUpperCase(),
+            titolo,
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.black45,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-            ),
+            style: texts.bodySmall?.copyWith(color: Colors.black45),
           ),
         ],
       ],
