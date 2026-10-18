@@ -62,6 +62,7 @@ class EntryTile extends ConsumerWidget {
       // ha vinto, e prima qui restava un buco: una gara finita da due ore era
       // una fila di riquadri vuoti con sotto i nomi. Vedi `urlGrande`.
       url: entry.urlGrande,
+      anteprima: entry.thumbUrl,
       video: entry.isVideo,
       // La cornice scelta nell'editor: la foto e' intera.
       ritaglio: entry.ritaglio,

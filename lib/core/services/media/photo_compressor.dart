@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 
 /// Rimpicciolisce una foto prima che parta.
@@ -180,5 +179,45 @@ abstract final class PhotoCompressor {
       // gara.
       return bytes;
     }
+  }
+
+  /// [shrink], **fuori dal filo dell'interfaccia.**
+  ///
+  /// Stringere una foto con questa libreria vuol dire decodificarla e
+  /// ricodificarla pixel per pixel: su un telefono ci vuole da mezzo secondo a
+  /// due, e fatto sul filo dell'interfaccia lo schermo restava fermo — la
+  /// fiamma che gira compresa — proprio mentre si aspettava l'invio. In un
+  /// isolato a parte il lavoro e' lo stesso, ma lo schermo resta vivo. (Sul web
+  /// gli isolati non ci sono, e si fa come prima.)
+  static Future<Uint8List> shrinkFuori(Uint8List bytes, {bool mirror = false}) =>
+      compute(_shrink, (bytes, mirror));
+
+  static Uint8List _shrink((Uint8List, bool) dati) =>
+      shrink(dati.$1, mirror: dati.$2);
+
+  /// **Una foto disegnata sullo schermo, direttamente in JPEG.**
+  ///
+  /// L'editor disegna le frasi sulla foto e ne tira fuori i pixel. Prima li
+  /// chiedeva in PNG, e un PNG da milleseicento pixel pesa da due a cinque
+  /// megabyte: per stringerlo bisognava decodificarlo e ricodificarlo, qualche
+  /// secondo di lavoro, e le foto con le scritte erano le piu' lente da mandare
+  /// e da guardare. Qui si parte dai pixel grezzi e si scrive il JPEG una volta
+  /// sola, fuori dal filo dell'interfaccia.
+  static Future<Uint8List> jpegDaPixel(
+    Uint8List rgba, {
+    required int larghezza,
+    required int altezza,
+  }) => compute(_jpegDaPixel, (rgba, larghezza, altezza));
+
+  static Uint8List _jpegDaPixel((Uint8List, int, int) dati) {
+    final immagine = img.Image.fromBytes(
+      width: dati.$2,
+      height: dati.$3,
+      bytes: dati.$1.buffer,
+      bytesOffset: dati.$1.offsetInBytes,
+      numChannels: 4,
+    );
+
+    return img.encodeJpg(immagine, quality: quality);
   }
 }

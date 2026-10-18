@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:crasy/core/errors/error_message_mapper.dart';
 import 'package:crasy/core/moderation/content_policy.dart';
-import 'package:crasy/core/services/media/photo_compressor.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
@@ -395,17 +394,14 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
 
         // **La foto sale intera.** Senza frasi e' esattamente quella
         // scattata; con le frasi e' la stessa foto con le frasi disegnate
-        // sopra, che si ristringe in JPEG come ogni altra.
+        // sopra, e l'editor la consegna gia' in JPEG alla misura giusta: non
+        // c'e' piu' niente da stringere, e ristringerla qui voleva dire
+        // decodificarla e ricodificarla di nuovo per niente.
         if (sistemata.cambiata) {
-          final ristretta = PhotoCompressor.shrink(sistemata.bytes);
-
-          definitiva = identical(ristretta, sistemata.bytes)
-              ? definitiva.conNuoviByte(ristretta)
-              : PickedMedia(
-                  bytes: ristretta,
-                  contentType: 'image/jpeg',
-                  isVideo: false,
-                );
+          definitiva = PickedMedia(
+            bytes: sistemata.bytes,
+            contentType: 'image/jpeg',
+          );
         }
 
         setState(() => _media = definitiva);

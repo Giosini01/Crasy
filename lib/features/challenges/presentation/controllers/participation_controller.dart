@@ -211,7 +211,7 @@ class ParticipationController extends AsyncNotifier<void> {
     // Su telefono `image_picker` ha gia' fatto il grosso; su web ignora i
     // parametri di ridimensionamento, e senza questo passaggio ogni foto
     // saliva com'era uscita dalla fotocamera — diversi megabyte l'una.
-    final shrunk = PhotoCompressor.shrink(original);
+    final shrunk = await PhotoCompressor.shrinkFuori(original);
 
     return PickedMedia(
       bytes: shrunk,
@@ -308,7 +308,8 @@ class ParticipationController extends AsyncNotifier<void> {
 
     final original = await file.readAsBytes();
 
-    final shrunk = PhotoCompressor.shrink(original, mirror: mirror);
+    // Fuori dal filo dell'interfaccia: vedi `PhotoCompressor.shrinkFuori`.
+    final shrunk = await PhotoCompressor.shrinkFuori(original, mirror: mirror);
 
     return PickedMedia(
       bytes: shrunk,

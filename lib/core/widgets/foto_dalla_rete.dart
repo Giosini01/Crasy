@@ -43,6 +43,36 @@ class FotoDallaRete extends StatefulWidget {
   /// Se entra con una dissolvenza breve invece di apparire di scatto.
   final bool dissolvenza;
 
+  /// Da dove arriva una foto: dal telefono se c'e' gia', dalla rete se no.
+  /// Uno solo per tutti, cosi' una foto preparata in anticipo e' la stessa
+  /// che poi si mostra.
+  static ImageProvider fornitore(String url) => kIsWeb
+      // Su web Flutter scarica le immagini con `fetch` e le disegna sulla
+      // tela, e questo richiede che il server mandi le intestazioni CORS. Il
+      // bucket di Firebase Storage non le manda finche' non gliele si
+      // configura a mano, e il risultato e' che **le foto non compaiono e
+      // nessuno dice perche'**: niente errore, solo un riquadro vuoto.
+      //
+      // Con il ripiego, quando il disegno sulla tela fallisce, Flutter usa un
+      // vero elemento `<img>` del browser — che le foto le mostra da sempre
+      // senza chiedere permesso a nessuno.
+      ? NetworkImage(
+          url,
+          webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
+        )
+      : CachedNetworkImageProvider(url);
+
+  /// **Scarica una foto prima che serva.** A schermo intero si prepara quella
+  /// dopo e quella prima mentre si guarda questa: quando si scorre, e' gia'
+  /// arrivata. Non lancia mai: se non riesce, la si scarica quando serve.
+  static void preparaInAnticipo(BuildContext context, String url) {
+    if (url.isEmpty || url.startsWith('data:')) {
+      return;
+    }
+
+    unawaited(precacheImage(fornitore(url), context, onError: (_, _) {}));
+  }
+
   @override
   State<FotoDallaRete> createState() => _FotoDallaReteState();
 }
@@ -77,21 +107,7 @@ class _FotoDallaReteState extends State<FotoDallaRete> {
     super.dispose();
   }
 
-  ImageProvider _provider() => kIsWeb
-      // Su web Flutter scarica le immagini con `fetch` e le disegna sulla
-      // tela, e questo richiede che il server mandi le intestazioni CORS. Il
-      // bucket di Firebase Storage non le manda finche' non gliele si
-      // configura a mano, e il risultato e' che **le foto non compaiono e
-      // nessuno dice perche'**: niente errore, solo un riquadro vuoto.
-      //
-      // Con il ripiego, quando il disegno sulla tela fallisce, Flutter usa un
-      // vero elemento `<img>` del browser — che le foto le mostra da sempre
-      // senza chiedere permesso a nessuno.
-      ? NetworkImage(
-          widget.url,
-          webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
-        )
-      : CachedNetworkImageProvider(widget.url);
+  ImageProvider _provider() => FotoDallaRete.fornitore(widget.url);
 
   /// Non e' arrivata: si riprova fra poco, sempre un po' piu' tardi.
   void _fallita() {

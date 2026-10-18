@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:crasy/core/services/media/photo_compressor.dart';
 import 'package:crasy/core/theme/app_colors.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
@@ -580,12 +581,28 @@ class _PhotoEditorState extends State<PhotoEditor> {
 
     final disegno = registratore.endRecording();
     final finale = await disegno.toImage(foto.width, foto.height);
-    final dati = await finale.toByteData(format: ui.ImageByteFormat.png);
+
+    // **I pixel grezzi, e da li' un JPEG.** Prima si chiedeva un PNG: da
+    // milleseicento pixel pesa da due a cinque megabyte, e poi andava
+    // decodificato e ristretto — secondi di lavoro, e foto con le scritte che
+    // salivano e si scaricavano piu' lente di tutte. Vedi
+    // `PhotoCompressor.jpegDaPixel`.
+    final pixel = await finale.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final larghezza = finale.width;
+    final altezza = finale.height;
 
     foto.dispose();
     finale.dispose();
 
-    return dati?.buffer.asUint8List() ?? widget.bytes;
+    if (pixel == null) {
+      return widget.bytes;
+    }
+
+    return PhotoCompressor.jpegDaPixel(
+      pixel.buffer.asUint8List(pixel.offsetInBytes, pixel.lengthInBytes),
+      larghezza: larghezza,
+      altezza: altezza,
+    );
   }
 }
 

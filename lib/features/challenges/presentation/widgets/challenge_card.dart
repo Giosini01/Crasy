@@ -307,6 +307,7 @@ class ChallengeShowcase extends StatelessWidget {
             child: MediaFrame(
               // A tutta larghezza: l'originale. Vedi `EntryTile`.
               url: entry.mediaUrl,
+              anteprima: entry.thumbUrl,
               video: entry.isVideo,
               // La cornice scelta nell'editor: la foto e' intera.
               ritaglio: entry.ritaglio,

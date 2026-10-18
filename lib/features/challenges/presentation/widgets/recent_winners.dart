@@ -137,6 +137,7 @@ class _WinnerBlock extends ConsumerWidget {
               child: MediaFrame(
                 // A tutta larghezza: l'originale.
                 url: winner.mediaUrl,
+                anteprima: winner.thumbUrl,
                 video: winner.isVideo,
                 // Intera, come e' stata scattata: vedi `MediaFrame`.
                 aspectRatio: 4 / 5,

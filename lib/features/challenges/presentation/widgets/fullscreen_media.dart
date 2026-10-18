@@ -178,6 +178,27 @@ class _FullscreenMediaState extends ConsumerState<FullscreenMedia> {
     );
   }
 
+  /// Se le foto vicine a quella aperta sono gia' state chieste.
+  bool _vicinePreparate = false;
+
+  /// **La foto dopo e quella prima, scaricate mentre si guarda questa.**
+  /// Scorrendo, la prossima e' gia' li': prima ogni foto cominciava ad
+  /// arrivare solo quando era a schermo, e con poca rete si vedeva la fiamma a
+  /// ogni passaggio.
+  void _preparaLeVicine(List<ChallengeEntry> entries, int index) {
+    for (final vicina in [index + 1, index - 1]) {
+      if (vicina < 0 || vicina >= entries.length) {
+        continue;
+      }
+
+      final entry = entries[vicina];
+
+      if (!entry.isVideo) {
+        FotoDallaRete.preparaInAnticipo(context, entry.urlGrande);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final entries = _entries();
@@ -206,8 +227,24 @@ class _FullscreenMediaState extends ConsumerState<FullscreenMedia> {
           PageView.builder(
             controller: _pages,
             itemCount: entries.length,
-            onPageChanged: (index) => setState(() => _index = index),
-            itemBuilder: (context, index) => _Slide(entry: entries[index]),
+            onPageChanged: (index) {
+              setState(() => _index = index);
+              _preparaLeVicine(entries, index);
+            },
+            itemBuilder: (context, index) {
+              // La prima volta, appena si apre: le vicine di quella toccata.
+              // Dopo il disegno, non durante.
+              if (!_vicinePreparate) {
+                _vicinePreparate = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    _preparaLeVicine(entries, index);
+                  }
+                });
+              }
+
+              return _Slide(entry: entries[index]);
+            },
           ),
           SafeArea(
             child: Column(
@@ -308,7 +345,7 @@ class _SlideState extends ConsumerState<_Slide>
         // intero l'audio si accende da solo, ed e' proprio il momento in cui
         // una voce di sottofondo che non c'entra con la gara si sente.
         ? VideoFrame(url: url, immersive: true, muted: entry.muted)
-        : _Photo(url: url);
+        : _Photo(url: url, anteprima: entry.previewUrl);
 
     return GestureDetector(
       // Il doppio tocco vale anche qui, e a fiamma gia' accesa non fa niente:
@@ -378,9 +415,15 @@ class _NienteDaVedere extends StatelessWidget {
 /// il dettaglio — cos'ha in mano, cosa c'e' scritto dietro — e senza
 /// l'ingranditore quel dettaglio non c'e' modo di vederlo.
 class _Photo extends StatelessWidget {
-  const _Photo({required this.url});
+  const _Photo({required this.url, this.anteprima = ''});
 
   final String url;
+
+  /// **La miniatura, mentre arriva la foto grande.** Quella della griglia e'
+  /// quasi sempre gia' sul telefono: si vede subito, e la foto intera ci si
+  /// posa sopra appena arriva. Prima, toccando una foto, si guardava la
+  /// fiamma su fondo nero per tutto il tempo dello scaricamento.
+  final String anteprima;
 
   @override
   Widget build(BuildContext context) {
@@ -393,8 +436,20 @@ class _Photo extends StatelessWidget {
         child: FotoDallaRete(
           url: url,
           fit: BoxFit.contain,
-          inAttesa: (context) =>
-              const Center(child: FiammaCheGira(colore: AppColors.paper)),
+          inAttesa: (context) => anteprima.isEmpty || anteprima == url
+              ? const Center(child: FiammaCheGira(colore: AppColors.paper))
+              : Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    FotoDallaRete(
+                      url: anteprima,
+                      fit: BoxFit.contain,
+                      dissolvenza: false,
+                      inAttesa: (context) => const SizedBox.shrink(),
+                    ),
+                    const FiammaCheGira(misura: 40, colore: AppColors.paper),
+                  ],
+                ),
           inErrore: (context, riprova) => GestureDetector(
             onTap: riprova,
             behavior: HitTestBehavior.opaque,

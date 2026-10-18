@@ -717,6 +717,7 @@ class _Faccia extends StatelessWidget {
           padding: const EdgeInsets.all(3),
           child: MediaFrame(
             url: entry.mediaUrl,
+            anteprima: entry.thumbUrl,
             video: entry.isVideo,
             aspectRatio: 4 / 5,
             radius: 15,

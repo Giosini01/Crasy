@@ -36,10 +36,20 @@ class MediaFrame extends StatelessWidget {
     this.soundOnTap = false,
     this.mine = false,
     this.ritaglio,
+    this.anteprima,
     super.key,
   });
 
   final String? url;
+
+  /// **La miniatura della stessa foto, da mostrare mentre arriva [url].**
+  ///
+  /// Le schede a tutta larghezza mostrano l'originale — la miniatura li' si
+  /// vedrebbe sgranata — ma l'originale pesa quattro volte tanto, e con poca
+  /// rete al suo posto c'era la fiamma che girava. La miniatura invece e'
+  /// leggera, e quasi sempre gia' sul telefono: si vede subito, e la foto
+  /// nitida ci si posa sopra appena arriva.
+  final String? anteprima;
 
   /// Se il video va guardato senza audio: lo decide chi l'ha mandato.
   final bool muted;
@@ -115,6 +125,7 @@ class MediaFrame extends StatelessWidget {
             else
               _Surface(
                 url: url!,
+                anteprima: anteprima,
                 caption: caption,
                 ritaglio: (aspectRatio - 4 / 5).abs() < 0.01 ? ritaglio : null,
               ),
@@ -136,11 +147,19 @@ class MediaFrame extends StatelessWidget {
 }
 
 class _Surface extends StatelessWidget {
-  const _Surface({required this.url, required this.caption, this.ritaglio});
+  const _Surface({
+    required this.url,
+    required this.caption,
+    this.ritaglio,
+    this.anteprima,
+  });
 
   final String url;
   final String? caption;
   final Ritaglio? ritaglio;
+
+  /// Vedi [MediaFrame.anteprima].
+  final String? anteprima;
 
   /// Una foto che non e' su nessun server: i byte stanno dentro l'indirizzo.
   ///
@@ -200,13 +219,29 @@ class _Surface extends StatelessWidget {
     return FotoDallaRete(
       url: url,
       fit: fit,
-      inAttesa: (context) => Stack(
-        fit: StackFit.expand,
-        children: [
-          _Placeholder(caption: caption),
-          const Center(child: FiammaCheGira(misura: 32)),
-        ],
-      ),
+      inAttesa: (context) {
+        final piccola = anteprima ?? '';
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            _Placeholder(caption: caption),
+            // La miniatura sotto, se c'e' e non e' la stessa foto: vedi
+            // [MediaFrame.anteprima]. Finche' non arriva nemmeno lei, la
+            // fiamma.
+            if (piccola.isNotEmpty && piccola != url)
+              FotoDallaRete(
+                url: piccola,
+                fit: fit,
+                dissolvenza: false,
+                inAttesa: (context) =>
+                    const Center(child: FiammaCheGira(misura: 32)),
+              )
+            else
+              const Center(child: FiammaCheGira(misura: 32)),
+          ],
+        );
+      },
       inErrore: (context, riprova) => GestureDetector(
         onTap: riprova,
         behavior: HitTestBehavior.opaque,
