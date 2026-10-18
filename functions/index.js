@@ -13,6 +13,7 @@ const admin = require('firebase-admin');
 const vision = require('@google-cloud/vision');
 const { avvisaChiLHaMandata } = require('./avvisi');
 const { liberaLeFiamme } = require('./fiamme');
+const { magazzinoDi, tuttiIMagazzini, miniaturaDi } = require('./magazzino');
 const videoIntelligence = require('@google-cloud/video-intelligence');
 
 admin.initializeApp();
@@ -567,7 +568,8 @@ async function controllaPartecipazione(snapshot, challengeId) {
     return true;
   }
 
-  const bucket = admin.storage().bucket().name;
+  // Nel magazzino dove sta davvero: vedi `magazzinoDi`.
+  const bucket = magazzinoDi(snapshot).name;
   const mediaKind = snapshot.get('mediaKind') || 'photo';
   let reasons;
 
@@ -894,30 +896,43 @@ exports.closeExpiredChallenges = onSchedule(
  */
 const PURGE_AFTER_HOURS = 48;
 
-exports.purgeOldChallenges = onSchedule('every 60 minutes', async () => {
+// **Non e' mai partita fino al 18 ottobre**, e nessuno se n'era accorto: la
+// ricerca qui sotto chiedeva un indice che non esisteva, e ogni ora finiva in
+// un errore nei registri. Nessuna gara veniva mai ripulita, e il magazzino
+// teneva tutte le foto di tutte le gare — trecento megabyte dopo due mesi.
+// L'indice adesso sta in `firestore.indexes.json`.
+exports.purgeOldChallenges = onSchedule(
+  { schedule: 'every 60 minutes', timeoutSeconds: 540, memory: '512MiB' },
+  async () => {
   const cutoff = admin.firestore.Timestamp.fromMillis(
     Date.now() - PURGE_AFTER_HOURS * 60 * 60 * 1000,
   );
+  const cominciato = Date.now();
 
-  // Poche per volta: cancellare e' l'unica cosa che non si puo' disfare, e un
-  // giro che ne prende venti ogni ora sta comodamente dietro a qualunque
-  // quantita' di gare che questa app possa ragionevolmente produrre.
+  // Un certo numero per volta, e ci si ferma prima che il tempo finisca: una
+  // gara si ripulisce tutta o non si comincia. Il giro dopo riparte da dove
+  // questo si e' fermato.
   const old = await db
     .collection('challenges')
     .where('purgedAt', '==', null)
     .where('endsAt', '<=', cutoff)
-    .limit(20)
+    .limit(100)
     .get();
 
   if (old.empty) {
     return;
   }
 
-  const bucket = admin.storage().bucket();
   let challenges = 0;
   let files = 0;
 
   for (const challenge of old.docs) {
+    if (Date.now() - cominciato > 7 * 60 * 1000) {
+      logger.info('Tempo finito: le altre gare al prossimo giro.');
+
+      break;
+    }
+
     if (challenge.get('prizeStatus') === 'held') {
       logger.warn(
         `Challenge ${challenge.id} scaduta con i soldi ancora in cassa: non la cancello.`,
@@ -966,7 +981,7 @@ exports.purgeOldChallenges = onSchedule('every 60 minutes', async () => {
 
       if (path && entry.id !== winnerEntryId) {
         try {
-          await bucket.file(path).delete({ ignoreNotFound: true });
+          await magazzinoDi(entry).file(path).delete({ ignoreNotFound: true });
           files++;
         } catch (error) {
           logger.warn(`Non ho potuto cancellare ${path}.`, error);
@@ -975,6 +990,13 @@ exports.purgeOldChallenges = onSchedule('every 60 minutes', async () => {
 
       await entry.ref.delete();
     }
+
+    // **E poi la cartella intera, tranne la foto che ha vinto.** Le
+    // partecipazioni dicono dove sta la loro foto, ma non la miniatura, ne' i
+    // file dei tentativi andati male: restavano li' per sempre. Si guarda la
+    // cartella della gara in tutti e due i magazzini e si tiene soltanto il
+    // trofeo — la foto vincitrice e la sua miniatura.
+    files += await svuotaLaCartella(challenge);
 
     // **La gara non si cancella piu': e' diventata il trofeo.**
     //
@@ -992,6 +1014,49 @@ exports.purgeOldChallenges = onSchedule('every 60 minutes', async () => {
 
   logger.info(`Svuotate ${challenges} challenge vecchie e ${files} file.`);
 });
+
+/**
+ * Cancella tutto quello che sta nella cartella di una gara, in ogni
+ * magazzino, **tranne la foto che ha vinto** e la sua miniatura. Torna quanti
+ * file ha cancellato. Non lancia: un file rimasto e' meno grave di una
+ * pulizia che si ferma a meta'.
+ */
+async function svuotaLaCartella(challenge) {
+  const daTenere = new Set();
+  const trofeo = String(challenge.get('winnerMediaUrl') || '').match(
+    /\/v0\/b\/[^/]+\/o\/([^?]+)/
+  );
+
+  if (trofeo) {
+    const percorso = decodeURIComponent(trofeo[1]);
+
+    daTenere.add(percorso);
+    daTenere.add(miniaturaDi(percorso));
+  }
+
+  let cancellati = 0;
+
+  for (const magazzino of tuttiIMagazzini()) {
+    try {
+      const [file] = await magazzino.getFiles({
+        prefix: `entries/${challenge.id}/`,
+      });
+
+      for (const voce of file) {
+        if (daTenere.has(voce.name)) {
+          continue;
+        }
+
+        await voce.delete({ ignoreNotFound: true });
+        cancellati++;
+      }
+    } catch (error) {
+      logger.warn(`Cartella di ${challenge.id} non svuotata in ${magazzino.name}.`, error);
+    }
+  }
+
+  return cancellati;
+}
 
 /**
  * Quanto tempo ha chi ha lanciato una sfida mirata per dire se vale.
@@ -1873,8 +1938,6 @@ async function dropLosingMedia(challenge, losers) {
     return;
   }
 
-  const bucket = admin.storage().bucket();
-
   /** Cancella la foto di una partecipazione, e le toglie l'indirizzo. */
   async function butta(entry) {
     const path = entry.get('storagePath');
@@ -1884,7 +1947,7 @@ async function dropLosingMedia(challenge, losers) {
     }
 
     try {
-      await bucket.file(path).delete({ ignoreNotFound: true });
+      await magazzinoDi(entry).file(path).delete({ ignoreNotFound: true });
 
       // Il documento resta, ma senza indirizzo: cosi' chi lo legge sa che la
       // foto non c'e' piu' invece di provare a scaricarla e trovare un errore.
@@ -3360,6 +3423,19 @@ exports.freeSlotOnEntryRemoved = onDocumentDeleted(
     const { challengeId, entryId } = event.params;
     const dati = event.data?.data() || {};
 
+    // **A gara finita non e' un ritiro: e' la pulizia.** Le partecipazioni di
+    // una gara vecchia le cancella `purgeOldChallenges`, e prima questa
+    // funzione le trattava come foto ritirate: contava un partecipante in
+    // meno, scriveva la lapide, e **buttava il file — anche quello della foto
+    // che aveva vinto**, cioe' il trofeo. Dei file di una gara finita si
+    // occupa solo la pulizia, che sa quale tenere.
+    const gara = await db.collection('challenges').doc(challengeId).get();
+    const fine = gara.exists ? gara.get('endsAt') : null;
+
+    if (!gara.exists || !fine || fine.toMillis() <= Date.now()) {
+      return;
+    }
+
     try {
       await db
         .collection('challenges')
@@ -3392,16 +3468,8 @@ exports.freeSlotOnEntryRemoved = onDocumentDeleted(
     // **Solo a gara aperta**: a gara finita le fiamme non servono piu' a
     // nessuno, e qui passa anche lo spazzino che svuota le gare vecchie — una
     // ricerca per ogni foto buttata sarebbe solo un conto da pagare.
-    try {
-      const gara = await db.collection('challenges').doc(challengeId).get();
-      const fine = gara.exists ? gara.get('endsAt') : null;
-
-      if (fine && fine.toMillis() > Date.now()) {
-        await liberaLeFiamme(challengeId, entryId);
-      }
-    } catch (error) {
-      logger.warn(`Fiamme di ${entryId} non restituite.`, error);
-    }
+    // Qui la gara e' aperta per forza: vedi sopra.
+    await liberaLeFiamme(challengeId, entryId);
 
     const path = dati.storagePath;
 
@@ -3410,7 +3478,11 @@ exports.freeSlotOnEntryRemoved = onDocumentDeleted(
     }
 
     try {
-      await admin.storage().bucket().file(path).delete({ ignoreNotFound: true });
+      const magazzino = magazzinoDi(dati);
+
+      // La foto e la sua miniatura: salgono insieme, se ne vanno insieme.
+      await magazzino.file(path).delete({ ignoreNotFound: true });
+      await magazzino.file(miniaturaDi(path)).delete({ ignoreNotFound: true });
     } catch (error) {
       logger.warn(`Foto di ${entryId} non cancellata.`, error);
     }

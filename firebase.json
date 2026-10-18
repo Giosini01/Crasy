@@ -70,9 +70,16 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
-  "storage": {
-    "rules": "storage.rules"
-  },
+  "storage": [
+    {
+      "bucket": "daily-dating-app.firebasestorage.app",
+      "rules": "storage.rules"
+    },
+    {
+      "bucket": "daily-dating-app-milano",
+      "rules": "storage.rules"
+    }
+  ],
   "functions": [
     {
       "source": "functions",

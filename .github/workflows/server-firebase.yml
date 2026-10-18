@@ -25,6 +25,8 @@ on:
       - 'functions/**'
       - 'firestore.rules'
       - 'firestore.indexes.json'
+      - 'storage.rules'
+      - 'firebase.json'
       - '.github/workflows/server-firebase.yml'
   workflow_dispatch:
     inputs:
@@ -101,6 +103,17 @@ jobs:
           PROGETTO: ${{ vars.FIREBASE_PROJECT_ID }}
         run: |
           firebase deploy             --only functions             --project "$PROGETTO"             --non-interactive             --force
+
+      - name: Regole dei magazzini delle foto
+        # Le stesse regole per tutti e due i magazzini — quello di partenza e
+        # quello di Milano — come dice `firebase.json`. Dopo le funzioni e non
+        # prima, e senza fermare il resto: se questo passo non riesce, le
+        # funzioni nuove sono gia' pubblicate.
+        continue-on-error: true
+        env:
+          PROGETTO: ${{ vars.FIREBASE_PROJECT_ID }}
+        run: |
+          firebase deploy --only storage --project "$PROGETTO" --non-interactive
 
       - name: Chi seguiva gia' qualcuno
         # Si puo' rifare ogni volta: quello che c'e' gia' resta com'e', e i

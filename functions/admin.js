@@ -42,6 +42,7 @@ const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
 const { avvisaChiLHaMandata, togliLAvvisoDiRimozione } = require('./avvisi');
 const { liberaLeFiamme } = require('./fiamme');
+const { magazzinoDi } = require('./magazzino');
 
 const db = admin.firestore();
 
@@ -797,14 +798,13 @@ async function rimuoviLaMissione(challengeId, chi) {
       .catch((errore) => logger.error('Premio non reso.', errore));
   }
 
-  const bucket = admin.storage().bucket();
   const partecipazioni = await riferimento.collection('entries').get();
 
   for (const entry of partecipazioni.docs) {
     const percorso = entry.get('storagePath');
 
     if (percorso) {
-      await bucket
+      await magazzinoDi(entry)
         .file(percorso)
         .delete({ ignoreNotFound: true })
         .catch(() => {});

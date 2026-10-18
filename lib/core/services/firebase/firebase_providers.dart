@@ -12,8 +12,18 @@ final firebaseFirestoreProvider = Provider<FirebaseFirestore>(
   (ref) => FirebaseFirestore.instance,
 );
 
+/// **Il magazzino delle foto e dei video: a Milano.**
+///
+/// Stavano nel magazzino di partenza, negli Stati Uniti, mentre il database e
+/// chi usa l'app stanno in Italia: ogni foto mandata o guardata attraversava
+/// l'oceano due volte. Misurato da qui, una foto da 300 KB ci metteva quasi un
+/// secondo a salire e piu' di mezzo a scendere; a Milano un quinto e un
+/// settimo. Le foto gia' mandate restano dov'erano — il loro indirizzo dice
+/// dove — e il server le va a cercare li': vedi `functions/magazzino.js`.
+const magazzinoFoto = 'gs://daily-dating-app-milano';
+
 final firebaseStorageProvider = Provider<FirebaseStorage>(
-  (ref) => FirebaseStorage.instance,
+  (ref) => FirebaseStorage.instanceFor(bucket: magazzinoFoto),
 );
 
 /// Le funzioni sul server, nella stessa regione in cui sono state messe.

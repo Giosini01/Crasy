@@ -384,6 +384,10 @@ async function scriviLaGara(chi, missione, scelte) {
     ),
     participantsCount: 0,
     winnerEntryId: null,
+    // **Esplicitamente non ripulita.** La pulizia cerca `purgedAt == null`, e
+    // un campo che non c'e' non corrisponde a nessun confronto: senza questa
+    // riga le gare del fondo non sarebbero mai state ripulite.
+    purgedAt: null,
     targetUserId: '',
     targetUsername: '',
     duelMessage: '',
