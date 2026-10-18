@@ -117,9 +117,9 @@ class WalletCard extends ConsumerWidget {
 
     if (!wallet.canWithdraw) {
       return wallet.inCustodiaCents > 0
-          ? 'I soldi sono tuoi: passano sul tuo conto Stripe appena lo '
-                'colleghi. Da ${AppMoney.format(Wallet.minimumWithdrawalCents)} '
-                'in su li puoi prelevare.'
+          ? 'I soldi sono tuoi: ti arrivano appena aggiungi il tuo IBAN. '
+                'Da ${AppMoney.format(Wallet.minimumWithdrawalCents)} in su li '
+                'puoi prelevare.'
           : 'I soldi sono tuoi, sul tuo conto Stripe. Da '
                 '${AppMoney.format(Wallet.minimumWithdrawalCents)} in su li '
                 'puoi prelevare.';

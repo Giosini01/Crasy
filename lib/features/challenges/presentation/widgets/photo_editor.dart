@@ -204,11 +204,21 @@ class _PhotoEditorState extends State<PhotoEditor> {
                   ],
                 ),
               ),
-              // **Il riquadro prende lo spazio che c'e', non quello che
-              // vorrebbe.** Su uno schermo basso un riquadro quattro quinti
-              // largo quanto lo schermo diventa piu' alto dello schermo stesso.
+              // **Tutto in un blocco, al centro.** Il passo, la foto, la riga
+              // che spiega e il tasto stanno attaccati, e quello che avanza
+              // dello schermo si divide sopra e sotto. Prima la foto stava al
+              // centro da sola e i comandi in fondo allo schermo: in mezzo due
+              // vuoti bianchi, e AVANTI finiva cosi' in basso che sembrava un
+              // altro pezzo di pagina.
+              //
+              // **E il riquadro prende lo spazio che c'e', non quello che
+              // vorrebbe:** su uno schermo basso si stringe, e i comandi
+              // restano sempre visibili.
               Expanded(
-                child: Center(
+                // Un po' sopra il centro, non al centro: a occhio un blocco
+                // centrato giusto sembra caduto verso il basso.
+                child: Align(
+                  alignment: const Alignment(0, -0.35),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -312,67 +322,73 @@ class _PhotoEditorState extends State<PhotoEditor> {
                           ),
                         ),
                       ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.page,
+                          AppSpacing.sm,
+                          AppSpacing.page,
+                          AppSpacing.xs,
+                        ),
+                        child: Text(
+                          _spiegazione,
+                          textAlign: TextAlign.center,
+                          style: piccolo,
+                        ),
+                      ),
+                      // **"Aa" al centro, sopra INVIA.** Sulla foto, in un
+                      // angolo, si perdeva; qui sta sulla strada del pollice,
+                      // nell'ultimo punto in cui uno si chiede "manca
+                      // qualcosa?".
+                      if (_inquadrata) _TastoAa(onTap: _scrivi),
+                      // **AVANTI, poi INVIA: rossi, e basta.** Niente bottone
+                      // pieno: una parola grande che si legge da lontano.
+                      Semantics(
+                        button: true,
+                        label: _inquadrata ? widget.etichetta : 'Avanti',
+                        child: GestureDetector(
+                          onTap: _inquadrata
+                              ? _conferma
+                              : () => setState(() => _inquadrata = true),
+                          behavior: HitTestBehavior.opaque,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.xl,
+                              vertical: AppSpacing.xs,
+                            ),
+                            child: Text(
+                              _inquadrata
+                                  ? widget.etichetta.toUpperCase()
+                                  : 'AVANTI',
+                              style: const TextStyle(
+                                color: AppColors.crasyRed,
+                                fontSize: 30,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // L'avviso dell'unico scatto sta sotto INVIA: e' li' che
+                      // serve.
+                      if (_inquadrata && widget.nota.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.page,
+                            0,
+                            AppSpacing.page,
+                            AppSpacing.sm,
+                          ),
+                          child: Text(
+                            widget.nota,
+                            textAlign: TextAlign.center,
+                            style: piccolo?.copyWith(fontSize: 11),
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.page,
-                  vertical: AppSpacing.xs,
-                ),
-                child: Text(
-                  _spiegazione,
-                  textAlign: TextAlign.center,
-                  style: piccolo,
-                ),
-              ),
-              // **"Aa" al centro, sopra INVIA.** Sulla foto, in un angolo, si
-              // perdeva; qui sta sulla strada del pollice, nell'ultimo punto in
-              // cui uno si chiede "manca qualcosa?".
-              if (_inquadrata) _TastoAa(onTap: _scrivi),
-              // **AVANTI, poi INVIA: rossi, e basta.** Niente bottone pieno: una
-              // parola grande che si legge da lontano.
-              Semantics(
-                button: true,
-                label: _inquadrata ? widget.etichetta : 'Avanti',
-                child: GestureDetector(
-                  onTap: _inquadrata
-                      ? _conferma
-                      : () => setState(() => _inquadrata = true),
-                  behavior: HitTestBehavior.opaque,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xl,
-                      vertical: AppSpacing.sm,
-                    ),
-                    child: Text(
-                      _inquadrata ? widget.etichetta.toUpperCase() : 'AVANTI',
-                      style: const TextStyle(
-                        color: AppColors.crasyRed,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              // L'avviso dell'unico scatto sta sotto INVIA: e' li' che serve.
-              if (_inquadrata && widget.nota.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.page,
-                    0,
-                    AppSpacing.page,
-                    AppSpacing.sm,
-                  ),
-                  child: Text(
-                    widget.nota,
-                    textAlign: TextAlign.center,
-                    style: piccolo?.copyWith(fontSize: 11),
-                  ),
-                ),
             ],
           ),
         ),
@@ -391,11 +407,11 @@ class _PhotoEditorState extends State<PhotoEditor> {
     }
 
     if (_scritte.isEmpty) {
-      return 'Il testo e\' facoltativo: se non serve, invia.';
+      return 'Il testo è facoltativo: se non serve, invia.';
     }
 
     return 'La frase si sposta con un dito e si ridimensiona con due. Resta '
-        'dentro le righe tratteggiate: piu su o piu giu, nelle anteprime '
+        'dentro le righe tratteggiate: più su o più giù, nelle anteprime '
         'quadrate verrebbe tagliata.';
   }
 

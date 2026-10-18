@@ -496,7 +496,7 @@ class _WalletPageState extends ConsumerState<WalletPage> {
     // buona fede.
     if (wallet.inCustodiaCents > 0) {
       return 'Sono tuoi. ${AppMoney.format(wallet.inCustodiaCents)} sono '
-          'ancora su CRASY e passano sul tuo conto Stripe appena lo colleghi. '
+          'ancora su CRASY e ti arrivano appena aggiungi il tuo IBAN. '
           'Da $soglia in su li puoi mandare sulla tua banca.';
     }
 

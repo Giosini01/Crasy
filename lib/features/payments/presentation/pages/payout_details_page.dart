@@ -48,22 +48,20 @@ class _PayoutDetailsPageState extends ConsumerState<PayoutDetailsPage> {
   final _formKey = GlobalKey<FormState>();
   final _nome = TextEditingController();
   final _cognome = TextEditingController();
-  final _codice = TextEditingController();
   final _iban = TextEditingController();
 
   bool _working = false;
   String? _error;
   bool _riempito = false;
 
-  /// **Il permesso di pagare le missioni con il saldo Stripe.** Facoltativo,
-  /// e non spuntato di partenza: un consenso si da', non si trova gia' dato.
-  bool _addebito = false;
+  /// Il codice fiscale gia' salvato, se c'era: non si chiede piu', ma chi l'ha
+  /// dato non lo perde salvando di nuovo.
+  String _codiceGiaDato = '';
 
   @override
   void dispose() {
     _nome.dispose();
     _cognome.dispose();
-    _codice.dispose();
     _iban.dispose();
     super.dispose();
   }
@@ -78,7 +76,7 @@ class _PayoutDetailsPageState extends ConsumerState<PayoutDetailsPage> {
     _riempito = true;
     _nome.text = dati.firstName;
     _cognome.text = dati.lastName;
-    _codice.text = dati.fiscalCode;
+    _codiceGiaDato = dati.fiscalCode;
     _iban.text = dati.iban;
   }
 
@@ -110,20 +108,12 @@ class _PayoutDetailsPageState extends ConsumerState<PayoutDetailsPage> {
     });
 
     try {
-      if (_addebito &&
-          ref.read(addebitoAccettatoProvider).valueOrNull != true) {
-        await repository.accettaAddebitoDalSaldo(
-          userId,
-          PayoutDetailsPage.testoAddebito,
-        );
-      }
-
       await repository.savePayoutDetails(
         userId,
         PayoutDetails(
           firstName: _nome.text,
           lastName: _cognome.text,
-          fiscalCode: _codice.text,
+          fiscalCode: _codiceGiaDato,
           iban: _iban.text,
           birthDate: nato,
         ),
@@ -149,7 +139,6 @@ class _PayoutDetailsPageState extends ConsumerState<PayoutDetailsPage> {
     final palette = context.palette;
     final texts = context.texts;
     final datiInArrivo = ref.watch(payoutDetailsProvider);
-    final permessoInArrivo = ref.watch(addebitoAccettatoProvider);
 
     _riempiUnaVolta(datiInArrivo.valueOrNull);
 
@@ -161,15 +150,12 @@ class _PayoutDetailsPageState extends ConsumerState<PayoutDetailsPage> {
     //
     // Un errore conta come arrivato: il modulo si apre vuoto, come quando non
     // si e' mai compilato, invece di girare per sempre.
-    final caricando = [
-      datiInArrivo,
-      permessoInArrivo,
-    ].any((fonte) => !fonte.hasValue && !fonte.hasError);
+    final caricando = !datiInArrivo.hasValue && !datiInArrivo.hasError;
 
     return Scaffold(
       appBar: AppBar(
         leading: const BackButton(),
-        title: const Text('Il tuo conto per i premi'),
+        title: const Text('Il tuo IBAN'),
       ),
       body: AppBackground(
         child: caricando
@@ -188,10 +174,9 @@ class _PayoutDetailsPageState extends ConsumerState<PayoutDetailsPage> {
                     ),
                     children: [
                       Text(
-                        'Servono ad aprire il tuo conto Stripe, dove arrivano i '
-                        'premi che vinci: è a nome tuo, e CRASY non tiene i tuoi '
-                        'soldi. Mandare denaro a qualcuno senza sapere chi è non è '
-                        'consentito a nessuno: si compila una volta sola.',
+                        'Ti chiediamo solo dove mandarti i soldi se vinci: '
+                        'nome, cognome e IBAN. Il conto dev\'essere '
+                        'intestato a te, e ne basta uno.',
                         style: texts.bodyMedium?.copyWith(
                           color: palette.textSecondary,
                         ),
@@ -212,19 +197,6 @@ class _PayoutDetailsPageState extends ConsumerState<PayoutDetailsPage> {
                       ),
                       const SizedBox(height: AppSpacing.md),
                       TextFormField(
-                        controller: _codice,
-                        textCapitalization: TextCapitalization.characters,
-                        inputFormatters: [
-                          UpperCaseTextFormatter(),
-                          LengthLimitingTextInputFormatter(16),
-                        ],
-                        decoration: const InputDecoration(
-                          labelText: 'Codice fiscale',
-                        ),
-                        validator: PayoutValidators.fiscalCode,
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      TextFormField(
                         controller: _iban,
                         textCapitalization: TextCapitalization.characters,
                         inputFormatters: [
@@ -233,52 +205,25 @@ class _PayoutDetailsPageState extends ConsumerState<PayoutDetailsPage> {
                         ],
                         decoration: const InputDecoration(
                           labelText: 'IBAN',
-                          helperText: 'Il conto su cui vuoi ricevere i soldi',
+                          helperText: 'Il conto su cui vuoi ricevere i premi',
                         ),
                         validator: PayoutValidators.iban,
                       ),
-                      const SizedBox(height: AppSpacing.lg),
-                      // **Il permesso di usare il saldo per le missioni.** Senza, i
-                      // premi si possono solo prelevare: per rimetterli in gioco
-                      // CRASY deve poterli prendere dal conto, e lo fa solo con un
-                      // si' detto una volta, qui.
-                      if (permessoInArrivo.valueOrNull == true)
-                        Text(
-                          'Hai già autorizzato CRASY a usare il tuo saldo Stripe '
-                          'quando paghi una missione col portafoglio.',
-                          style: texts.bodySmall?.copyWith(
-                            color: palette.textSecondary,
-                          ),
-                        )
-                      else
-                        CheckboxListTile(
-                          value: _addebito,
-                          onChanged: (valore) =>
-                              setState(() => _addebito = valore ?? false),
-                          contentPadding: EdgeInsets.zero,
-                          controlAffinity: ListTileControlAffinity.leading,
-                          activeColor: palette.accent,
-                          title: Text(
-                            PayoutDetailsPage.testoAddebito,
-                            style: texts.bodySmall?.copyWith(
-                              color: palette.textSecondary,
-                            ),
-                          ),
-                        ),
                       if (_error != null) ...[
                         const SizedBox(height: AppSpacing.md),
                         InlineBanner(message: _error!),
                       ],
                       const SizedBox(height: AppSpacing.xl),
                       CrasyButton(
-                        label: 'Salva',
+                        label: 'Continua',
                         loading: _working,
                         onPressed: _salva,
                       ),
                       const SizedBox(height: AppSpacing.md),
                       Text(
-                        'Questi dati non compaiono da nessuna parte nell\'app e non '
-                        'li vede nessun altro. Servono solo ad aprire il tuo conto.',
+                        'Con un IBAN si possono solo ricevere soldi, non '
+                        'prelevarli. Nome e IBAN non li vede nessun altro '
+                        'nell\'app: servono solo per mandarti i premi.',
                         style: texts.bodySmall?.copyWith(
                           color: palette.textFaint,
                         ),

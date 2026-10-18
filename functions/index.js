@@ -510,27 +510,30 @@ async function mandaAUnaPersona(userId, corpo, dati) {
  * un controllo che chi carica puo' togliere. Qui la foto passa da SafeSearch di
  * Google Vision prima che qualcun altro possa vederla.
  *
- * La soglia e' volutamente severa sul sesso e sulla nudita': `LIKELY` non basta
- * ad assolvere, serve che sia `UNLIKELY` o meno. In un'app che si guardano
- * anche i minorenni per sbaglio, e in cui le foto le vede tutta la gara, e'
- * meglio rifiutare per errore una foto innocua che lasciarne passare una
- * sbagliata: chi si vede rifiutare puo' rimandarne un'altra, il danno opposto
- * non si ripara.
+ * La soglia e' severa sulla nudita': da `LIKELY` in su la foto non entra.
+ *
+ * **E guarda solo la nudita', non l'allusione.** Fino al 18 ottobre bastava
+ * che SafeSearch trovasse una foto "allusiva" con certezza (`racy` a
+ * `VERY_LIKELY`) per toglierla, con scritto "contenuto sessuale esplicito".
+ * Ma per SafeSearch e' allusivo un costume, una palestra, una spiaggia, un
+ * letto: delle nove foto tolte in automatico fino a quel giorno, sette avevano
+ * la nudita' improbabile o soltanto possibile — due arrivavano da una gara che
+ * si chiamava FITNESS TIME — e solo due l'avevano probabile davvero. Chi si
+ * vedeva togliere la foto di un allenamento leggeva che era porno.
  *
  * Una foto rifiutata resta nel database con il suo stato, e non sparisce: serve
  * a poterla rivedere se qualcuno contesta, e a capire se il controllo sta
  * sbagliando troppo spesso.
  */
 // SafeSearch distingue il nudo dal contenuto semplicemente allusivo: un
-// costume, lo sport o la spiaggia possono essere `racy`, ma non sono vietati.
+// costume, lo sport o la spiaggia possono essere `racy`, ma non sono vietati —
+// e per questo `racy` qui non toglie piu' niente. Vedi sopra.
 const BLOCKED_ADULT_LIKELIHOODS = new Set(['LIKELY', 'VERY_LIKELY']);
-const BLOCKED_RACY_LIKELIHOODS = new Set(['VERY_LIKELY']);
 const BLOCKED_VIOLENCE_LIKELIHOODS = new Set(['LIKELY', 'VERY_LIKELY']);
 
 function reasonsFromSafeSearch(safeSearch) {
   const reasons = [];
   if (BLOCKED_ADULT_LIKELIHOODS.has(safeSearch?.adult)) reasons.push('nudita/sesso');
-  if (BLOCKED_RACY_LIKELIHOODS.has(safeSearch?.racy)) reasons.push('contenuto sessuale esplicito');
   if (BLOCKED_VIOLENCE_LIKELIHOODS.has(safeSearch?.violence)) reasons.push('violenza');
   return reasons;
 }
@@ -543,7 +546,15 @@ async function moderateVideo(uri) {
   });
   const [result] = await operation.promise();
   const frames = result.annotationResults?.[0]?.explicitAnnotation?.frames || [];
-  return frames.some((frame) => BLOCKED_ADULT_LIKELIHOODS.has(frame.pornographyLikelihood));
+
+  // **Un fotogramma dubbio non basta a togliere un video.** Se ne guarda
+  // circa uno al secondo, e su venti secondi uno "probabile" capita anche a
+  // un video innocuo — un movimento, una luce. Si toglie quando e' quasi certo
+  // in un fotogramma, o probabile in almeno due.
+  const certi = frames.filter((frame) => frame.pornographyLikelihood === 'VERY_LIKELY');
+  const probabili = frames.filter((frame) => frame.pornographyLikelihood === 'LIKELY');
+
+  return certi.length >= 1 || probabili.length >= 2;
 }
 
 /**

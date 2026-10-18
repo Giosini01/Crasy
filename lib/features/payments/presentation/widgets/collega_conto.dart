@@ -109,8 +109,8 @@ Future<bool> assicuratiIlConto(BuildContext context, WidgetRef ref) async {
   messenger?.showSnackBar(
     const SnackBar(
       content: Text(
-        'Finisci la registrazione nella pagina di Stripe, poi torna qui e '
-        'riprova.',
+        'Ultimo passo su Stripe: conferma i tuoi dati, poi torna qui e '
+        'scatta.',
       ),
       duration: Duration(seconds: 6),
     ),
@@ -166,7 +166,13 @@ Future<T> _conLaFiamma<T>(
   }
 }
 
-/// Cosa succede ai soldi, detto prima di chiedere i dati.
+/// **Perche' l'IBAN, detto con calma prima di chiederlo.**
+///
+/// Prima diceva "collega il tuo conto": letto da chi sta per mandare una foto,
+/// suonava come "dacci accesso alla tua banca", e chi lo leggeva chiudeva.
+/// Invece si chiede soltanto dove mandare i soldi se vince — e qui lo si dice
+/// cosi', con le tre cose che uno si chiede davanti a un IBAN: a cosa serve,
+/// se qualcuno puo' prendere dei soldi, e chi lo tiene.
 class _Spiegazione extends StatelessWidget {
   const _Spiegazione();
 
@@ -191,7 +197,7 @@ class _Spiegazione extends StatelessWidget {
               const TextSpan(
                 children: [
                   TextSpan(
-                    text: 'Per vincere soldi veri, collega il tuo conto',
+                    text: 'Per giocare per soldi veri, aggiungi il tuo IBAN',
                   ),
                   TextSpan(
                     text: '.',
@@ -203,23 +209,41 @@ class _Spiegazione extends StatelessWidget {
                 fontWeight: FontWeight.w400,
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'I premi vanno su un conto Stripe a nome tuo: CRASY non tiene i '
-              'tuoi soldi. Da lì li mandi sulla tua banca, o li usi per '
-              'lanciare una missione.',
-              style: texts.bodyMedium,
+            const SizedBox(height: AppSpacing.lg),
+            const _Rassicura(
+              icona: Icons.emoji_events_outlined,
+              titolo: 'Serve solo a mandarti i premi.',
+              testo:
+                  'Se vinci, i soldi devono arrivarti: senza IBAN non '
+                  'sapremmo dove mandarli.',
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.md),
+            const _Rassicura(
+              icona: Icons.lock_outline_rounded,
+              titolo: 'Sul tuo conto i soldi possono solo arrivare.',
+              testo:
+                  'Con un IBAN nessuno può prelevare niente: né noi, né '
+                  'nessun altro. Partecipare resta gratis.',
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const _Rassicura(
+              icona: Icons.verified_user_outlined,
+              titolo: 'Lo custodisce Stripe.',
+              testo:
+                  'È il sistema di pagamento usato da milioni di aziende nel '
+                  'mondo: i premi arrivano su un conto Stripe a nome tuo, non '
+                  'restano a CRASY.',
+            ),
+            const SizedBox(height: AppSpacing.lg),
             Text(
-              'Si fa una volta sola: nome, codice fiscale e IBAN qui, poi '
-              'Stripe ti chiede di confermare i tuoi dati. È la legge per '
-              'chiunque riceva denaro, e ci vogliono un paio di minuti.',
+              'Ci vuole un minuto e si fa una volta sola. Alla fine Stripe ti '
+              'chiede di confermare chi sei: lo chiede la legge a chiunque '
+              'riceva soldi, non è una nostra richiesta.',
               style: texts.bodySmall?.copyWith(color: palette.textSecondary),
             ),
             const SizedBox(height: AppSpacing.lg),
             CrasyButton(
-              label: 'Collega il conto',
+              label: 'Aggiungi l\'IBAN',
               onPressed: () => Navigator.of(context).pop(true),
             ),
             const SizedBox(height: AppSpacing.xs),
@@ -232,6 +256,57 @@ class _Spiegazione extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Una riga della spiegazione: un segno, la frase che conta, e il perche'.
+class _Rassicura extends StatelessWidget {
+  const _Rassicura({
+    required this.icona,
+    required this.titolo,
+    required this.testo,
+  });
+
+  final IconData icona;
+  final String titolo;
+  final String testo;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: palette.accent.withValues(alpha: 0.08),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icona, size: 19, color: palette.accent),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                titolo,
+                style: texts.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                testo,
+                style: texts.bodySmall?.copyWith(color: palette.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

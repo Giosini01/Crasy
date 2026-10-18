@@ -32,10 +32,12 @@ class PayoutDetails {
   final DateTime? birthDate;
 
   /// Se c'e' tutto quello che serve per far partire un prelievo.
+  /// **Il codice fiscale non c'e'.** Non lo chiede Stripe e non serve a
+  /// mandare un bonifico: si chiedeva, e ogni campo in piu' davanti a un IBAN
+  /// e' un motivo in piu' per chiudere. Chi l'aveva dato lo conserva.
   bool get isComplete =>
       PayoutValidators.name(firstName) == null &&
       PayoutValidators.name(lastName) == null &&
-      PayoutValidators.fiscalCode(fiscalCode) == null &&
       PayoutValidators.iban(iban) == null &&
       PayoutValidators.birthDate(birthDate) == null;
 
