@@ -387,4 +387,77 @@ missione; la foto vincitrice resta come trofeo finche' non ne chiedi la
 rimozione o chiudi l'account.
 ''',
   );
+
+  /// **Il regolamento delle missioni, da leggere dentro l'app.**
+  ///
+  /// Lo chiede Apple a chi fa gare con dei premi: le regole ufficiali devono
+  /// stare nell'app e dire chiaramente che Apple non e' sponsor e non c'entra
+  /// (linea guida 5.3.2). Google chiede lo stesso.
+  ///
+  /// **Non e' un documento in piu' da accettare.** Racconta in ordine le regole
+  /// che l'app applica gia' — chi partecipa, come si vince, dove va il premio —
+  /// e per tutto il resto rimanda ai Termini. Per questo non sta nel pacchetto
+  /// di [version]: cambiarlo non chiede di nuovo il consenso a nessuno.
+  /// Quello che dice deve restare vero rispetto al codice: chi cambia una
+  /// regola delle gare cambia anche questa pagina.
+  static const regolamento = LegalDocument(
+    title: 'Regolamento delle missioni',
+    body:
+        '''
+$draftWarning
+
+1. CHI ORGANIZZA
+Le missioni si svolgono su CRASY, che ne stabilisce le regole, raccoglie le
+partecipazioni, conta i voti e consegna i premi.
+Organizzatore: CRASY — [ragione sociale, indirizzo, P.IVA].
+
+2. APPLE E GOOGLE NON C'ENTRANO
+Apple Inc. e Google LLC non sono sponsor delle missioni e non sono coinvolte in
+alcun modo nella loro organizzazione, nella scelta dei vincitori o nella
+consegna dei premi. Per qualunque domanda sulle missioni ci si rivolge a CRASY.
+
+3. CHI PUO' PARTECIPARE
+Chi ha compiuto 18 anni e ha un account CRASY. Partecipare e' gratuito: non si
+paga nulla per entrare in una missione. Chi lancia una missione non puo'
+parteciparvi. Ogni giorno si puo' partecipare a un numero limitato di missioni,
+indicato nell'app, e a ogni missione si partecipa una volta sola.
+
+4. COME SI PARTECIPA
+Si manda una foto o un video entro la scadenza, seguendo la consegna della
+missione. Il contenuto dev'essere proprio e rispettare i Termini e Condizioni
+(punto 3). Finche' la missione e' aperta si puo' ritirare la propria
+partecipazione.
+
+5. COME SI VINCE
+Per ogni missione ognuno ha un numero limitato di fiamme da dare alle foto
+degli altri; alla propria non si puo' dare. Alla scadenza vince la
+partecipazione con piu' fiamme; a parita' di fiamme vince chi l'ha inviata per
+prima. Non c'e' nessuna estrazione e nessun elemento di sorte.
+Casi particolari:
+- se partecipa una sola persona, chi ha lanciato la missione ha 48 ore per dire
+  se la foto vale; se non risponde, vince chi ha partecipato;
+- nelle missioni fra amici il vincitore lo sceglie chi le ha lanciate, entro 48
+  ore; se non sceglie, decidono le fiamme;
+- nelle sfide a una persona, chi le ha lanciate ha 24 ore per dire se la foto
+  vale; se non risponde e la sfida ha un premio, il premio va a chi l'ha
+  portata a termine.
+Una partecipazione tolta dalla moderazione non puo' vincere.
+
+6. IL PREMIO
+Il premio lo mette chi lancia la missione, e lo paga prima che la missione
+parta. Al vincitore va il premio meno la percentuale di CRASY, indicata
+nell'app prima del pagamento. Il premio arriva sul conto di pagamento a nome
+del vincitore presso Stripe (Termini e Condizioni, punto 5); da li' si
+trasferisce sul proprio conto bancario a partire dall'importo minimo indicato
+nell'app. Se nessuno partecipa, il premio torna per intero a chi l'aveva messo.
+
+7. MODERAZIONE
+Le foto possono essere controllate in automatico e segnalate dagli altri
+utenti. Chi si vede togliere una foto riceve un avviso con il motivo e puo'
+chiedere che la riguardi una persona del team.
+
+8. IL RESTO
+Per tutto quello che non e' scritto qui valgono i Termini e Condizioni.
+''',
+  );
 }

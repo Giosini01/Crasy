@@ -394,14 +394,23 @@ class PaymentsService {
   /// Torna `true` se il conto e' **gia' pronto** e non c'e' niente da aprire,
   /// `false` se si e' aperta (o non si e' potuta aprire) la pagina di Stripe:
   /// in quel caso chi chiama dice di finire li' e tornare.
-  Future<bool> startPayoutOnboarding() async {
+  ///
+  /// [schermata] e' la rotta in cui si era: finito il modulo, dal telefono si
+  /// torna li', **dentro l'app** e non sul sito.
+  Future<bool> startPayoutOnboarding({String schermata = ''}) async {
     final result = await _functions
         .httpsCallable('createPayoutOnboarding')
         .call<Map<Object?, Object?>>({
           // Come per il pagamento: finita la registrazione, Stripe riporta
-          // dove si era. Dal telefono non c'e' un indirizzo da mandare e il
-          // server ripiega sul sito.
-          if (kIsWeb) 'appUrl': '${Uri.base.origin}${Uri.base.path}',
+          // dove si era. Dal sito con l'indirizzo dell'app; dal telefono con
+          // una pagina che riapre CRASY nella schermata da cui si era partiti
+          // (vedi `paginaPerTornareNellApp` sul server).
+          if (kIsWeb)
+            'appUrl': '${Uri.base.origin}${Uri.base.path}'
+          else ...{
+            'telefono': true,
+            'schermata': schermata,
+          },
         });
 
     if (result.data['pronto'] == true) {

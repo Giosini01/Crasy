@@ -108,6 +108,45 @@ const DOMINI_DI_RITORNO = new Set([
   'crasy.firebaseapp.com',
 ]);
 
+/**
+ * **Una rotta dell'app, niente di piu'**: lettere, numeri, trattini e barre.
+ * Niente `//`, niente punti, niente query. Tutto il resto ripiega su
+ * `ripiego`: un indirizzo che arriva dal telefono e finisce in un redirect non
+ * deve poter portare da nessun'altra parte.
+ */
+function rottaSicura(rotta, ripiego) {
+  return typeof rotta === 'string' && /^\/[A-Za-z0-9\-_/]*$/.test(rotta) && !rotta.includes('//')
+    ? rotta
+    : ripiego;
+}
+
+/**
+ * **Dal telefono si torna nell'app, non sul sito.**
+ *
+ * Il conto Stripe si apre nel browser del telefono, e finito il modulo Stripe
+ * rimanda a un indirizzo web. Prima era l'app sul sito: chi aveva appena
+ * messo l'IBAN si ritrovava a giocare dal browser invece che nell'app. Adesso
+ * torna su una pagina nostra (`web/torna`) che riapre CRASY con `crasy://`
+ * nella schermata da cui era partito — la missione a cui stava partecipando,
+ * o il portafoglio.
+ *
+ * Sta su `crasy.web.app` e non su `crasyapp.com` perche' quel dominio e' su un
+ * altro hosting (vedi `APP_URL`). `scaduto` e' per il `refresh_url`: il
+ * collegamento di Stripe e' scaduto prima di finire, e si riprova dall'app.
+ */
+const PAGINA_DEL_RITORNO = 'https://crasy.web.app/torna/';
+
+function paginaPerTornareNellApp(rotta, scaduto = false) {
+  const indirizzo = new URL(PAGINA_DEL_RITORNO);
+  indirizzo.searchParams.set('a', rottaSicura(rotta, '/portafoglio'));
+
+  if (scaduto) {
+    indirizzo.searchParams.set('e', 'scaduto');
+  }
+
+  return indirizzo.toString();
+}
+
 function indirizzoDiRitorno(appUrl, rotta) {
   let base = APP_URL;
 
@@ -122,12 +161,7 @@ function indirizzoDiRitorno(appUrl, rotta) {
     // Indirizzo storto: si usa quello di sempre.
   }
 
-  // La schermata e' una rotta dell'app, niente di piu': lettere, numeri,
-  // trattini e barre. Niente `//`, niente punti, niente query.
-  const schermata =
-    typeof rotta === 'string' && /^\/[A-Za-z0-9\-_/]*$/.test(rotta) && !rotta.includes('//')
-      ? rotta
-      : '/challenges';
+  const schermata = rottaSicura(rotta, '/challenges');
 
   return `${base.replace(/\/+$/, '')}/#${schermata}`;
 }
@@ -1522,6 +1556,8 @@ exports.createPayoutOnboarding = onCall(
       await userRef.set({ stripeAccountId: accountId }, { merge: true });
     }
 
+    const dalTelefono = Boolean(request.data && request.data.telefono === true);
+    const schermata = request.data && request.data.schermata;
     const link = await stripe.accountLinks.create({
       account: accountId,
       type: 'account_onboarding',
@@ -1529,11 +1565,17 @@ exports.createPayoutOnboarding = onCall(
       // il resto — un documento, quando le cifre crescono — Stripe lo chiede
       // quando servira', e l'app lo dira'.
       collection_options: { fields: 'currently_due' },
-      // Si torna da dove si era partiti, come per il pagamento: l'app manda
-      // il proprio indirizzo, e chi non lo manda — il telefono — ripiega sul
-      // sito. Vedi `indirizzoDiRitorno`.
-      refresh_url: indirizzoDiRitorno(request.data && request.data.appUrl, '/profile'),
-      return_url: indirizzoDiRitorno(request.data && request.data.appUrl, '/profile'),
+      // Si torna da dove si era partiti. Dal sito: l'app manda il proprio
+      // indirizzo (vedi `indirizzoDiRitorno`). Dal telefono: si torna
+      // nell'app, nella schermata da cui era partito (vedi
+      // `paginaPerTornareNellApp`). Le app vecchie, che non lo dicono,
+      // ripiegano sul sito come prima.
+      refresh_url: dalTelefono
+        ? paginaPerTornareNellApp(schermata, true)
+        : indirizzoDiRitorno(request.data && request.data.appUrl, '/profile'),
+      return_url: dalTelefono
+        ? paginaPerTornareNellApp(schermata)
+        : indirizzoDiRitorno(request.data && request.data.appUrl, '/profile'),
     });
 
     return { url: link.url };

@@ -94,7 +94,10 @@ class _WalletPageState extends ConsumerState<WalletPage> {
 
       if (motivo == 'account-mancante' || motivo == 'account-incompleto') {
         // Stripe vuole ancora qualcosa: si riapre la sua pagina.
-        final pronto = await payments.startPayoutOnboarding();
+        // Dal telefono, finito il modulo, si torna qui nel portafoglio.
+        final pronto = await payments.startPayoutOnboarding(
+          schermata: AppRoutes.wallet,
+        );
 
         if (mounted) {
           setState(() {

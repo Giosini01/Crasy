@@ -10,6 +10,7 @@ import 'package:crasy/features/payments/presentation/pages/payout_details_page.d
 import 'package:crasy/features/payments/presentation/providers/payments_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 /// **Prima della prima gara con dei soldi, il conto per riceverli.**
 ///
@@ -43,6 +44,13 @@ Future<bool> assicuratiIlConto(BuildContext context, WidgetRef ref) async {
 
   final payments = ref.read(paymentsServiceProvider);
   final messenger = ScaffoldMessenger.maybeOf(context);
+
+  // **Dove si torna, finito il modulo di Stripe.** Si prende adesso, prima di
+  // ogni attesa: dal telefono Stripe riporta nell'app proprio qui — sulla
+  // missione a cui si stava partecipando, o sul portafoglio.
+  final schermata = GoRouter.of(
+    context,
+  ).routerDelegate.currentConfiguration.uri.path;
 
   // **Chi torna dalla pagina di Stripe e' quasi sempre gia' pronto**, ma la
   // copia sul profilo non lo sa ancora: si chiede al server prima di
@@ -87,7 +95,10 @@ Future<bool> assicuratiIlConto(BuildContext context, WidgetRef ref) async {
   }
 
   try {
-    final pronto = await _conLaFiamma(context, payments.startPayoutOnboarding);
+    final pronto = await _conLaFiamma(
+      context,
+      () => payments.startPayoutOnboarding(schermata: schermata),
+    );
 
     if (pronto) {
       return true;

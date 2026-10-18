@@ -89,6 +89,12 @@ class _PrivacySettings extends ConsumerWidget {
         for (final consent in LegalConsent.mandatory)
           if (consent.document case final documento?)
             _DocumentRow(title: documento.title, document: documento),
+        // Il regolamento delle missioni: non si accetta a parte, si legge.
+        // Vedi `LegalTexts.regolamento`.
+        const _DocumentRow(
+          title: 'Regolamento delle missioni',
+          document: LegalTexts.regolamento,
+        ),
 
         const SizedBox(height: AppSpacing.lg),
         Text(

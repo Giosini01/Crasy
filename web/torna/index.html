@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Torna su CRASY</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.png">
+<!--
+  La pagina su cui Stripe riporta chi ha appena aperto il suo conto dal
+  telefono.
+
+  ## Perche' esiste
+
+  Il conto si apre su una pagina di Stripe, nel browser del telefono. Finito,
+  Stripe rimanda a un indirizzo web: prima era l'app sul sito, e chi aveva
+  appena messo l'IBAN si ritrovava a giocare dal browser invece che nell'app,
+  senza capire come tornare indietro.
+
+  Adesso torna qui, e questa pagina fa una cosa sola: **riapre CRASY** nella
+  schermata da cui si era partiti — la missione a cui stava partecipando, o il
+  portafoglio — con il collegamento `crasy://` che l'app riconosce. Il tasto
+  serve quando il browser non lascia aprire l'app da solo (Chrome lo chiede a
+  un tocco).
+
+  `a` e' la schermata, ed e' solo un percorso dell'app: lettere, numeri,
+  trattini e barre. Qualunque altra cosa ripiega sul portafoglio, cosi' da qui
+  non si apre niente che non sia CRASY. `e=scaduto` vuol dire che il
+  collegamento di Stripe e' scaduto prima di finire: si torna nell'app e si
+  riprova da li'. Vedi `paginaPerTornareNellApp` in `functions/payments.js`.
+-->
+<style>
+  :root {
+    --rosso: #FA0000;
+    --nero: #0A0A0B;
+    --grigio: #6B6B70;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: #FFFFFF;
+    color: var(--nero);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 22px 18px 34px;
+    text-align: center;
+  }
+
+  .marchio {
+    height: 26px;
+    margin-bottom: 28px;
+  }
+
+  .titolo {
+    font-size: 24px;
+    font-weight: 800;
+    margin: 0 0 8px;
+    max-width: 360px;
+    line-height: 1.15;
+  }
+
+  .titolo b { color: var(--rosso); }
+
+  .sotto {
+    color: var(--grigio);
+    font-size: 15px;
+    line-height: 1.4;
+    max-width: 320px;
+    margin: 0 0 26px;
+  }
+
+  .apri {
+    display: inline-block;
+    padding: 14px 28px;
+    border-radius: 12px;
+    background: var(--rosso);
+    color: #FFFFFF;
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+  }
+
+  .nota {
+    margin-top: 18px;
+    color: var(--grigio);
+    font-size: 12px;
+    max-width: 300px;
+    line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+
+<img class="marchio" src="/brand/crasy-wordmark.png" alt="CRASY">
+
+<h1 class="titolo" id="titolo">Fatto<b>.</b></h1>
+<p class="sotto" id="sotto">Torna su CRASY per continuare.</p>
+
+<a class="apri" id="apri" href="crasy://app/portafoglio">Apri CRASY</a>
+
+<p class="nota" id="nota">Se l'app non si apre da sola, aprila tu: quello che hai fatto su Stripe è salvato.</p>
+
+<script>
+  var q = new URLSearchParams(location.search);
+  var schermata = q.get('a') || '';
+
+  // Solo un percorso dell'app, e niente di piu': vedi il commento in cima.
+  if (!/^\/[A-Za-z0-9\-_\/]*$/.test(schermata) || schermata.indexOf('//') !== -1) {
+    schermata = '/portafoglio';
+  }
+
+  var link = 'crasy://app' + schermata;
+  document.getElementById('apri').href = link;
+
+  if (q.get('e') === 'scaduto') {
+    document.getElementById('titolo').innerHTML = 'Il collegamento è scaduto<b>.</b>';
+    document.getElementById('sotto').textContent =
+      'Capita se passa troppo tempo. Torna su CRASY e riprova: riparti da dove eri.';
+    document.getElementById('nota').textContent =
+      'Se l\'app non si apre da sola, aprila tu.';
+  }
+
+  // Si prova subito ad aprire l'app. Safari chiede conferma, Chrome a volte
+  // vuole un tocco: per quello c'e' il tasto.
+  setTimeout(function () {
+    location.href = link;
+  }, 300);
+</script>
+
+</body>
+</html>

@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/errors/error_message_mapper.dart';
+import 'package:crasy/core/legal/legal_documents.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
@@ -17,6 +18,7 @@ import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/entities/missione_pronta.dart';
 import 'package:crasy/features/challenges/presentation/controllers/create_challenge_controller.dart';
 import 'package:crasy/features/challenges/presentation/widgets/anonimo_switch.dart';
+import 'package:crasy/features/legal/presentation/widgets/legal_sheet.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 import 'package:crasy/features/payments/domain/prize_ledger.dart';
 import 'package:crasy/features/payments/presentation/providers/payments_providers.dart';
@@ -532,6 +534,25 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                           color: palette.textSecondary,
                         ),
                       ),
+                    // **Le regole per tutti, prima di lanciare.** Chi mette un
+                    // premio lancia una gara: come si vince, chi non puo'
+                    // partecipare e dove va il premio stanno nel regolamento.
+                    // Vedi `LegalTexts.regolamento`.
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: () =>
+                            showLegalDocument(context, LegalTexts.regolamento),
+                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                        child: Text(
+                          'Regolamento delle missioni',
+                          style: texts.labelMedium?.copyWith(
+                            color: palette.textSecondary,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

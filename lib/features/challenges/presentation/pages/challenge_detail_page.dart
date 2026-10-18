@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/errors/error_message_mapper.dart';
+import 'package:crasy/core/legal/legal_documents.dart';
 import 'package:crasy/core/services/firebase/firebase_providers.dart';
 import 'package:crasy/core/services/share/share_challenge.dart';
 import 'package:crasy/core/theme/app_palette.dart';
@@ -34,6 +35,7 @@ import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.
 import 'package:crasy/features/challenges/presentation/widgets/winner_reveal.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
+import 'package:crasy/features/legal/presentation/widgets/legal_sheet.dart';
 import 'package:crasy/features/moderation/domain/report_reason.dart';
 import 'package:crasy/features/moderation/presentation/widgets/report_sheet.dart';
 import 'package:flutter/material.dart';
@@ -332,6 +334,11 @@ class _Body extends ConsumerWidget {
               ),
             ),
         ],
+        // **Il regolamento intero, a un tocco.** Le righe sopra dicono le
+        // regole di questa gara; il regolamento dice chi organizza, come si
+        // vince in tutti i casi e dove va il premio. Lo chiede Apple dentro
+        // l'app, per le gare con dei premi. Vedi `LegalTexts.regolamento`.
+        const _LinkAlRegolamento(),
         const SizedBox(height: AppSpacing.xl),
         Text(
           // Su una sfida mirata non ci sono "partecipazioni": c'e' una persona
@@ -807,6 +814,35 @@ class _EntryGridTile extends ConsumerWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// Il collegamento al regolamento delle missioni, piccolo e sempre uguale.
+class _LinkAlRegolamento extends StatelessWidget {
+  const _LinkAlRegolamento();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: () => showLegalDocument(context, LegalTexts.regolamento),
+        icon: Icon(
+          Icons.description_outlined,
+          size: 16,
+          color: palette.textSecondary,
+        ),
+        label: Text(
+          'Regolamento delle missioni',
+          style: context.texts.labelMedium?.copyWith(
+            color: palette.textSecondary,
+          ),
+        ),
+        style: TextButton.styleFrom(padding: EdgeInsets.zero),
+      ),
     );
   }
 }

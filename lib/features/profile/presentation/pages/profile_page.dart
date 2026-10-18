@@ -30,6 +30,7 @@ import 'package:crasy/features/profile/presentation/widgets/profile_settings.dar
 import 'package:crasy/features/profile/presentation/widgets/profile_shelf.dart';
 import 'package:crasy/features/profile/presentation/widgets/streak_badge.dart';
 import 'package:crasy/features/profile/presentation/widgets/trophy_card.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -125,7 +126,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     // sotto il portafoglio ed era la cosa che saltava piu'
                     // all'occhio del profilo: chi vuole sostenere CRASY la
                     // trova lo stesso, gli altri non ci inciampano.
-                    if (paymentsEnabled)
+                    //
+                    // **Solo sul sito, per ora.** Nelle app di Apple e Google
+                    // pagare CRASY per sbloccare qualcosa — qui il verificato —
+                    // deve passare dai loro acquisti in-app; con Stripe e'
+                    // un rifiuto quasi sicuro alla revisione. Sul sito la
+                    // mancia resta com'era.
+                    if (paymentsEnabled && kIsWeb)
                       IconButton(
                         onPressed: () => context.push(AppRoutes.tip),
                         icon: const Icon(Icons.favorite_rounded, size: 20),
