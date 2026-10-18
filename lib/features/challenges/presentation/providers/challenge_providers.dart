@@ -1,14 +1,17 @@
 import 'dart:async';
 
 import 'package:crasy/core/services/firebase/firebase_providers.dart';
+import 'package:crasy/core/utils/combina_flussi.dart';
 import 'package:crasy/core/utils/provider_cache.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/data/repositories/demo_fallback_challenge_repository.dart';
 import 'package:crasy/features/challenges/data/repositories/firestore_challenge_repository.dart';
 import 'package:crasy/features/challenges/data/repositories/sample_challenge_repository.dart';
 import 'package:crasy/features/challenges/data/reveal_seen_store.dart';
+import 'package:crasy/features/challenges/domain/commissioned_order.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 import 'package:crasy/features/moderation/presentation/providers/moderation_providers.dart';
@@ -65,9 +68,112 @@ final challengeProvider = StreamProvider.autoDispose.family<Challenge?, String>(
   (ref, id) {
     cacheFor(ref);
 
-    return ref.watch(challengeRepositoryProvider).watchChallenge(id);
+    final flusso = ref.watch(challengeRepositoryProvider).watchChallenge(id);
+
+    // **Una mia gara anonima porta il mio nome, ma solo qui.** Nel database
+    // l'autore e' vuoto (vedi [mieAnonimeIdsProvider]); sul mio telefono la
+    // gara torna mia, e tutto quello che chiede "l'ho lanciata io?" — il tasto
+    // per cancellarla, il giudizio di una sfida, la scelta del vincitore —
+    // risponde giusto senza saperne niente. Si guarda solo se *questa* gara e'
+    // fra le mie, cosi' le altre non si riaprono quando l'elenco cambia.
+    final mia = ref.watch(
+      mieAnonimeIdsProvider.select(
+        (ids) => ids.valueOrNull?.contains(id) ?? false,
+      ),
+    );
+    final me = ref.watch(currentUserIdProvider);
+
+    if (!mia || me == null || me.isEmpty) {
+      return flusso;
+    }
+
+    return flusso.map(
+      (gara) => gara != null && gara.createdByUserId.isEmpty
+          ? gara.copyWith(createdByUserId: me)
+          : gara,
+    );
   },
 );
+
+/// **Le gare che ho lanciato in anonimo**, per identificativo.
+///
+/// Una gara anonima non porta scritto chi l'ha lanciata: il documento lo legge
+/// chiunque la veda, e un identificativo li' dentro era un anonimato che
+/// reggeva solo nell'interfaccia. L'autore sta in `autoriAnonimi/{gara}`, che
+/// legge solo lui — ed e' da li' che il suo telefono sa quali sono le sue.
+final mieAnonimeIdsProvider = StreamProvider<Set<String>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+
+  if (userId == null || userId.isEmpty) {
+    return Stream.value(const <String>{});
+  }
+
+  return ref.watch(challengeRepositoryProvider).watchMieAnonime(userId);
+});
+
+/// Se [gara] l'ho lanciata io, anche in anonimo.
+///
+/// Per gli elenchi, dove le gare arrivano senza passare da [challengeProvider]
+/// e quindi con l'autore vuoto.
+bool lanciataDaMe(Challenge gara, String? me, Set<String> mieAnonime) {
+  if (me == null || me.isEmpty) {
+    return false;
+  }
+
+  return gara.createdByUserId == me ||
+      (gara.anonimo && mieAnonime.contains(gara.id));
+}
+
+/// **Le mie gare anonime, con il mio nome dentro**, lette una per una.
+///
+/// Una per una e non con una ricerca: in una gara anonima riservata io non sto
+/// nell'elenco di chi la vede, e le regole del database mi lasciano leggerla
+/// solo chiedendola per nome.
+Stream<List<Challenge>> mieAnonimeDa(
+  ChallengeRepository repository,
+  Set<String> ids,
+  String me,
+) {
+  return combinaTutti([
+    for (final id in ids) repository.watchChallenge(id),
+  ]).map(
+    (tutte) => [
+      for (final gara in tutte)
+        if (gara != null) gara.copyWith(createdByUserId: me),
+    ],
+  );
+}
+
+/// Aggiunge a un elenco le mie gare anonime che [tieni] vuole, senza doppioni.
+///
+/// Serve agli elenchi che cercano per destinatario: le mie anonime riservate
+/// non hanno me fra i destinatari, quindi da li' non arriverebbero mai.
+Stream<List<Challenge>> conLeMieAnonime(
+  Ref ref,
+  Stream<List<Challenge>> elenco,
+  bool Function(Challenge gara) tieni,
+) {
+  final me = ref.watch(currentUserIdProvider);
+  final ids = ref.watch(mieAnonimeIdsProvider).valueOrNull ?? const <String>{};
+
+  if (me == null || me.isEmpty || ids.isEmpty) {
+    return elenco;
+  }
+
+  return combinaDue(
+    elenco,
+    mieAnonimeDa(ref.watch(challengeRepositoryProvider), ids, me),
+    (lista, mie) {
+      final gia = {for (final gara in lista) gara.id};
+
+      return [
+        ...lista,
+        for (final gara in mie)
+          if (!gia.contains(gara.id) && tieni(gara)) gara,
+      ];
+    },
+  );
+}
 
 /// Se su questa gara si vota ancora.
 ///
@@ -500,9 +606,21 @@ final commissionsOfProvider = StreamProvider.family<List<Challenge>, String>((
   ref,
   userId,
 ) {
-  return ref
+  final me = ref.watch(currentUserIdProvider);
+  final commissionate = ref
       .watch(challengeRepositoryProvider)
-      .watchCommissionedBy(userId, viewerId: ref.watch(currentUserIdProvider));
+      .watchCommissionedBy(userId, viewerId: me);
+
+  // Sul profilo di un altro le anonime non ci sono, e non ci devono essere.
+  if (userId != me) {
+    return commissionate;
+  }
+
+  return conLeMieAnonime(
+    ref,
+    commissionate,
+    (_) => true,
+  ).map((tutte) => commissionedOrder(tutte, now: DateTime.now()));
 });
 
 final myCommissionsProvider = StreamProvider<List<Challenge>>((ref) {
@@ -512,9 +630,15 @@ final myCommissionsProvider = StreamProvider<List<Challenge>>((ref) {
     return Stream.value(const <Challenge>[]);
   }
 
-  return ref
-      .watch(challengeRepositoryProvider)
-      .watchCommissionedBy(authState.user.id, viewerId: authState.user.id);
+  // Le mie anonime le cerco a parte: con l'autore vuoto, la ricerca per
+  // autore non le trova. Le vedo solo io, sul mio profilo.
+  return conLeMieAnonime(
+    ref,
+    ref
+        .watch(challengeRepositoryProvider)
+        .watchCommissionedBy(authState.user.id, viewerId: authState.user.id),
+    (_) => true,
+  ).map((tutte) => commissionedOrder(tutte, now: DateTime.now()));
 });
 
 /// Cosa stanno facendo adesso le persone che seguo.
@@ -612,7 +736,17 @@ final reservedChallengesProvider = StreamProvider<List<Challenge>>((ref) {
     return Stream.value(const <Challenge>[]);
   }
 
-  return ref.watch(challengeRepositoryProvider).watchChallengesFor(userId);
+  // Con le mie anonime riservate ancora aperte: io non sto fra chi le vede.
+  final now = DateTime.now();
+
+  return conLeMieAnonime(
+    ref,
+    ref.watch(challengeRepositoryProvider).watchChallengesFor(userId),
+    (gara) =>
+        gara.scope == ChallengeScope.friends &&
+        gara.endsAt.isAfter(now) &&
+        !gara.isUpcomingAt(now),
+  );
 });
 
 /// A quante gare posso ancora partecipare oggi.

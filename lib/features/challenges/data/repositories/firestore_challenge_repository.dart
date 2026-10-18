@@ -354,11 +354,34 @@ class FirestoreChallengeRepository implements ChallengeRepository {
 
   @override
   Future<Challenge> createChallenge(Challenge challenge) async {
-    final document = await _challenges.add(
-      ChallengeMapper.toCreateMap(challenge),
-    );
+    final document = _challenges.doc();
+
+    // **In anonimo, due fogli nello stesso colpo.** La gara senza autore, e
+    // l'autore in `autoriAnonimi/{gara}`, che legge solo lui: le regole del
+    // database accettano l'una solo insieme all'altro. Vedi
+    // `ChallengeMapper.toCreateMap`.
+    final scrittura = _firestore.batch()
+      ..set(document, ChallengeMapper.toCreateMap(challenge));
+
+    if (challenge.anonimo) {
+      scrittura.set(_firestore.collection('autoriAnonimi').doc(document.id), {
+        'uid': challenge.createdByUserId,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    await scrittura.commit();
 
     return challenge.copyWith(id: document.id);
+  }
+
+  @override
+  Stream<Set<String>> watchMieAnonime(String userId) {
+    return _firestore
+        .collection('autoriAnonimi')
+        .where('uid', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) => {for (final foglio in snapshot.docs) foglio.id});
   }
 
   @override

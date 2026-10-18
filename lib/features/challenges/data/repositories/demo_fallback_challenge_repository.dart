@@ -103,6 +103,10 @@ class DemoFallbackChallengeRepository implements ChallengeRepository {
   }
 
   @override
+  Stream<Set<String>> watchMieAnonime(String userId) =>
+      _remote.watchMieAnonime(userId);
+
+  @override
   Stream<Challenge?> watchChallenge(String challengeId) {
     return _forChallenge(challengeId).watchChallenge(challengeId);
   }

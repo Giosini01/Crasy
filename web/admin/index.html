@@ -290,7 +290,11 @@
 
     <!-- **Le foto che la macchina ha scartato da sola.** SafeSearch e' severo
          apposta e ogni tanto sbaglia: chi se le vede scartare crede di essere
-         in gara e non c'e'. Qui si guardano e, se andavano bene, si rimettono. -->
+         in gara e non c'e'. Qui si guardano e, se andavano bene, si rimettono.
+
+         **In cima, chi ha chiesto una revisione** dall'app: una persona che
+         aspetta una risposta. Ci tornano anche le foto tolte da noi dopo una
+         segnalazione, se chi le ha mandate chiede di riguardarle. -->
     <div class="scatola">
       <h2>Scartate in automatico <span class="quanti" id="quantiScartate">0</span></h2>
       <div id="elencoScartate"></div>
@@ -427,6 +431,7 @@ const lanciaDalFondo = httpsCallable(functions, 'adminLanciaDalFondo');
 const saltaLaProssima = httpsCallable(functions, 'adminSaltaLaProssima');
 const chiediScartate = httpsCallable(functions, 'adminFotoScartate');
 const rimettiFoto = httpsCallable(functions, 'adminRimettiFoto');
+const respingiRevisione = httpsCallable(functions, 'adminRespingiRevisione');
 const chiediGuadagni = httpsCallable(functions, 'adminGuadagni');
 
 const $ = (id) => document.getElementById(id);
@@ -773,10 +778,19 @@ function rigaScartata(f) {
       : '<img class="foto" src="' + testo(f.mediaUrl) + '" alt="foto scartata">'
     : '<div class="foto vuota">Foto non più disponibile</div>';
 
+  const aperta = f.revisione && f.revisione.stato === 'aperta';
+  const perche = f.daUnaPersona
+    ? 'Tolta da noi dopo una segnalazione'
+    : f.motivi.length ? f.motivi.join(', ') : 'Senza motivo';
+
   nodo.innerHTML =
     media +
     '<div class="dati">' +
-    '<strong>' + testo(f.motivi.length ? f.motivi.join(', ') : 'Senza motivo') + '</strong>' +
+    (aperta
+      ? '<span class="stato nuova">Chiede una revisione · ' +
+        testo(quando(f.revisione.chiestaIl)) + '</span><br>'
+      : '') +
+    '<strong>' + testo(perche) + '</strong>' +
     '<dl>' +
     '<dt>Di</dt><dd>' + (f.authorName ? '@' + testo(f.authorName) : '—') +
       ' <span class="nota">' + testo(f.userId) + '</span></dd>' +
@@ -786,7 +800,31 @@ function rigaScartata(f) {
     '</dl></div>' +
     '<div class="comandi">' +
     '<button class="tieni" data-fai="rimetti">↩ Rimetti in gara</button>' +
+    (aperta ? '<button class="togli" data-fai="respingi">✕ Resta fuori</button>' : '') +
     '</div>';
+
+  // **"Resta fuori" risponde a chi ha chiesto la revisione.** La foto non si
+  // tocca, era gia' fuori: nella sua campanella la riga dice che l'abbiamo
+  // riguardata. Senza questo tasto la richiesta resterebbe aperta per sempre.
+  const respingi = nodo.querySelector('[data-fai="respingi"]');
+
+  if (respingi) {
+    respingi.addEventListener('click', async () => {
+      if (!confirm("Confermare che resta fuori? Chi l'ha mandata lo leggerà nell'app.")) {
+        return;
+      }
+
+      respingi.disabled = true;
+
+      try {
+        await respingiRevisione({ challengeId: f.challengeId, userId: f.userId });
+        await caricaScartate();
+      } catch (errore) {
+        respingi.disabled = false;
+        dillo(errore.message || 'Non siamo riusciti a chiudere la revisione.');
+      }
+    });
+  }
 
   const tasto = nodo.querySelector('[data-fai="rimetti"]');
 

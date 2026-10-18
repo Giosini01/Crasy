@@ -80,8 +80,12 @@ class ChallengeDetailPage extends ConsumerWidget {
           //
           // Non compare sulla propria: segnalare se stessi non vuol dire
           // niente. E nemmeno sulle sfide del giorno, che le scrive CRASY.
+          //
+          // **Le anonime si segnalano come le altre**, anche se l'autore non
+          // c'e' scritto: chi modera lo ritrova dal foglio a parte. Una gara
+          // senza autore e non anonima e' di CRASY.
           if (challengeState.valueOrNull case final gara?
-              when gara.createdByUserId.isNotEmpty &&
+              when (gara.createdByUserId.isNotEmpty || gara.anonimo) &&
                   gara.createdByUserId != ref.watch(currentUserIdProvider) &&
                   !gara.isDaily)
             IconButton(
@@ -827,10 +831,10 @@ class _BottomAction extends ConsumerWidget {
     final mie = ref.watch(myEntriesProvider);
     final mieInArrivo = !mie.hasValue && !mie.hasError;
 
-    // **Mia e chiusa a me**: e' il solo caso in cui chi ha lanciato non vede il
-    // tasto per partecipare. Succede fra amici e nelle private, dove il
-    // vincitore lo scegli lui. In una gara pubblica la gara e' mia e ci
-    // partecipo, e le due cose stanno insieme senza problemi.
+    // **Mia e chiusa a me**: chi ha lanciato non vede il tasto per partecipare
+    // dove c'e' un premio in soldi — lo mette lui — e fra amici e nelle
+    // private, dove il vincitore lo sceglie lui. Vedi
+    // `Challenge.apertaAlCreatore`.
     final miaEChiusaAMe = isMine && !challenge.apertaAlCreatore;
 
     // **Chi e' stato sfidato ha un comando diverso da tutti gli altri.**
@@ -1661,10 +1665,7 @@ class _Reconsider extends ConsumerWidget {
       onPressed: busy
           ? null
           : () => ref.read(duelControllerProvider.notifier).accept(challenge),
-      child: _ConLaFiamma(
-        lavora: busy,
-        child: const Text('CI HO RIPENSATO'),
-      ),
+      child: _ConLaFiamma(lavora: busy, child: const Text('CI HO RIPENSATO')),
     );
   }
 }

@@ -14,6 +14,7 @@ import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
 import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
+import 'package:crasy/features/notifications/presentation/widgets/foto_tolta.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -604,6 +605,15 @@ class _Row extends ConsumerWidget {
       return;
     }
 
+    // **Una foto tolta apre il perche'**, non la gara: nella gara la foto non
+    // c'e' piu', e nessuno li' spiega cos'e' successo. Dal foglio si chiede una
+    // revisione, o si va alla gara.
+    if (notification.kind == NotificationKind.removed) {
+      unawaited(mostraFotoTolta(context, notification));
+
+      return;
+    }
+
     // **Un commento o una nomina portano al commento**, non alla gara: la foto
     // si apre grande con i commenti sopra. Le notizie di commento scritte
     // prima che portassero la foto la ritrovano lo stesso — la foto
@@ -671,6 +681,8 @@ class _Row extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _Message(notification: notification),
+                  if (notification.kind == NotificationKind.removed)
+                    _RevisioneInRiga(notification: notification),
                   const SizedBox(height: 3),
                   // Seconda riga di servizio: **dove** e **quando**, piccoli e
                   // chiari. Prima l'ora stava in fondo alla riga e si portava
@@ -727,6 +739,42 @@ class _Row extends ConsumerWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// **Sotto "la tua foto e' stata tolta", cosa ci puoi fare.**
+///
+/// Una riga corta: il perche' intero sta nel foglio che si apre toccando. Qui
+/// basta che si capisca che c'e' qualcosa da toccare — o che la revisione e'
+/// gia' partita, o che e' gia' arrivata la risposta.
+class _RevisioneInRiga extends StatelessWidget {
+  const _RevisioneInRiga({required this.notification});
+
+  final AppNotification notification;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final (testo, colore) = switch (notification.revisione) {
+      'chiesta' => ('Revisione chiesta: la guarda una persona', palette.accent),
+      'respinta' => ('Riguardata: resta fuori', palette.textFaint),
+      _ => (
+        notification.automatico
+            ? 'Decisione automatica · tocca per chiedere una revisione'
+            : 'Tocca per sapere perché',
+        palette.accent,
+      ),
+    };
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Text(
+        testo,
+        style: context.texts.labelSmall?.copyWith(color: colore),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -863,6 +911,7 @@ class _Face extends StatelessWidget {
       final segno = switch (kind) {
         NotificationKind.ended => Icons.flag_rounded,
         NotificationKind.removed => Icons.visibility_off_rounded,
+        NotificationKind.restored => Icons.visibility_rounded,
         NotificationKind.duelNoVerdict => Icons.hourglass_disabled_rounded,
         NotificationKind.pickWinner => Icons.gavel_rounded,
         _ => Icons.notifications_rounded,
@@ -902,6 +951,8 @@ class _Face extends StatelessWidget {
         Icons.visibility_off_rounded,
         palette.textPrimary,
       ),
+      // L'occhio aperto: la foto la rivedono tutti.
+      NotificationKind.restored => (Icons.visibility_rounded, palette.accent),
       // La chiocciola: qualcuno ti ha chiamato per nome dentro un commento.
       NotificationKind.mention => (
         Icons.alternate_email_rounded,

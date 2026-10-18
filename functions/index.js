@@ -11,7 +11,8 @@ const { setGlobalOptions } = require('firebase-functions/v2');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
 const vision = require('@google-cloud/vision');
-const { avvisaChiLHaMandata } = require('./avvisi');
+const { avvisaChiLHaMandata, motivoDaiControlli } = require('./avvisi');
+const { autoreDi } = require('./autori');
 const { liberaLeFiamme } = require('./fiamme');
 const { magazzinoDi, tuttiIMagazzini, miniaturaDi } = require('./magazzino');
 const videoIntelligence = require('@google-cloud/video-intelligence');
@@ -322,6 +323,11 @@ exports.adminImpostaVerificato = amministrazione.adminImpostaVerificato;
 // Le foto scartate dal controllo automatico, e il tasto per rimetterle.
 exports.adminFotoScartate = amministrazione.adminFotoScartate;
 exports.adminRimettiFoto = amministrazione.adminRimettiFoto;
+exports.adminRespingiRevisione = amministrazione.adminRespingiRevisione;
+
+// **Chi si vede togliere una foto puo' chiedere che la riguardi una persona.**
+// Vedi `revisioni.js`.
+exports.chiediRevisione = require('./revisioni').chiediRevisione;
 // Quanto resta davvero a CRASY di ogni incasso.
 exports.adminGuadagni = amministrazione.adminGuadagni;
 
@@ -638,7 +644,10 @@ async function controllaPartecipazione(snapshot, challengeId) {
     await avvisaChiLHaMandata(
       String(snapshot.get('userId') || ''),
       challengeId,
-      String(snapshot.get('challengeTitle') || '')
+      String(snapshot.get('challengeTitle') || ''),
+      // Il perche', e che l'ha deciso il controllo automatico: chi la riceve
+      // deve poter chiedere che la guardi una persona. Vedi `avvisi.js`.
+      { motivo: motivoDaiControlli(reasons), automatico: true }
     );
   }
 
@@ -1084,7 +1093,7 @@ const ORE_PER_IL_SOLO = 48 * 60 * 60 * 1000;
 
 /** Dice a chi ha lanciato la missione che tocca a lui decidere. */
 async function avvisaIlCreatoreDelSolo(challenge, entry) {
-  const creatore = challenge.get('createdByUserId');
+  const creatore = await autoreDi(challenge);
 
   if (!creatore) {
     return;
@@ -1111,7 +1120,7 @@ async function avvisaIlCreatoreDelSolo(challenge, entry) {
 
 /** Dice a chi ha lanciato una missione fra amici che tocca a lui scegliere. */
 async function avvisaIlCreatoreDellaScelta(challenge) {
-  const creatore = challenge.get('createdByUserId');
+  const creatore = await autoreDi(challenge);
 
   if (!creatore) {
     return;
@@ -1157,7 +1166,7 @@ exports.giudicaIlSolo = onCall({ secrets: [payments.STRIPE_SECRET_KEY, payments.
     throw new HttpsError('not-found', "Questa missione non c'e'.");
   }
 
-  if (challenge.get('createdByUserId') !== request.auth.uid) {
+  if ((await autoreDi(challenge)) !== request.auth.uid) {
     throw new HttpsError('permission-denied', 'Decide solo chi ha lanciato la missione.');
   }
 
@@ -1378,7 +1387,7 @@ exports.giudicaSfidaMirata = onCall({ secrets: [payments.STRIPE_SECRET_KEY, paym
     throw new HttpsError('not-found', "Questa sfida non c'e'.");
   }
 
-  if (challenge.get('createdByUserId') !== request.auth.uid) {
+  if ((await autoreDi(challenge)) !== request.auth.uid) {
     throw new HttpsError('permission-denied', 'Giudica solo chi ha lanciato la sfida.');
   }
 
@@ -1435,7 +1444,7 @@ exports.giudicaSfidaMirata = onCall({ secrets: [payments.STRIPE_SECRET_KEY, paym
 async function avvisaDellaSfida(challenge, tipo) {
   const dati = challenge.data() || {};
   const bersaglio = String(dati.targetUserId || '');
-  const autore = String(dati.createdByUserId || '');
+  const autore = await autoreDi(challenge);
 
   if (!bersaglio || !autore || bersaglio === autore) {
     return;
@@ -1472,6 +1481,97 @@ async function avvisaDellaSfida(challenge, tipo) {
 }
 
 /**
+ * **Un avviso per chi ha lanciato in anonimo, scritto dal server.**
+ *
+ * Gli avvisi a chi lancia — "ha partecipato", "ha accettato la tua sfida" —
+ * li scrive il telefono dell'altra persona, che pero' di una gara anonima non
+ * conosce l'autore: e' proprio quello che non deve sapere. Allora li scrive il
+ * server, che lo legge dal foglio a parte (`autori.js`), con lo stesso nome di
+ * documento che avrebbe usato il telefono: se arrivano tutti e due, resta uno.
+ *
+ * `dalServer` dice alla funzione delle push di non fare i controlli pensati
+ * per le notifiche scritte dai telefoni.
+ */
+async function scriviAChiSiENascosto(autore, id, campi) {
+  try {
+    await db
+      .collection('users')
+      .doc(String(autore))
+      .collection('notifications')
+      .doc(id)
+      .create({
+        ...campi,
+        dalServer: true,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+  } catch (error) {
+    // Esiste gia': e' la stessa notizia arrivata due volte, e una basta.
+    if (error && error.code === 6) {
+      return;
+    }
+
+    logger.warn("avviso a chi si e' nascosto non scritto", {
+      id,
+      error: String((error && error.message) || error).slice(0, 200),
+    });
+  }
+}
+
+/**
+ * **Le risposte a una sfida anonima arrivano lo stesso a chi l'ha lanciata.**
+ *
+ * Accettata, rifiutata, portata a termine: lo scrive chi l'ha ricevuta, e il
+ * suo telefono non sa a chi dirlo. Il server lo sa.
+ */
+async function inoltraLaRispostaAllAnonimo(event) {
+  try {
+    const prima = event.data?.before?.data();
+    const dopo = event.data?.after?.data();
+
+    if (!prima || !dopo || dopo.anonimo !== true || !dopo.targetUserId) {
+      return;
+    }
+
+    if (prima.duelStatus === dopo.duelStatus) {
+      return;
+    }
+
+    const tipo = {
+      accepted: 'duelAccepted',
+      declined: 'duelDeclined',
+      completed: 'duelCompleted',
+    }[dopo.duelStatus];
+
+    if (!tipo) {
+      return;
+    }
+
+    const autore = await autoreDi(event.params.challengeId, dopo);
+
+    if (!autore || autore === dopo.targetUserId) {
+      return;
+    }
+
+    await scriviAChiSiENascosto(
+      autore,
+      `sfida_${tipo}_${event.params.challengeId}`,
+      {
+        kind: tipo,
+        actorId: String(dopo.targetUserId),
+        actorUsername: String(dopo.targetUsername || ''),
+        challengeId: event.params.challengeId,
+        challengeTitle: String(dopo.title || ''),
+      }
+    );
+  } catch (error) {
+    logger.warn('risposta alla sfida anonima non inoltrata', {
+      challengeId: event.params.challengeId,
+      error: String((error && error.message) || error).slice(0, 200),
+    });
+  }
+}
+
+/**
  * **La sfida arriva all'amico quando c'e' davvero.**
  *
  * La annunciava il telefono di chi la lanciava, appena creata — anche quando
@@ -1487,17 +1587,21 @@ async function avvisaDellaSfida(challenge, tipo) {
 exports.annunciaLaSfida = onDocumentWritten(
   'challenges/{challengeId}',
   async (event) => {
+    await inoltraLaRispostaAllAnonimo(event);
+
     const dati = appenaApparsa(event);
 
     if (!dati || !dati.targetUserId || dati.duelStatus !== 'pending') {
       return;
     }
 
+    // Chi la lancia, anche se si e' nascosto: il blocco vale lo stesso.
+    const autore = await autoreDi(event.params.challengeId, dati);
     const bloccato = await db
       .collection('users')
       .doc(String(dati.targetUserId))
       .collection('blocked')
-      .doc(String(dati.createdByUserId || '-'))
+      .doc(String(autore || '-'))
       .get();
 
     if (bloccato.exists) {
@@ -1599,8 +1703,18 @@ async function closeChallenge(challenge, { giudizio, scelta } = {}) {
   // puo' vincere dei soldi. Le partecipazioni ancora in attesa restano dentro —
   // il controllo e' nostro e non e' colpa loro se e' lento — ma se il vincitore
   // fosse una di quelle andrebbe guardata da una persona prima di pagare.
+  //
+  // **E fuori chi l'ha lanciata, se c'e' un premio in soldi.** Chi mette i
+  // soldi e poi corre per vincerli sta pagando per avere la possibilita' di
+  // vincere: le regole del database ormai non lo fanno entrare, e qui si
+  // chiude il caso delle foto entrate prima che la regola cambiasse. Vedi
+  // `Challenge.apertaAlCreatore` nell'app.
+  const creatore = await autoreDi(challenge);
+  const aSoldi = (challenge.get('prizeCents') || 0) > 0;
   const eligible = entries.docs.filter(
-    (doc) => doc.get('moderation') !== 'rejected'
+    (doc) =>
+      doc.get('moderation') !== 'rejected' &&
+      !(aSoldi && creatore && doc.get('userId') === creatore)
   );
 
   if (eligible.length === 0) {
@@ -1629,7 +1743,8 @@ async function closeChallenge(challenge, { giudizio, scelta } = {}) {
   // senza vincitore.
   if (
     eligible.length === 1 &&
-    eligible[0].get('userId') === challenge.get('createdByUserId')
+    creatore &&
+    eligible[0].get('userId') === creatore
   ) {
     await challenge.ref.update({ winnerEntryId: '', attesaGiudizio: false });
 
@@ -1865,7 +1980,7 @@ async function avvisaCheEFinita(challenge, partecipazioni) {
     }
   }
 
-  const padrone = challenge.get('createdByUserId');
+  const padrone = await autoreDi(challenge);
 
   if (padrone) {
     chi.add(String(padrone));
@@ -2255,7 +2370,7 @@ exports.sendPushOnNotification = onDocumentCreated(
 
       if (String(dati.kind).startsWith('duel')) {
         const coppia = sfida && sfida.exists
-          ? [sfida.get('createdByUserId'), sfida.get('targetUserId')]
+          ? [await autoreDi(sfida), sfida.get('targetUserId')]
           : [];
 
         if (!coppia.includes(actorId) || !coppia.includes(userId)) {
@@ -2311,6 +2426,10 @@ exports.sendPushOnNotification = onDocumentCreated(
       // altri questa e' comunque una notizia spiacevole: la riga resta secca,
       // e il resto sta in campanella.
       removed: 'La tua foto è stata tolta dalla gara',
+      // La risposta buona a una revisione, o una foto rimessa dal team.
+      restored: gara
+        ? `La tua foto è tornata in gara: ${gara}`
+        : 'La tua foto è tornata in gara',
       comment: 'Nuovo commento sotto la tua foto',
       mention: 'Ti hanno nominato in un commento',
       friendRequest: 'Qualcuno ha iniziato a seguirti',
@@ -3033,7 +3152,8 @@ exports.notifyFriendsOnLivePartyChallenge = onDocumentWritten(
       return;
     }
 
-    const autore = String(dati.createdByUserId || '');
+    // Chi l'ha lanciata, anche in anonimo: serve solo a non avvisare lui.
+    const autore = await autoreDi(event.params.challengeId, dati);
     const nome = String(dati.createdByUsername || '');
     const anonimo = dati.anonimo === true;
     const titolo = String(dati.title || '');
@@ -3094,6 +3214,10 @@ exports.openFriendChallengesToNewFriend = onDocumentCreated(
     // basso di proposito: sono le gare aperte di una persona sola, e se
     // qualcuno ne avesse lanciate cinquanta insieme il problema sarebbe
     // quello, non questa funzione.
+    //
+    // **Le anonime restano fuori, apposta.** Hanno l'autore vuoto, quindi
+    // questa ricerca non le trova: e va bene cosi'. Una missione che compare
+    // a un amico nuovo un attimo dopo l'amicizia direbbe chi l'ha lanciata.
     const aperte = await admin
       .firestore()
       .collection('challenges')
@@ -3574,7 +3698,24 @@ exports.avvisaIRivali = onDocumentCreated(
         return;
       }
 
-      const padrone = gara.get('createdByUserId') || '';
+      const padrone = await autoreDi(gara);
+
+      // **In anonimo l'avviso a chi l'ha lanciata lo scrive il server.** Di
+      // solito lo scrive il telefono di chi partecipa, che pero' di una gara
+      // anonima non sa — e non deve sapere — a chi mandarlo.
+      if (gara.get('anonimo') === true && padrone && padrone !== sfidante) {
+        await scriviAChiSiENascosto(
+          padrone,
+          `gara_${challengeId}_${sfidante}`,
+          {
+            kind: 'participation',
+            actorId: sfidante,
+            actorUsername: entry.get('authorName') || '',
+            challengeId,
+            challengeTitle: gara.get('title') || '',
+          }
+        );
+      }
 
       // Si leggono trentuno partecipazioni e non trenta: con la trentunesima in
       // mano si sa di essere oltre la soglia senza dover contare tutto.

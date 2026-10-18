@@ -147,6 +147,11 @@ class SampleChallengeRepository implements ChallengeRepository {
     });
   }
 
+  /// Le gare di esempio non le lancia nessuno in anonimo.
+  @override
+  Stream<Set<String>> watchMieAnonime(String userId) =>
+      Stream.value(const <String>{});
+
   @override
   Stream<Challenge?> watchChallenge(String challengeId) {
     return _watch(() => _challenges[challengeId]);

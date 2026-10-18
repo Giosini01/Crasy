@@ -388,7 +388,7 @@ class _WalletPageState extends ConsumerState<WalletPage> {
                               ? 'Vanno sul conto ${dati.ibanTail}, intestato a '
                                     '${dati.firstName} ${dati.lastName}. Arrivano in '
                                     'pochi giorni.'
-                              : 'La prima volta servono nome, codice fiscale e IBAN, '
+                              : 'La prima volta servono nome, cognome e IBAN, '
                                     'poi Stripe ti chiede di confermarli: è la legge '
                                     'per chiunque riceva denaro, e si fa una volta '
                                     'sola.',

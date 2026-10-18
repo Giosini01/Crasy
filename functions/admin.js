@@ -40,7 +40,13 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
-const { avvisaChiLHaMandata, togliLAvvisoDiRimozione } = require('./avvisi');
+const {
+  avvisaChiLHaMandata,
+  togliLAvvisoDiRimozione,
+  avvisaCheETornata,
+  motivoDallaSegnalazione,
+} = require('./avvisi');
+const { revisioneDi, chiudiLaRevisione } = require('./revisioni');
 const { liberaLeFiamme } = require('./fiamme');
 const { magazzinoDi } = require('./magazzino');
 
@@ -334,7 +340,9 @@ exports.adminResolveReport = onCall(
         await avvisaChiLHaMandata(
           String(dati.reportedUserId || adesso.get('userId') || ''),
           String(dati.challengeId || ''),
-          String(adesso.get('challengeTitle') || dati.challengeTitle || '')
+          String(adesso.get('challengeTitle') || dati.challengeTitle || ''),
+          // L'ha decisa una persona, per la voce scelta da chi ha segnalato.
+          { motivo: motivoDallaSegnalazione(dati.reason), automatico: false }
         );
 
         // Le fiamme che aveva preso tornano a chi gliele aveva date.
@@ -461,12 +469,41 @@ exports.adminFotoScartate = onCall(async (request) => {
     .limit(300)
     .get();
 
+  // **Le revisioni chieste, insieme alle foto.** Chi ha chiesto che una
+  // persona riguardi la sua foto deve trovarla in cima, con il segno: e' una
+  // persona che sta aspettando una risposta, spesso a gara ancora aperta.
+  const revisioni = scartate.empty
+    ? []
+    : await db.getAll(
+        ...scartate.docs.map((doc) =>
+          revisioneDi(doc.ref.parent.parent.id, doc.id)
+        )
+      );
+  const revisioneDiFoto = new Map(
+    revisioni
+      .filter((r) => r.exists)
+      .map((r) => [
+        `${r.get('challengeId')}__${r.get('userId')}`,
+        {
+          stato: String(r.get('stato') || ''),
+          chiestaIl: r.get('chiestaIl') ? r.get('chiestaIl').toMillis() : null,
+        },
+      ])
+  );
+
   const foto = [];
 
   for (const doc of scartate.docs) {
     const dati = doc.data() || {};
+    const revisione =
+      revisioneDiFoto.get(`${doc.ref.parent.parent.id}__${doc.id}`) || null;
 
-    if (dati.moderationReason === 'admin') {
+    // Quelle tolte da una persona stanno fra le segnalazioni, gia' decise: qui
+    // tornano solo se chi l'ha mandata chiede che qualcuno le riguardi.
+    if (
+      dati.moderationReason === 'admin' &&
+      !(revisione && revisione.stato === 'aperta')
+    ) {
       continue;
     }
 
@@ -481,12 +518,19 @@ exports.adminFotoScartate = onCall(async (request) => {
       motivi: Array.isArray(dati.moderationReasons) ? dati.moderationReasons : [],
       createdAt: dati.createdAt ? dati.createdAt.toMillis() : null,
       moderatedAt: dati.moderatedAt ? dati.moderatedAt.toMillis() : null,
+      daUnaPersona: dati.moderationReason === 'admin',
+      revisione,
     });
   }
 
   // Le piu' recenti in cima: sono quelle su cui c'e' ancora tempo per fare
-  // qualcosa, a gara aperta.
+  // qualcosa, a gara aperta. E sopra tutte, chi aspetta una revisione.
   foto.reverse();
+  foto.sort(
+    (a, b) =>
+      Number(Boolean(b.revisione && b.revisione.stato === 'aperta')) -
+      Number(Boolean(a.revisione && a.revisione.stato === 'aperta'))
+  );
 
   return { foto };
 });
@@ -545,9 +589,45 @@ exports.adminRimettiFoto = onCall(async (request) => {
   if (esito === 'rimessa') {
     // La partecipazione si chiama come chi l'ha mandata.
     await togliLAvvisoDiRimozione(entryId, challengeId);
+
+    // **E glielo si dice.** Se aveva chiesto una revisione, questa e' la
+    // risposta; se non l'aveva chiesta, e' comunque una buona notizia che non
+    // deve scoprire per caso.
+    await chiudiLaRevisione(challengeId, entryId, 'accolta', chi);
+    const gara = await db.collection('challenges').doc(challengeId).get();
+    await avvisaCheETornata(
+      entryId,
+      challengeId,
+      String((gara.exists && gara.get('title')) || '')
+    );
   }
 
   logger.info('foto rimessa in gara', { challengeId, entryId, admin: chi, esito });
+
+  return { esito };
+});
+
+/**
+ * **"L'abbiamo riguardata: resta fuori."**
+ *
+ * L'altra risposta possibile a una revisione. La foto non si tocca — era gia'
+ * fuori — e chi l'aveva chiesta lo legge nella stessa riga della campanella
+ * che gli aveva detto della rimozione: niente notifica nuova, perche' una
+ * conferma di un no non e' una notizia da schermo bloccato.
+ */
+exports.adminRespingiRevisione = onCall(async (request) => {
+  const chi = soloAdmin(request);
+
+  const challengeId = String((request.data && request.data.challengeId) || '');
+  const userId = String((request.data && request.data.userId) || '');
+
+  if (!challengeId || !userId) {
+    throw new HttpsError('invalid-argument', 'Manca la foto.');
+  }
+
+  const esito = await chiudiLaRevisione(challengeId, userId, 'respinta', chi);
+
+  logger.info('revisione respinta', { challengeId, userId, admin: chi, esito });
 
   return { esito };
 });

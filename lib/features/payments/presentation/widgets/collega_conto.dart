@@ -166,13 +166,17 @@ Future<T> _conLaFiamma<T>(
   }
 }
 
-/// **Perche' l'IBAN, detto con calma prima di chiederlo.**
+/// **Cos'e' il conto Stripe, detto con calma prima di aprirlo.**
 ///
 /// Prima diceva "collega il tuo conto": letto da chi sta per mandare una foto,
 /// suonava come "dacci accesso alla tua banca", e chi lo leggeva chiudeva.
-/// Invece si chiede soltanto dove mandare i soldi se vince — e qui lo si dice
-/// cosi', con le tre cose che uno si chiede davanti a un IBAN: a cosa serve,
-/// se qualcuno puo' prendere dei soldi, e chi lo tiene.
+/// Poi diceva solo "aggiungi l'IBAN", e non si capiva perche' servisse un
+/// conto su Stripe. Qui lo si dice per quello che e': **un portafoglio**, lo
+/// stesso che poi si ritrova nell'app, dove restano i soldi delle sfide finche'
+/// uno non li preleva — e senza il quale non li potrebbe prelevare mai.
+///
+/// Si legge sia da chi entra nella prima gara con dei soldi sia da chi tocca
+/// "Preleva" senza averlo ancora aperto: le frasi valgono per tutti e due.
 class _Spiegazione extends StatelessWidget {
   const _Spiegazione();
 
@@ -181,8 +185,10 @@ class _Spiegazione extends StatelessWidget {
     final palette = context.palette;
     final texts = context.texts;
 
+    // Scorre, se serve: su un telefono basso le tre righe non ci stanno
+    // sempre, e un foglio che sborda nasconde proprio il tasto.
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.page,
           0,
@@ -197,7 +203,7 @@ class _Spiegazione extends StatelessWidget {
               const TextSpan(
                 children: [
                   TextSpan(
-                    text: 'Per giocare per soldi veri, aggiungi il tuo IBAN',
+                    text: 'Per i soldi delle sfide ti serve un portafoglio',
                   ),
                   TextSpan(
                     text: '.',
@@ -211,39 +217,40 @@ class _Spiegazione extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.lg),
             const _Rassicura(
-              icona: Icons.emoji_events_outlined,
-              titolo: 'Serve solo a mandarti i premi.',
+              icona: Icons.account_balance_wallet_outlined,
+              titolo: 'È il tuo portafoglio virtuale.',
               testo:
-                  'Se vinci, i soldi devono arrivarti: senza IBAN non '
-                  'sapremmo dove mandarli.',
+                  'Qui si raccolgono i soldi che vinci nelle sfide. È a nome '
+                  'tuo, e restano tuoi finché non li prelevi.',
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const _Rassicura(
+              icona: Icons.account_balance_outlined,
+              titolo: 'È obbligatorio, perché serve a prelevare.',
+              testo:
+                  'Senza portafoglio i soldi vinti non avrebbero dove stare, '
+                  'e non potresti mai mandarli in banca. Per aprirlo bastano '
+                  'nome, cognome e IBAN: è lì che arrivano quando prelevi.',
             ),
             const SizedBox(height: AppSpacing.md),
             const _Rassicura(
               icona: Icons.lock_outline_rounded,
-              titolo: 'Sul tuo conto i soldi possono solo arrivare.',
-              testo:
-                  'Con un IBAN nessuno può prelevare niente: né noi, né '
-                  'nessun altro. Partecipare resta gratis.',
-            ),
-            const SizedBox(height: AppSpacing.md),
-            const _Rassicura(
-              icona: Icons.verified_user_outlined,
               titolo: 'Lo custodisce Stripe.',
               testo:
                   'È il sistema di pagamento usato da milioni di aziende nel '
-                  'mondo: i premi arrivano su un conto Stripe a nome tuo, non '
-                  'restano a CRASY.',
+                  'mondo. E con il tuo IBAN nessuno può prendere soldi dal tuo '
+                  'conto in banca: né noi, né nessun altro.',
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(
-              'Ci vuole un minuto e si fa una volta sola. Alla fine Stripe ti '
-              'chiede di confermare chi sei: lo chiede la legge a chiunque '
-              'riceva soldi, non è una nostra richiesta.',
+              'Partecipare resta gratis. Il portafoglio si apre una volta sola '
+              'e ci vuole un minuto: alla fine Stripe ti chiede di confermare '
+              'chi sei, perché lo chiede la legge a chiunque riceva soldi.',
               style: texts.bodySmall?.copyWith(color: palette.textSecondary),
             ),
             const SizedBox(height: AppSpacing.lg),
             CrasyButton(
-              label: 'Aggiungi l\'IBAN',
+              label: 'Apri il portafoglio',
               onPressed: () => Navigator.of(context).pop(true),
             ),
             const SizedBox(height: AppSpacing.xs),

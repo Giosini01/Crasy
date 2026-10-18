@@ -174,9 +174,10 @@ class _PayoutDetailsPageState extends ConsumerState<PayoutDetailsPage> {
                     ),
                     children: [
                       Text(
-                        'Ti chiediamo solo dove mandarti i soldi se vinci: '
-                        'nome, cognome e IBAN. Il conto dev\'essere '
-                        'intestato a te, e ne basta uno.',
+                        'Per il tuo portafoglio bastano nome, cognome e '
+                        'IBAN. L\'IBAN è il conto su cui arrivano i soldi '
+                        'quando prelevi: dev\'essere intestato a te, e ne '
+                        'basta uno.',
                         style: texts.bodyMedium?.copyWith(
                           color: palette.textSecondary,
                         ),
@@ -205,7 +206,7 @@ class _PayoutDetailsPageState extends ConsumerState<PayoutDetailsPage> {
                         ],
                         decoration: const InputDecoration(
                           labelText: 'IBAN',
-                          helperText: 'Il conto su cui vuoi ricevere i premi',
+                          helperText: 'Dove arrivano i soldi quando prelevi',
                         ),
                         validator: PayoutValidators.iban,
                       ),
@@ -221,9 +222,10 @@ class _PayoutDetailsPageState extends ConsumerState<PayoutDetailsPage> {
                       ),
                       const SizedBox(height: AppSpacing.md),
                       Text(
-                        'Con un IBAN si possono solo ricevere soldi, non '
-                        'prelevarli. Nome e IBAN non li vede nessun altro '
-                        'nell\'app: servono solo per mandarti i premi.',
+                        'Con un IBAN si possono solo mandare soldi sul tuo '
+                        'conto, mai prenderli. Nome e IBAN non li vede '
+                        'nessun altro nell\'app: servono solo al tuo '
+                        'portafoglio.',
                         style: texts.bodySmall?.copyWith(
                           color: palette.textFaint,
                         ),

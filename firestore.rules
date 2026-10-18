@@ -646,6 +646,36 @@ service cloud.firestore {
       }
     }
 
+    // **Chi ha lanciato una gara anonima.** Un foglio per gara, con dentro una
+    // persona sola, e lo legge solo lei: e' cosi' che l'anonimato regge anche
+    // per chi legge il database invece dell'app. Lo scrive chi lancia, nello
+    // stesso colpo della gara e solo per una gara nuova e anonima — mai per
+    // farsi passare per l'autore di quella di un altro. Lo usano `lanciataDa`
+    // qui sotto e `autoreDi` sul server.
+    match /autoriAnonimi/{challengeId} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+
+      allow create: if signedIn()
+                    && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+                    && request.resource.data.uid == request.auth.uid
+                    && !exists(/databases/$(database)/documents/challenges/$(challengeId))
+                    && getAfter(/databases/$(database)/documents/challenges/$(challengeId)).data.get('anonimo', false) == true
+                    && getAfter(/databases/$(database)/documents/challenges/$(challengeId)).data.createdByUserId == '';
+
+      // Se ne va con la gara, quando chi l'ha lanciata la cancella vuota.
+      allow delete: if signedIn()
+                    && resource.data.uid == request.auth.uid
+                    && !existsAfter(/databases/$(database)/documents/challenges/$(challengeId));
+
+      allow update: if false;
+    }
+
+    // Le richieste di revisione di una foto tolta: le scrive e le legge solo il
+    // server. Vedi `functions/revisioni.js`.
+    match /revisioni/{revisioneId} {
+      allow read, write: if false;
+    }
+
     match /challenges/{challengeId} {
 
       function challenge() {
@@ -655,6 +685,25 @@ service cloud.firestore {
       function challengeIsLive() {
         return challenge().startsAt <= request.time
                && challenge().endsAt > request.time;
+      }
+
+      // **Chi l'ha lanciata, anche se non si e' firmato.**
+      //
+      // Di solito sta scritto nella gara, in `createdByUserId`. In una gara
+      // **anonima** quel campo e' vuoto — chiunque possa leggere la gara lo
+      // leggerebbe — e chi l'ha lanciata sta in `autoriAnonimi/{gara}`, un
+      // foglio che legge solo lui. Vedi `match /autoriAnonimi`.
+      //
+      // Il foglio a parte si apre solo per le gare anonime: per tutte le altre
+      // la risposta e' gia' nel documento, e non costa nessuna lettura in piu'.
+      function lanciataDa(gara) {
+        return gara.get('createdByUserId', '') == request.auth.uid
+               || (
+                    gara.get('anonimo', false) == true
+                    && exists(/databases/$(database)/documents/autoriAnonimi/$(challengeId))
+                    && get(/databases/$(database)/documents/autoriAnonimi/$(challengeId)).data.uid
+                       == request.auth.uid
+                  );
       }
 
 
@@ -708,6 +757,14 @@ service cloud.firestore {
                        resource == null
                        || '*' in resource.data.get('audience', ['*'])
                        || request.auth.uid in resource.data.get('audience', ['*'])
+                       // **Chi l'ha lanciata in anonimo**, che nell'elenco
+                       // non c'e' apposta. Funziona solo leggendo la gara per
+                       // nome, non con una ricerca: l'app gliele apre una per
+                       // una, dal suo foglio di `autoriAnonimi`.
+                       || (
+                            resource.data.get('anonimo', false) == true
+                            && lanciataDa(resource.data)
+                          )
                      );
 
       // Una challenge la lancia chiunque abbia un account.
@@ -722,7 +779,36 @@ service cloud.firestore {
       // scaduta, che non nasca con dei partecipanti o con un vincitore gia'
       // scritto.
       allow create: if signedIn()
-                    && request.resource.data.createdByUserId == request.auth.uid
+                    // **Firmata, o anonima davvero.** In anonimo il campo
+                    // dell'autore nasce vuoto e chi l'ha lanciata si scrive,
+                    // nello stesso colpo, in `autoriAnonimi/{gara}`: un foglio
+                    // che legge solo lui. Vedi `lanciataDa`.
+                    //
+                    // Un'anonima con dentro il proprio identificativo non nasce
+                    // piu': e' quello che scrivevano le versioni vecchie
+                    // dell'app, ed e' esattamente la fuga da chiudere.
+                    && (
+                         (
+                           request.resource.data.get('anonimo', false) == false
+                           && request.resource.data.createdByUserId == request.auth.uid
+                         )
+                         || (
+                              request.resource.data.get('anonimo', false) == true
+                              && request.resource.data.createdByUserId == ''
+                              && existsAfter(/databases/$(database)/documents/autoriAnonimi/$(challengeId))
+                              && getAfter(/databases/$(database)/documents/autoriAnonimi/$(challengeId)).data.uid
+                                 == request.auth.uid
+                            )
+                       )
+                    // **E chi la lancia in anonimo non sta nell'elenco di chi
+                    // la vede.** Per una gara fra amici, o una sfida, quell'
+                    // elenco lo legge ogni destinatario: con dentro il suo
+                    // identificativo, la maschera durava finche' qualcuno non
+                    // apriva il database. Lui la legge dal foglio a parte.
+                    && (
+                         request.resource.data.get('anonimo', false) == false
+                         || !(request.auth.uid in request.resource.data.audience)
+                       )
                     && request.resource.data.createdByUsername is string
                     // **In anonimo il nome non si scrive.** Chi lancia senza
                     // farsi vedere non deve lasciare il proprio nome dentro
@@ -796,7 +882,10 @@ service cloud.firestore {
                            ? '*' in request.resource.data.audience
                            : (
                                !('*' in request.resource.data.audience)
-                               && request.auth.uid in request.resource.data.audience
+                               && (
+                                    request.auth.uid in request.resource.data.audience
+                                    || request.resource.data.get('anonimo', false) == true
+                                  )
                              )
                        )
                     // **Un euro di minimo, tranne fra amici.**
@@ -922,7 +1011,7 @@ service cloud.firestore {
       // cassa vorrebbe dire perderne le tracce. E **solo il proprietario**, che
       // e' ovvio e va scritto lo stesso.
       allow delete: if signedIn()
-                    && resource.data.createdByUserId == request.auth.uid
+                    && lanciataDa(resource.data)
                     && resource.data.get('participantsCount', 0) == 0
                     && resource.data.get('prizeStatus', 'unpaid') == 'unpaid';
 
@@ -1059,8 +1148,7 @@ service cloud.firestore {
       // Ed e' anche il motivo per cui il giudizio **chiude la sfida
       // nell'istante in cui arriva**, senza aspettare nessuna scadenza.
       allow update: if signedIn()
-                    && resource.data.get('createdByUserId', '')
-                       == request.auth.uid
+                    && lanciataDa(resource.data)
                     && resource.data.get('targetUserId', '') != ''
                     && resource.data.get('duelStatus', '') == 'completed'
                     && resource.data.get('duelVerdict', '') == ''
@@ -1131,32 +1219,31 @@ service cloud.firestore {
                            || challenge().get('participantsCount', 0)
                               < challenge().get('maxParticipants', 0)
                          )
-                      // **Chi ha lanciato la gara ci partecipa, se e'
-                      // pubblica.**
+                      // **Chi ha lanciato la gara non partecipa dove ci sono
+                      // dei soldi.**
                       //
-                      // Prima non poteva mai: mette lui i soldi del premio, e
-                      // una gara in cui chi paga puo' anche vincere non e' una
-                      // gara. In una gara **pubblica** quel ragionamento non
-                      // tiene, perche' a dire chi ha vinto sono le fiamme degli
-                      // altri: chi lancia e poi ci partecipa non si sta dando
-                      // niente, si sta mettendo in mezzo agli altri col proprio
-                      // nome. E le fiamme sulla propria foto non se le puo'
-                      // dare: quello lo vieta la regola sui voti.
+                      // Per un periodo poteva, nelle gare pubbliche: a dire chi
+                      // vince sono le fiamme degli altri, quindi non si dava
+                      // niente da solo. Ma chi mette il premio e poi corre per
+                      // vincerlo sta pagando per avere la possibilita' di
+                      // vincere — la forma che Stripe, Google e la legge sul
+                      // gioco chiamano scommessa. Su CRASY si partecipa
+                      // gratis, senza eccezioni: chi paga resta fuori.
                       //
-                      // Resta vietato dove il vincitore **lo scegli chi ha
-                      // lanciato** — fra amici e nelle private — perche' li'
-                      // partecipare vorrebbe dire assegnarsi il premio da solo.
-                      // E nelle sfide mirate, che sono una domanda fatta a
-                      // un'altra persona.
+                      // Senza soldi puo' entrare solo nelle gare aperte a
+                      // tutti. Fra amici e nelle private no, perche' li' il
+                      // vincitore **lo sceglie lui**; nelle sfide mirate no,
+                      // perche' sono una domanda fatta a un'altra persona.
                       //
-                      // Il caso della foto **unica** in gara — dove a decidere
-                      // tornerebbe a essere chi l'ha mandata — lo chiude il
-                      // server: la gara finisce senza vincitore e il premio
-                      // torna indietro. Vedi `closeChallenge`.
+                      // Vale anche per chi l'ha lanciata **in anonimo**: e'
+                      // `lanciataDa` che guarda il foglio a parte. Il server fa
+                      // lo stesso alla chiusura (`closeChallenge`), per le foto
+                      // entrate prima di questa regola.
                       && (
-                           challenge().createdByUserId != request.auth.uid
+                           !lanciataDa(challenge())
                            || (
-                                challenge().get('scope', 'global') != 'friends'
+                                challenge().get('prizeCents', 0) == 0
+                                && challenge().get('scope', 'global') != 'friends'
                                 && challenge().get('scope', 'global') != 'private'
                                 && challenge().get('targetUserId', '') == ''
                               )
@@ -1275,8 +1362,7 @@ service cloud.firestore {
                       && changedOnly(['isWinner'])
                       && request.resource.data.isWinner == true
                       && challenge().get('targetUserId', '') != ''
-                      && challenge().get('createdByUserId', '')
-                         == request.auth.uid
+                      && lanciataDa(challenge())
                       && challenge().get('prizeStatus', 'unpaid') == 'unpaid';
 
         // **Le fiamme non le conta piu' nessun telefono.**

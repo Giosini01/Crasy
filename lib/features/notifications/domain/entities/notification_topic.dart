@@ -22,6 +22,8 @@ import 'package:crasy/features/notifications/domain/entities/app_notification.da
 /// soldi in palio: poterla zittire vorrebbe dire poter restare dentro una gara
 /// in cui non si e' piu' in corsa senza saperlo. Non e' una notizia che si
 /// scegli di ricevere, e' la conseguenza di una decisione che ci riguarda.
+/// Lo stesso vale per [NotificationKind.restored], che e' la risposta a quella
+/// decisione: la foto e' tornata in gara.
 ///
 /// ## Dove vive la scelta
 ///

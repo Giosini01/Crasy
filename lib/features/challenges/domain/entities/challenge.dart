@@ -371,7 +371,16 @@ class Challenge {
   /// quella di chi ha lanciato, la gara si chiude senza vincitore e il premio
   /// torna indietro. Con una foto sola a decidere sarebbe chi l'ha mandata, e
   /// quello e' il bonifico di sopra.
+  ///
+  /// **E nelle missioni con dei soldi no, mai.** Chi mette il premio e poi
+  /// corre per vincerlo sta pagando per avere la possibilita' di vincere: e'
+  /// la forma esatta che Stripe, Google e la legge sul gioco guardano per
+  /// dire "scommessa", anche se a decidere sono le fiamme degli altri. Su
+  /// CRASY si partecipa gratis, e per dirlo senza eccezioni chi paga resta
+  /// fuori dalla propria gara. Lo chiudono anche le regole del database e
+  /// `closeChallenge`: la foto di chi ha lanciato non vince una gara a soldi.
   bool get apertaAlCreatore =>
+      prizeCents == 0 &&
       !isDuel &&
       scope != ChallengeScope.friends &&
       scope != ChallengeScope.private;

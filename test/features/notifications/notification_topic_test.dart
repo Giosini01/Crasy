@@ -15,7 +15,10 @@ void main() {
           if (NotificationTopic.of(kind) == null) kind,
       ];
 
-      expect(senzaInterruttore, [NotificationKind.removed]);
+      expect(senzaInterruttore, [
+        NotificationKind.removed,
+        NotificationKind.restored,
+      ]);
     });
 
     test('nessun tipo sta sotto due interruttori', () {

@@ -176,18 +176,21 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
                     );
                   }
 
-                  // **Nelle gare fra amici chi lancia non partecipa**, perche'
-                  // li' il vincitore lo scegli lui: partecipare vorrebbe dire
-                  // assegnarsi il premio da solo. Nelle gare pubbliche invece
-                  // scende in gara come tutti — a decidere sono le fiamme degli
-                  // altri — e il divieto non c'e' piu'.
+                  // **Chi lancia non partecipa dove ci sono dei soldi**, e fra
+                  // amici nemmeno gratis: li' il vincitore lo sceglie lui, e
+                  // partecipare vorrebbe dire assegnarsi il premio da solo.
+                  // Vedi `Challenge.apertaAlCreatore`.
                   if (ref.watch(isMyChallengeProvider(widget.challengeId)) &&
                       !challenge.apertaAlCreatore) {
-                    return const _Notice(
+                    return _Notice(
                       title: 'È la tua missione',
-                      message:
-                          'Qui il vincitore lo scegli tu, quindi non puoi anche '
-                          'correre per vincere. Guarda cosa mandano i tuoi amici.',
+                      message: challenge.prizeCents > 0
+                          ? 'Il premio lo metti tu, quindi non puoi anche '
+                                'correre per vincerlo. Guarda cosa mandano gli '
+                                'altri.'
+                          : 'Qui il vincitore lo scegli tu, quindi non puoi '
+                                'anche correre per vincere. Guarda cosa mandano '
+                                'i tuoi amici.',
                     );
                   }
 

@@ -1,6 +1,7 @@
 import 'package:crasy/core/services/firebase/firebase_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
 import 'package:crasy/features/challenges/domain/leaderboard.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
@@ -640,7 +641,19 @@ final recentlyClosedProvider = StreamProvider<List<Challenge>>((ref) {
     return Stream.value(const <Challenge>[]);
   }
 
-  return ref.watch(challengeRepositoryProvider).watchRecentlyClosedFor(userId);
+  // Con le mie anonime riservate finite da poco: io non sto fra chi le vede,
+  // e la scelta del vincitore fra amici tocca proprio a me.
+  final now = DateTime.now();
+  final ieri = now.subtract(const Duration(hours: 48));
+
+  return conLeMieAnonime(
+    ref,
+    ref.watch(challengeRepositoryProvider).watchRecentlyClosedFor(userId),
+    (gara) =>
+        gara.scope == ChallengeScope.friends &&
+        !gara.endsAt.isAfter(now) &&
+        gara.endsAt.isAfter(ieri),
+  );
 });
 
 /// Le missioni del party finite oggi, in riga.

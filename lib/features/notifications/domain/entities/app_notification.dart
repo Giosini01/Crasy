@@ -135,7 +135,18 @@ enum NotificationKind {
   /// anonime per costruzione: dirlo trasformerebbe una moderazione in una lite
   /// fra due persone, e la prossima segnalazione non la manderebbe piu'
   /// nessuno.
+  ///
+  /// **Dice perche', e se l'ha deciso una macchina** ([AppNotification.motivo]
+  /// e [AppNotification.automatico]), e da qui si chiede una revisione: e'
+  /// quello che il Digital Services Act chiede a chi toglie un contenuto.
   removed,
+
+  /// **La tua foto e' tornata in gara.**
+  ///
+  /// La risposta buona a una revisione, o una foto che il team ha rimesso da
+  /// solo. Come [removed] non ha un interruttore: riguarda una propria foto in
+  /// una gara con dei soldi, e i minuti che restano servono a prendere fiamme.
+  restored,
 }
 
 /// In quale sezione della campanella finisce una notizia.
@@ -197,6 +208,9 @@ class AppNotification {
     this.challengeTitle = '',
     this.entryId = '',
     this.anonimo = false,
+    this.motivo = '',
+    this.automatico = false,
+    this.revisione = '',
     this.createdAt,
   });
 
@@ -218,6 +232,43 @@ class AppNotification {
   /// **Arriva da una sfida lanciata in anonimo.** Niente nome, niente faccia:
   /// la riga dice "Un anonimo" e al posto della foto c'e' una maschera.
   final bool anonimo;
+
+  /// **Perche' una foto e' stata tolta**, in una parola: `sessuale`,
+  /// `violenza`, `pericolo`, `odio`, `minore` o `altro`. Vuoto negli avvisi
+  /// scritti prima che lo portassero. Lo scrive il server (`avvisi.js`).
+  final String motivo;
+
+  /// Se a toglierla e' stato il controllo automatico, e non una persona.
+  final bool automatico;
+
+  /// A che punto e' la revisione chiesta: vuoto se non l'ha chiesta nessuno,
+  /// poi `chiesta`, poi `respinta`. Quando la foto torna in gara l'avviso se ne
+  /// va, e al suo posto arriva [NotificationKind.restored].
+  final String revisione;
+
+  /// **Il motivo, detto come una frase.** Sta nell'entita' come [message]: e'
+  /// la stessa frase nella riga e nel foglio che si apre toccandola.
+  String get perche {
+    final cosa = switch (motivo) {
+      'sessuale' => 'un contenuto sessuale',
+      'violenza' => 'un contenuto violento',
+      'pericolo' => 'un contenuto che mette in pericolo qualcuno',
+      'odio' => 'un contenuto che offende o prende di mira qualcuno',
+      'minore' => 'un contenuto con un minorenne',
+      _ => '',
+    };
+
+    if (cosa.isEmpty) {
+      return automatico
+          ? "Il controllo automatico l'ha considerata fuori dalle regole."
+          : 'Non rispettava le regole delle missioni.';
+    }
+
+    return automatico
+        ? "Il controllo automatico l'ha considerata $cosa."
+        : "Dopo una segnalazione, una persona del team l'ha considerata "
+              '$cosa.';
+  }
 
   /// Come si chiama chi l'ha fatta, nella frase: `@mario`, `Un anonimo`, o
   /// `Qualcuno` quando il nome non e' arrivato — meglio di una `@` da sola.
@@ -275,6 +326,7 @@ class AppNotification {
     NotificationKind.win => 'Hai vinto',
     NotificationKind.ended => 'La missione è finita: guarda chi ha vinto',
     NotificationKind.removed => 'La tua foto è stata tolta dalla gara',
+    NotificationKind.restored => 'La tua foto è tornata in gara',
     NotificationKind.comment => '$actorTag ha commentato la tua foto',
   };
 
@@ -313,6 +365,7 @@ class AppNotification {
     // partecipazione che non c'e' piu': trovarla sotto l'insegna VITTORIE
     // sarebbe la cosa piu' stonata della campanella.
     NotificationKind.removed => NotificationGroup.participations,
+    NotificationKind.restored => NotificationGroup.participations,
   };
 
   /// La sezione di un tipo di notizia, senza avere la notizia in mano: serve

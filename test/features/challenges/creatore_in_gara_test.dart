@@ -5,12 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 Challenge _gara({
   ChallengeScope scope = ChallengeScope.global,
   String bersaglio = '',
+  int premio = 0,
 }) {
   return Challenge(
     id: 'g',
     title: 'Una gara',
     brief: 'Fai qualcosa.',
-    prizeCents: 500,
+    prizeCents: premio,
     scope: scope,
     createdByUserId: 'chi-lha-lanciata',
     targetUserId: bersaglio,
@@ -61,12 +62,27 @@ void main() {
   });
 
   group('chi lancia scende in gara', () {
-    test('nelle gare pubbliche sì', () {
+    test('nelle gare pubbliche senza soldi sì', () {
       // A dire chi ha vinto sono le fiamme degli altri: chi lancia e poi
       // partecipa non si sta dando niente, si sta mettendo in mezzo agli altri.
       expect(_gara().apertaAlCreatore, isTrue);
       expect(_gara(scope: ChallengeScope.country).apertaAlCreatore, isTrue);
       expect(_gara(scope: ChallengeScope.local).apertaAlCreatore, isTrue);
+    });
+
+    test("dove c'è un premio in soldi no, nemmeno se è pubblica", () {
+      // Chi mette il premio e poi corre per vincerlo paga per avere la
+      // possibilità di vincere: è la forma di una scommessa, e su CRASY si
+      // partecipa gratis, senza eccezioni.
+      expect(_gara(premio: 500).apertaAlCreatore, isFalse);
+      expect(
+        _gara(scope: ChallengeScope.country, premio: 100).apertaAlCreatore,
+        isFalse,
+      );
+      expect(
+        _gara(scope: ChallengeScope.local, premio: 100).apertaAlCreatore,
+        isFalse,
+      );
     });
 
     test('fra amici no, perché il vincitore lo scegli lui', () {

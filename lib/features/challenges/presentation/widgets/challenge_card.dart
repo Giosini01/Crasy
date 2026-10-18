@@ -51,13 +51,17 @@ class ChallengeCard extends ConsumerWidget {
     final leader = ref
         .watch(challengeTopEntryProvider(challenge.id))
         .valueOrNull;
-    final isMine =
-        challenge.createdByUserId.isNotEmpty &&
-        challenge.createdByUserId == ref.watch(currentUserIdProvider);
+    // Anche le mie anonime: negli elenchi arrivano con l'autore vuoto, e la
+    // scheda le riconosce dal mio foglio a parte. Vedi `lanciataDaMe`.
+    final isMine = lanciataDaMe(
+      challenge,
+      ref.watch(currentUserIdProvider),
+      ref.watch(mieAnonimeIdsProvider).valueOrNull ?? const <String>{},
+    );
 
-    // In una gara pubblica chi l'ha lanciata ci partecipa, quindi sulla scheda
-    // vede il tasto come tutti invece della riga "l'hai lanciata tu". Quella
-    // riga resta dove serve davvero: fra amici, dove il tasto non ci sarebbe.
+    // Chi l'ha lanciata vede la riga "l'hai lanciata tu" al posto del tasto
+    // dove non puo' partecipare: dove c'e' un premio in soldi, e fra amici.
+    // Vedi `Challenge.apertaAlCreatore`.
     final miaEChiusaAMe = isMine && !challenge.apertaAlCreatore;
 
     return Column(

@@ -42,6 +42,8 @@ Future<void> showReportSheet(
       child: _ReportBody(
         kind: kind,
         username: reportedUsername,
+        // Chi si e' nascosto non si puo' bloccare da qui: non si sa chi e'.
+        bloccabile: reportedUserId.isNotEmpty,
         onPick: (voce) => Navigator.of(sheetContext).pop(voce),
       ),
     ),
@@ -116,11 +118,16 @@ class _ReportBody extends StatelessWidget {
     required this.kind,
     required this.username,
     required this.onPick,
+    this.bloccabile = true,
   });
 
   final ReportTargetKind kind;
   final String username;
   final ValueChanged<_Choice> onPick;
+
+  /// Se c'e' qualcuno da bloccare. Una missione anonima si segnala, ma chi
+  /// l'ha lanciata non si conosce, e quindi non si blocca.
+  final bool bloccabile;
 
   @override
   Widget build(BuildContext context) {
@@ -157,15 +164,17 @@ class _ReportBody extends StatelessWidget {
               accent: reason == ReportReason.danger,
               onTap: () => onPick(_Choice.report(reason)),
             ),
-          Divider(color: palette.line, height: AppSpacing.xl),
-          _Row(
-            label: 'Blocca @$username',
-            detail:
-                'Non vedi più le sue foto e i suoi commenti, e lui non vede '
-                'i tuoi. Si toglie dalle impostazioni.',
-            accent: true,
-            onTap: () => onPick(const _Choice.block()),
-          ),
+          if (bloccabile) ...[
+            Divider(color: palette.line, height: AppSpacing.xl),
+            _Row(
+              label: 'Blocca @$username',
+              detail:
+                  'Non vedi più le sue foto e i suoi commenti, e lui non vede '
+                  'i tuoi. Si toglie dalle impostazioni.',
+              accent: true,
+              onTap: () => onPick(const _Choice.block()),
+            ),
+          ],
         ],
       ),
     );

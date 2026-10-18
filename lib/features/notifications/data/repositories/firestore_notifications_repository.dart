@@ -300,6 +300,9 @@ class FirestoreNotificationsRepository {
       challengeTitle: data['challengeTitle'] as String? ?? '',
       entryId: data['entryId'] as String? ?? '',
       anonimo: data['anonimo'] as bool? ?? false,
+      motivo: data['motivo'] as String? ?? '',
+      automatico: data['automatico'] as bool? ?? false,
+      revisione: data['revisione'] as String? ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }

@@ -76,7 +76,16 @@ abstract final class ChallengeMapper {
       // campo, e una query che filtra su un campo salta i documenti che non ce
       // l'hanno: una gara scritta senza `audience` non comparirebbe da nessuna
       // parte, nemmeno a chi l'ha lanciata.
-      'audience': challenge.audience,
+      //
+      // **In anonimo chi la lancia non ci sta.** L'elenco lo legge chiunque
+      // la riceva, e il suo identificativo li' dentro bastava a dire chi era.
+      // La legge lo stesso, dal foglio a parte: vedi `autoriAnonimi`.
+      'audience': challenge.anonimo
+          ? [
+              for (final chi in challenge.audience)
+                if (chi != challenge.createdByUserId) chi,
+            ]
+          : challenge.audience,
       // Zero vuol dire senza tetto, ed e' anche il valore che si legge sulle
       // gare scritte prima che questo campo esistesse: restano com'erano.
       'maxParticipants': challenge.maxParticipants,
@@ -84,10 +93,13 @@ abstract final class ChallengeMapper {
       'rules': challenge.rules,
       'mediaKind': challenge.mediaKind.name,
       'createdByUsername': challenge.createdByUsername,
-      'createdByUserId': challenge.createdByUserId,
-      // **In anonimo il nome non parte nemmeno.** Lo chiedono anche le regole
-      // del database: con `anonimo` acceso, `createdByUsername` dev'essere
-      // vuoto.
+      // **In anonimo non partono ne' il nome ne' l'identificativo.** Chi l'ha
+      // lanciata si scrive a parte, in `autoriAnonimi/{gara}`, nello stesso
+      // colpo (vedi `createChallenge` nel repository): un foglio che legge
+      // solo lui. Il campo qui lo legge chiunque veda la gara, e prima era
+      // l'anonimato che reggeva solo nell'interfaccia. Lo chiedono anche le
+      // regole del database.
+      'createdByUserId': challenge.anonimo ? '' : challenge.createdByUserId,
       'anonimo': challenge.anonimo,
       'startsAt': Timestamp.fromDate(challenge.startsAt),
       'endsAt': Timestamp.fromDate(challenge.endsAt),

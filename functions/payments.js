@@ -35,6 +35,7 @@
 
 const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { autoreDi } = require('./autori');
 const { defineSecret } = require('firebase-functions/params');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
@@ -254,7 +255,8 @@ exports.startChallengePayment = onCall(
     // Paga chi l'ha lanciata, e nessun altro. Senza questo controllo chiunque
     // potrebbe pagare le challenge altrui — che sembra un problema teorico
     // finche' non si pensa a chi paga la propria con la carta di un altro.
-    if (snapshot.get('createdByUserId') !== userId) {
+    // Anche in anonimo: chi l'ha lanciata sta nel foglio a parte (`autori.js`).
+    if ((await autoreDi(snapshot)) !== userId) {
       throw new HttpsError('permission-denied', 'Non e\' tua.');
     }
 
@@ -399,7 +401,8 @@ exports.createChallengePaymentIntent = onCall(
       throw new HttpsError('not-found', 'Challenge inesistente.');
     }
 
-    if (snapshot.get('createdByUserId') !== userId) {
+    // Anche in anonimo: chi l'ha lanciata sta nel foglio a parte (`autori.js`).
+    if ((await autoreDi(snapshot)) !== userId) {
       throw new HttpsError('permission-denied', 'Non e\' tua.');
     }
 
@@ -770,7 +773,8 @@ async function accendiLaGara(challengeId, paymentIntentId) {
   const dopo = await ref.get();
 
   await scriviNelRegistro(
-    dopo.get('createdByUserId'),
+    // Il registro e' di chi ha pagato, anche se si e' nascosto.
+    await autoreDi(dopo),
     `pagamento_${challengeId}`,
     {
       kind: 'challengePayment',
@@ -1960,7 +1964,8 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
   // il conto di CRASY qualche centesimo alla volta.
   const premio = snapshot.get('prizeCents') || 0;
   const quanto = soloIlPremio ? premio : undefined;
-  const haPagato = snapshot.get('createdByUserId');
+  // Chi ha pagato, anche in anonimo: i soldi tornano a lui. Vedi `autori.js`.
+  const haPagato = await autoreDi(snapshot);
 
   // **Dal portafoglio torna nel portafoglio, e torna intero.**
   //
@@ -2136,7 +2141,8 @@ exports.cancelChallenge = onCall(
       return { cancellata: true };
     }
 
-    if (snapshot.get('createdByUserId') !== userId) {
+    // Anche in anonimo: chi l'ha lanciata sta nel foglio a parte (`autori.js`).
+    if ((await autoreDi(snapshot)) !== userId) {
       throw new HttpsError('permission-denied', 'Non e\' tua.');
     }
 
@@ -2261,7 +2267,7 @@ exports.payChallengeFromWallet = onCall(
     // conosca l'identificativo di una gara potrebbe pagarla col proprio
     // portafoglio — che sembra un regalo, ed e' invece il modo di svuotare il
     // saldo di qualcuno con una chiamata.
-    if (gara.get('createdByUserId') !== userId) {
+    if ((await autoreDi(gara)) !== userId) {
       return { ok: false, reason: 'non-tua' };
     }
 

@@ -52,6 +52,13 @@ abstract class ChallengeRepository {
   /// Una challenge sola. Emette `null` se non esiste.
   Stream<Challenge?> watchChallenge(String challengeId);
 
+  /// **Le gare che [userId] ha lanciato in anonimo**, per identificativo.
+  ///
+  /// In una gara anonima l'autore non sta scritto nella gara — la legge
+  /// chiunque la veda — ma in un foglio a parte che legge solo lui
+  /// (`autoriAnonimi`). E' da qui che il suo telefono sa quali sono le sue.
+  Stream<Set<String>> watchMieAnonime(String userId);
+
   /// Le partecipazioni a una challenge, dalla piu' votata.
   Stream<List<ChallengeEntry>> watchEntries(String challengeId);
 

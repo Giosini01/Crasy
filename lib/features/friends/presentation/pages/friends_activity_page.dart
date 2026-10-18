@@ -1002,8 +1002,11 @@ class _MissionRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
     final texts = context.texts;
-    final isMine =
-        challenge.createdByUserId == ref.watch(currentUserIdProvider);
+    final isMine = lanciataDaMe(
+      challenge,
+      ref.watch(currentUserIdProvider),
+      ref.watch(mieAnonimeIdsProvider).valueOrNull ?? const <String>{},
+    );
 
     return GestureDetector(
       onTap: () => context.push(AppRoutes.challengeDetailOf(challenge.id)),
