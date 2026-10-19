@@ -87,12 +87,21 @@ abstract class SeasonSkin {
   /// Qualche tasto, sparso. Gli altri restano quelli di sempre.
   Widget decoraTasto(Widget tasto, {required String seme}) => tasto;
 
-  /// Un segno di stagione **dentro il blocco di una missione**: una ragnatela
-  /// nell'angolo, un ragno appeso. Come per [decoraTasto], [seme] fa decidere
-  /// sempre la stessa cosa per la stessa missione.
+  /// Un segno di stagione **accanto al premio di una missione**: una
+  /// ragnatela nell'angolo, una zucca, dei pipistrelli. Come per
+  /// [decoraTasto], [seme] fa decidere sempre la stessa cosa per la stessa
+  /// missione — e la stessa nella scheda e nella pagina della missione.
+  ///
+  /// [missione] e' la riga del premio, e il segno sta nel suo angolo destro.
+  /// [angoloLibero] e' falso quando li' c'e' gia' qualcosa (il marchio
+  /// ARCHIVIO): allora non si mette niente, invece di coprirlo.
   ///
   /// Chi decora lascia passare i tocchi: il blocco si apre toccandolo.
-  Widget decoraMissione(Widget missione, {required String seme}) => missione;
+  Widget decoraMissione(
+    Widget missione, {
+    required String seme,
+    bool angoloLibero = true,
+  }) => missione;
 
   /// Il velo sopra la pagina: ragnatele agli angoli, neve, quel che sia.
   ///

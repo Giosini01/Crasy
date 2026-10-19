@@ -38,7 +38,11 @@ DOVE = 'web'
 # nasce `supporto@crasyapp.com` si cambia questa riga e si rilancia. Un
 # indirizzo di supporto che non risponde e' peggio di nessun indirizzo: chi
 # scrive resta ad aspettare senza sapere che sta aspettando invano.
-POSTA = 'register@crasyapp.com'
+POSTA = 'info@crasyapp.com'
+
+# **Come si firma CRASY**: solo la partita IVA, senza ragione sociale. Sta in
+# fondo a ogni pagina, come chiede la legge per i siti di chi ha la partita IVA.
+PIVA = '03259440646'
 
 # **Gli indirizzi degli store, vuoti finche' non esistono.**
 #
@@ -244,7 +248,9 @@ def pagina(titolo, sottotitolo, contenuto, descrizione):
     <a href="/termini/">Termini</a>
     <a href="/privacy/">Privacy</a>
     <a href="/contenuti/">Foto e video</a>
+    <a href="/regolamento/">Regolamento</a>
     <a href="/supporto/">Supporto</a>
+    <span>P.IVA %s</span>
   </footer>
 </div>
 </body>
@@ -256,6 +262,7 @@ def pagina(titolo, sottotitolo, contenuto, descrizione):
         alSicuro(titolo),
         '<p class="data">%s</p>' % alSicuro(sottotitolo) if sottotitolo else '',
         contenuto,
+        PIVA,
     )
 
 
@@ -343,6 +350,16 @@ def main():
         ),
     )
     scrivi(
+        'regolamento',
+        pagina(
+            documenti['regolamento'][0],
+            quando,
+            inParagrafi(documenti['regolamento'][1]),
+            'Le regole delle missioni di CRASY: chi organizza, chi puo '
+            'partecipare, come si vince e dove va il premio.',
+        ),
+    )
+    scrivi(
         'supporto',
         pagina(
             'Supporto',
@@ -355,10 +372,15 @@ def main():
     # La vetrina ha un vestito suo: vedi `tool/vetrina.py`. Un documento si
     # apre per cercare una riga, una vetrina ha dieci secondi per farsi
     # capire da chi non ha chiesto niente — due mestieri, due impaginazioni.
-    dove = os.path.join(DOVE, 'benvenuto', 'index.html')
-    os.makedirs(os.path.dirname(dove), exist_ok=True)
-    vetrina.scrivi(dove, POSTA, APP, APP_STORE, PLAY_STORE)
-    print('%-28s vetrina' % dove)
+    #
+    # **Solo se lo si chiede, con `--vetrina`.** La vetrina online e' stata
+    # ritoccata a mano dopo l'ultima volta che e' passata di qui (il percorso
+    # di "come si gioca"): rifarla da `vetrina.py` la riporterebbe indietro.
+    if '--vetrina' in sys.argv:
+        dove = os.path.join(DOVE, 'benvenuto', 'index.html')
+        os.makedirs(os.path.dirname(dove), exist_ok=True)
+        vetrina.scrivi(dove, POSTA, APP, APP_STORE, PLAY_STORE)
+        print('%-28s vetrina' % dove)
 
     print('\ntesti legali: versione %s, presi da %s' % (v, SORGENTE))
 

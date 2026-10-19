@@ -77,16 +77,24 @@ def documento(testo, nome):
 
 
 def tutti(percorso):
-    """I tre documenti, con le sostituzioni gia' fatte."""
+    """I documenti, con le sostituzioni gia' fatte.
+
+    **L'avviso di prova c'e' solo finche' i testi sono una bozza**: dalla 1.0 non
+    esiste piu', e se un giorno tornasse si rimette al suo posto da solo.
+    """
 
     testo = io.open(percorso, encoding='utf-8').read()
-    avviso = costante(testo, 'draftWarning')
+    avviso = (
+        costante(testo, 'draftWarning')
+        if 'static const String draftWarning =' in testo
+        else ''
+    )
     titolare = costante(testo, 'controller')
     versione = costante(testo, 'version')
 
     fuori = {}
 
-    for nome in ('terms', 'privacy', 'contentLicense'):
+    for nome in ('terms', 'privacy', 'contentLicense', 'regolamento'):
         titolo, corpo = documento(testo, nome)
         # Dentro il file sono interpolazioni Dart: qui vanno sostituite a mano.
         corpo = corpo.replace('$draftWarning', avviso)

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Regolamento delle missioni — CRASY</title>
+<meta name="description" content="Le regole delle missioni di CRASY: chi organizza, chi puo partecipare, come si vince e dove va il premio.">
+<link rel="icon" href="/favicon.png">
+<style>
+:root {
+  --rosso: #FA0000; --inchiostro: #0A0A0B; --tenue: #6B6B70;
+  --fioco: #A1A1A6; --riga: #E8E8EA; --spento: #F4F4F5;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: #FFFFFF;
+  color: var(--inchiostro);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* La testata sta ferma in cima mentre si scorre: **un'informativa e' lunga**, e
+   a meta' pagina non si sa piu' che cosa si sta leggendo ne' come si torna
+   indietro. Il velo sfocato tiene le lettere leggibili sopra il testo che
+   passa sotto. */
+.cima {
+  position: sticky; top: 0; z-index: 10;
+  background: #FFFFFF;
+  border-bottom: 1px solid var(--riga);
+}
+.cima__dentro {
+  max-width: 720px; margin: 0 auto; padding: 12px 22px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+}
+.cima img { width: 96px; height: auto; display: block; }
+.indietro {
+  font-size: 13px; font-weight: 700; color: var(--fioco); text-decoration: none;
+  white-space: nowrap;
+}
+.indietro:hover { color: var(--rosso); }
+
+.foglio { max-width: 720px; margin: 0 auto; padding: 44px 22px 40px; }
+h1 {
+  font-size: clamp(32px, 6.5vw, 50px);
+  line-height: 1.02; letter-spacing: -.03em;
+  margin: 0 0 6px; font-weight: 800; text-transform: uppercase;
+}
+h1 .punto { color: var(--rosso); }
+
+/* Ogni titoletto porta un trattino rosso davanti: dentro un testo lungo e tutto
+   della stessa misura, e' il segno che fa ritrovare il punto in cui si era. */
+h2 {
+  font-size: 12px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--rosso); margin: 40px 0 10px; font-weight: 800;
+  display: flex; align-items: center; gap: 10px;
+}
+h2::before {
+  content: ''; width: 18px; height: 2px; background: var(--rosso);
+  flex: none; border-radius: 2px;
+}
+p, li { color: var(--tenue); font-size: 16.5px; margin: 0 0 13px; }
+li { margin-bottom: 8px; }
+ul { padding-left: 20px; margin: 0 0 14px; }
+strong { color: var(--inchiostro); }
+a { color: var(--rosso); }
+.avviso {
+  border: 1px solid var(--riga); border-radius: 14px; padding: 16px 18px;
+  background: var(--spento); font-size: 14px; color: var(--tenue); margin-top: 18px;
+}
+.data {
+  font-size: 11px; font-weight: 800; letter-spacing: .14em; color: var(--fioco);
+  margin: 0 0 30px; text-transform: uppercase;
+}
+footer {
+  margin-top: 60px; padding: 26px 0 70px;
+  border-top: 1px solid var(--riga); font-size: 14px; color: var(--fioco);
+}
+footer a { margin-right: 18px; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="cima">
+  <div class="cima__dentro">
+    <a href="/"><img src="/brand/crasy-wordmark.png" alt="CRASY" width="96"></a>
+    <a class="indietro" href="/">&larr; crasyapp.com</a>
+  </div>
+</div>
+<div class="foglio">
+  <h1>Regolamento delle missioni<span class="punto">.</span></h1>
+  <p class="data">Versione 1.0</p>
+  <h2>1. CHI ORGANIZZA</h2>
+<p>Le missioni si svolgono su CRASY, che ne stabilisce le regole, raccoglie le partecipazioni, conta i voti e consegna i premi. Organizzatore: CRASY, P.IVA 03259440646 — info@crasyapp.com.</p>
+<h2>2. APPLE E GOOGLE NON C'ENTRANO</h2>
+<p>Apple Inc. e Google LLC non sono sponsor delle missioni e non sono coinvolte in alcun modo nella loro organizzazione, nella scelta dei vincitori o nella consegna dei premi. Per qualunque domanda sulle missioni ci si rivolge a CRASY.</p>
+<h2>3. CHI PUÒ PARTECIPARE</h2>
+<p>Chi ha compiuto 18 anni e ha un account CRASY. Partecipare è gratuito: non si paga nulla per entrare in una missione. Chi lancia una missione non può parteciparvi. Ogni giorno si può partecipare a un numero limitato di missioni, indicato nell'app, e a ogni missione si partecipa una volta sola.</p>
+<h2>4. COME SI PARTECIPA</h2>
+<p>Si manda una foto o un video entro la scadenza, seguendo la consegna della missione. Il contenuto dev'essere proprio e rispettare i Termini e Condizioni (punto 3). Finché la missione è aperta si può ritirare la propria partecipazione.</p>
+<h2>5. COME SI VINCE</h2>
+<p>Per ogni missione ognuno ha un numero limitato di fiamme da dare alle foto degli altri; alla propria non si può dare. Alla scadenza vince la partecipazione con più fiamme; a parità di fiamme vince chi l'ha inviata per prima. Non c'è nessuna estrazione e nessun elemento di sorte. Casi particolari: - se partecipa una sola persona, chi ha lanciato la missione ha 48 ore per dire se la foto vale; se non risponde, vince chi ha partecipato; - nelle missioni fra amici il vincitore lo sceglie chi le ha lanciate, entro 48 ore; se non sceglie, decidono le fiamme; - nelle sfide a una persona, chi le ha lanciate ha 24 ore per dire se la foto vale; se non risponde e la sfida ha un premio, il premio va a chi l'ha portata a termine. Una partecipazione tolta dalla moderazione non può vincere.</p>
+<h2>6. IL PREMIO</h2>
+<p>Il premio lo mette chi lancia la missione, e lo paga prima che la missione parta. Al vincitore va il premio meno la percentuale di CRASY, indicata nell'app prima del pagamento. Il premio arriva sul conto di pagamento a nome del vincitore presso Stripe (Termini e Condizioni, punto 5); da li' si trasferisce sul proprio conto bancario a partire dall'importo minimo indicato nell'app. Se nessuno partecipa, il premio torna per intero a chi l'aveva messo.</p>
+<h2>7. MODERAZIONE</h2>
+<p>Le foto possono essere controllate in automatico e segnalate dagli altri utenti. Chi si vede togliere una foto riceve un avviso con il motivo e può chiedere che la riguardi una persona del team.</p>
+<h2>8. IL RESTO</h2>
+<p>Per tutto quello che non è scritto qui valgono i Termini e Condizioni.</p>
+  <footer>
+    <a href="/">CRASY</a>
+    <a href="/termini/">Termini</a>
+    <a href="/privacy/">Privacy</a>
+    <a href="/contenuti/">Foto e video</a>
+    <a href="/regolamento/">Regolamento</a>
+    <a href="/supporto/">Supporto</a>
+    <span>P.IVA 03259440646</span>
+  </footer>
+</div>
+</body>
+</html>

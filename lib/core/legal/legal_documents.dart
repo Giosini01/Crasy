@@ -2,20 +2,15 @@
 ///
 /// ## Cosa sono questi testi, detto chiaro
 ///
-/// **Sono una bozza, e vanno fatti rivedere da un avvocato prima di aprire
-/// l'app al pubblico.** Sono scritti sui dati che CRASY raccoglie davvero — non
+/// **Sono firmati da CRASY con la sua partita IVA, e un avvocato li deve
+/// ancora rivedere.** Sono scritti sui dati che CRASY raccoglie davvero — non
 /// copiati da un'altra app — e coprono la struttura giusta: finalita', basi
-/// giuridiche, tempi di conservazione, destinatari, diritti. Ma un testo scritto
-/// bene non e' un testo firmato da chi se ne assume la responsabilita'
-/// professionale, e in caso di contestazione e' la seconda cosa che conta.
+/// giuridiche, tempi di conservazione, destinatari, diritti.
 ///
-/// Servono a far risparmiare tempo e soldi a chi li rivedera': correggere una
-/// bozza precisa costa una frazione di scriverne una da zero.
-///
-/// La versione porta la parola `bozza` apposta. Quando arriva il testo
-/// dell'avvocato si mette `1.0`, e siccome **cambiare versione fa richiedere di
-/// nuovo il consenso a tutti** (vedi [LegalTexts.version]), nessuno resta
-/// legato a una versione che nel frattempo e' stata sostituita.
+/// Quando arriva la revisione dell'avvocato si alza la versione, e siccome
+/// **cambiare versione fa richiedere di nuovo il consenso a tutti** (vedi
+/// [LegalTexts.version]), nessuno resta legato a un testo che nel frattempo e'
+/// stato sostituito.
 library;
 
 /// Le cose che si spuntano prima di entrare.
@@ -135,27 +130,22 @@ abstract final class LegalTexts {
   /// resta legato a un testo che non esiste piu' perche' nessuno si e' ricordato
   /// di alzare il suo numero.
   ///
-  /// Con la parola `bozza` dentro finche' i testi non sono quelli di un legale.
-  static const String version = '0.2-bozza';
+  /// **1.0: firmati e senza "bozza".** Passare da `0.2-bozza` a qui fa
+  /// riaccettare i documenti a tutti al prossimo accesso: e' voluto, perche' da
+  /// questa versione c'e' scritto chi e' il titolare.
+  static const String version = '1.0';
 
-  /// Chi risponde di questi dati. **Da completare con i dati veri prima di
-  /// aprire al pubblico**: senza titolare identificabile l'informativa non e'
-  /// valida.
+  /// Chi risponde di questi dati. **Solo la partita IVA, senza ragione
+  /// sociale**: e' cosi' che CRASY si firma ovunque, app e sito. Il contatto e'
+  /// la casella che legge davvero qualcuno.
   static const String controller =
-      'CRASY — titolare del trattamento: [ragione sociale, indirizzo, P.IVA]\n'
-      'Contatto per la privacy: [indirizzo email dedicato]';
-
-  static const String draftWarning =
-      'Documento in versione di prova per la fase beta. Il testo definitivo '
-      'sara\' pubblicato prima dell\'apertura al pubblico, e ti verra\' chiesto '
-      'di prenderne visione.';
+      'Titolare del trattamento: CRASY, P.IVA 03259440646\n'
+      'Contatto per la privacy: info@crasyapp.com';
 
   static const terms = LegalDocument(
     title: 'Termini e Condizioni',
     body:
         '''
-$draftWarning
-
 1. COS'E' CRASY
 CRASY e' un'applicazione in cui una persona lancia una missione mettendo in
 palio del denaro e altre persone vi partecipano con una foto o un video. Alla
@@ -170,9 +160,11 @@ puo' essere sospeso o chiuso se i dati sono falsi, se si creano piu' account per
 la stessa persona o se si violano queste regole.
 
 3. PARTECIPARE
-La partecipazione e' gratuita. Ogni giorno si puo' partecipare a un numero
-limitato di missioni e si dispone di un numero limitato di fiamme per missione:
-i limiti sono indicati nell'app e possono cambiare.
+La partecipazione e' gratuita. Chi lancia una missione non puo' parteciparvi.
+Ogni giorno si puo' partecipare a un numero limitato di missioni e si dispone
+di un numero limitato di fiamme per missione: i limiti sono indicati nell'app e
+possono cambiare. Le regole delle missioni sono riassunte nel Regolamento delle
+missioni, che si legge nell'app.
 E' vietato partecipare con contenuti non propri, con contenuti che ritraggono
 altre persone senza il loro consenso, con contenuti illegali, violenti, sessuali,
 diffamatori o che mettano in pericolo chi li realizza.
@@ -198,27 +190,28 @@ dichiararle secondo la normativa applicabile.
 Per partecipare alle missioni con un premio in denaro serve un conto di
 pagamento a proprio nome presso Stripe (servizio Stripe Connect). Si apre una
 volta, fornendo i dati richiesti dalla legge per chi riceve denaro: identita',
-codice fiscale, IBAN e, quando Stripe lo richiede, un documento d'identita'. Il
+IBAN e, quando Stripe lo richiede, un documento d'identita'. Il
 conto e' intestato a chi lo apre ed e' regolato dalle condizioni di Stripe, che
 si accettano aprendolo.
 
-CRASY non custodisce le somme vinte. Alla chiusura della missione il premio, al
+Di regola CRASY non custodisce le somme vinte. Alla chiusura della missione il
+premio, al
 netto della percentuale di CRASY, viene trasferito sul conto Stripe del
 vincitore. Da li' il vincitore puo' trasferirlo sul proprio conto bancario a
 partire dall'importo minimo indicato nell'app. Le somme possono diventare
 disponibili alcuni giorni dopo la vittoria, secondo i tempi di Stripe.
 
 Se il trasferimento non e' possibile, per esempio perche' il conto non e'
-ancora stato aperto, CRASY tiene la somma in nome e per conto del vincitore
-finche' il trasferimento diventa possibile, oppure gliela versa con bonifico
-sul conto bancario da lui indicato.
+ancora stato aperto, la somma resta presso CRASY alle condizioni del punto 4
+finche' il trasferimento diventa possibile, oppure viene versata al vincitore
+con bonifico sul conto bancario da lui indicato.
 
 6. USARE I PREMI PER LANCIARE UNA MISSIONE
 Chi ne da' espresso consenso nell'app autorizza CRASY ad addebitare sul proprio
 conto Stripe l'importo del premio di una missione che sceglie di pagare con il
 proprio saldo: solo nel momento in cui lo sceglie, e solo per quella missione.
-Il consenso si puo' revocare in qualunque momento scrivendo al contatto
-indicato; la revoca non riguarda le missioni gia' pagate.
+Il consenso si puo' revocare in qualunque momento scrivendo a
+info@crasyapp.com; la revoca non riguarda le missioni gia' pagate.
 
 7. QUANDO IL PREMIO TORNA INDIETRO
 Se alla missione non partecipa nessuno, il premio torna per intero a chi lo
@@ -240,8 +233,11 @@ missione e restituire il premio a chi l'ha messo.
 
 9. MODERAZIONE
 CRASY puo' rimuovere contenuti e sospendere account che violano queste regole,
-anche senza preavviso quando il contenuto e' gravemente lesivo. Chi ritiene la
-rimozione sbagliata puo' contestarla scrivendo al contatto indicato.
+anche senza preavviso quando il contenuto e' gravemente lesivo. Le foto e i
+video possono essere controllati anche in automatico. Chi si vede togliere una
+foto riceve un avviso con il motivo e con l'indicazione se la decisione e'
+automatica, e dall'avviso puo' chiedere che la riguardi una persona del team.
+Si puo' contestare qualunque rimozione anche scrivendo a info@crasyapp.com.
 
 10. RESPONSABILITA'
 CRASY mette a disposizione una piattaforma. Quello che le persone fanno per
@@ -266,6 +262,9 @@ richiedono una nuova accettazione prima di continuare a usare l'app.
 13. LEGGE E FORO
 Si applica la legge italiana. Per i consumatori resta ferma la competenza del
 giudice del luogo di residenza o domicilio.
+
+14. CHI SIAMO
+CRASY, P.IVA 03259440646. Per qualunque domanda: info@crasyapp.com.
 ''',
   );
 
@@ -273,8 +272,6 @@ giudice del luogo di residenza o domicilio.
     title: 'Informativa Privacy',
     body:
         '''
-$draftWarning
-
 TITOLARE DEL TRATTAMENTO
 $controller
 
@@ -315,7 +312,8 @@ di nascita non sono mai visibili ad altri utenti.
 A CHI COMUNICHIAMO I DATI
 A fornitori che trattano i dati per nostro conto, nominati responsabili ai sensi
 dell'art. 28 GDPR: Google (Firebase: autenticazione, database, archiviazione
-file, hosting) e il fornitore dei pagamenti. Alcuni di questi possono trattare
+file, hosting; Cloud Vision e Video Intelligence per il controllo automatico di
+foto e video) e Stripe, il fornitore dei pagamenti. Alcuni di questi possono trattare
 dati fuori dallo Spazio economico europeo: in quel caso il trasferimento avviene
 sulla base delle clausole contrattuali tipo approvate dalla Commissione europea.
 Non vendiamo i tuoi dati a nessuno.
@@ -346,6 +344,9 @@ Il vincitore di una missione e' determinato dal conteggio delle preferenze
 espresse dagli altri utenti, non da un programma che valuta i tuoi dati
 personali. Non analizziamo il tuo comportamento per decidere l'esito di una
 missione.
+Le foto e i video che mandi possono essere controllati in automatico per
+trovare contenuti vietati. Se una tua foto viene tolta cosi', l'avviso te lo
+dice, e puoi chiedere che la riguardi una persona del team.
 ''',
   );
 
@@ -353,8 +354,6 @@ missione.
     title: 'Uso di foto e video',
     body:
         '''
-$draftWarning
-
 I CONTENUTI RESTANO TUOI
 Le foto e i video che carichi restano tuoi. Non ne acquistiamo la proprieta' e
 non li vendiamo.
@@ -404,12 +403,10 @@ rimozione o chiudi l'account.
     title: 'Regolamento delle missioni',
     body:
         '''
-$draftWarning
-
 1. CHI ORGANIZZA
 Le missioni si svolgono su CRASY, che ne stabilisce le regole, raccoglie le
 partecipazioni, conta i voti e consegna i premi.
-Organizzatore: CRASY — [ragione sociale, indirizzo, P.IVA].
+Organizzatore: CRASY, P.IVA 03259440646 — info@crasyapp.com.
 
 2. APPLE E GOOGLE NON C'ENTRANO
 Apple Inc. e Google LLC non sono sponsor delle missioni e non sono coinvolte in

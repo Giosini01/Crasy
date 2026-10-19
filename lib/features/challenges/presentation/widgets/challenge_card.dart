@@ -70,12 +70,14 @@ class ChallengeCard extends ConsumerWidget {
         GestureDetector(
           onTap: onOpen,
           behavior: HitTestBehavior.opaque,
-          // Di stagione, una ragnatela nell'angolo della missione.
-          child: context.stagione.decoraMissione(
-            seme: challenge.id,
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Di stagione, un segno nell'angolo libero accanto al premio:
+              // una ragnatela, una zucca, dei pipistrelli — o niente.
+              context.stagione.decoraMissione(
+                seme: challenge.id,
+                angoloLibero: !challenge.source.isArchive,
                 Row(
                   children: [
                     // Il premio in rosso, ed e' la cosa piu' grande della
@@ -131,27 +133,27 @@ class ChallengeCard extends ConsumerWidget {
                     ],
                   ],
                 ),
-                const SizedBox(height: AppSpacing.md),
-                Text(challenge.title.toUpperCase(), style: texts.displayMedium),
-                if (challenge.brief.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.xs),
-                  // La consegna, non un riassunto: due righe bastano a dire cosa
-                  // bisogna fare, e chi ne vuole di piu' apre la challenge.
-                  Text(
-                    challenge.brief,
-                    style: texts.bodyMedium,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.md),
-                ChallengeMetaRow(challenge: challenge),
-                if (challenge.hasCreator || challenge.anonimo) ...[
-                  const SizedBox(height: AppSpacing.xs),
-                  ChallengeAuthor(challenge: challenge),
-                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(challenge.title.toUpperCase(), style: texts.displayMedium),
+              if (challenge.brief.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.xs),
+                // La consegna, non un riassunto: due righe bastano a dire cosa
+                // bisogna fare, e chi ne vuole di piu' apre la challenge.
+                Text(
+                  challenge.brief,
+                  style: texts.bodyMedium,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
-            ),
+              const SizedBox(height: AppSpacing.md),
+              ChallengeMetaRow(challenge: challenge),
+              if (challenge.hasCreator || challenge.anonimo) ...[
+                const SizedBox(height: AppSpacing.xs),
+                ChallengeAuthor(challenge: challenge),
+              ],
+            ],
           ),
         ),
         if (leader != null) ...[

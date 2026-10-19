@@ -230,34 +230,36 @@ class _Body extends ConsumerWidget {
         AppSpacing.xxl,
       ),
       children: [
-        Row(
-          children: [
-            // Come sulla scheda: si rimpicciolisce invece di spezzarsi.
-            Expanded(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  challenge.prizeLabel,
-                  maxLines: 1,
-                  softWrap: false,
-                  style: texts.displayLarge?.copyWith(color: palette.accent),
+        // Di stagione, lo stesso segno della scheda: stesso seme, stessa
+        // missione, stessa zucca.
+        context.stagione.decoraMissione(
+          seme: challenge.id,
+          angoloLibero: !challenge.source.isArchive,
+          Row(
+            children: [
+              // Come sulla scheda: si rimpicciolisce invece di spezzarsi.
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    challenge.prizeLabel,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: texts.displayLarge?.copyWith(color: palette.accent),
+                  ),
                 ),
               ),
-            ),
-            // Come sulla scheda: al posto di GLOBAL, che c'era sempre e non
-            // diceva niente, resta solo il marchio dell'archivio — e sulle
-            // istantanee non c'e' niente.
-            if (challenge.source.isArchive)
-              ArchiveBadge(challenge: challenge, compact: true),
-          ],
+              // Come sulla scheda: al posto di GLOBAL, che c'era sempre e non
+              // diceva niente, resta solo il marchio dell'archivio — e sulle
+              // istantanee non c'e' niente.
+              if (challenge.source.isArchive)
+                ArchiveBadge(challenge: challenge, compact: true),
+            ],
+          ),
         ),
         const SizedBox(height: AppSpacing.md),
-        // Di stagione, una ragnatela che pende nell'angolo del titolo.
-        context.stagione.decoraMissione(
-          Text(challenge.title.toUpperCase(), style: texts.displaySmall),
-          seme: challenge.id,
-        ),
+        Text(challenge.title.toUpperCase(), style: texts.displaySmall),
         // **Chi ha sfidato chi, e a che punto siamo.** Su una sfida mirata e'
         // la prima cosa da sapere: senza, questa e' una missione con un premio
         // a zero e un partecipante solo, cioe' una gara che non si capisce.

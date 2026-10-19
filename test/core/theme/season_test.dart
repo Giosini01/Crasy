@@ -98,15 +98,16 @@ void main() {
   });
 
   group('di stagione', () {
-    test('a ottobre l apertura e solo la fiamma', () {
+    test('a ottobre l apertura ha la luna dietro la fiamma', () {
       const fiamma = Icon(Icons.local_fire_department_rounded);
 
-      // Halloween comincia dentro l'app: all'apertura non si aggiunge niente.
+      // La luna e i pipistrelli si aggiungono attorno: la fiamma resta, e la
+      // prova qui sotto controlla che sia ancora lei.
       expect(
         SeasonSkin.perStagione(
           Season.halloween,
         ).accompagnaApertura(fiamma, misura: 100, colore: Colors.red),
-        same(fiamma),
+        isNot(same(fiamma)),
       );
     });
 
@@ -115,7 +116,7 @@ void main() {
     ) async {
       const fiamma = Icon(Icons.local_fire_department_rounded);
 
-      for (final stagione in [Season.natale]) {
+      for (final stagione in [Season.halloween, Season.natale]) {
         final pelle = SeasonSkin.perStagione(stagione);
         final attorno = pelle.accompagnaApertura(
           fiamma,
@@ -150,12 +151,56 @@ void main() {
       );
     });
 
-    test('a ottobre ogni PARTECIPA ha la sua ragnatela', () {
+    test('a ottobre i PARTECIPA non sono tutti uguali', () {
+      // **Alcuni hanno un segno, altri no.** La stessa decorazione su ogni
+      // tasto diventa una cornice e smette di farsi notare.
       final pelle = SeasonSkin.perStagione(Season.halloween);
       const tasto = Text('PARTECIPA');
+      final decorati = [
+        for (var i = 0; i < 60; i++)
+          !identical(pelle.decoraTasto(tasto, seme: 'gara-$i'), tasto),
+      ];
+
+      expect(decorati, contains(true));
+      expect(decorati, contains(false));
+    });
+
+    test('a ottobre le missioni hanno segni diversi, o nessuno', () {
+      final pelle = SeasonSkin.perStagione(Season.halloween);
+      const premio = Text('5 EUR');
+      final decorate = [
+        for (var i = 0; i < 60; i++)
+          !identical(pelle.decoraMissione(premio, seme: 'gara-$i'), premio),
+      ];
+
+      expect(decorate, contains(true));
+      expect(decorate, contains(false));
+    });
+
+    test('dove c e ARCHIVIO la missione resta pulita', () {
+      // Un disegno sopra un'etichetta la sporca: l'angolo occupato si salta.
+      final pelle = SeasonSkin.perStagione(Season.halloween);
+      const premio = Text('5 EUR');
 
       for (var i = 0; i < 60; i++) {
-        expect(pelle.decoraTasto(tasto, seme: 'gara-$i'), isNot(same(tasto)));
+        expect(
+          pelle.decoraMissione(premio, seme: 'gara-$i', angoloLibero: false),
+          same(premio),
+        );
+      }
+    });
+
+    test('il segno di una missione e sempre lo stesso', () {
+      // Lo decide l'identificativo, non il caso: scheda e pagina della
+      // missione mostrano la stessa zucca, e scorrendo non cambia.
+      final pelle = SeasonSkin.perStagione(Season.halloween);
+      const premio = Text('5 EUR');
+
+      for (var i = 0; i < 20; i++) {
+        final uno = pelle.decoraMissione(premio, seme: 'gara-$i');
+        final due = pelle.decoraMissione(premio, seme: 'gara-$i');
+
+        expect(identical(uno, premio), identical(due, premio));
       }
     });
 
