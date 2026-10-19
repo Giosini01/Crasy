@@ -11,9 +11,17 @@ import 'package:flutter/services.dart';
 /// dispositivo in tema scuro, e senza questo le icone di sistema resterebbero
 /// bianche su bianco.
 class AppBackground extends StatelessWidget {
-  const AppBackground({required this.child, super.key});
+  const AppBackground({
+    required this.child,
+    this.principale = false,
+    super.key,
+  });
 
   final Widget child;
+
+  /// Se e' la home. Di stagione, alcune cose si vedono solo li': vedi
+  /// [SeasonSkin.decora].
+  final bool principale;
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +43,7 @@ class AppBackground extends StatelessWidget {
       // torna il figlio com'e' arrivato, e questo widget e' quello di sempre.
       child: ColoredBox(
         color: palette.background,
-        child: context.stagione.decora(context, child),
+        child: context.stagione.decora(context, child, principale: principale),
       ),
     );
   }

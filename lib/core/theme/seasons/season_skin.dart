@@ -108,7 +108,14 @@ abstract class SeasonSkin {
   /// Torna [pagina] cosi' com'e' quando la stagione non ha niente da mettere.
   /// Chi decora **deve** lasciar passare i tocchi: il velo copre tutta la
   /// schermata, e uno che li ferma rende l'app inutilizzabile per due settimane.
-  Widget decora(BuildContext context, Widget pagina) => pagina;
+  ///
+  /// [principale] e' vero solo sulla home: le cose che si vedono una volta —
+  /// la luna di Halloween — stanno li', e non si ripetono su ogni pagina.
+  Widget decora(
+    BuildContext context,
+    Widget pagina, {
+    bool principale = false,
+  }) => pagina;
 }
 
 class _NessunaStagione extends SeasonSkin {

@@ -23,7 +23,7 @@ import 'package:flutter/material.dart';
 ///   che scende dal suo filo, un gatto nero, i pipistrelli, un fantasma, una
 ///   ragnatela. Quattro missioni su dieci, le altre niente — tutte decorate
 ///   sarebbe una cornice, e una cornice non si guarda.
-/// - **Sui tasti, qualche colata**: due PARTECIPA su dieci gocciolano rosso
+/// - **Sui tasti, qualche colata**: tre PARTECIPA su dieci gocciolano rosso
 ///   CRASY, il loro stesso rosso.
 ///
 /// All'apertura la fiamma sta davanti a una luna piena con i pipistrelli che le
@@ -86,8 +86,8 @@ class HalloweenSkin extends SeasonSkin {
     return _PipistrelliInGiro(giro: giro, pista: palette.line);
   }
 
-  /// **Sette PARTECIPA su dieci restano come sono.** Gli altri gocciolano — il loro
-  /// stesso rosso che cola dal bordo di sotto — o hanno una ragnatela
+  /// **Sei PARTECIPA su dieci restano come sono.** Tre gocciolano — il loro
+  /// stesso rosso che cola dal bordo di sotto — e uno ha una ragnatela
   /// nell'angolo. Sempre **fuori dalla parola**: un disegno al centro di un
   /// tasto con scritto PARTECIPA toglie leggibilita' all'unica cosa che quel
   /// tasto deve dire.
@@ -100,7 +100,7 @@ class HalloweenSkin extends SeasonSkin {
     final fase = sorte / 997;
 
     return switch ((sorte ~/ 12) % 10) {
-      0 || 1 => Stack(
+      0 || 1 || 2 => Stack(
         clipBehavior: Clip.none,
         children: [
           tasto,
@@ -119,7 +119,7 @@ class HalloweenSkin extends SeasonSkin {
           ),
         ],
       ),
-      2 => Stack(
+      3 => Stack(
         children: [
           tasto,
           Positioned.fill(
@@ -221,8 +221,16 @@ class HalloweenSkin extends SeasonSkin {
   /// fondi propri, quindi la luna e la collina si vedono attraverso, e il
   /// testo ci passa davanti. Niente copre niente, e i tocchi non la incontrano
   /// nemmeno.
+  ///
+  /// **La luna solo sulla home** ([principale]): sulle altre pagine resta la
+  /// collina in fondo, e basta. Una luna ripetuta su ogni schermata smette di
+  /// essere una cosa che si nota.
   @override
-  Widget decora(BuildContext context, Widget pagina) {
+  Widget decora(
+    BuildContext context,
+    Widget pagina, {
+    bool principale = false,
+  }) {
     final alto = MediaQuery.paddingOf(context).top;
 
     return Stack(
@@ -230,7 +238,8 @@ class HalloweenSkin extends SeasonSkin {
         Positioned.fill(
           child: _Vivo(
             periodo: const Duration(seconds: 16),
-            disegno: (tempo) => _NotteSulFondo(tempo: tempo, alto: alto),
+            disegno: (tempo) =>
+                _NotteSulFondo(tempo: tempo, alto: alto, luna: principale),
           ),
         ),
         pagina,
@@ -274,9 +283,19 @@ const _notte = Color(0xFF2B1640);
 /// Il gatto: quasi nero, con dentro un filo di viola.
 const _pelo = Color(0xFF16121D);
 
-/// La luna: panna, e piu' calda sul bordo.
-const _luna = Color(0xFFFFF4E0);
-const _lunaBordo = Color(0xFFFFDDB0);
+/// La luna: bianca, appena fredda sul bordo perche' si stacchi dal fondo.
+/// Panna con l'alone arancione sembrava un sole.
+const _luna = Color(0xFFFFFFFF);
+const _lunaBordo = Color(0xFFEDEBF4);
+
+/// Il filo attorno alla luna bianca: senza, su fondo bianco sparisce.
+const _bordoDiLuna = Color(0x386B6680);
+
+/// L'alone della luna: lavanda, freddo.
+const _chiaroDiLuna = Color(0xFFB9A8E0);
+
+/// Le stelline accanto alla falce.
+const _stella = Color(0xFF8E7CC3);
 
 /// Il nero di CRASY, per le facce e gli occhi.
 const _nero = Color(0xFF0A0A0B);
@@ -1210,13 +1229,46 @@ void _lunaPiena(Canvas canvas, Offset c, double r) {
     ..drawCircle(
       c + Offset(r * 0.3, -r * 0.25),
       r * 0.16,
-      Paint()..color = const Color(0x18C9500A),
+      Paint()..color = const Color(0x226B6680),
     )
     ..drawCircle(
       c + Offset(-r * 0.25, r * 0.3),
       r * 0.11,
-      Paint()..color = const Color(0x14C9500A),
-    );
+      Paint()..color = const Color(0x1C6B6680),
+    )
+    ..drawCircle(
+      c + Offset(-r * 0.38, -r * 0.18),
+      r * 0.07,
+      Paint()..color = const Color(0x186B6680),
+    )
+    ..drawCircle(c, r, _filo(_bordoDiLuna, 1));
+}
+
+/// **Una falce di luna**: un disco a cui un altro disco toglie un morso. Con
+/// un alone freddo e un filo di bordo, perche' su fondo bianco si veda.
+void _falceDiLuna(Canvas canvas, Offset c, double r) {
+  _alone(canvas, c, r * 2.8, _chiaroDiLuna.withAlpha(0x38));
+
+  final falce = Path.combine(
+    PathOperation.difference,
+    Path()..addOval(Rect.fromCircle(center: c, radius: r)),
+    Path()..addOval(
+      Rect.fromCircle(center: c + Offset(r * 0.55, -r * 0.3), radius: r),
+    ),
+  );
+  final rect = Rect.fromCircle(center: c, radius: r);
+
+  canvas
+    ..drawPath(
+      falce,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_luna, _lunaBordo],
+        ).createShader(rect),
+    )
+    ..drawPath(falce, _filo(_bordoDiLuna, 1));
 }
 
 /// **La luna dietro la fiamma**, con tre pipistrelli che le girano attorno.
@@ -1235,7 +1287,7 @@ class _LunaDiApertura extends CustomPainter {
     final c = size.center(Offset.zero);
     final r = misura * 0.78;
 
-    _alone(canvas, c, r * 1.9, _zucca.withAlpha(0x40));
+    _alone(canvas, c, r * 1.9, _chiaroDiLuna.withAlpha(0x55));
     _lunaPiena(canvas, c, r);
 
     for (var i = 0; i < 3; i++) {
@@ -1287,13 +1339,16 @@ class _Bagliore extends CustomPainter {
 /// leggersi uguale. La luna e' l'unica cosa piena, e sta nella fascia del
 /// marchio dove non passa niente. Poco, apposta: e' lo sfondo di ogni pagina.
 class _NotteSulFondo extends CustomPainter {
-  _NotteSulFondo({required this.tempo, required this.alto})
+  _NotteSulFondo({required this.tempo, required this.alto, required this.luna})
     : super(repaint: tempo);
 
   final Animation<double> tempo;
 
   /// Lo spazio della barra di stato, che la luna non deve coprire.
   final double alto;
+
+  /// Se disegnare la luna: solo sulla home.
+  final bool luna;
 
   /// La sagoma della collina: viola al 9%.
   static const _sagoma = Color(0x176B3FA0);
@@ -1304,23 +1359,32 @@ class _NotteSulFondo extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    // **La luna sta nella fascia del marchio**, fra il logo e i comandi: e'
-    // l'unico punto della pagina in cui non passa mai niente, perche' le
-    // missioni scorrono sotto. Piu' in basso finiva dietro la prima zucca.
-    final luna = Offset(w * 0.6, alto + 38);
-    _alone(canvas, luna, 70, _zucca.withAlpha(0x26));
-    _lunaPiena(canvas, luna, 21);
+    // **Una falce di luna, nella fascia del marchio**, fra il logo e i
+    // comandi: l'unico punto della pagina in cui non passa mai niente. Una
+    // falce e non un disco: il disco panna con l'alone arancione si leggeva
+    // come un sole.
+    if (luna) {
+      final dove = Offset(w * 0.6, alto + 38);
 
-    // Un pipistrello che le gira davanti, largo e lento.
-    for (final (fase, misura) in [(0.0, 10.0)]) {
-      final a = (t + fase) * 2 * math.pi;
+      _falceDiLuna(canvas, dove, 19);
+
+      // Un pipistrello che le gira davanti, largo e lento, e due stelline.
+      final a = t * 2 * math.pi;
       _pipistrello(
         canvas,
-        luna + Offset(math.cos(a) * 48, math.sin(a) * 14 - 2),
-        misura,
-        math.sin(2 * math.pi * (t * 22 + fase)),
+        dove + Offset(math.cos(a) * 46, math.sin(a) * 13 - 2),
+        10,
+        math.sin(2 * math.pi * t * 22),
         _notte.withAlpha(0xCC),
       );
+      for (final (dx, dy, r) in [(-40.0, -10.0, 2.2), (34.0, 14.0, 1.6)]) {
+        final luce = 0.5 + 0.5 * math.sin(2 * math.pi * (t * 3 + dx / 100));
+        canvas.drawCircle(
+          dove + Offset(dx, dy),
+          r,
+          Paint()..color = _stella.withAlpha(100 + (120 * luce).round()),
+        );
+      }
     }
 
     // La collina, in fondo.
@@ -1405,5 +1469,5 @@ class _NotteSulFondo extends CustomPainter {
 
   @override
   bool shouldRepaint(_NotteSulFondo altro) =>
-      altro.tempo != tempo || altro.alto != alto;
+      altro.tempo != tempo || altro.alto != alto || altro.luna != luna;
 }

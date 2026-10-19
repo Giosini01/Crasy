@@ -103,7 +103,11 @@ class ChristmasSkin extends SeasonSkin {
   }
 
   @override
-  Widget decora(BuildContext context, Widget pagina) {
+  Widget decora(
+    BuildContext context,
+    Widget pagina, {
+    bool principale = false,
+  }) {
     return Stack(
       children: [
         pagina,

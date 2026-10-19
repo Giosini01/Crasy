@@ -903,7 +903,10 @@ class _MissioniPronte extends StatelessWidget {
           // la propria fosse il ripiego. Cosi' invece e' un suggerimento di
           // passaggio — se ne vedono tre, non due — e il modulo resta la
           // schermata.
-          height: 84,
+          //
+          // Un filo piu' alte di prima per l'etichetta del tipo — HOT, RICORDO,
+          // SFIDA — che e' la prima cosa che si legge scorrendo.
+          height: 100,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             // Il margine laterale lo mette la schermata, ma una fila che
@@ -929,6 +932,17 @@ class _MissioniPronte extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // **Il tipo, in rosso, prima del titolo.** Chi sfoglia
+                      // cerca un umore prima di un'idea: stasera una cosa
+                      // audace, un ricordo, una sfida.
+                      Text(
+                        pronta.categoria.etichetta,
+                        style: texts.labelSmall?.copyWith(
+                          color: palette.accent,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
                       Expanded(
                         child: Text(
                           pronta.titolo,

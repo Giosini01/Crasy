@@ -1,5 +1,34 @@
+import 'package:crasy/core/theme/seasons/season.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
+
+/// **Di che pasta e' una missione pronta**: si legge sulla scheda, in rosso,
+/// prima del titolo.
+///
+/// Chi sfoglia cerca un umore prima di un'idea — stasera voglio una cosa
+/// audace, una cosa da ridere, un ricordo — e l'etichetta gli dice dove
+/// fermarsi senza leggere tutto.
+enum CategoriaMissione {
+  /// Audaci, da far colpo. **Mai sessuali**: sguardi, appuntamenti,
+  /// dichiarazioni. Il filtro e le regole di CRASY restano quelli di sempre.
+  hot('HOT'),
+
+  /// Dalla galleria: una cosa successa, che adesso non si puo' rifare.
+  ricordo('RICORDO'),
+
+  /// Si fa adesso, dove sei, con quello che hai intorno.
+  adesso('ADESSO'),
+
+  /// Toste: resistere, riuscire, non ridere. Mai pericolose.
+  sfida('SFIDA'),
+
+  /// Solo nella stagione di Halloween, e allora in testa alla fila.
+  halloween('HALLOWEEN');
+
+  const CategoriaMissione(this.etichetta);
+
+  final String etichetta;
+}
 
 /// **Una missione già scritta, da lanciare con un tocco.**
 ///
@@ -13,28 +42,29 @@ import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 /// spettatori, e non si risolve abbassando il prezzo: chi non ha un'idea
 /// continua a non averla anche a cinquanta centesimi.
 ///
-/// Queste tolgono l'invenzione. Si sfoglia, se ne trova una che fa ridere, si
-/// tocca, e il modulo è già compilato: restano il premio e il tasto. Il foglio
-/// bianco diventa un menù.
-///
-/// **Chi un'idea ce l'ha continua a scriversela**: i campi restano quelli, si
-/// scorre oltre e si batte la propria. Qui si smette solo di chiedere a tutti
-/// di essere autori.
+/// Queste tolgono l'invenzione. Si sfoglia, se ne trova una che fa venire
+/// voglia, si tocca, e il modulo è già compilato: restano il premio e il
+/// tasto. Il foglio bianco diventa un menù.
 ///
 /// ## Come sono scelte
 ///
-/// Tre regole, che sono le stesse che la riga di consiglio dà a chi scrive:
+/// **Devono far dire "questa la lancio io".** Non "fotografa la scrivania":
+/// una cosa che si vuole vedere fare agli altri. Quindi:
 ///
-/// - **si fanno adesso**, con quello che uno ha intorno. Una missione che
-///   chiede di andare da qualche parte non la fa nessuno prima di stasera;
-/// - **sono un po' imbarazzanti, non difficili**. Chi guarda vuole vedere
-///   qualcuno che ci ha provato, non qualcuno che è bravo;
+/// - **un po' imbarazzanti, mai difficili**. Chi guarda vuole vedere qualcuno
+///   che ci ha provato, non qualcuno che è bravo;
 /// - **si capiscono dal titolo**, senza aprire. Spesso è l'unica cosa che si
-///   legge.
+///   legge;
+/// - **le hot sono audaci, non sessuali**, e le sfide sono toste, non
+///   pericolose: passano tutte il filtro dei contenuti, e c'e' una prova che
+///   lo controlla;
+/// - **i ricordi sono da grandi**: niente foto di quando si era bambini, che
+///   in un'app per maggiorenni sono foto di minori.
 class MissionePronta {
   const MissionePronta({
     required this.titolo,
     required this.consegna,
+    required this.categoria,
     this.mediaKind = MediaKind.photo,
     this.source = ChallengeSource.instant,
   });
@@ -50,54 +80,80 @@ class MissionePronta {
   /// La consegna: cosa deve fare chi partecipa, in una riga.
   final String consegna;
 
+  final CategoriaMissione categoria;
+
   final MediaKind mediaKind;
 
   /// Quasi tutte sono **istantanee**, e non è una svista: è quello che CRASY
-  /// è. Le poche d'archivio ci sono perché chiedono una cosa che adesso non si
-  /// può fare — una foto di dieci anni fa non si scatta.
+  /// è. Quelle d'archivio chiedono una cosa che adesso non si può fare — una
+  /// foto di una vacanza andata male non si scatta oggi.
   final ChallengeSource source;
 
   /// **Quelle di oggi: le stesse per tutti, diverse domani.**
   ///
   /// L'elenco e' sempre quello, cambia l'ordine — e cambia **una volta al
-  /// giorno**, non a ogni apertura.
+  /// giorno**, non a ogni apertura. Un ordine che cambia a ogni apertura e' un
+  /// elenco che non si impara mai; e due amici che si parlano devono aver visto
+  /// la stessa cosa: *"hai visto quella del limone?"* deve voler dire qualcosa.
   ///
-  /// ## Perche' non a caso ogni volta
+  /// ## A turno, una per tipo
   ///
-  /// Un ordine che cambia a ogni apertura e' un elenco che non si impara mai:
-  /// uno vede una missione, esce per pensarci, rientra e non la ritrova piu'.
-  /// E dentro la stessa schermata sarebbe peggio ancora — i campi qui sotto si
-  /// riscrivono a ogni lettera battuta, e la fila si rimescolerebbe sotto le
-  /// dita.
+  /// Le prime tre sono le uniche che si vedono senza scorrere, e devono essere
+  /// **diverse**: una hot, un ricordo, una sfida — non tre foto del frigo. Le
+  /// missioni si mescolano dentro ogni tipo, i tipi si alternano, e quale tipo
+  /// apre la fila cambia anche lui col giorno.
   ///
-  /// ## Perche' le stesse per tutti
-  ///
-  /// Perche' due amici che si parlano devono aver visto la stessa cosa. *"Hai
-  /// visto quella del portafoglio?"* deve voler dire qualcosa; se ognuno
-  /// vedesse un ordine suo, quella frase non starebbe in piedi.
-  ///
-  /// ## Perche' cambiarlo
-  ///
-  /// Le prime tre sono le uniche che si vedono senza scorrere, e se sono
-  /// sempre quelle, le altre ventisette non le guarda nessuno — e chi lancia
-  /// due volte in una settimana si ritrova davanti lo stesso menu di prima.
+  /// **Nella stagione di Halloween** quelle di Halloween entrano in testa: e'
+  /// il momento in cui una missione col costume la vuole lanciare chiunque.
   static List<MissionePronta> diOggi([DateTime? quando]) {
     final oggi = quando ?? DateTime.now();
 
     // Il giorno come un numero solo. Non l'ora: dentro la stessa giornata
     // l'ordine non si deve muovere.
     final seme = oggi.year * 10000 + oggi.month * 100 + oggi.day;
+    final halloween = Season.accese && Season.of(oggi) == Season.halloween;
 
-    final mescolate = [...tutte];
+    final perTipo = <CategoriaMissione, List<MissionePronta>>{};
 
-    // Un rimescolamento che dipende solo dal giorno: lo stesso giorno da' lo
-    // stesso ordine su qualunque telefono, senza che nessuno debba metterselo
-    // d'accordo con nessuno.
-    mescolate.sort(
-      (una, altra) => _posto(una, seme).compareTo(_posto(altra, seme)),
-    );
+    for (final missione in [...tutte, if (halloween) ...diHalloween]) {
+      perTipo.putIfAbsent(missione.categoria, () => []).add(missione);
+    }
 
-    return mescolate;
+    for (final elenco in perTipo.values) {
+      elenco.sort(
+        (una, altra) => _posto(una, seme).compareTo(_posto(altra, seme)),
+      );
+    }
+
+    // L'ordine dei tipi: Halloween davanti quando c'e', gli altri ruotano col
+    // giorno.
+    final tipi = [
+      for (final tipo in CategoriaMissione.values)
+        if (tipo != CategoriaMissione.halloween && perTipo.containsKey(tipo))
+          tipo,
+    ];
+    final giro = seme % tipi.length;
+    final ordine = [
+      if (perTipo.containsKey(CategoriaMissione.halloween))
+        CategoriaMissione.halloween,
+      ...tipi.skip(giro),
+      ...tipi.take(giro),
+    ];
+
+    final fila = <MissionePronta>[];
+    final quante = perTipo.values.fold<int>(0, (n, e) => n + e.length);
+
+    for (var turno = 0; fila.length < quante; turno++) {
+      for (final tipo in ordine) {
+        final elenco = perTipo[tipo]!;
+
+        if (turno < elenco.length) {
+          fila.add(elenco[turno]);
+        }
+      }
+    }
+
+    return fila;
   }
 
   /// Il posto di una missione nell'ordine di un certo giorno.
@@ -116,75 +172,125 @@ class MissionePronta {
     return somma;
   }
 
-  /// L'elenco che si vede quando si apre il lancio.
-  ///
-  /// L'ordine non è casuale: in cima quelle che si fanno **senza alzarsi dal
-  /// divano**, perché la prima che si legge decide se si continua a scorrere o
-  /// si chiude.
+  /// Le missioni di tutto l'anno.
   static const List<MissionePronta> tutte = [
+    // --- HOT: audaci, da far colpo. Mai sessuali. ---------------------------
     MissionePronta(
-      titolo: 'COM\'È MESSA LA TUA SCRIVANIA',
+      titolo: 'IL TUO SGUARDO DA 10 SU 10',
       consegna:
-          'Fotografa la scrivania dove sei adesso, così com\'è. Vietato '
-          'sistemare niente prima.',
+          'Un selfie con lo sguardo che usi quando vuoi far colpo. Niente '
+          'filtri: deve bastare la faccia.',
+      categoria: CategoriaMissione.hot,
     ),
     MissionePronta(
-      titolo: 'COSA C\'È NEL TUO FRIGO',
-      consegna: 'Apri il frigo e scatta. Vince il più disperato.',
+      titolo: 'OUTFIT DA PRIMO APPUNTAMENTO',
+      consegna:
+          'Vestiti come se stasera avessi l\'appuntamento della vita e '
+          'scatta allo specchio. Vince chi ci porteremmo a cena.',
+      categoria: CategoriaMissione.hot,
     ),
     MissionePronta(
-      titolo: 'LA TUA FACCIA ADESSO',
+      titolo: 'LA TUA FRASE PER RIMORCHIARE',
       consegna:
-          'Un selfie in questo momento, com\'è venuto. Niente filtri e '
-          'niente secondo tentativo.',
-    ),
-    MissionePronta(
-      titolo: 'LA SCARPA PIÙ DISTRUTTA CHE HAI',
-      consegna:
-          'Vai a prenderla, mettila a terra e fotografala. Più è messa male '
-          'meglio è.',
-    ),
-    MissionePronta(
-      titolo: 'IL TUO ANIMALE MENTRE FA UNA COSA STUPIDA',
-      consegna:
-          'Aspetta il momento e scatta. Se non hai un animale, va bene anche '
-          'quello di qualcun altro.',
-    ),
-    MissionePronta(
-      titolo: 'COME SEI VESTITO IN QUESTO MOMENTO',
-      consegna:
-          'Una foto di quello che hai addosso adesso. Non vale cambiarsi, e '
-          'si vede.',
-    ),
-    MissionePronta(
-      titolo: 'VESTITI COME TUA MADRE',
-      consegna:
-          'Mettiti addosso qualcosa che metterebbe lei e fatti una foto. '
-          'L\'imitazione conta più dei vestiti.',
-    ),
-    MissionePronta(
-      titolo: 'BALLA PER DIECI SECONDI',
-      consegna:
-          'Un video dove balli, dove sei adesso. Più è fuori luogo il posto, '
-          'meglio è.',
+          'Dilla alla telecamera, guardando dritto, convinto. Vince quella '
+          'che funzionerebbe davvero, o quella che fa più pena.',
+      categoria: CategoriaMissione.hot,
       mediaKind: MediaKind.video,
     ),
     MissionePronta(
-      titolo: 'IMITA QUALCUNO CHE CONOSCIAMO TUTTI',
+      titolo: 'DICHIARATI ALLA TELECAMERA',
       consegna:
-          'Dieci secondi di imitazione. Non dire chi è: si capisce o non si '
-          'capisce.',
+          'Dieci secondi di dichiarazione d\'amore, come nel finale di un '
+          'film. A chi, lo sai solo tu.',
+      categoria: CategoriaMissione.hot,
       mediaKind: MediaKind.video,
     ),
+    MissionePronta(
+      titolo: 'LA POSA DA COPERTINA',
+      consegna:
+          'Sei sulla copertina di una rivista, dove sei adesso. Serio, '
+          'convinto, fino in fondo. Ridere è vietato.',
+      categoria: CategoriaMissione.hot,
+    ),
+    MissionePronta(
+      titolo: 'IL TUO BALLO PIÙ AUDACE',
+      consegna:
+          'Dieci secondi del passo che tiri fuori solo alle feste, quando '
+          'pensi che nessuno guardi.',
+      categoria: CategoriaMissione.hot,
+      mediaKind: MediaKind.video,
+    ),
+    MissionePronta(
+      titolo: 'LA FOTO CHE TI HA FATTO CONQUISTARE QUALCUNO',
+      consegna:
+          'Quella che ha funzionato. Nella foto ci sei solo tu, e il resto '
+          'della storia lo immaginiamo noi.',
+      categoria: CategoriaMissione.hot,
+      source: ChallengeSource.archive,
+    ),
+    MissionePronta(
+      titolo: 'IL MESSAGGIO CHE TI HA FATTO ARROSSIRE',
+      consegna:
+          'Lo screenshot, con nomi e foto coperti. Si deve capire perché '
+          'sei arrossito.',
+      categoria: CategoriaMissione.hot,
+      source: ChallengeSource.archive,
+    ),
+
+    // --- RICORDO: dalla galleria, e da grandi. ------------------------------
     MissionePronta(
       titolo: 'LA FOTO PIÙ BRUTTA CHE HAI IN GALLERIA',
       consegna:
           'Cercala davvero. Quella che non hai mai fatto vedere a nessuno.',
+      categoria: CategoriaMissione.ricordo,
       source: ChallengeSource.archive,
     ),
     MissionePronta(
-      titolo: 'TU, DIECI ANNI FA',
-      consegna: 'Una foto vecchia di te. Più è imbarazzante più vale.',
+      titolo: 'L\'ULTIMA FOTO DELLA TUA GALLERIA',
+      consegna:
+          'Apri la galleria e manda l\'ultima, qualunque sia. Niente scelte, '
+          'niente scuse.',
+      categoria: CategoriaMissione.ricordo,
+      source: ChallengeSource.archive,
+    ),
+    MissionePronta(
+      titolo: 'LA FOTO DELLE 4 DI NOTTE',
+      consegna:
+          'Quella scattata a fine serata, che non ricordi di aver fatto. Più '
+          'è senza senso, più vale.',
+      categoria: CategoriaMissione.ricordo,
+      source: ChallengeSource.archive,
+    ),
+    MissionePronta(
+      titolo: 'IL TAGLIO DI CAPELLI CHE RIMPIANGI',
+      consegna:
+          'Una foto di te con il taglio peggiore degli ultimi anni. '
+          'Confessa.',
+      categoria: CategoriaMissione.ricordo,
+      source: ChallengeSource.archive,
+    ),
+    MissionePronta(
+      titolo: 'IL PIATTO PIÙ BRUTTO CHE HAI CUCINATO',
+      consegna:
+          'Quello che hai avuto il coraggio di fotografare. Più fa paura, '
+          'meglio è.',
+      categoria: CategoriaMissione.ricordo,
+      source: ChallengeSource.archive,
+    ),
+    MissionePronta(
+      titolo: 'LA VACANZA ANDATA MALISSIMO',
+      consegna:
+          'Una foto sola che racconta il disastro senza bisogno di '
+          'spiegazioni.',
+      categoria: CategoriaMissione.ricordo,
+      source: ChallengeSource.archive,
+    ),
+    MissionePronta(
+      titolo: 'LA FOTO CHE NON HAI MAI POSTATO',
+      consegna:
+          'Quella che ti piace da morire ma non hai mai avuto il coraggio '
+          'di mettere online. È il momento.',
+      categoria: CategoriaMissione.ricordo,
       source: ChallengeSource.archive,
     ),
     MissionePronta(
@@ -192,7 +298,162 @@ class MissionePronta {
       consegna:
           'Una foto fatta da te, non presa da internet. Si vede la '
           'differenza.',
+      categoria: CategoriaMissione.ricordo,
       source: ChallengeSource.archive,
+    ),
+
+    // --- ADESSO: dove sei, con quello che hai intorno. ----------------------
+    MissionePronta(
+      titolo: 'LA TUA FACCIA ADESSO',
+      consegna:
+          'Un selfie in questo momento, com\'è venuto. Niente filtri e '
+          'niente secondo tentativo.',
+      categoria: CategoriaMissione.adesso,
+    ),
+    MissionePronta(
+      titolo: 'COSA C\'È NEL TUO FRIGO',
+      consegna: 'Apri il frigo e scatta. Vince il più disperato.',
+      categoria: CategoriaMissione.adesso,
+    ),
+    MissionePronta(
+      titolo: 'IL TUO LETTO, ADESSO',
+      consegna:
+          'Com\'è in questo momento, senza toccare niente. Si vede chi '
+          'ha sistemato.',
+      categoria: CategoriaMissione.adesso,
+    ),
+    MissionePronta(
+      titolo: 'LA VISTA DALLA TUA FINESTRA',
+      consegna: 'Apri e scatta, adesso. Vince quella che nessuno si aspetta.',
+      categoria: CategoriaMissione.adesso,
+    ),
+    MissionePronta(
+      titolo: 'LA COSA PIÙ STRANA CHE HAI IN BORSA',
+      consegna:
+          'Svuota borsa, zaino o tasche e fotografa il pezzo più assurdo. '
+          'Spiegarlo non è obbligatorio.',
+      categoria: CategoriaMissione.adesso,
+    ),
+    MissionePronta(
+      titolo: 'IL TUO ANIMALE MENTRE FA UNA COSA STUPIDA',
+      consegna:
+          'Aspetta il momento e scatta. Se non hai un animale, va bene anche '
+          'quello di qualcun altro.',
+      categoria: CategoriaMissione.adesso,
+    ),
+    MissionePronta(
+      titolo: 'IMITA QUALCUNO CHE CONOSCIAMO TUTTI',
+      consegna:
+          'Dieci secondi di imitazione. Non dire chi è: si capisce o non si '
+          'capisce.',
+      categoria: CategoriaMissione.adesso,
+      mediaKind: MediaKind.video,
+    ),
+    MissionePronta(
+      titolo: 'BALLA PER DIECI SECONDI',
+      consegna:
+          'Un video dove balli, dove sei adesso. Più è fuori luogo il posto, '
+          'meglio è.',
+      categoria: CategoriaMissione.adesso,
+      mediaKind: MediaKind.video,
+    ),
+
+    // --- SFIDA: toste, mai pericolose. -------------------------------------
+    MissionePronta(
+      titolo: 'MANGIA UN LIMONE SENZA SMORFIE',
+      consegna:
+          'Uno spicchio intero, guardando la telecamera. Vince chi tiene la '
+          'faccia più ferma.',
+      categoria: CategoriaMissione.sfida,
+      mediaKind: MediaKind.video,
+    ),
+    MissionePronta(
+      titolo: 'UN MINUTO DI PLANK',
+      consegna:
+          'Un video solo, senza tagli, con il cronometro in vista. Chi molla '
+          'prima perde anche la faccia.',
+      categoria: CategoriaMissione.sfida,
+      mediaKind: MediaKind.video,
+    ),
+    MissionePronta(
+      titolo: 'FLESSIONI IN TRENTA SECONDI',
+      consegna:
+          'Contale ad alta voce in un video solo. Vince chi ne fa di più, o '
+          'chi le fa peggio.',
+      categoria: CategoriaMissione.sfida,
+      mediaKind: MediaKind.video,
+    ),
+    MissionePronta(
+      titolo: 'DIECI SECONDI SENZA RIDERE',
+      consegna:
+          'Guarda la telecamera mentre qualcuno fuori campo prova a farti '
+          'ridere. Se cedi, si vede.',
+      categoria: CategoriaMissione.sfida,
+      mediaKind: MediaKind.video,
+    ),
+    MissionePronta(
+      titolo: 'CANTA A SQUARCIAGOLA DOVE SEI',
+      consegna:
+          'Il ritornello della tua canzone preferita, a tutto volume, nel '
+          'posto dove ti trovi adesso.',
+      categoria: CategoriaMissione.sfida,
+      mediaKind: MediaKind.video,
+    ),
+    MissionePronta(
+      titolo: 'IL TUO TALENTO INUTILE',
+      consegna:
+          'Dieci secondi della cosa assurda che sai fare solo tu. Più è '
+          'inutile, più vale.',
+      categoria: CategoriaMissione.sfida,
+      mediaKind: MediaKind.video,
+    ),
+    MissionePronta(
+      titolo: 'IL TRUCCO DI MAGIA PIÙ SCARSO',
+      consegna:
+          'Tutto in un video, senza tagli. Più si vede il trucco, meglio è.',
+      categoria: CategoriaMissione.sfida,
+      mediaKind: MediaKind.video,
+    ),
+    MissionePronta(
+      titolo: 'IL TUO NOME A OCCHI CHIUSI',
+      consegna:
+          'Scrivilo su un foglio a occhi chiusi, con la mano sbagliata, e '
+          'fotografa il risultato.',
+      categoria: CategoriaMissione.sfida,
+    ),
+  ];
+
+  /// **Le missioni di Halloween**: si aggiungono in testa alla fila solo nella
+  /// stagione. Vedi [diOggi].
+  static const List<MissionePronta> diHalloween = [
+    MissionePronta(
+      titolo: 'IL TUO COSTUME DI HALLOWEEN',
+      consegna:
+          'Dalla testa ai piedi. Fatto in casa vale doppio, comprato al '
+          'supermercato vale lo stesso se lo porti con convinzione.',
+      categoria: CategoriaMissione.halloween,
+    ),
+    MissionePronta(
+      titolo: 'LA TUA FACCIA DA ZOMBIE',
+      consegna:
+          'Trucco, luci, smorfia: hai cinque minuti per fare paura con '
+          'quello che hai in casa.',
+      categoria: CategoriaMissione.halloween,
+    ),
+    MissionePronta(
+      titolo: 'LA ZUCCA INTAGLIATA PIÙ BRUTTA',
+      consegna:
+          'Intagliala e fotografala accesa, al buio. Più fa ridere invece '
+          'di fare paura, più vale.',
+      categoria: CategoriaMissione.halloween,
+    ),
+    MissionePronta(
+      titolo: 'L\'URLO DA FILM DELL\'ORRORE',
+      consegna:
+          'Dieci secondi di urlo da protagonista di un horror, dove sei '
+          'adesso. Vince chi ci fa saltare dalla sedia.',
+      categoria: CategoriaMissione.halloween,
+      mediaKind: MediaKind.video,
     ),
   ];
 }
