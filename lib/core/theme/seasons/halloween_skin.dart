@@ -5,7 +5,7 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/seasons/season_skin.dart';
 import 'package:flutter/material.dart';
 
-/// **Halloween: la notte dietro, i mostri accanto ai premi.**
+/// **Halloween: i mostri accanto ai premi, la mezza luna all'apertura.**
 ///
 /// ## I colori dell'app non si toccano, quelli dei disegni si'
 ///
@@ -14,20 +14,22 @@ import 'package:flutter/material.dart';
 /// caratteri sono quelli di sempre. L'arancione delle zucche, il viola della
 /// notte e il giallo delle candele stanno **solo dentro i disegni**.
 ///
-/// ## Tre livelli
+/// ## Dove sta
 ///
-/// - **Dietro tutto, la notte**: una luna con un pipistrello accanto al logo e
-///   una collina con l'albero storto e le lapidi in fondo alla pagina. Chiari abbastanza da passarci sopra con il testo: il contenuto
-///   scorre davanti, e si legge come sempre.
 /// - **Accanto al premio, un personaggio**: una zucca accesa, una vedova nera
 ///   che scende dal suo filo, un gatto nero, i pipistrelli, un fantasma, una
 ///   ragnatela. Quattro missioni su dieci, le altre niente — tutte decorate
 ///   sarebbe una cornice, e una cornice non si guarda.
-/// - **Sui tasti, qualche colata**: tre PARTECIPA su dieci gocciolano rosso
-///   CRASY, il loro stesso rosso.
+/// - **Sui tasti, ogni tanto una ragnatela**: uno su dieci.
 ///
-/// All'apertura la fiamma sta davanti a una luna piena con i pipistrelli che le
-/// girano attorno; nell'attesa, al posto dell'arco, girano tre pipistrelli.
+/// All'apertura la fiamma sta davanti a una mezza luna bianca, con i
+/// pipistrelli che le girano attorno; nell'attesa, al posto dell'arco, girano
+/// tre pipistrelli.
+///
+/// **Niente sfondo dietro le pagine.** C'e' stato: una luna e una collina con
+/// le lapidi, ferme dietro il contenuto. Ferme davano fastidio, e aprendo la
+/// tastiera la pagina si accorcia e la collina saliva con lei. Le pagine sono
+/// quelle di sempre.
 class HalloweenSkin extends SeasonSkin {
   const HalloweenSkin();
 
@@ -86,11 +88,10 @@ class HalloweenSkin extends SeasonSkin {
     return _PipistrelliInGiro(giro: giro, pista: palette.line);
   }
 
-  /// **Sei PARTECIPA su dieci restano come sono.** Tre gocciolano — il loro
-  /// stesso rosso che cola dal bordo di sotto — e uno ha una ragnatela
-  /// nell'angolo. Sempre **fuori dalla parola**: un disegno al centro di un
-  /// tasto con scritto PARTECIPA toglie leggibilita' all'unica cosa che quel
-  /// tasto deve dire.
+  /// **Uno su dieci ha una ragnatela nell'angolo**, gli altri restano come
+  /// sono. Sempre **fuori dalla parola**: un disegno al centro di un tasto con
+  /// scritto PARTECIPA toglie leggibilita' all'unica cosa che quel tasto deve
+  /// dire. Le colate rosse che c'erano sono state tolte.
   ///
   /// Un seme diverso da quello della missione, cosi' tasto e missione non vanno
   /// sempre in coppia.
@@ -100,25 +101,6 @@ class HalloweenSkin extends SeasonSkin {
     final fase = sorte / 997;
 
     return switch ((sorte ~/ 12) % 10) {
-      0 || 1 || 2 => Stack(
-        clipBehavior: Clip.none,
-        children: [
-          tasto,
-          // Le colate escono dal bordo di sotto e ci scendono oltre: il tasto
-          // resta della sua misura, e chi tocca tocca il tasto.
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: -24,
-            height: 28,
-            child: _Vivo(
-              periodo: const Duration(milliseconds: 5200),
-              fase: fase,
-              disegno: (tempo) => _Colate(tempo: tempo, sorte: sorte),
-            ),
-          ),
-        ],
-      ),
       3 => Stack(
         children: [
           tasto,
@@ -215,38 +197,6 @@ class HalloweenSkin extends SeasonSkin {
     );
   }
 
-  /// **La notte, dietro la pagina.**
-  ///
-  /// Sta **sotto** il contenuto, non sopra: le schermate di CRASY non hanno
-  /// fondi propri, quindi la luna e la collina si vedono attraverso, e il
-  /// testo ci passa davanti. Niente copre niente, e i tocchi non la incontrano
-  /// nemmeno.
-  ///
-  /// **La luna solo sulla home** ([principale]): sulle altre pagine resta la
-  /// collina in fondo, e basta. Una luna ripetuta su ogni schermata smette di
-  /// essere una cosa che si nota.
-  @override
-  Widget decora(
-    BuildContext context,
-    Widget pagina, {
-    bool principale = false,
-  }) {
-    final alto = MediaQuery.paddingOf(context).top;
-
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: _Vivo(
-            periodo: const Duration(seconds: 16),
-            disegno: (tempo) =>
-                _NotteSulFondo(tempo: tempo, alto: alto, luna: principale),
-          ),
-        ),
-        pagina,
-      ],
-    );
-  }
-
   /// Un numero stabile a partire da una parola.
   ///
   /// `hashCode` di una stringa non e' garantito uguale fra due esecuzioni, e un
@@ -293,9 +243,6 @@ const _bordoDiLuna = Color(0x386B6680);
 
 /// L'alone della luna: lavanda, freddo.
 const _chiaroDiLuna = Color(0xFFB9A8E0);
-
-/// Le stelline accanto alla falce.
-const _stella = Color(0xFF8E7CC3);
 
 /// Il nero di CRASY, per le facce e gli occhi.
 const _nero = Color(0xFF0A0A0B);
@@ -1122,127 +1069,8 @@ class _RagnatelaSulTasto extends CustomPainter {
 }
 
 // ---------------------------------------------------------------------------
-// Le colate sui tasti
-// ---------------------------------------------------------------------------
-
-/// **Il rosso del tasto che cola dal bordo di sotto.**
-///
-/// E' lo stesso rosso del tasto, quindi le colate sembrano il tasto che si
-/// scioglie e non un disegno appoggiato. Quattro o cinque, lunghe diverse,
-/// che si allungano piano; dalla prima ogni tanto si stacca una goccia.
-class _Colate extends CustomPainter {
-  _Colate({required this.tempo, required this.sorte}) : super(repaint: tempo);
-
-  final Animation<double> tempo;
-  final int sorte;
-
-  static const _rosso = AppColors.crasyRedDeep;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final t = tempo.value;
-    final caso = math.Random(sorte);
-    final quante = 4 + caso.nextInt(2);
-    // Il bordo del tasto sta 4 punti sotto il bordo alto di questo disegno.
-    const bordo = 4.0;
-    final pieno = Paint()..color = _rosso;
-    final lucido = Paint()..color = const Color(0x55FFFFFF);
-
-    for (var i = 0; i < quante; i++) {
-      // Lontane dagli angoli tondi del tasto, e non a passo fisso.
-      final x =
-          20 +
-          (size.width - 40) * ((i + 0.2 + caso.nextDouble() * 0.6) / quante);
-      final larga = 6.0 + caso.nextDouble() * 5;
-      final massima = 8.0 + caso.nextDouble() * 12;
-      final ritmo = caso.nextDouble();
-      final lunga =
-          bordo + massima * (0.75 + 0.25 * math.sin(2 * math.pi * (t + ritmo)));
-
-      final colata = Path()
-        ..moveTo(x - larga * 1.1, 0)
-        ..quadraticBezierTo(
-          x - larga / 2,
-          bordo,
-          x - larga / 2,
-          bordo + larga * 0.6,
-        )
-        ..lineTo(x - larga / 2, lunga - larga / 2)
-        ..arcToPoint(
-          Offset(x + larga / 2, lunga - larga / 2),
-          radius: Radius.circular(larga / 2),
-          clockwise: false,
-        )
-        ..lineTo(x + larga / 2, bordo + larga * 0.6)
-        ..quadraticBezierTo(x + larga / 2, bordo, x + larga * 1.1, 0)
-        ..close();
-
-      canvas
-        ..drawPath(colata, pieno)
-        // La goccia in fondo e' un filo piu' grossa: il peso la tira giu'.
-        ..drawCircle(Offset(x, lunga - larga / 2), larga * 0.58, pieno)
-        ..drawRRect(
-          RRect.fromLTRBR(
-            x - larga * 0.3,
-            bordo + 2,
-            x - larga * 0.1,
-            lunga - larga * 0.7,
-            const Radius.circular(2),
-          ),
-          lucido,
-        );
-
-      // Dalla prima si stacca una goccia, nella seconda meta' del giro.
-      if (i == 0 && t > 0.55) {
-        final caduta = (t - 0.55) / 0.45;
-        final y = lunga + 3 + caduta * 16;
-        canvas.drawCircle(
-          Offset(x, y),
-          larga * 0.42,
-          Paint()..color = _rosso.withAlpha((255 * (1 - caduta)).round()),
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_Colate altro) => altro.tempo != tempo;
-}
-
-// ---------------------------------------------------------------------------
 // L'apertura e l'attesa
 // ---------------------------------------------------------------------------
-
-/// Una luna piena: panna al centro, piu' calda sul bordo, con due crateri.
-void _lunaPiena(Canvas canvas, Offset c, double r) {
-  final rect = Rect.fromCircle(center: c, radius: r);
-  canvas
-    ..drawCircle(
-      c,
-      r,
-      Paint()
-        ..shader = const RadialGradient(
-          center: Alignment(-0.25, -0.3),
-          colors: [_luna, _lunaBordo],
-        ).createShader(rect),
-    )
-    ..drawCircle(
-      c + Offset(r * 0.3, -r * 0.25),
-      r * 0.16,
-      Paint()..color = const Color(0x226B6680),
-    )
-    ..drawCircle(
-      c + Offset(-r * 0.25, r * 0.3),
-      r * 0.11,
-      Paint()..color = const Color(0x1C6B6680),
-    )
-    ..drawCircle(
-      c + Offset(-r * 0.38, -r * 0.18),
-      r * 0.07,
-      Paint()..color = const Color(0x186B6680),
-    )
-    ..drawCircle(c, r, _filo(_bordoDiLuna, 1));
-}
 
 /// **Una falce di luna**: un disco a cui un altro disco toglie un morso. Con
 /// un alone freddo e un filo di bordo, perche' su fondo bianco si veda.
@@ -1271,7 +1099,9 @@ void _falceDiLuna(Canvas canvas, Offset c, double r) {
     ..drawPath(falce, _filo(_bordoDiLuna, 1));
 }
 
-/// **La luna dietro la fiamma**, con tre pipistrelli che le girano attorno.
+/// **La mezza luna dietro la fiamma**, con tre pipistrelli che le girano
+/// attorno. La falce e' spostata a sinistra, cosi' la fiamma sta nel suo
+/// incavo invece di coprirla.
 class _LunaDiApertura extends CustomPainter {
   _LunaDiApertura({required this.tempo, required this.misura})
     : super(repaint: tempo);
@@ -1285,10 +1115,9 @@ class _LunaDiApertura extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final t = tempo.value;
     final c = size.center(Offset.zero);
-    final r = misura * 0.78;
+    final r = misura * 0.82;
 
-    _alone(canvas, c, r * 1.9, _chiaroDiLuna.withAlpha(0x55));
-    _lunaPiena(canvas, c, r);
+    _falceDiLuna(canvas, c + Offset(-r * 0.32, r * 0.08), r);
 
     for (var i = 0; i < 3; i++) {
       final angolo = (t + i / 3) * 2 * math.pi;
@@ -1326,148 +1155,4 @@ class _Bagliore extends CustomPainter {
 
   @override
   bool shouldRepaint(_Bagliore altro) => false;
-}
-
-// ---------------------------------------------------------------------------
-// La notte dietro la pagina
-// ---------------------------------------------------------------------------
-
-/// **La notte sul fondo**: la luna con un pipistrello fra il logo e i comandi,
-/// e in fondo una collina con l'albero storto e le lapidi.
-///
-/// La collina e' viola chiarissimo — sta dietro al testo e il testo deve
-/// leggersi uguale. La luna e' l'unica cosa piena, e sta nella fascia del
-/// marchio dove non passa niente. Poco, apposta: e' lo sfondo di ogni pagina.
-class _NotteSulFondo extends CustomPainter {
-  _NotteSulFondo({required this.tempo, required this.alto, required this.luna})
-    : super(repaint: tempo);
-
-  final Animation<double> tempo;
-
-  /// Lo spazio della barra di stato, che la luna non deve coprire.
-  final double alto;
-
-  /// Se disegnare la luna: solo sulla home.
-  final bool luna;
-
-  /// La sagoma della collina: viola al 9%.
-  static const _sagoma = Color(0x176B3FA0);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final t = tempo.value;
-    final w = size.width;
-    final h = size.height;
-
-    // **Una falce di luna, nella fascia del marchio**, fra il logo e i
-    // comandi: l'unico punto della pagina in cui non passa mai niente. Una
-    // falce e non un disco: il disco panna con l'alone arancione si leggeva
-    // come un sole.
-    if (luna) {
-      final dove = Offset(w * 0.6, alto + 38);
-
-      _falceDiLuna(canvas, dove, 19);
-
-      // Un pipistrello che le gira davanti, largo e lento, e due stelline.
-      final a = t * 2 * math.pi;
-      _pipistrello(
-        canvas,
-        dove + Offset(math.cos(a) * 46, math.sin(a) * 13 - 2),
-        10,
-        math.sin(2 * math.pi * t * 22),
-        _notte.withAlpha(0xCC),
-      );
-      for (final (dx, dy, r) in [(-40.0, -10.0, 2.2), (34.0, 14.0, 1.6)]) {
-        final luce = 0.5 + 0.5 * math.sin(2 * math.pi * (t * 3 + dx / 100));
-        canvas.drawCircle(
-          dove + Offset(dx, dy),
-          r,
-          Paint()..color = _stella.withAlpha(100 + (120 * luce).round()),
-        );
-      }
-    }
-
-    // La collina, in fondo.
-    final sagoma = Paint()..color = _sagoma;
-    canvas.drawPath(
-      Path()
-        ..moveTo(0, h)
-        ..lineTo(0, h - 74)
-        ..quadraticBezierTo(w * 0.22, h - 128, w * 0.48, h - 92)
-        ..quadraticBezierTo(w * 0.74, h - 58, w, h - 104)
-        ..lineTo(w, h)
-        ..close(),
-      sagoma,
-    );
-
-    // L'albero storto, a sinistra sulla collina.
-    final ramo = _filo(_sagoma, 6);
-    final piede = Offset(w * 0.16, h - 102);
-    canvas
-      ..drawPath(
-        Path()
-          ..moveTo(piede.dx, piede.dy + 10)
-          ..quadraticBezierTo(
-            piede.dx - 6,
-            piede.dy - 50,
-            piede.dx + 8,
-            piede.dy - 92,
-          ),
-        _filo(_sagoma, 9),
-      )
-      ..drawPath(
-        Path()
-          ..moveTo(piede.dx + 2, piede.dy - 48)
-          ..quadraticBezierTo(
-            piede.dx + 30,
-            piede.dy - 60,
-            piede.dx + 44,
-            piede.dy - 90,
-          ),
-        ramo,
-      )
-      ..drawPath(
-        Path()
-          ..moveTo(piede.dx - 2, piede.dy - 62)
-          ..quadraticBezierTo(
-            piede.dx - 26,
-            piede.dy - 70,
-            piede.dx - 34,
-            piede.dy - 96,
-          ),
-        ramo,
-      )
-      ..drawPath(
-        Path()
-          ..moveTo(piede.dx + 6, piede.dy - 84)
-          ..quadraticBezierTo(
-            piede.dx + 16,
-            piede.dy - 104,
-            piede.dx + 10,
-            piede.dy - 118,
-          ),
-        _filo(_sagoma, 4),
-      );
-
-    // Le lapidi, a destra.
-    for (final (x, alta) in [(0.66, 30.0), (0.76, 38.0), (0.87, 26.0)]) {
-      final base = h - 70 - (x - 0.66) * 60;
-      final larga = alta * 0.62;
-      canvas.drawRRect(
-        RRect.fromLTRBAndCorners(
-          w * x - larga / 2,
-          base - alta,
-          w * x + larga / 2,
-          base + 6,
-          topLeft: Radius.circular(larga / 2),
-          topRight: Radius.circular(larga / 2),
-        ),
-        sagoma,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_NotteSulFondo altro) =>
-      altro.tempo != tempo || altro.alto != alto || altro.luna != luna;
 }

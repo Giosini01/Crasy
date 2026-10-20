@@ -62,9 +62,7 @@ class ChallengesPage extends ConsumerWidget {
     final feed = ref.watch(homeFeedProvider);
 
     return Scaffold(
-      // La home: di stagione e' l'unica pagina con la luna.
       body: AppBackground(
-        principale: true,
         child: SafeArea(
           bottom: false,
           child: Column(
