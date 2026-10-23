@@ -48,9 +48,10 @@
  * possono prelevare.
  *
  * Quindi il fondo sta in `salvadanai/{uid}`, una collezione che nessun
- * telefono puo' nemmeno aprire. La gara che ne esce resta **indistinguibile**
- * da una pagata con la carta: stesso stato, stesso orologio, stessa riga nel
- * registro, stesso conteggio nella classifica di chi fa giocare.
+ * telefono puo' nemmeno aprire. La gara che ne esce funziona come una pagata
+ * con la carta — stesso stato, stesso orologio, stessa riga nel registro — ma
+ * **e' firmata da CRASY**: il premio lo paghiamo noi, e chi partecipa lo deve
+ * sapere. Chi ha il fondo non puo' parteciparvi (vedi `firestore.rules`).
  *
  * ## Dove si accende
  *
@@ -317,7 +318,13 @@ const MISSIONI = [
 ];
 
 /**
- * **Chi puo' avere un fondo, scritto qui e in nessun altro posto.**
+ * Chi firma le missioni del fondo: CRASY, come la sfida del giorno. E' lo
+ * stesso `Challenge.crasyUserId` dell'app, che le mostra con il segno rosso.
+ */
+const CRASY_ID = 'crasy';
+
+/**
+ * **Chi puo' avere un fondo.**
  *
  * Due persone, per nome e cognome. Non un permesso, non un campo da
  * accendere: un elenco chiuso dentro il codice.
@@ -329,6 +336,9 @@ const MISSIONI = [
  * lanciare missioni a nome di una persona che non ne sa niente. Non e' un
  * attacco, e' un errore di battitura — e gli errori di battitura capitano,
  * mentre questo elenco no.
+ *
+ * **Lo stesso elenco sta in `firestore.rules`**, dove impedisce a queste due
+ * persone di partecipare alle missioni che pagano loro: si cambiano insieme.
  */
 const PADRONI = [
   'vlwARzcTJUO71knlvXJEc5b711y1', // giosyni
@@ -521,26 +531,21 @@ async function lanciaPerUno(salvadanaio, oggi) {
   const quante = (scelte.lanciate || 0) + (scelte.saltate || 0);
   const missione = MISSIONI[quante % MISSIONI.length];
 
-  // **A lanciarla sono a turno i padroni, non sempre chi ha il fondo.**
+  // **La lancia CRASY, e lo dice.**
   //
-  // Tutte le missioni con lo stesso nome sopra sembravano l'app di una persona
-  // sola. Alternandole fra i padroni la home ha due facce, e la classifica di
-  // chi fa giocare si divide fra loro: il merito va a chi compare come
-  // autore. I soldi escono comunque da questo fondo.
-  const lanciaId = PADRONI[quante % PADRONI.length];
-  const lancia =
-    lanciaId === userId
-      ? utente
-      : await db.collection('users').doc(lanciaId).get();
-  const autore = lancia.exists ? lancia : utente;
-
+  // Uscivano a turno a nome dei padroni, indistinguibili da quelle degli
+  // utenti. Ma il premio lo paga CRASY, e chi partecipa ha diritto di saperlo:
+  // una missione promossa da noi deve dirlo, non travestirsi da missione di
+  // un utente. Adesso escono come "Lanciata da @crasy", con il segno rosso
+  // delle missioni ufficiali, e non contano nella classifica di chi fa
+  // giocare — quella e' per chi mette soldi suoi.
   const gara = await scriviLaGara(
-    { userId: autore.id, username: autore.get('username') || '' },
+    { userId: CRASY_ID, username: CRASY_ID },
     missione,
     scelte
   );
 
-  const esito = await pagaDalFondo(salvadanaio, userId, gara, premio, autore.id);
+  const esito = await pagaDalFondo(salvadanaio, userId, gara, premio, null);
 
   if (!esito.ok) {
     // **Non pagata vuol dire non nata.** Una gara con il premio a zero in
@@ -603,10 +608,10 @@ async function lanciaPerUno(salvadanaio, oggi) {
  * con un premio che nessuno ha pagato — oppure il contrario, soldi scalati per
  * una gara che non parte.
  *
- * La gara che ne esce e' **indistinguibile** da una pagata con la carta:
- * stesso `prizeStatus`, stesso orologio che riparte, stessa riga nel registro
- * di chi l'ha lanciata, stesso conteggio nella classifica di chi fa giocare.
- * L'unica differenza e' `pagataDalFondo`, che non serve all'app ma a chi un
+ * La gara che ne esce funziona come una pagata con la carta: stesso
+ * `prizeStatus`, stesso orologio che riparte, stessa riga nel registro di chi
+ * ha il fondo. Si distingue in due cose: la firma, che e' di CRASY (vedi
+ * `CRASY_ID`), e `pagataDalFondo`, che non serve all'app ma a chi un
  * giorno dovra' far quadrare i conti e trovera' una gara pagata senza un
  * incasso Stripe suo. L'incasso c'e' — e' quello da venticinque euro di
  * settimane prima — ma copre venticinque gare, e senza questo segno non si
@@ -650,12 +655,14 @@ async function pagaDalFondo(
       ultima: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // La classifica di chi fa giocare: va a chi compare come autore della
-    // gara, che a turno e' uno dei padroni.
-    transaction.update(db.collection('users').doc(autoreId), {
-      totalStakedCents: admin.firestore.FieldValue.increment(premio),
-      totalStakedCount: admin.firestore.FieldValue.increment(1),
-    });
+    // La classifica di chi fa giocare va a chi compare come autore della
+    // gara. Le missioni di CRASY non ce l'hanno: non sono soldi di un utente.
+    if (autoreId && autoreId !== CRASY_ID) {
+      transaction.update(db.collection('users').doc(autoreId), {
+        totalStakedCents: admin.firestore.FieldValue.increment(premio),
+        totalStakedCount: admin.firestore.FieldValue.increment(1),
+      });
+    }
 
     return { ok: true, restano: fondo - premio };
   });

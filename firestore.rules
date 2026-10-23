@@ -335,7 +335,19 @@ service cloud.firestore {
       // pubblico come il nome utente.
       match /consents/{consentId} {
         allow read, create: if signedIn() && request.auth.uid == userId;
-        allow update, delete: if false;
+
+        // **Il permesso di pagare le missioni col saldo Stripe si revoca.**
+        // E' l'unica riga che cambia: dice com'e' il permesso adesso, e solo
+        // chi l'ha dato puo' toglierlo o ridarlo. La storia resta nelle righe
+        // nuove che l'app aggiunge a ogni cambio, e che come tutte le altre
+        // non si toccano piu'.
+        allow update: if signedIn() && request.auth.uid == userId
+                      && consentId == 'addebito_saldo'
+                      && request.resource.data.kind == 'addebitoSaldo'
+                      && request.resource.data.accepted is bool
+                      && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['accepted', 'testo', 'at', 'revocataIl']);
+        allow delete: if false;
       }
 
       // Cosa ho votato.
@@ -902,7 +914,8 @@ service cloud.firestore {
                               && request.resource.data.prizeCents == 0
                             )
                        )
-                    && request.resource.data.prizeCents <= 100000000
+                    // Cento euro: lo stesso tetto del server e dell'app.
+                    && request.resource.data.prizeCents <= 10000
                     // Nasce vuota e senza vincitore: i partecipanti li porta
                     // il tempo, il vincitore lo proclama il server.
                     && request.resource.data.participantsCount == 0
@@ -942,6 +955,12 @@ service cloud.firestore {
                     && request.resource.data.startsAt is timestamp
                     && request.resource.data.endsAt is timestamp
                     && request.resource.data.endsAt > request.resource.data.startsAt
+                    // **Al massimo ventiquattro ore**, come le scelte
+                    // dell'app e le sfide mirate. Il premio resta sul saldo
+                    // finche' la gara e' aperta: senza un tetto bastava
+                    // scrivere sul database per tenerlo fermo un anno.
+                    && request.resource.data.endsAt
+                       <= request.resource.data.startsAt + duration.value(24, 'h')
                     && request.resource.data.endsAt > request.time
                     // **La sfida mirata: un destinatario solo, e nasce in
                     // attesa.**
@@ -1247,6 +1266,19 @@ service cloud.firestore {
                                 && challenge().get('scope', 'global') != 'private'
                                 && challenge().get('targetUserId', '') == ''
                               )
+                         )
+                      // **Nemmeno chi paga le missioni di CRASY.** Quelle del
+                      // fondo sono firmate da CRASY, ma i soldi li mettono i
+                      // padroni del fondo: per loro vale la stessa regola di
+                      // chi lancia. Sono gli stessi due di `PADRONI` in
+                      // `functions/salvadanaio.js`.
+                      && !(
+                           challenge().get('createdByUserId', '') == 'crasy'
+                           && challenge().get('prizeCents', 0) > 0
+                           && request.auth.uid in [
+                                'vlwARzcTJUO71knlvXJEc5b711y1',
+                                'zialfmbJK7XawXbBUWcXKGff2xj2'
+                              ]
                          )
                       && request.resource.data.mediaUrl is string
                       && request.resource.data.mediaUrl.size() > 0

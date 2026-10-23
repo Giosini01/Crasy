@@ -133,7 +133,12 @@ abstract final class LegalTexts {
   /// **1.0: firmati e senza "bozza".** Passare da `0.2-bozza` a qui fa
   /// riaccettare i documenti a tutti al prossimo accesso: e' voluto, perche' da
   /// questa versione c'e' scritto chi e' il titolare.
-  static const String version = '1.0';
+  ///
+  /// **1.1: i Termini dicono quello che il codice fa.** I rimborsi come li
+  /// esegue il server, le contestazioni, il tetto di cento euro, le missioni
+  /// pagate da CRASY, le mance e il segno Sostenitore, la revoca dall'app del
+  /// permesso di usare il saldo, la sicurezza e la responsabilita'.
+  static const String version = '1.1';
 
   /// Chi risponde di questi dati. **Solo la partita IVA, senza ragione
   /// sociale**: e' cosi' che CRASY si firma ovunque, app e sito. Il contatto e'
@@ -144,8 +149,7 @@ abstract final class LegalTexts {
 
   static const terms = LegalDocument(
     title: 'Termini e Condizioni',
-    body:
-        '''
+    body: '''
 1. COS'E' CRASY
 CRASY e' un'applicazione in cui una persona lancia una missione mettendo in
 palio del denaro e altre persone vi partecipano con una foto o un video. Alla
@@ -174,9 +178,14 @@ Chi lancia la missione mette in palio una somma e la paga tramite Stripe,
 l'istituto di pagamento di cui CRASY si serve. Fino alla chiusura della
 missione la somma resta sul conto di pagamento di CRASY presso Stripe. Alla
 scadenza il premio va alla partecipazione che ha ricevuto piu' fiamme dagli
-altri utenti; a parita' di fiamme vince chi ha inviato per primo.
+altri utenti; a parita' di fiamme vince chi ha inviato per primo. Il premio di
+una missione va da 1 a 100 euro.
 
-CRASY riceve il premio **in nome e per conto di chi lo ha messo in palio**, al
+CRASY puo' lanciare missioni con un premio pagato da se': compaiono come
+lanciate da @crasy, seguono le stesse regole delle altre, e non possono
+parteciparvi le persone che le finanziano.
+
+CRASY riceve il premio in nome e per conto di chi lo ha messo in palio, al
 solo scopo di consegnarlo al vincitore. Quelle somme non sono ricavi di CRASY e
 restano di chi le ha versate fino al momento in cui vengono trasferite al
 vincitore. Il corrispettivo di CRASY e' unicamente la percentuale trattenuta
@@ -210,60 +219,104 @@ con bonifico sul conto bancario da lui indicato.
 Chi ne da' espresso consenso nell'app autorizza CRASY ad addebitare sul proprio
 conto Stripe l'importo del premio di una missione che sceglie di pagare con il
 proprio saldo: solo nel momento in cui lo sceglie, e solo per quella missione.
-Il consenso si puo' revocare in qualunque momento scrivendo a
-info@crasyapp.com; la revoca non riguarda le missioni gia' pagate.
+Il consenso si puo' revocare in qualunque momento dal portafoglio dell'app o
+scrivendo a info@crasyapp.com; la revoca vale da subito e non riguarda le
+missioni gia' pagate.
 
 7. QUANDO IL PREMIO TORNA INDIETRO
-Se alla missione non partecipa nessuno, il premio torna per intero a chi lo
-aveva messo, spese comprese.
+Torna per intero a chi lo aveva messo, spese del pagamento comprese, se alla
+missione non partecipa nessuno o nessuna partecipazione e' valida, se una
+sfida a una persona viene rifiutata o non viene portata a termine, e se CRASY
+rimuove la missione.
 
-Se invece e' chi ha lanciato la missione a cancellarla, torna indietro il
-premio: restano fuori le spese del pagamento, gia' sostenute e non
-recuperabili, e la percentuale di CRASY. Una missione non si puo' cancellare
-dal momento in cui qualcuno vi ha partecipato.
+Torna il premio, senza le spese del pagamento gia' sostenute, se chi ha
+lanciato la missione la cancella prima che qualcuno vi partecipi, oppure se,
+dove le regole glielo consentono, dichiara che la partecipazione non vale. Una
+missione non si puo' cancellare dal momento in cui qualcuno vi ha partecipato.
 
 I rimborsi vengono disposti subito ma l'accredito sulla carta dipende dalla
 banca di chi lo riceve, e richiede di norma alcuni giorni lavorativi.
 
-8. LE MISSIONI VIETATE
-Non si possono lanciare missioni che chiedano di compiere reati, di mettersi in
-pericolo, di farsi del male, di molestare o riprendere persone che non hanno
-acconsentito, o che abbiano contenuto sessuale. CRASY puo' rimuovere una
-missione e restituire il premio a chi l'ha messo.
+Se chi ha pagato un premio lo contesta presso la propria banca, il premio resta
+sospeso e non viene consegnato finche' la contestazione non e' decisa. Se la
+banca da' ragione a chi ha pagato, quel premio non puo' essere consegnato.
+
+8. LE MISSIONI VIETATE E LA SICUREZZA
+Non si possono lanciare ne' eseguire missioni che chiedano, anche in modo
+indiretto, scherzoso o mascherato, di: farsi del male o mettere a rischio la
+propria vita o salute (per esempio autolesionismo, digiuni, alcol o sostanze,
+prove di resistenza, altezze, acqua, fuoco, veicoli, armi, binari o strade);
+mettere in pericolo, danneggiare o molestare altre persone o animali;
+commettere reati o violare norme di sicurezza; riprendere persone che non hanno
+acconsentito o minori; produrre contenuti sessuali.
+Nessuna missione obbliga a fare qualcosa. Se una missione sembra pericolosa non
+va eseguita, e va segnalata dall'app. Nessun premio vale un rischio per la
+salute. Una partecipazione che mostra un comportamento pericoloso viene rimossa
+e non puo' vincere, anche se ha ricevuto piu' fiamme.
+CRASY puo' rimuovere in qualunque momento una missione o una partecipazione
+vietata, restituire il premio a chi l'ha messo, sospendere o chiudere l'account
+e, nei casi gravi, segnalare i fatti alle autorita'.
+Se tu o qualcun altro siete in pericolo, chiama il 112. Se stai pensando di
+farti del male puoi parlarne con qualcuno: Telefono Amico, 02 2327 2327.
 
 9. MODERAZIONE
 CRASY puo' rimuovere contenuti e sospendere account che violano queste regole,
 anche senza preavviso quando il contenuto e' gravemente lesivo. Le foto e i
-video possono essere controllati anche in automatico. Chi si vede togliere una
+video possono essere controllati anche in automatico, e le partecipazioni oltre
+il limite giornaliero vengono escluse in automatico. Chi si vede togliere una
 foto riceve un avviso con il motivo e con l'indicazione se la decisione e'
 automatica, e dall'avviso puo' chiedere che la riguardi una persona del team.
 Si puo' contestare qualunque rimozione anche scrivendo a info@crasyapp.com.
 
 10. RESPONSABILITA'
-CRASY mette a disposizione una piattaforma. Quello che le persone fanno per
-partecipare lo fanno sotto la propria responsabilita': CRASY non e' il datore di
-lavoro di nessuno e non e' presente quando un contenuto viene realizzato.
-CRASY non risponde di danni derivanti da condotte imprudenti o illecite di chi
-partecipa, ne' dei rapporti fra utenti.
-Nulla in queste condizioni esclude o limita la responsabilita' che la legge non
-consente di escludere, in particolare verso i consumatori.
+10.1 CRASY offre un servizio di memorizzazione e pubblicazione di contenuti
+caricati dagli utenti (missioni, foto, video): non li crea, non li commissiona e
+non li verifica uno per uno prima della pubblicazione. Ai sensi del Regolamento
+(UE) 2022/2065 (Digital Services Act), CRASY non risponde di questi contenuti
+finche' non ne ha effettiva conoscenza, e quando ne viene a conoscenza li
+rimuove senza ritardo.
+10.2 Chi lancia una missione ne e' l'unico autore e l'unico responsabile, per il
+contenuto e per le conseguenze. Garantisce che la missione e' lecita e
+realizzabile senza rischi per la salute e la sicurezza di chiunque.
+10.3 Chi partecipa sceglie liberamente se e come farlo, ed e' l'unico
+responsabile di come realizza il proprio contenuto: luoghi, mezzi, persone
+coinvolte e rischi che si assume. CRASY non e' presente quando un contenuto
+viene realizzato, non da' istruzioni su come realizzarlo e non e' datore di
+lavoro ne' committente di nessuno.
+10.4 Chi lancia una missione vietata o partecipa violando queste condizioni si
+impegna a tenere indenne CRASY da ogni richiesta, danno, sanzione o spesa,
+comprese le spese legali, che derivi da quella violazione.
+10.5 CRASY non risponde dei danni causati da condotte imprudenti, pericolose o
+illecite degli utenti, ne' dei rapporti fra utenti.
+10.6 Nulla in queste condizioni esclude o limita la responsabilita' di CRASY
+per dolo o colpa grave, per morte o danni alla persona causati da un suo fatto
+o da una sua omissione, ne' quella che la legge non consente di escludere verso
+i consumatori.
 
-11. CHIUDERE L'ACCOUNT
+11. LE MANCE
+Dal sito di CRASY si puo' lasciare una mancia volontaria, da 1 a 500 euro, con
+un pagamento singolo tramite Stripe. Da 10 euro in su, il nome utente indicato
+riceve il segno "Sostenitore": un segno accanto al nome che ringrazia chi
+sostiene CRASY, non indica alcuna verifica dell'identita' e non da' vantaggi
+nelle missioni. Le mance non sono rimborsabili, salvo i casi previsti dalla
+legge.
+
+12. CHIUDERE L'ACCOUNT
 Si puo' chiudere il proprio account in qualunque momento. Le somme gia'
 maturate restano dovute: quelle sul conto Stripe restano del titolare del
 conto, e vanno trasferite sul proprio conto bancario prima della chiusura. I
 contenuti gia' pubblicati vengono rimossi secondo quanto indicato
 nell'informativa privacy.
 
-12. MODIFICHE
+13. MODIFICHE
 Queste condizioni possono cambiare. Le modifiche rilevanti vengono comunicate e
 richiedono una nuova accettazione prima di continuare a usare l'app.
 
-13. LEGGE E FORO
+14. LEGGE E FORO
 Si applica la legge italiana. Per i consumatori resta ferma la competenza del
 giudice del luogo di residenza o domicilio.
 
-14. CHI SIAMO
+15. CHI SIAMO
 CRASY, P.IVA 03259440646. Per qualunque domanda: info@crasyapp.com.
 ''',
   );
@@ -300,7 +353,7 @@ PERCHE' LI TRATTIAMO, E CON QUALE BASE GIURIDICA
 - Sicurezza, prevenzione di frodi e di account multipli, moderazione dei
   contenuti: legittimo interesse a un servizio onesto (art. 6.1.f).
 - Obblighi fiscali e contabili sui pagamenti: obbligo di legge (art. 6.1.c).
-- Comunicazioni commerciali e contenuti personalizzati: **consenso** (art.
+- Comunicazioni commerciali e contenuti personalizzati: consenso (art.
   6.1.a), facoltativo e revocabile in qualunque momento senza perdere l'accesso
   al servizio.
 
@@ -352,8 +405,7 @@ dice, e puoi chiedere che la riguardi una persona del team.
 
   static const contentLicense = LegalDocument(
     title: 'Uso di foto e video',
-    body:
-        '''
+    body: '''
 I CONTENUTI RESTANO TUOI
 Le foto e i video che carichi restano tuoi. Non ne acquistiamo la proprieta' e
 non li vendiamo.
@@ -401,8 +453,7 @@ rimozione o chiudi l'account.
   /// regola delle gare cambia anche questa pagina.
   static const regolamento = LegalDocument(
     title: 'Regolamento delle missioni',
-    body:
-        '''
+    body: '''
 1. CHI ORGANIZZA
 Le missioni si svolgono su CRASY, che ne stabilisce le regole, raccoglie le
 partecipazioni, conta i voti e consegna i premi.
@@ -416,8 +467,9 @@ consegna dei premi. Per qualunque domanda sulle missioni ci si rivolge a CRASY.
 3. CHI PUO' PARTECIPARE
 Chi ha compiuto 18 anni e ha un account CRASY. Partecipare e' gratuito: non si
 paga nulla per entrare in una missione. Chi lancia una missione non puo'
-parteciparvi. Ogni giorno si puo' partecipare a un numero limitato di missioni,
-indicato nell'app, e a ogni missione si partecipa una volta sola.
+parteciparvi. Ogni giorno si partecipa al massimo a 5 missioni (la sfida del
+giorno e le sfide a una persona non contano): quelle in piu' vengono escluse in
+automatico. A ogni missione si partecipa una volta sola.
 
 4. COME SI PARTECIPA
 Si manda una foto o un video entro la scadenza, seguendo la consegna della
@@ -442,11 +494,15 @@ Una partecipazione tolta dalla moderazione non puo' vincere.
 
 6. IL PREMIO
 Il premio lo mette chi lancia la missione, e lo paga prima che la missione
-parta. Al vincitore va il premio meno la percentuale di CRASY, indicata
-nell'app prima del pagamento. Il premio arriva sul conto di pagamento a nome
+parta; va da 1 a 100 euro. Alcune missioni le lancia CRASY con un premio pagato
+da se': compaiono come lanciate da @crasy, seguono le stesse regole, e non
+possono parteciparvi le persone che le finanziano. Al vincitore va il premio
+meno la percentuale di CRASY, indicata nell'app prima del pagamento. Il premio arriva sul conto di pagamento a nome
 del vincitore presso Stripe (Termini e Condizioni, punto 5); da li' si
 trasferisce sul proprio conto bancario a partire dall'importo minimo indicato
-nell'app. Se nessuno partecipa, il premio torna per intero a chi l'aveva messo.
+nell'app. Se nessuno partecipa, il premio torna per intero a chi l'aveva messo;
+per gli altri rimborsi e per le contestazioni valgono i Termini e Condizioni,
+punto 7.
 
 7. MODERAZIONE
 Le foto possono essere controllate in automatico e segnalate dagli altri

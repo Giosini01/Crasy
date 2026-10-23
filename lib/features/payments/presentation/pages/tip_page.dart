@@ -63,7 +63,7 @@ class _TipPageState extends ConsumerState<TipPage> {
 
     if (chi.isEmpty) {
       setState(
-        () => _errore = 'Scrivi il nome utente di chi riceve la spunta.',
+        () => _errore = 'Scrivi il nome utente di chi diventa Sostenitore.',
       );
 
       return;
@@ -95,8 +95,8 @@ class _TipPageState extends ConsumerState<TipPage> {
             title: const Text('Grazie!'),
             content: Text(
               euro >= _perIlVerificato
-                  ? '@$chi è verificato per sempre. La spunta compare fra pochi '
-                        'secondi.'
+                  ? '@$chi è Sostenitore di CRASY per sempre. Il segno compare '
+                        'fra pochi secondi.'
                   : 'Il tuo sostegno arriva a chi fa CRASY ogni giorno.',
             ),
             actions: [
@@ -161,8 +161,12 @@ class _TipPageState extends ConsumerState<TipPage> {
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
+                        // **Sostenitore, non verificato.** Si chiamava
+                        // "verificato", ma nessuno controlla niente: e' un
+                        // grazie, e il nome lo deve dire.
                         'Da $_perIlVerificato € in su, il nome che scrivi qui '
-                        'sotto diventa verificato per sempre.',
+                        'sotto diventa Sostenitore di CRASY per sempre: un segno '
+                        'accanto al nome, non una verifica dell’identità.',
                         style: texts.bodySmall,
                       ),
                     ),
@@ -204,7 +208,7 @@ class _TipPageState extends ConsumerState<TipPage> {
               ),
               const SizedBox(height: AppSpacing.xl),
               Text(
-                'CHI RICEVE LA SPUNTA',
+                'CHI DIVENTA SOSTENITORE',
                 style: texts.labelSmall?.copyWith(color: palette.textFaint),
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -220,7 +224,7 @@ class _TipPageState extends ConsumerState<TipPage> {
               if (!conSpunta) ...[
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  'Sotto i $_perIlVerificato € è solo una mancia: la spunta no.',
+                  'Sotto i $_perIlVerificato € è solo una mancia, senza il segno.',
                   style: texts.bodySmall?.copyWith(color: palette.textFaint),
                 ),
               ],
@@ -233,7 +237,9 @@ class _TipPageState extends ConsumerState<TipPage> {
               ],
               const SizedBox(height: AppSpacing.xl),
               CrasyButton(
-                label: conSpunta ? 'Dona $euro € e verifica' : 'Dona $euro €',
+                label: conSpunta
+                    ? 'Dona $euro € · Sostenitore'
+                    : 'Dona $euro €',
                 loading: _pago,
                 onPressed: _pago ? null : _paga,
               ),

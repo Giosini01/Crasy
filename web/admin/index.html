@@ -364,7 +364,7 @@
          tasto accende o spegne la spunta. La scrive il server: da nessun
          telefono si puo'. -->
     <div class="scatola">
-      <h2>Verificati</h2>
+      <h2>Sostenitori</h2>
       <form id="cercaUtente" style="display:flex;gap:8px;margin-bottom:12px">
         <input id="nomeUtente" placeholder="Nome utente (almeno 2 lettere)" autocomplete="off" style="flex:1">
         <button class="primario" type="submit">Cerca</button>
@@ -982,7 +982,7 @@ async function caricaMance() {
         ? ' per @' + testo(mancia.beneficiarioUsername)
         : '';
       const bollino = mancia.verificato
-        ? ' · <strong>verificato</strong>'
+        ? ' · <strong>sostenitore</strong>'
         : '';
       const quando = mancia.createdAt
         ? ' · ' + new Date(mancia.createdAt).toLocaleDateString('it-IT')
@@ -1008,12 +1008,12 @@ function rigaUtente(u) {
   div.innerHTML =
     foto +
     '<div style="flex:1"><strong>@' + testo(u.username) + '</strong>' +
-    (u.verificato ? ' <span title="verificato" style="color:#fa0000">✔ verificato</span>' +
+    (u.verificato ? ' <span title="sostenitore" style="color:#fa0000">✔ sostenitore</span>' +
       (u.verificatoDa ? ' <span class="nota">(' + testo(u.verificatoDa) + ')</span>' : '') : '') +
     (u.displayName ? '<br><span class="nota">' + testo(u.displayName) + '</span>' : '') +
     '</div>' +
     '<button class="' + (u.verificato ? 'togli' : 'tieni') + '">' +
-    (u.verificato ? '✕ Togli verificato' : '✔ Dai verificato') + '</button>';
+    (u.verificato ? '✕ Togli sostenitore' : '✔ Fai sostenitore') + '</button>';
 
   div.querySelector('button').addEventListener('click', async (evento) => {
     const tasto = evento.currentTarget;

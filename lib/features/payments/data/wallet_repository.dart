@@ -59,16 +59,47 @@ class WalletRepository {
 
   /// **Il consenso a pagare le missioni con il saldo Stripe.**
   ///
-  /// Si scrive una volta, nel registro dei consensi — dove le righe non si
-  /// modificano e non si cancellano — con il testo esatto che e' stato
-  /// accettato. Il server non addebita niente senza questa riga.
+  /// La riga `addebito_saldo` dice com'e' il permesso adesso, con il testo
+  /// esatto che e' stato accettato: il server non addebita niente se non dice
+  /// `accepted`. Accanto, nel registro dei consensi — dove le righe non si
+  /// modificano e non si cancellano — resta una riga per ogni cambio, cosi' si
+  /// sa sempre quando e' stato dato e quando tolto.
   Future<void> accettaAddebitoDalSaldo(String userId, String testo) {
-    return _user(userId).collection('consents').doc('addebito_saldo').set({
-      'kind': 'addebitoSaldo',
-      'accepted': true,
-      'testo': testo,
-      'at': FieldValue.serverTimestamp(),
-    });
+    final consensi = _user(userId).collection('consents');
+
+    return (_firestore.batch()
+          ..set(consensi.doc('addebito_saldo'), {
+            'kind': 'addebitoSaldo',
+            'accepted': true,
+            'testo': testo,
+            'at': FieldValue.serverTimestamp(),
+          })
+          ..set(consensi.doc(), {
+            'kind': 'addebitoSaldo',
+            'accepted': true,
+            'testo': testo,
+            'at': FieldValue.serverTimestamp(),
+          }))
+        .commit();
+  }
+
+  /// **Il consenso qui sopra, tolto.** Vale da subito: il server lo legge a
+  /// ogni addebito. Il testo accettato resta sulla riga, con l'ora in cui e'
+  /// stato revocato.
+  Future<void> revocaAddebitoDalSaldo(String userId) {
+    final consensi = _user(userId).collection('consents');
+
+    return (_firestore.batch()
+          ..update(consensi.doc('addebito_saldo'), {
+            'accepted': false,
+            'revocataIl': FieldValue.serverTimestamp(),
+          })
+          ..set(consensi.doc(), {
+            'kind': 'addebitoSaldoRevoca',
+            'accepted': false,
+            'at': FieldValue.serverTimestamp(),
+          }))
+        .commit();
   }
 
   /// Se il consenso qui sopra c'e' gia'.

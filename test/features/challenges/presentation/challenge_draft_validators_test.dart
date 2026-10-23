@@ -52,7 +52,7 @@ void main() {
       expect(ChallengeDraftValidators.validatePrize(''), isNotNull);
       expect(ChallengeDraftValidators.validatePrize('0'), isNotNull);
       expect(ChallengeDraftValidators.validatePrize('abc'), isNotNull);
-      expect(ChallengeDraftValidators.validatePrize('500'), isNull);
+      expect(ChallengeDraftValidators.validatePrize('50'), isNull);
     });
 
     test('accetta i centesimi', () {

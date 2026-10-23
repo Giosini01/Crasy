@@ -1,3 +1,5 @@
+import 'package:crasy/features/challenges/domain/entities/challenge.dart';
+
 /// Cosa e' successo, e chi l'ha fatto.
 ///
 /// Le notifiche di CRASY sono **quattro**, e ognuna corrisponde a un momento in
@@ -234,9 +236,14 @@ class AppNotification {
   final bool anonimo;
 
   /// **Perche' una foto e' stata tolta**, in una parola: `sessuale`,
-  /// `violenza`, `pericolo`, `odio`, `minore` o `altro`. Vuoto negli avvisi
-  /// scritti prima che lo portassero. Lo scrive il server (`avvisi.js`).
+  /// `violenza`, `pericolo`, `odio`, `minore`, `limite` (era oltre le cinque
+  /// del giorno) o `altro`. Vuoto negli avvisi scritti prima che lo
+  /// portassero. Lo scrive il server (`avvisi.js`).
   final String motivo;
+
+  /// Tolta perche' oltre le cinque partecipazioni del giorno, non per quello
+  /// che mostrava.
+  bool get oltreIlLimite => motivo == 'limite';
 
   /// Se a toglierla e' stato il controllo automatico, e non una persona.
   final bool automatico;
@@ -249,6 +256,11 @@ class AppNotification {
   /// **Il motivo, detto come una frase.** Sta nell'entita' come [message]: e'
   /// la stessa frase nella riga e nel foglio che si apre toccandola.
   String get perche {
+    if (oltreIlLimite) {
+      return 'Oggi avevi già partecipato a ${Challenge.livesPerDay} gare: '
+          'questa era una in più.';
+    }
+
     final cosa = switch (motivo) {
       'sessuale' => 'un contenuto sessuale',
       'violenza' => 'un contenuto violento',

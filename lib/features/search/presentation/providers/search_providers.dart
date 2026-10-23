@@ -150,10 +150,12 @@ final peopleResultsProvider = FutureProvider.autoDispose<List<UserProfile>>((
 
   // Se stessi no: il proprio profilo si apre dalla scheda in fondo, e trovarsi
   // fra i risultati di una ricerca e' solo una riga da saltare.
-  // **I verificati per primi.** A parita' di nome cercato, chi ha la spunta
-  // e' quello che uno sta cercando quasi sempre.
+  // **L'account ufficiale per primo, e nessun altro.** Prima salivano in cima
+  // tutti quelli con il segno, ma il segno dei Sostenitori si ottiene con una
+  // mancia: farlo pesare nella ricerca sarebbe stato vendere un posto in
+  // classifica. Resta un grazie, e basta.
   final ordinati = [...results]
-    ..sort((a, b) => (b.conSpunta ? 1 : 0) - (a.conSpunta ? 1 : 0));
+    ..sort((a, b) => (b.isOfficial ? 1 : 0) - (a.isOfficial ? 1 : 0));
 
   return [
     for (final profile in ordinati)

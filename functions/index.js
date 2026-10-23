@@ -564,6 +564,97 @@ async function moderateVideo(uri) {
 }
 
 /**
+ * A quante gare si partecipa in un giorno: lo stesso numero di
+ * `Challenge.livesPerDay` nell'app.
+ */
+const PARTECIPAZIONI_AL_GIORNO = 5;
+
+/** Il motivo scritto su una partecipazione oltre il limite. Vedi `avvisi.js`. */
+const MOTIVO_LIMITE = 'limite di partecipazioni del giorno';
+
+/** La mezzanotte italiana del giorno in cui cade [data]. */
+function inizioDelGiornoInItalia(data) {
+  const giorno = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Rome',
+  }).format(data);
+  const ora = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Rome',
+    hour: '2-digit',
+    hourCycle: 'h23',
+  });
+
+  // D'inverno l'Italia e' un'ora avanti, d'estate due: vale quella delle due
+  // che in Italia cade davvero a mezzanotte.
+  for (const scarto of ['+01:00', '+02:00']) {
+    const mezzanotte = new Date(`${giorno}T00:00:00${scarto}`);
+
+    if (ora.format(mezzanotte) === '00') {
+      return mezzanotte;
+    }
+  }
+
+  return new Date(`${giorno}T00:00:00+01:00`);
+}
+
+/**
+ * **Le cinque gare al giorno, contate anche qui.**
+ *
+ * Il conto lo faceva solo l'app: bastava una versione vecchia, o un invio
+ * scritto a mano, per mandarne quante se ne voleva. Qui si contano le
+ * partecipazioni della stessa persona dalla mezzanotte italiana fino a questa,
+ * con le stesse eccezioni dell'app: **la sfida del giorno e le sfide mirate
+ * non contano**, sono roba in piu'.
+ *
+ * Si contano solo quelle **arrivate prima**: se due partono insieme, passa la
+ * quinta e resta fuori la sesta, qualunque delle due venga guardata per prima.
+ */
+async function oltreIlLimiteDelGiorno(snapshot) {
+  const userId = String(snapshot.get('userId') || '');
+  const quando = snapshot.get('createdAt');
+
+  if (!userId || !quando || snapshot.get('isDuel')) {
+    return false;
+  }
+
+  const garaDi = async (partecipazione) =>
+    partecipazione.ref.parent.parent ?
+      await partecipazione.ref.parent.parent.get() :
+      null;
+
+  if ((await garaDi(snapshot))?.get('isDaily')) {
+    return false;
+  }
+
+  const prima = await db
+    .collectionGroup('entries')
+    .where('userId', '==', userId)
+    .where(
+      'createdAt',
+      '>=',
+      admin.firestore.Timestamp.fromDate(inizioDelGiornoInItalia(quando.toDate()))
+    )
+    .where('createdAt', '<', quando)
+    .orderBy('createdAt', 'desc')
+    .get();
+
+  let contate = 0;
+
+  for (const altra of prima.docs) {
+    if (altra.id === snapshot.id || altra.get('isDuel')) {
+      continue;
+    }
+
+    if ((await garaDi(altra))?.get('isDaily')) {
+      continue;
+    }
+
+    contate += 1;
+  }
+
+  return contate >= PARTECIPAZIONI_AL_GIORNO;
+}
+
+/**
  * Controlla il file di una partecipazione e scrive l'esito.
  *
  * **Sta in una funzione sua perche' la chiamano in due**: il controllo che
@@ -593,7 +684,11 @@ async function controllaPartecipazione(snapshot, challengeId) {
   try {
     const uri = `gs://${bucket}/${storagePath}`;
 
-    if (mediaKind === 'video') {
+    if (await oltreIlLimiteDelGiorno(snapshot)) {
+      // La sesta del giorno non si guarda nemmeno: e' fuori per il conto,
+      // non per quello che mostra.
+      reasons = [MOTIVO_LIMITE];
+    } else if (mediaKind === 'video') {
       reasons = (await moderateVideo(uri)) ? ['nudita/sesso esplicito'] : [];
     } else {
       const client = new vision.ImageAnnotatorClient();

@@ -187,6 +187,54 @@ class _WalletPageState extends ConsumerState<WalletPage> {
     }
   }
 
+  /// **Toglie il permesso dato qui sopra.** Si chiede conferma, perche' poi
+  /// per pagare una missione col saldo bisogna ridarlo.
+  Future<void> _revocaIlPermesso() async {
+    final si = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Revochi l’autorizzazione?'),
+        content: const Text(
+          'CRASY non potrà più usare il tuo saldo Stripe per pagare le '
+          'missioni: le pagherai con la carta. Puoi ridarla quando vuoi.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Annulla'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Revoca'),
+          ),
+        ],
+      ),
+    );
+
+    final repository = ref.read(walletRepositoryProvider);
+    final userId = ref.read(currentUserIdProvider);
+
+    if (si != true || repository == null || userId == null || !mounted) {
+      return;
+    }
+
+    setState(() => _salvoIlPermesso = true);
+
+    try {
+      await repository.revocaAddebitoDalSaldo(userId);
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _message = 'Non siamo riusciti a revocarla. Riprova fra poco.',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _salvoIlPermesso = false);
+      }
+    }
+  }
+
   /// Apre la pagina del proprio conto su Stripe.
   ///
   /// **Coperta, mentre si prepara.** Il collegamento lo chiede il server, e
@@ -417,26 +465,33 @@ class _WalletPageState extends ConsumerState<WalletPage> {
                           // **Il permesso di rimettere i premi in gioco.** I premi
                           // stanno sul conto Stripe: per pagarci una missione CRASY
                           // deve poterli prendere da li', e lo fa solo con un si'
-                          // detto una volta. Finche' non c'e', il tasto lo chiede.
-                          if (permessoInArrivo.valueOrNull != true)
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: _salvoIlPermesso
-                                  // Mentre si salva, la fiamma al posto del tasto.
-                                  ? const Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: AppSpacing.sm,
-                                        vertical: AppSpacing.xs,
-                                      ),
-                                      child: FiammaCheGira(misura: 24),
-                                    )
-                                  : TextButton(
-                                      onPressed: _chiediIlPermesso,
-                                      child: const Text(
-                                        'Usa i premi per le missioni',
-                                      ),
+                          // detto una volta. Finche' non c'e', il tasto lo chiede;
+                          // quando c'e', lo stesso posto serve a toglierlo.
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: _salvoIlPermesso
+                                // Mentre si salva, la fiamma al posto del tasto.
+                                ? const Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: AppSpacing.sm,
+                                      vertical: AppSpacing.xs,
                                     ),
-                            ),
+                                    child: FiammaCheGira(misura: 24),
+                                  )
+                                : permessoInArrivo.valueOrNull == true
+                                ? TextButton(
+                                    onPressed: _revocaIlPermesso,
+                                    child: const Text(
+                                      'Revoca l’uso dei premi per le missioni',
+                                    ),
+                                  )
+                                : TextButton(
+                                    onPressed: _chiediIlPermesso,
+                                    child: const Text(
+                                      'Usa i premi per le missioni',
+                                    ),
+                                  ),
+                          ),
                         ] else if (dati != null && dati.isComplete)
                           Align(
                             alignment: Alignment.centerLeft,

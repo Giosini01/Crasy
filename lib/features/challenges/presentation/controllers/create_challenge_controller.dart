@@ -21,9 +21,11 @@ abstract final class ChallengeDraftValidators {
   static const int titleMaxLength = 60;
   static const int briefMaxLength = 280;
 
-  /// Il premio massimo, in euro. Un milione: non e' una cifra realistica, e'
-  /// un tetto contro le dita che scivolano sulla tastiera.
-  static const int prizeMaxEuro = 1000000;
+  /// **Il premio massimo, in euro: cento.** Lo stesso tetto sta sul server e
+  /// nelle regole del database. Era un milione, come argine contro le dita che
+  /// scivolano; adesso e' un limite vero, piu' alto di qualunque premio messo
+  /// finora, e si alza tutti e tre insieme.
+  static const int prizeMaxEuro = 100;
 
   static String? validateTitle(String? value) {
     final title = value?.trim() ?? '';

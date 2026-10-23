@@ -5,6 +5,7 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -121,9 +122,15 @@ class _FotoToltaState extends ConsumerState<_FotoTolta> {
             Text(avviso.perche, style: texts.bodyLarge),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Le regole delle missioni non ammettono contenuti sessuali, '
-              'violenti, offensivi o che mettono in pericolo qualcuno: è il '
-              'punto 3 dei termini.',
+              // Tolta per il conto, non per quello che mostrava: la regola da
+              // ricordare e' un'altra.
+              avviso.oltreIlLimite
+                  ? 'Si partecipa al massimo a ${Challenge.livesPerDay} gare '
+                        'al giorno; la sfida del giorno e le sfide mirate non '
+                        'contano. A mezzanotte si ricomincia.'
+                  : 'Le regole delle missioni non ammettono contenuti '
+                        'sessuali, violenti, offensivi o che mettono in '
+                        'pericolo qualcuno: è il punto 3 dei termini.',
               style: texts.bodySmall?.copyWith(color: palette.textSecondary),
             ),
             const SizedBox(height: AppSpacing.md),

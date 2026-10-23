@@ -55,6 +55,11 @@ function motivoDaiControlli(motivi) {
     return 'violenza';
   }
 
+  // Non e' il contenuto: era la sesta del giorno. Vedi `oltreIlLimiteDelGiorno`.
+  if (elenco.some((m) => m.startsWith('limite'))) {
+    return 'limite';
+  }
+
   return 'altro';
 }
 

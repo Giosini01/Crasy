@@ -36,6 +36,7 @@
 const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { autoreDi } = require('./autori');
+const posta = require('./posta');
 const { defineSecret } = require('firebase-functions/params');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
@@ -190,6 +191,15 @@ const COMMISSION_BASIS_POINTS = 1000; // 10% a CRASY
 const PROCESSING_BASIS_POINTS = 150; // 1,5% a Stripe
 const PROCESSING_FIXED_CENTS = 25;
 
+/**
+ * **Il premio massimo di una missione: cento euro.** Lo stesso tetto sta nelle
+ * regole del database e nel modulo dell'app. Prima era un milione, scritto
+ * come argine contro le dita che scivolano; ma un tetto e' anche una promessa
+ * a chi controlla i pagamenti, e i premi veri stanno fra uno e cinquanta euro.
+ * Si alza quando servira', insieme agli altri due.
+ */
+const PREMIO_MASSIMO_CENTS = 10000;
+
 /** Quanto trattiene CRASY. Arrotondato per difetto: il resto va al vincitore. */
 function commissionCents(prizeCents) {
   return Math.floor((prizeCents * COMMISSION_BASIS_POINTS) / 10000);
@@ -302,7 +312,7 @@ exports.startChallengePayment = onCall(
 
     const prize = snapshot.get('prizeCents');
 
-    if (!Number.isInteger(prize) || prize <= 0 || prize > 100000000) {
+    if (!Number.isInteger(prize) || prize <= 0 || prize > PREMIO_MASSIMO_CENTS) {
       throw new HttpsError('invalid-argument', 'Premio non valido.');
     }
 
@@ -448,7 +458,7 @@ exports.createChallengePaymentIntent = onCall(
 
     const prize = snapshot.get('prizeCents');
 
-    if (!Number.isInteger(prize) || prize <= 0 || prize > 100000000) {
+    if (!Number.isInteger(prize) || prize <= 0 || prize > PREMIO_MASSIMO_CENTS) {
       throw new HttpsError('invalid-argument', 'Premio non valido.');
     }
 
@@ -640,7 +650,15 @@ async function clienteDi(stripe, userId, userRef, user) {
  * prima, la firma non torna piu'.
  */
 exports.stripeWebhook = onRequest(
-  { secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET] },
+  {
+    secrets: [
+      STRIPE_SECRET_KEY,
+      STRIPE_WEBHOOK_SECRET,
+      // Per l'email delle contestazioni: vedi `onContestazione`.
+      posta.SMTP_PASSWORD,
+      posta.RESEND_API_KEY,
+    ],
+  },
   async (request, response) => {
     const stripe = stripeClient();
 
@@ -686,6 +704,19 @@ exports.stripeWebhook = onRequest(
 
         case 'account.updated':
           await onAccountUpdated(event.data.object);
+          break;
+
+        // **Le contestazioni.** Chi ha pagato ha chiesto alla sua banca di
+        // riavere i soldi: si ferma il premio e si avvisa chi gestisce CRASY.
+        case 'charge.dispute.created':
+          await onContestazione(event.data.object, 'aperta');
+          break;
+
+        case 'charge.dispute.closed':
+          await onContestazione(
+            event.data.object,
+            event.data.object.status === 'won' ? 'vinta' : 'persa'
+          );
           break;
 
         default:
@@ -839,6 +870,84 @@ async function fondoDi(challengeId) {
   }
 
   return null;
+}
+
+/** Dove arrivano gli avvisi per chi gestisce CRASY. */
+const CASELLA_DEL_TEAM = 'info@crasyapp.com';
+
+/**
+ * **Una contestazione: si ferma il premio, e lo si dice a una persona.**
+ *
+ * Chi ha pagato un premio puo' chiedere alla propria banca di riavere i
+ * soldi. Prima non succedeva niente: la gara andava avanti, il vincitore
+ * veniva pagato, e i soldi uscivano due volte — al vincitore e alla banca.
+ *
+ * Adesso la contestazione si scrive sulla gara (`contestazione`), e
+ * `payWinner` non paga finche' e' aperta. Se si chiude **a nostro favore**, il
+ * premio riparte da solo; se si chiude **contro**, resta fermo e decide una
+ * persona. Un premio gia' pagato non si va a riprendere dal vincitore: la
+ * perdita e' di CRASY, come scritto nel profilo della piattaforma su Stripe.
+ *
+ * In ogni caso parte un'email al team: una contestazione ha una scadenza per
+ * rispondere, e va guardata dal pannello di Stripe.
+ */
+async function onContestazione(contestazione, stato) {
+  const intento = contestazione.payment_intent;
+  const scheda = {
+    id: contestazione.id,
+    stato,
+    motivo: contestazione.reason || '',
+    importoCents: contestazione.amount || 0,
+    aggiornataIl: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  const gare = intento ?
+    await db
+      .collection('challenges')
+      .where('stripePaymentIntentId', '==', intento)
+      .limit(1)
+      .get() :
+    null;
+  let cosa = 'un pagamento che non troviamo fra le missioni';
+
+  if (gare && !gare.empty) {
+    const gara = gare.docs[0];
+
+    await gara.ref.update({ contestazione: scheda });
+    cosa = `la missione "${gara.get('title') || ''}" (${gara.id}), ` +
+      `premio ${gara.get('prizeStatus') || ''}`;
+
+    if (stato === 'vinta' && gara.get('winnerUserId')) {
+      await payWinner(gara.id);
+    }
+  } else if (intento) {
+    const mancia = db.collection('mance').doc(String(intento));
+
+    if ((await mancia.get()).exists) {
+      await mancia.set({ contestazione: scheda }, { merge: true });
+      cosa = 'una mancia';
+    }
+  }
+
+  logger.warn(`Contestazione ${contestazione.id} ${stato}: ${cosa}.`);
+
+  // L'email non deve far fallire il webhook: la contestazione e' gia' scritta,
+  // e Stripe riproverebbe tutto da capo.
+  try {
+    const euro = ((contestazione.amount || 0) / 100).toFixed(2).replace('.', ',');
+
+    await posta.spedisci({
+      from: '"CRASY" <' + posta.CASELLA + '>',
+      to: CASELLA_DEL_TEAM,
+      subject: `Contestazione ${stato} — ${euro} € — CRASY`,
+      text:
+        `Contestazione ${stato} su ${cosa}. Importo ${euro} euro, motivo ` +
+        `"${contestazione.reason || ''}". Rispondi dal pannello di Stripe: ` +
+        `https://dashboard.stripe.com/disputes/${contestazione.id}`,
+    });
+  } catch (guaio) {
+    logger.error('Email della contestazione non partita.', guaio);
+  }
 }
 
 async function onChargeRefunded(charge) {
@@ -1605,11 +1714,24 @@ exports.createPayoutOnboarding = onCall(
  */
 async function payWinner(challengeId) {
   const ref = db.collection('challenges').doc(challengeId);
+  let contestata = false;
 
   const paid = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
 
     if (!snapshot.exists || snapshot.get('prizeStatus') !== 'held') {
+      return null;
+    }
+
+    // **Un pagamento contestato non paga nessuno.** Finche' la banca di chi ha
+    // messo il premio non ha deciso, quei soldi possono tornare indietro: il
+    // premio resta fermo, e riparte da solo se la contestazione si chiude a
+    // nostro favore. Vedi `onContestazione`.
+    const contestazione = snapshot.get('contestazione');
+
+    if (contestazione && contestazione.stato !== 'vinta') {
+      contestata = true;
+
       return null;
     }
 
@@ -1671,7 +1793,7 @@ async function payWinner(challengeId) {
   });
 
   if (!paid) {
-    return { paid: false, reason: 'non-pagabile' };
+    return { paid: false, reason: contestata ? 'contestata' : 'non-pagabile' };
   }
 
   await scriviNelRegistro(paid.winnerUserId, `premio_${challengeId}`, {
@@ -2942,7 +3064,7 @@ exports.startTipPayment = onCall(
             product_data: {
               name: 'Mancia a CRASY',
               description: cents >= MANCIA_PER_IL_VERIFICATO
-                ? `Grazie! @${chi.username} diventa verificato per sempre.`
+                ? `Grazie! @${chi.username} diventa Sostenitore di CRASY per sempre.`
                 : 'Grazie per sostenere CRASY.',
             },
           },
