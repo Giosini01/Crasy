@@ -5,7 +5,7 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/seasons/season_skin.dart';
 import 'package:flutter/material.dart';
 
-/// **Halloween: i mostri accanto ai premi, la mezza luna all'apertura.**
+/// **Halloween: i mostri accanto ai premi, i pipistrelli all'apertura.**
 ///
 /// ## I colori dell'app non si toccano, quelli dei disegni si'
 ///
@@ -22,9 +22,8 @@ import 'package:flutter/material.dart';
 ///   sarebbe una cornice, e una cornice non si guarda.
 /// - **Sui tasti, ogni tanto una ragnatela**: uno su dieci.
 ///
-/// All'apertura la fiamma sta davanti a una mezza luna bianca, con i
-/// pipistrelli che le girano attorno; nell'attesa, al posto dell'arco, girano
-/// tre pipistrelli.
+/// All'apertura, quando la fiamma prende, da dietro di lei scappa uno stormo
+/// di pipistrelli; nell'attesa, al posto dell'arco, girano tre pipistrelli.
 ///
 /// **Niente sfondo dietro le pagine.** C'e' stato: una luna e una collina con
 /// le lapidi, ferme dietro il contenuto. Ferme davano fastidio, e aprendo la
@@ -33,10 +32,11 @@ import 'package:flutter/material.dart';
 class HalloweenSkin extends SeasonSkin {
   const HalloweenSkin();
 
-  /// **L'apertura: la fiamma davanti alla luna.**
+  /// **L'apertura: la fiamma, e uno stormo che le scappa da dietro.**
   ///
-  /// La fiamma resta il marchio e resta davanti: la luna le fa da fondo, e i
-  /// pipistrelli le girano attorno senza mai passarle sopra.
+  /// La fiamma resta il marchio e resta davanti: appena prende, da dietro di
+  /// lei escono sei pipistrelli che volano via verso i bordi. Poi resta solo
+  /// la fiamma, e si entra.
   @override
   Widget accompagnaApertura(
     Widget fiamma, {
@@ -49,9 +49,9 @@ class HalloweenSkin extends SeasonSkin {
       children: [
         SizedBox.square(
           dimension: misura * 2.6,
-          child: _Vivo(
-            periodo: const Duration(seconds: 5),
-            disegno: (tempo) => _LunaDiApertura(tempo: tempo, misura: misura),
+          child: _UnaVolta(
+            durata: const Duration(milliseconds: 2200),
+            disegno: (tempo) => _StormoDiApertura(tempo: tempo, misura: misura),
           ),
         ),
         fiamma,
@@ -233,17 +233,6 @@ const _notte = Color(0xFF2B1640);
 /// Il gatto: quasi nero, con dentro un filo di viola.
 const _pelo = Color(0xFF16121D);
 
-/// La luna: bianca, appena fredda sul bordo perche' si stacchi dal fondo.
-/// Panna con l'alone arancione sembrava un sole.
-const _luna = Color(0xFFFFFFFF);
-const _lunaBordo = Color(0xFFEDEBF4);
-
-/// Il filo attorno alla luna bianca: senza, su fondo bianco sparisce.
-const _bordoDiLuna = Color(0x386B6680);
-
-/// L'alone della luna: lavanda, freddo.
-const _chiaroDiLuna = Color(0xFFB9A8E0);
-
 /// Il nero di CRASY, per le facce e gli occhi.
 const _nero = Color(0xFF0A0A0B);
 
@@ -312,7 +301,7 @@ void _ombra(Canvas canvas, Offset centro, double larga, {int alfa = 0x16}) {
   );
 }
 
-/// Un alone tondo che sfuma: la luce di una candela, di una luna.
+/// Un alone tondo che sfuma: la luce di una candela.
 void _alone(Canvas canvas, Offset centro, double raggio, Color colore) {
   canvas.drawCircle(
     centro,
@@ -1072,71 +1061,123 @@ class _RagnatelaSulTasto extends CustomPainter {
 // L'apertura e l'attesa
 // ---------------------------------------------------------------------------
 
-/// **Una falce di luna**: un disco a cui un altro disco toglie un morso. Con
-/// un alone freddo e un filo di bordo, perche' su fondo bianco si veda.
-void _falceDiLuna(Canvas canvas, Offset c, double r) {
-  _alone(canvas, c, r * 2.8, _chiaroDiLuna.withAlpha(0x38));
+/// Come [_Vivo], ma **parte una volta sola** e si ferma alla fine: per le cose
+/// che succedono, non per quelle che vivono. Con le animazioni ridotte si vede
+/// direttamente come finisce.
+class _UnaVolta extends StatefulWidget {
+  const _UnaVolta({required this.disegno, required this.durata});
 
-  final falce = Path.combine(
-    PathOperation.difference,
-    Path()..addOval(Rect.fromCircle(center: c, radius: r)),
-    Path()..addOval(
-      Rect.fromCircle(center: c + Offset(r * 0.55, -r * 0.3), radius: r),
-    ),
-  );
-  final rect = Rect.fromCircle(center: c, radius: r);
+  final CustomPainter Function(Animation<double> tempo) disegno;
+  final Duration durata;
 
-  canvas
-    ..drawPath(
-      falce,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_luna, _lunaBordo],
-        ).createShader(rect),
-    )
-    ..drawPath(falce, _filo(_bordoDiLuna, 1));
+  @override
+  State<_UnaVolta> createState() => _UnaVoltaState();
 }
 
-/// **La mezza luna dietro la fiamma**, con tre pipistrelli che le girano
-/// attorno. La falce e' spostata a sinistra, cosi' la fiamma sta nel suo
-/// incavo invece di coprirla.
-class _LunaDiApertura extends CustomPainter {
-  _LunaDiApertura({required this.tempo, required this.misura})
+class _UnaVoltaState extends State<_UnaVolta>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _corsa = AnimationController(
+    vsync: this,
+    duration: widget.durata,
+  )..forward();
+
+  @override
+  void dispose() {
+    _corsa.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fermo = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+
+    return RepaintBoundary(
+      child: IgnorePointer(
+        child: CustomPaint(
+          painter: widget.disegno(
+            fermo ? const AlwaysStoppedAnimation(1) : _corsa,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// **Lo stormo dell'apertura**: i pipistrelli che scappano dalla fiamma.
+///
+/// [tempo] va da 0 a 1 una volta sola, sui due secondi e due decimi del
+/// sipario. La fiamma prende nel primo quarto; i pipistrelli partono subito
+/// dopo, uno alla volta, **da dietro la fiamma** — che sta sopra di loro —
+/// comparendo in dissolvenza, e volano via verso i bordi allargandosi, come se
+/// venissero incontro. Sfumano prima di arrivare: alla fine resta la fiamma, e
+/// la pagina sotto si apre su quella.
+///
+/// **Niente luna.** C'e' stata, prima piena e poi a falce: tutte e due le volte
+/// toglievano alla fiamma il centro della scena.
+class _StormoDiApertura extends CustomPainter {
+  _StormoDiApertura({required this.tempo, required this.misura})
     : super(repaint: tempo);
 
   final Animation<double> tempo;
 
-  /// Quanto e' grande la fiamma: la luna si misura su di lei.
+  /// Quanto e' grande la fiamma: lo stormo si misura su di lei.
   final double misura;
+
+  /// Lo stormo: verso dove (gradi, zero a destra e meno novanta in alto),
+  /// quanto lontano e quanto grande (in fiamme), e quanto tardi parte.
+  ///
+  /// **Quasi tutti salgono**: un pipistrello che scappa sale, e un volo verso
+  /// il basso sembra una caduta.
+  static const _stormo = [
+    (-118.0, 3.6, 0.34, 0.00),
+    (-52.0, 3.4, 0.28, 0.05),
+    (-165.0, 3.0, 0.24, 0.10),
+    (-84.0, 2.7, 0.20, 0.15),
+    (-12.0, 3.1, 0.22, 0.19),
+    (-142.0, 2.4, 0.17, 0.24),
+  ];
 
   @override
   void paint(Canvas canvas, Size size) {
     final t = tempo.value;
     final c = size.center(Offset.zero);
-    final r = misura * 0.82;
+    final secondi = t * 2.2;
 
-    _falceDiLuna(canvas, c + Offset(-r * 0.32, r * 0.08), r);
+    for (final (gradi, lontano, grande, ritardo) in _stormo) {
+      final volo = ((t - 0.16 - ritardo) / 0.5).clamp(0.0, 1.0);
 
-    for (var i = 0; i < 3; i++) {
-      final angolo = (t + i / 3) * 2 * math.pi;
-      // Un'orbita schiacciata: i pipistrelli girano attorno alla luna senza
-      // mai coprire la fiamma, che sta al centro.
+      if (volo <= 0 || volo >= 1) {
+        continue;
+      }
+
+      final via = Curves.easeOutCubic.transform(volo);
+      final angolo = gradi * math.pi / 180;
+      final verso = Offset(math.cos(angolo), math.sin(angolo));
+      // Non vanno dritti: ondeggiano di lato, come chi sbatte le ali.
+      final ondeggio = math.sin(volo * math.pi * 2.4) * misura * 0.14;
       final dove =
-          c + Offset(math.cos(angolo) * r * 1.55, math.sin(angolo) * r * 0.75);
+          c +
+          verso * (misura * 0.3 + misura * lontano * via) +
+          Offset(-verso.dy, verso.dx) * ondeggio;
+      // Compaiono in fretta e se ne vanno sfumando.
+      final alfa = volo < 0.12
+          ? volo / 0.12
+          : volo < 0.7
+          ? 1.0
+          : 1 - (volo - 0.7) / 0.3;
+
       _pipistrello(
         canvas,
         dove,
-        misura * (0.16 + 0.04 * i),
-        math.sin(2 * math.pi * (t * 6 + i / 3)),
-        _notte,
+        misura * grande * (0.45 + 0.55 * via),
+        math.sin(2 * math.pi * (secondi * 7 + ritardo * 4)),
+        _notte.withValues(alpha: alfa),
       );
     }
   }
 
   @override
-  bool shouldRepaint(_LunaDiApertura altro) => altro.tempo != tempo;
+  bool shouldRepaint(_StormoDiApertura altro) => altro.tempo != tempo;
 }
 
 /// L'alone di candela dietro la fiamma piccola dell'attesa.

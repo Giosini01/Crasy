@@ -313,7 +313,7 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
       final media = challenge.source.isArchive
           ? await controller.capture(kind, from: ChallengeSource.archive)
           : (CrasyCamera.availableFor(video: kind.isVideo)
-                ? await _scattaConLaNostra(controller, kind)
+                ? await _scattaConLaNostra(controller, kind, challenge.title)
                 : await controller.capture(kind));
 
       // Rinunciare a scattare non e' un errore: se l'utente chiude la
@@ -439,8 +439,16 @@ class _ParticipatePageState extends ConsumerState<ParticipatePage> {
   Future<PickedMedia?> _scattaConLaNostra(
     ParticipationController controller,
     MediaKind kind,
+    String titolo,
   ) async {
-    final scatto = await CrasyCamera.open(context, video: kind.isVideo);
+    // Il titolo in cima, per sapere cosa si sta scattando; e per un video il
+    // tetto dei venti secondi, che la fotocamera fa rispettare da sola.
+    final scatto = await CrasyCamera.open(
+      context,
+      video: kind.isVideo,
+      titolo: titolo,
+      durataMassima: kind.isVideo ? MediaKind.maxVideoDuration : null,
+    );
 
     // Chiusa senza scattare: non e' un errore e non deve dire niente.
     if (scatto == null || !mounted) {

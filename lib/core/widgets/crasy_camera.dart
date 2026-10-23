@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
 import 'package:crasy/core/theme/app_colors.dart';
@@ -44,18 +45,42 @@ import 'package:flutter/material.dart';
 typedef CameraShot = ({XFile file, bool mirrored});
 
 class CrasyCamera extends StatefulWidget {
-  const CrasyCamera({required this.video, super.key});
+  const CrasyCamera({
+    required this.video,
+    this.titolo = '',
+    this.durataMassima,
+    super.key,
+  });
 
   /// Se si sta girando un video invece che scattare una foto.
   final bool video;
 
+  /// Il titolo della missione, in cima: per sapere cosa si sta scattando
+  /// senza tornare indietro a rileggerlo.
+  final String titolo;
+
+  /// **Quanto puo' durare il video.** Al tetto la registrazione si ferma da
+  /// sola, e il tempo che passa si vede in cima e attorno al tasto. Senza un
+  /// tetto, chi girava con la fotocamera di CRASY poteva registrare quanto
+  /// voleva: il limite valeva solo per i video presi dalla galleria.
+  final Duration? durataMassima;
+
   /// Apre la fotocamera a schermo intero. Torna il file, o `null` se si e'
   /// tornati indietro senza scattare.
-  static Future<CameraShot?> open(BuildContext context, {required bool video}) {
+  static Future<CameraShot?> open(
+    BuildContext context, {
+    required bool video,
+    String titolo = '',
+    Duration? durataMassima,
+  }) {
     return Navigator.of(context).push<CameraShot>(
       MaterialPageRoute<CameraShot>(
         fullscreenDialog: true,
-        builder: (_) => CrasyCamera(video: video),
+        builder: (_) => CrasyCamera(
+          video: video,
+          titolo: titolo,
+          durataMassima: durataMassima,
+        ),
       ),
     );
   }
@@ -104,6 +129,16 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
   var _sta = false;
   String? _errore;
 
+  /// Da quanto si sta registrando. Si aggiorna dieci volte al secondo: basta
+  /// per i secondi in cima e per l'anello attorno al tasto.
+  final _cronometro = Stopwatch();
+  Timer? _tic;
+  var _trascorso = Duration.zero;
+
+  /// Il lampo bianco sull'inquadratura quando si scatta una foto: dice "presa"
+  /// prima ancora che il file sia pronto.
+  var _lampo = false;
+
   @override
   void initState() {
     super.initState();
@@ -113,6 +148,7 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _tic?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     // **La fotocamera si spegne sempre.** Lasciarla accesa tiene occupato il
     // sensore: si torna indietro, si riapre, e la seconda volta non parte.
@@ -284,7 +320,20 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
       return;
     }
 
-    setState(() => _sta = true);
+    setState(() {
+      _sta = true;
+      _lampo = !widget.video;
+    });
+
+    if (_lampo) {
+      unawaited(
+        Future<void>.delayed(const Duration(milliseconds: 140), () {
+          if (mounted) {
+            setState(() => _lampo = false);
+          }
+        }),
+      );
+    }
 
     try {
       final file = widget.video
@@ -309,13 +358,36 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
 
   Future<XFile?> _giraIlVideo(CameraController controller) async {
     if (controller.value.isRecordingVideo) {
+      _tic?.cancel();
+      _cronometro.stop();
+
       return controller.stopVideoRecording();
     }
 
     await controller.startVideoRecording();
 
+    _cronometro
+      ..reset()
+      ..start();
+    _tic = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() => _trascorso = _cronometro.elapsed);
+
+      // **Al tetto si ferma da solo**, e il video parte come se si fosse
+      // toccato il tasto: lasciar registrare oltre per poi dire "troppo lungo"
+      // vorrebbe dire far rifare tutto.
+      final tetto = widget.durataMassima;
+      if (tetto != null && _trascorso >= tetto) {
+        _tic?.cancel();
+        unawaited(_scatta());
+      }
+    });
+
     if (mounted) {
-      setState(() {});
+      setState(() => _trascorso = Duration.zero);
     }
 
     return null;
@@ -333,20 +405,40 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
     // taglio arrivava dopo, nell'editor, come una sorpresa. Adesso si inquadra
     // gia' dentro lo stesso riquadro arrotondato in cui la foto verra' vista:
     // quello che vedi e' quello che mandi, anche nei bordi.
+    final tetto = widget.durataMassima;
+    final avanzamento = tetto == null || tetto == Duration.zero
+        ? 0.0
+        : (_trascorso.inMilliseconds / tetto.inMilliseconds).clamp(0.0, 1.0);
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: Column(
           children: [
-            // **In alto c'e' solo la via d'uscita.** La croce sta da sola
-            // nell'angolo dove le mani non arrivano per sbaglio.
-            Align(
-              alignment: Alignment.centerLeft,
-              child: _Tondo(
-                icona: Icons.close_rounded,
-                etichetta: 'Chiudi',
-                onTap: () => Navigator.of(context).pop(),
-              ),
+            // **In cima: l'uscita, e cosa si sta facendo.** La croce sta
+            // nell'angolo dove le mani non arrivano per sbaglio; al centro,
+            // prima il titolo della missione e, mentre si gira, i secondi.
+            Row(
+              children: [
+                _Tondo(
+                  icona: Icons.close_rounded,
+                  etichetta: 'Chiudi',
+                  onTap: registrando ? null : () => Navigator.of(context).pop(),
+                ),
+                Expanded(
+                  child: Center(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: registrando
+                          ? _Secondi(trascorso: _trascorso, tetto: tetto)
+                          : _Titolo(titolo: widget.titolo, video: widget.video),
+                    ),
+                  ),
+                ),
+                // Lo spazio della croce, dall'altra parte: il centro resta il
+                // centro.
+                const SizedBox(width: 60),
+              ],
             ),
             Expanded(
               child: Center(
@@ -356,13 +448,41 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
                   ),
                   child: AspectRatio(
                     aspectRatio: 4 / 5,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(24),
-                      child: ColoredBox(
-                        color: const Color(0xFF141414),
-                        child: _Riquadro(
-                          controller: _pronta ? controller : null,
-                          errore: _errore,
+                    // **Il bordo dice se si sta girando**: un filo chiaro
+                    // prima, rosso pieno mentre registra.
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(27),
+                        border: Border.all(
+                          color: registrando
+                              ? AppColors.crasyRed
+                              : const Color(0x24FFFFFF),
+                          width: registrando ? 3 : 1,
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(22),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ColoredBox(
+                              color: const Color(0xFF141414),
+                              child: _Riquadro(
+                                controller: _pronta ? controller : null,
+                                errore: _errore,
+                              ),
+                            ),
+                            // Il lampo dello scatto.
+                            IgnorePointer(
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 120),
+                                opacity: _lampo ? 0.85 : 0,
+                                child: const ColoredBox(color: Colors.white),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -375,7 +495,7 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
             // e lente ai lati del cerchio rosso, che e' l'ultima cosa che si
             // tocca.
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+              padding: const EdgeInsets.only(top: AppSpacing.lg),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -398,6 +518,9 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
                   _Shutter(
                     recording: registrando,
                     busy: _sta && !registrando,
+                    avanzamento: registrando && tetto != null
+                        ? avanzamento
+                        : null,
                     onTap: _scatta,
                   ),
                   _Tondo(
@@ -408,8 +531,121 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
                 ],
               ),
             ),
+            // Una riga sotto il tasto: cosa succede toccandolo.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.page,
+                AppSpacing.sm,
+                AppSpacing.page,
+                AppSpacing.md,
+              ),
+              child: Text(
+                !widget.video
+                    ? 'Tocca per scattare'
+                    : registrando
+                    ? 'Tocca per fermare'
+                    : tetto == null
+                    ? 'Tocca per registrare'
+                    : 'Tocca per registrare · massimo ${tetto.inSeconds} '
+                          'secondi',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xB3FFFFFF), fontSize: 13),
+              ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// **In cima, prima di registrare: cosa si sta facendo.**
+///
+/// Il titolo della missione se c'e', in maiuscolo e su due righe al massimo;
+/// altrimenti FOTO o VIDEO.
+class _Titolo extends StatelessWidget {
+  const _Titolo({required this.titolo, required this.video});
+
+  final String titolo;
+  final bool video;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      titolo.isEmpty ? (video ? 'VIDEO' : 'FOTO') : titolo.toUpperCase(),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        color: AppColors.paper,
+        fontSize: 13,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.6,
+        height: 1.25,
+      ),
+    );
+  }
+}
+
+/// **I secondi, in cima, mentre si gira**: il pallino rosso che lampeggia, il
+/// tempo passato e il tetto. Negli ultimi cinque secondi la pillola diventa
+/// rossa: si sa che sta per finire senza dover fare il conto.
+class _Secondi extends StatelessWidget {
+  const _Secondi({required this.trascorso, required this.tetto});
+
+  final Duration trascorso;
+  final Duration? tetto;
+
+  String _scritto(Duration d) =>
+      '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final tetto = this.tetto;
+    final quasi =
+        tetto != null && tetto - trascorso <= const Duration(seconds: 5);
+    // Il pallino si accende e si spegne ogni mezzo secondo.
+    final acceso = (trascorso.inMilliseconds ~/ 500).isEven;
+    // Il tetto si mostra come lo si e' raggiunto: mai "0:21 / 0:20".
+    final mostrato = tetto != null && trascorso > tetto ? tetto : trascorso;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        color: quasi ? AppColors.crasyRed : const Color(0x33FFFFFF),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedOpacity(
+            duration: const Duration(milliseconds: 150),
+            opacity: acceso ? 1 : 0.25,
+            child: Container(
+              width: 9,
+              height: 9,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: quasi ? AppColors.paper : AppColors.crasyRed,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            tetto == null
+                ? _scritto(mostrato)
+                : '${_scritto(mostrato)} / ${_scritto(tetto)}',
+            style: const TextStyle(
+              color: AppColors.paper,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              // Le cifre tutte larghe uguali: il numero che cambia non fa
+              // ballare la pillola.
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -473,7 +709,7 @@ class _Riquadro extends StatelessWidget {
   }
 }
 
-/// Un comando della fotocamera: icona bianca dentro un tondo scuro.
+/// Un comando della fotocamera: icona bianca dentro un tondo grigio.
 ///
 /// **Il tondo non e' decorazione.** Un'icona bianca appoggiata direttamente
 /// sull'inquadratura scompare su qualunque cosa sia chiara, e i comandi di una
@@ -503,14 +739,23 @@ class _Tondo extends StatelessWidget {
           message: etichetta,
           child: GestureDetector(
             onTap: onTap,
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: acceso ? AppColors.crasyRed : const Color(0x59000000),
+            // **Spento, si vede spento.** Mentre si registra croce, flash e
+            // lente non rispondono, e un tasto che sembra vivo e non risponde
+            // si tocca tre volte prima di capirlo.
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 160),
+              opacity: onTap == null ? 0.35 : 1,
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  // Grigio chiaro e trasparente: sul nero attorno al riquadro
+                  // un tondo scuro non si vedeva, e l'icona restava sola.
+                  color: acceso ? AppColors.crasyRed : const Color(0x24FFFFFF),
+                ),
+                child: Icon(icona, color: AppColors.paper, size: 22),
               ),
-              child: Icon(icona, color: AppColors.paper, size: 22),
             ),
           ),
         ),
@@ -528,56 +773,148 @@ class _Tondo extends StatelessWidget {
 /// nostro, ed e' anche la cosa piu' visibile dello schermo, che per un tasto da
 /// premere senza guardare non e' un dettaglio.
 ///
-/// Mentre registra si ribalta — anello rosso, dentro un quadrato bianco — cosi'
-/// i due stati non si confondono nemmeno con la coda dell'occhio.
-class _Shutter extends StatelessWidget {
+/// **Mentre registra il cerchio rosso si stringe in un quadrato**, e attorno
+/// l'anello del tempo si riempie fino al tetto: i due stati non si confondono
+/// nemmeno con la coda dell'occhio, e si vede quanto resta senza leggere.
+class _Shutter extends StatefulWidget {
   const _Shutter({
     required this.recording,
     required this.busy,
     required this.onTap,
+    this.avanzamento,
   });
 
   final bool recording;
   final bool busy;
   final VoidCallback onTap;
 
+  /// Quanto del tetto e' gia' passato, da 0 a 1. Nullo se non si registra o
+  /// se un tetto non c'e'.
+  final double? avanzamento;
+
+  @override
+  State<_Shutter> createState() => _ShutterState();
+}
+
+class _ShutterState extends State<_Shutter> {
+  /// Il tasto si schiaccia sotto il dito, come uno vero.
+  var _premuto = false;
+
+  void _premi(bool premuto) {
+    if (_premuto != premuto) {
+      setState(() => _premuto = premuto);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final recording = widget.recording;
+    final busy = widget.busy;
+    final avanzamento = widget.avanzamento;
+
     return Semantics(
       button: true,
       label: recording ? 'Ferma' : 'Scatta',
       child: GestureDetector(
-        onTap: busy ? null : onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOut,
-          width: 78,
-          height: 78,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: recording ? AppColors.crasyRed : AppColors.paper,
-              width: 4,
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(6),
-            child: AnimatedOpacity(
-              // Mentre la foto sta salendo il tasto si smorza: e' l'unico modo
-              // che ha di dire "l'ho presa, aspetta" senza scriverlo.
-              duration: const Duration(milliseconds: 160),
-              opacity: busy ? 0.45 : 1,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: recording ? AppColors.paper : AppColors.crasyRed,
-                  shape: recording ? BoxShape.rectangle : BoxShape.circle,
-                  borderRadius: recording ? BorderRadius.circular(10) : null,
+        onTap: busy ? null : widget.onTap,
+        onTapDown: busy ? null : (_) => _premi(true),
+        onTapUp: (_) => _premi(false),
+        onTapCancel: () => _premi(false),
+        child: AnimatedScale(
+          duration: const Duration(milliseconds: 110),
+          scale: _premuto ? 0.9 : 1,
+          child: SizedBox.square(
+            dimension: 92,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                if (recording)
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _AnelloDelTempo(avanzamento: avanzamento),
+                    ),
+                  ),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  curve: Curves.easeOut,
+                  width: 78,
+                  height: 78,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      // Mentre registra l'anello bianco lascia il posto a
+                      // quello del tempo.
+                      color: recording ? Colors.transparent : AppColors.paper,
+                      width: 4,
+                    ),
+                  ),
+                  child: AnimatedPadding(
+                    duration: const Duration(milliseconds: 160),
+                    curve: Curves.easeOut,
+                    padding: EdgeInsets.all(recording ? 21 : 6),
+                    child: AnimatedOpacity(
+                      // Mentre la foto sta salendo il tasto si smorza: e'
+                      // l'unico modo che ha di dire "l'ho presa, aspetta"
+                      // senza scriverlo.
+                      duration: const Duration(milliseconds: 160),
+                      opacity: busy ? 0.45 : 1,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        decoration: BoxDecoration(
+                          color: AppColors.crasyRed,
+                          borderRadius: BorderRadius.circular(
+                            recording ? 7 : 40,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
       ),
     );
   }
+}
+
+/// L'anello del tempo attorno al tasto: una pista chiara, e sopra il rosso che
+/// avanza dall'alto in senso orario. Senza un tetto resta la sola pista.
+class _AnelloDelTempo extends CustomPainter {
+  const _AnelloDelTempo({required this.avanzamento});
+
+  final double? avanzamento;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(3, 3, size.width - 6, size.height - 6);
+    final pista = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5
+      ..color = const Color(0x40FFFFFF);
+
+    canvas.drawArc(rect, 0, 2 * math.pi, false, pista);
+
+    final avanzamento = this.avanzamento;
+
+    if (avanzamento == null || avanzamento <= 0) {
+      return;
+    }
+
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      2 * math.pi * avanzamento,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 5
+        ..strokeCap = StrokeCap.round
+        ..color = AppColors.crasyRed,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_AnelloDelTempo altro) => altro.avanzamento != avanzamento;
 }

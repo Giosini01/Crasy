@@ -287,6 +287,19 @@ class ParticipationController extends AsyncNotifier<void> {
       // che costavano prima, cioe' quello che l'app ha retto per mesi.
       final copia = await _alSicuro(file.path);
 
+      // **Il tetto lo fa rispettare la fotocamera, e qui lo si controlla.**
+      // Si ferma da sola al ventesimo secondo, ma fra il tocco e lo stop vero
+      // passa qualche decimo: un secondo di margine li copre, e quello che
+      // resta fuori vuol dire che qualcosa non ha fermato la registrazione.
+      final durata = await durataDelVideo(copia.isEmpty ? file.path : copia);
+
+      if (durata != null &&
+          durata > MediaKind.maxVideoDuration + const Duration(seconds: 1)) {
+        await buttaLaCopia(copia);
+
+        throw VideoTroppoLungo(durata);
+      }
+
       // **I byte si leggono solo se la copia non c'e'.**
       //
       // La copia e' quella che risolve il problema del file che sparisce: sta

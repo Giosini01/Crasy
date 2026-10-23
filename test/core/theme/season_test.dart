@@ -98,11 +98,11 @@ void main() {
   });
 
   group('di stagione', () {
-    test('a ottobre l apertura ha la luna dietro la fiamma', () {
+    test('a ottobre l apertura ha i pipistrelli dietro la fiamma', () {
       const fiamma = Icon(Icons.local_fire_department_rounded);
 
-      // La luna e i pipistrelli si aggiungono attorno: la fiamma resta, e la
-      // prova qui sotto controlla che sia ancora lei.
+      // I pipistrelli si aggiungono attorno: la fiamma resta, e la prova qui
+      // sotto controlla che sia ancora lei.
       expect(
         SeasonSkin.perStagione(
           Season.halloween,
