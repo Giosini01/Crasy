@@ -445,7 +445,13 @@ class PaymentsService {
   /// ma Stripe li rende disponibili fra qualche giorno), `saldo-basso`,
   /// `gia-in-corso`.
   Future<
-    ({String? motivo, int suStripeCents, int manualeCents, int inArrivoCents})
+    ({
+      String? motivo,
+      int suStripeCents,
+      int speseCents,
+      int manualeCents,
+      int inArrivoCents,
+    })
   >
   withdraw() async {
     final result = await _functions
@@ -460,6 +466,7 @@ class PaymentsService {
           ? null
           : dati['reason'] as String? ?? 'sconosciuto',
       suStripeCents: cifra('stripeCents'),
+      speseCents: cifra('speseCents'),
       manualeCents: cifra('manualeCents'),
       inArrivoCents: cifra('inArrivoCents'),
     );

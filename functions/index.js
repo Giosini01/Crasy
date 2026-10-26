@@ -325,6 +325,11 @@ exports.adminFotoScartate = amministrazione.adminFotoScartate;
 exports.adminRimettiFoto = amministrazione.adminRimettiFoto;
 exports.adminRespingiRevisione = amministrazione.adminRespingiRevisione;
 
+// **Le sospensioni**: la riattivazione a mano dal pannello, e quella
+// automatica alla scadenza. Vedi `sospensioni.js`.
+exports.adminRiattiva = require('./sospensioni').adminRiattiva;
+exports.riattivaISospesi = require('./sospensioni').riattivaISospesi;
+
 // **Chi si vede togliere una foto puo' chiedere che la riguardi una persona.**
 // Vedi `revisioni.js`.
 exports.chiediRevisione = require('./revisioni').chiediRevisione;

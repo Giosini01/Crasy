@@ -1020,6 +1020,10 @@ class _PaymentSummary extends ConsumerWidget {
                 label: 'Commissioni banca',
                 value: AppMoney.format(PrizeLedger.processingFeeCents(cents)),
               ),
+              _SummaryRow(
+                label: 'Servizio CRASY',
+                value: AppMoney.format(PrizeLedger.serviceCents),
+              ),
               // **Il portafoglio si dice qui, non al momento di pagare.**
               //
               // La scelta fra carta e portafoglio compare dopo, quando si

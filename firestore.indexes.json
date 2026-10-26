@@ -147,6 +147,21 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "comment": "Le sospensioni scadute, da riattivare: quelle ancora attive con la scadenza passata. Vedi functions/sospensioni.js.",
+      "collectionGroup": "sospensioni",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "attiva",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fino",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [

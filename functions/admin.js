@@ -49,6 +49,9 @@ const {
 const { revisioneDi, chiudiLaRevisione } = require('./revisioni');
 const { liberaLeFiamme } = require('./fiamme');
 const { magazzinoDi } = require('./magazzino');
+const { autoreDi } = require('./autori');
+const posta = require('./posta');
+const sospensioni = require('./sospensioni');
 
 const db = admin.firestore();
 
@@ -280,12 +283,21 @@ exports.adminListReports = onCall(async (request) => {
  * dire rivedere nove volte una cosa gia' vista.
  */
 exports.adminResolveReport = onCall(
-  { secrets: [STRIPE_SECRET_KEY] },
+  // La posta serve all'email di chi viene sospeso: vedi `sospensioni.js`.
+  { secrets: [STRIPE_SECRET_KEY, posta.SMTP_PASSWORD, posta.RESEND_API_KEY] },
   async (request) => {
   const chi = soloAdmin(request);
 
   const reportId = String((request.data && request.data.reportId) || '');
   const decisione = String((request.data && request.data.decision) || '');
+
+  // **Quanti giorni di sospensione, se se ne sceglie una.** Assente: nessuna
+  // sospensione. Zero: per sempre. Vale solo con la rimozione.
+  const giorniRichiesti = request.data && request.data.sospendiGiorni;
+  const giorni =
+    giorniRichiesti === undefined || giorniRichiesti === null
+      ? null
+      : Number(giorniRichiesti);
 
   if (!reportId) {
     throw new HttpsError('invalid-argument', 'Manca la segnalazione.');
@@ -293,6 +305,10 @@ exports.adminResolveReport = onCall(
 
   if (!['reviewing', 'fake', 'remove'].includes(decisione)) {
     throw new HttpsError('invalid-argument', 'Decisione non valida.');
+  }
+
+  if (giorni !== null && !sospensioni.DURATE.includes(giorni)) {
+    throw new HttpsError('invalid-argument', 'Durata della sospensione non valida.');
   }
 
   const riferimento = db.collection('reports').doc(reportId);
@@ -314,9 +330,37 @@ exports.adminResolveReport = onCall(
   // missione sparisce, e con lei le foto che erano state mandate per
   // eseguirla.
   //
-  // **E il premio torna a chi l'aveva messo.** Anche quando la missione era
-  // sua ed era sbagliata: la si toglie perche' non deve esistere, non per
-  // tenerne i soldi. E' scritto anche nelle condizioni d'uso.
+  // **E il premio torna a chi l'aveva messo, senza le spese.** Anche quando la
+  // missione era sua ed era sbagliata: la si toglie perche' non deve esistere,
+  // non per tenerne i soldi. Le spese del pagamento invece restano a lui: ha
+  // scritto una missione vietata. E' scritto anche nelle condizioni d'uso.
+  // **Chi sospendere, se si sospende**: chi ha scritto la missione, o chi ha
+  // mandato la foto. L'autore di una missione si legge prima di toglierla:
+  // dopo non c'e' piu' niente da leggere.
+  let daSospendere = '';
+  let perche = '';
+
+  if (decisione === 'remove' && giorni !== null) {
+    const titolo = String(dati.challengeTitle || '');
+
+    if (!foto && dati.kind === 'challenge') {
+      const gara = await db
+        .collection('challenges')
+        .doc(String(dati.challengeId || ''))
+        .get();
+
+      daSospendere = gara.exists ? await autoreDi(gara) : '';
+      perche =
+        `La tua missione "${gara.get('title') || titolo}" è stata rimossa ` +
+        'perché violava le regole di CRASY.';
+    } else {
+      daSospendere = String(dati.reportedUserId || '');
+      perche =
+        `La tua foto nella missione "${titolo}" è stata rimossa perché ` +
+        'violava le regole di CRASY.';
+    }
+  }
+
   if (!foto && dati.kind === 'challenge' && decisione === 'remove') {
     await rimuoviLaMissione(String(dati.challengeId || ''), chi);
   }
@@ -326,15 +370,30 @@ exports.adminResolveReport = onCall(
 
     if (adesso.exists) {
       if (decisione === 'remove') {
-        await foto.update({
-          moderation: 'rejected',
-          // **Perche' e' uscita, scritto sulla foto stessa.** Fra una tolta
-          // dal riconoscimento immagini e una tolta da una persona c'e' una
-          // differenza enorme il giorno in cui qualcuno chiede spiegazioni, e
-          // senza questo campo le due sono identiche.
-          moderationReason: 'admin',
-          moderatedBy: chi,
-          moderatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        // **Chi esce dalla gara non conta piu' fra i partecipanti.** Il
+        // controllo automatico lo faceva gia'; qui no, e una missione con
+        // l'unica foto tolta restava a "1 partecipante": chi l'aveva lanciata
+        // non poteva piu' cancellarla, perche' il tasto c'e' solo a zero. Si
+        // abbassa una volta sola: una foto gia' fuori non esce due volte.
+        await db.runTransaction(async (t) => {
+          const ora = await t.get(foto);
+
+          if (ora.exists && ora.get('moderation') !== 'rejected') {
+            t.update(foto.parent.parent, {
+              participantsCount: admin.firestore.FieldValue.increment(-1),
+            });
+          }
+
+          t.update(foto, {
+            moderation: 'rejected',
+            // **Perche' e' uscita, scritto sulla foto stessa.** Fra una tolta
+            // dal riconoscimento immagini e una tolta da una persona c'e' una
+            // differenza enorme il giorno in cui qualcuno chiede spiegazioni,
+            // e senza questo campo le due sono identiche.
+            moderationReason: 'admin',
+            moderatedBy: chi,
+            moderatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
         });
 
         await avvisaChiLHaMandata(
@@ -375,6 +434,11 @@ exports.adminResolveReport = onCall(
         await foto.update(rimessa);
 
         if (rimessa.moderation === 'approved') {
+          // Rientra in gara, quindi torna a contare: l'opposto di `remove`.
+          await foto.parent.parent.update({
+            participantsCount: admin.firestore.FieldValue.increment(1),
+          });
+
           await togliLAvvisoDiRimozione(
             String(dati.reportedUserId || adesso.get('userId') || ''),
             String(dati.challengeId || '')
@@ -436,7 +500,21 @@ exports.adminResolveReport = onCall(
     insieme: sorelle ? sorelle.size : 1,
   });
 
-  return { status: nuovo, insieme: sorelle ? sorelle.size : 1 };
+  // **La sospensione, per ultima.** La rimozione e' gia' fatta: se qui
+  // qualcosa va storto, il contenuto vietato e' comunque sparito.
+  let sospeso = null;
+
+  if (daSospendere) {
+    const fino = await sospensioni.sospendi(daSospendere, {
+      giorni,
+      motivo: perche,
+      chi,
+    });
+
+    sospeso = { userId: daSospendere, fino: fino ? fino.toMillis() : null };
+  }
+
+  return { status: nuovo, insieme: sorelle ? sorelle.size : 1, sospeso };
   }
 );
 
@@ -871,10 +949,13 @@ async function rimuoviLaMissione(challengeId, chi) {
   }
 
   if (gara.get('prizeStatus') === 'held') {
-    // Intero: la missione non doveva esistere, e trattenere qualcosa a chi la
-    // subisce e' il contrario di quello che sta succedendo qui.
+    // **Torna il premio, non le spese.** Una missione si toglie da qui solo
+    // dopo una segnalazione guardata da una persona, cioe' perche' chiedeva
+    // una cosa vietata: le spese del pagamento le paga chi l'ha scritta, come
+    // quando una missione la cancella lui. Il premio invece torna: non e' di
+    // CRASY, e' di chi l'ha versato (Termini, punti 4 e 7).
     await require('./payments')
-      .refundChallenge(challengeId)
+      .refundChallenge(challengeId, { soloIlPremio: true })
       .catch((errore) => logger.error('Premio non reso.', errore));
   }
 
@@ -969,14 +1050,18 @@ exports.adminCercaUtenti = onCall(async (request) => {
     .get();
 
   return {
-    utenti: snapshot.docs.map((doc) => ({
-      userId: doc.id,
-      username: doc.get('username') || '',
-      displayName: doc.get('displayName') || '',
-      photoUrl: doc.get('photoUrl') || '',
-      verificato: doc.get('verificato') === true,
-      verificatoDa: doc.get('verificatoDa') || '',
-    })),
+    utenti: await Promise.all(
+      snapshot.docs.map(async (doc) => ({
+        userId: doc.id,
+        username: doc.get('username') || '',
+        displayName: doc.get('displayName') || '',
+        photoUrl: doc.get('photoUrl') || '',
+        verificato: doc.get('verificato') === true,
+        verificatoDa: doc.get('verificatoDa') || '',
+        // Se e' sospeso, fino a quando: `fino` nullo vuol dire per sempre.
+        sospeso: await sospensioni.statoDi(doc.id),
+      })),
+    ),
   };
 });
 

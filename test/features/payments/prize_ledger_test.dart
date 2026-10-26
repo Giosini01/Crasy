@@ -55,7 +55,7 @@ void main() {
 
         expect(
           charge - stripeTakes,
-          greaterThanOrEqualTo(prize),
+          greaterThanOrEqualTo(prize + PrizeLedger.serviceCents),
           reason: 'su $prize centesimi il montepremi non ci arriva intero',
         );
       }
@@ -70,14 +70,24 @@ void main() {
             (charge * PrizeLedger.processingBasisPoints) ~/ 10000 +
             PrizeLedger.processingFixedCents;
 
-        expect(charge - stripeTakes - prize, lessThan(2));
+        expect(
+          charge - stripeTakes - prize - PrizeLedger.serviceCents,
+          lessThan(2),
+        );
       }
+    });
+
+    test('un euro costa 1,32: premio, servizio e spese del pagamento', () {
+      expect(PrizeLedger.chargeCents(100), 132);
+      expect(PrizeLedger.processingFeeCents(100), 27);
     });
 
     test('la commissione dichiarata e\' la differenza vera', () {
       expect(
-        PrizeLedger.processingFeeCents(50000),
-        PrizeLedger.chargeCents(50000) - 50000,
+        PrizeLedger.processingFeeCents(50000) +
+            50000 +
+            PrizeLedger.serviceCents,
+        PrizeLedger.chargeCents(50000),
       );
     });
   });

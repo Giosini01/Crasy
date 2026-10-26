@@ -418,6 +418,23 @@ const functions = getFunctions(app, 'europe-west8');
 const chiediChiSono = httpsCallable(functions, 'adminWhoAmI');
 const chiediElenco = httpsCallable(functions, 'adminListReports');
 const decidi = httpsCallable(functions, 'adminResolveReport');
+const riattiva = httpsCallable(functions, 'adminRiattiva');
+
+/** Le durate della sospensione, come le accetta il server: zero e' per sempre. */
+const SOSPENSIONI = [
+  ['', 'senza sospendere'],
+  ['1', 'e sospendi 1 giorno'],
+  ['7', 'e sospendi 7 giorni'],
+  ['30', 'e sospendi 30 giorni'],
+  ['0', 'e sospendi per sempre'],
+];
+
+/** "fino al 2 novembre" o "per sempre", per una sospensione. */
+function finoA(fino) {
+  return fino
+    ? 'fino al ' + new Date(fino).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
+    : 'per sempre';
+}
 const chiediPrelievi = httpsCallable(functions, 'adminListPayouts');
 const chiediMance = httpsCallable(functions, 'adminListMance');
 const chiediPresenze = httpsCallable(functions, 'adminOnline');
@@ -568,20 +585,31 @@ function riga(report) {
     '<button class="togli" data-fai="remove">✕ ' +
       (eLaMissione ? 'Rimuovi la missione' : 'Rimuovi foto') +
       '</button>' +
+    // **E chi l'ha scritta, quanto resta fuori.** Vale solo con "Rimuovi".
+    '<select class="sospensione" title="Sospendere chi l\'ha pubblicata?">' +
+      SOSPENSIONI.map(([v, t]) => '<option value="' + v + '">' + t + '</option>').join('') +
+    '</select>' +
     '<button data-fai="reviewing">In revisione</button>' +
     '</div>';
 
   for (const tasto of nodo.querySelectorAll('[data-fai]')) {
     tasto.addEventListener('click', async () => {
       const decisione = tasto.dataset.fai;
+      const scelta = nodo.querySelector('select.sospensione').value;
+      const giorni = decisione === 'remove' && scelta !== '' ? Number(scelta) : null;
+      const chi = report.reportedUsername ? '@' + report.reportedUsername : 'chi l\'ha pubblicata';
 
       // **La conferma dice cosa succede davvero.** Togliere una missione non
       // toglie una foto: cancella la gara, le partecipazioni che erano state
-      // mandate per farla, e restituisce il premio a chi l'aveva messo.
-      const domanda = eLaMissione
+      // mandate per farla, e restituisce il premio a chi l'aveva messo, senza
+      // le spese. E se si sospende, dice chi e per quanto.
+      const domanda = (eLaMissione
         ? 'Cancellare la missione con tutte le sue foto? Il premio torna a chi '
-          + "l'ha messo."
-        : 'Togliere la foto dalla gara?';
+          + "l'ha messo, senza le spese."
+        : 'Togliere la foto dalla gara?')
+        + (giorni === null ? '' : '\n\nE sospendere ' + chi + ' ' +
+          (giorni === 0 ? 'per sempre' : 'per ' + giorni + (giorni === 1 ? ' giorno' : ' giorni')) +
+          "? Gli arriva un'email con il motivo.");
 
       if (decisione === 'remove' && !confirm(domanda)) {
         return;
@@ -592,7 +620,11 @@ function riga(report) {
       }
 
       try {
-        await decidi({ reportId: report.id, decision: decisione });
+        await decidi({
+          reportId: report.id,
+          decision: decisione,
+          ...(giorni === null ? {} : { sospendiGiorni: giorni }),
+        });
         await carica();
       } catch (errore) {
         dillo(errore.message || 'Non è riuscito.');
@@ -1011,11 +1043,37 @@ function rigaUtente(u) {
     (u.verificato ? ' <span title="sostenitore" style="color:#fa0000">✔ sostenitore</span>' +
       (u.verificatoDa ? ' <span class="nota">(' + testo(u.verificatoDa) + ')</span>' : '') : '') +
     (u.displayName ? '<br><span class="nota">' + testo(u.displayName) + '</span>' : '') +
+    (u.sospeso
+      ? '<br><span style="color:#fa0000">⛔ sospeso ' + finoA(u.sospeso.fino) + '</span>' +
+        (u.sospeso.motivo ? ' <span class="nota">' + testo(u.sospeso.motivo) + '</span>' : '')
+      : '') +
     '</div>' +
-    '<button class="' + (u.verificato ? 'togli' : 'tieni') + '">' +
+    (u.sospeso ? '<button class="tieni riattiva">↺ Riattiva</button>' : '') +
+    '<button class="' + (u.verificato ? 'togli' : 'tieni') + ' sostenitore">' +
     (u.verificato ? '✕ Togli sostenitore' : '✔ Fai sostenitore') + '</button>';
 
-  div.querySelector('button').addEventListener('click', async (evento) => {
+  const tastoRiattiva = div.querySelector('button.riattiva');
+
+  if (tastoRiattiva) {
+    tastoRiattiva.addEventListener('click', async () => {
+      if (!confirm('Riattivare @' + u.username + '? Potrà rientrare subito.')) {
+        return;
+      }
+
+      tastoRiattiva.disabled = true;
+
+      try {
+        await riattiva({ userId: u.userId });
+        u.sospeso = null;
+        div.replaceWith(rigaUtente(u));
+      } catch (errore) {
+        tastoRiattiva.disabled = false;
+        dillo(errore.message || 'Non riusciamo a riattivarlo.');
+      }
+    });
+  }
+
+  div.querySelector('button.sostenitore').addEventListener('click', async (evento) => {
     const tasto = evento.currentTarget;
     tasto.disabled = true;
     try {

@@ -11,6 +11,7 @@ import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 import 'package:crasy/features/payments/domain/entities/wallet.dart';
+import 'package:crasy/features/payments/domain/prize_ledger.dart';
 import 'package:crasy/features/payments/presentation/pages/payout_details_page.dart';
 import 'package:crasy/features/payments/presentation/providers/payments_providers.dart';
 import 'package:crasy/features/payments/presentation/widgets/collega_conto.dart';
@@ -79,13 +80,15 @@ class _WalletPageState extends ConsumerState<WalletPage> {
       final motivo = esito.motivo;
 
       if (motivo == null) {
-        final partiti = esito.suStripeCents + esito.manualeCents;
+        final partiti =
+            esito.suStripeCents - esito.speseCents + esito.manualeCents;
 
         setState(() {
           _working = false;
           _message =
               'Fatto: ${AppMoney.format(partiti)} in viaggio verso la tua '
               'banca. Arrivano in qualche giorno.'
+              '${esito.speseCents > 0 ? ' (${AppMoney.format(esito.speseCents)} sono le spese di prelievo.)' : ''}'
               '${esito.inArrivoCents > 0 ? ' Altri ${AppMoney.format(esito.inArrivoCents)} sono ancora in arrivo sul tuo conto: li potrai prelevare fra qualche giorno.' : ''}';
         });
 
@@ -434,7 +437,9 @@ class _WalletPageState extends ConsumerState<WalletPage> {
                         Text(
                           contoPronto
                               ? 'Vanno sulla banca che hai indicato a Stripe, in pochi '
-                                    'giorni.'
+                                    'giorni. Ogni prelievo costa '
+                                    '${AppMoney.format(PrizeLedger.withdrawalFeeCents)} '
+                                    'di spese.'
                               : dati != null && dati.isComplete
                               ? 'Vanno sul conto ${dati.ibanTail}, intestato a '
                                     '${dati.firstName} ${dati.lastName}. Arrivano in '

@@ -28,6 +28,15 @@ abstract final class PrizeLedger {
   /// La parte fissa di Stripe, in centesimi.
   static const int processingFixedCents = 25;
 
+  /// Il servizio di CRASY su ogni missione pagata con la carta: cinque
+  /// centesimi, uguali per tutte, in aggiunta al premio e alle spese. Stessa
+  /// cifra del server (`SERVIZIO_CENTS`). Col portafoglio non si applica.
+  static const int serviceCents = 5;
+
+  /// Le spese di un prelievo, a carico di chi preleva: un euro. Stessa cifra
+  /// del server (`SPESE_PRELIEVO_CENTS`).
+  static const int withdrawalFeeCents = 100;
+
   /// Quanto trattiene CRASY su un premio.
   ///
   /// Arrotondato **per difetto**, sempre. Sono centesimi, e la direzione in cui
@@ -74,16 +83,17 @@ abstract final class PrizeLedger {
       return 0;
     }
 
-    final numerator = (prizeCents + processingFixedCents) * 10000;
+    final numerator =
+        (prizeCents + serviceCents + processingFixedCents) * 10000;
     final denominator = 10000 - processingBasisPoints;
 
     return _ceilDivide(numerator, denominator);
   }
 
   /// Quanto si tiene Stripe sull'addebito: la differenza fra quello che paga il
-  /// creatore e il premio che resta a CRASY.
+  /// creatore, il premio e il servizio di CRASY.
   static int processingFeeCents(int prizeCents) =>
-      chargeCents(prizeCents) - prizeCents;
+      chargeCents(prizeCents) - prizeCents - serviceCents;
 
   static int _ceilDivide(int numerator, int denominator) {
     return (numerator + denominator - 1) ~/ denominator;

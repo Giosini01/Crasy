@@ -192,6 +192,28 @@ const PROCESSING_BASIS_POINTS = 150; // 1,5% a Stripe
 const PROCESSING_FIXED_CENTS = 25;
 
 /**
+ * **Cinque centesimi di servizio su ogni missione pagata con la carta**, in
+ * aggiunta al premio e alle spese del pagamento, e tutti di CRASY.
+ *
+ * Esistono per un motivo solo: su una missione da un euro CRASY tratteneva
+ * dieci centesimi, e di quelli cinque se ne andavano subito in Radar, l'antifrode
+ * di Stripe. Restano gli stessi cinque centesimi per ogni missione, grande o
+ * piccola, cosi' non c'e' nessun caso speciale da spiegare. Con il portafoglio
+ * non si applicano: li' non passa nessun pagamento da coprire.
+ */
+const SERVIZIO_CENTS = 5;
+
+/**
+ * **Le spese di un prelievo: un euro, a carico di chi preleva.**
+ *
+ * Stripe fa pagare a CRASY ogni conto che riceve un bonifico nel mese (due
+ * euro) piu' una piccola parte del bonifico. Un euro a prelievo ne copre circa
+ * la meta' e il resto si recupera con il dieci per cento sui premi. Si prende
+ * dal conto del vincitore subito prima del bonifico (vedi `prendiLeSpese`).
+ */
+const SPESE_PRELIEVO_CENTS = 100;
+
+/**
  * **Il premio massimo di una missione: cento euro.** Lo stesso tetto sta nelle
  * regole del database e nel modulo dell'app. Prima era un milione, scritto
  * come argine contro le dita che scivolano; ma un tetto e' anche una promessa
@@ -219,7 +241,8 @@ function payoutCents(prizeCents) {
  * arrotonda per eccesso — un centesimo in meno lo pagherebbe il vincitore.
  */
 function chargeCents(prizeCents) {
-  const numerator = (prizeCents + PROCESSING_FIXED_CENTS) * 10000;
+  const numerator =
+    (prizeCents + SERVIZIO_CENTS + PROCESSING_FIXED_CENTS) * 10000;
   const denominator = 10000 - PROCESSING_BASIS_POINTS;
 
   return Math.ceil(numerator / denominator);
@@ -1506,17 +1529,28 @@ exports.linkContoStripe = onCall(
     // chiave cambia funziona da solo — e altrimenti si manda all'ingresso
     // generale di Stripe Express, dove si entra con l'email del conto e un
     // codice: stesso posto, un passaggio in piu'.
-    try {
-      const link = await stripePayoutClient().accounts.createLoginLink(accountId);
+    //
+    // **Si provano tutte e due le chiavi.** L'ingresso generale chiede di
+    // accedere, e Stripe li' propone passkey o un codice QR da un computer:
+    // per chi ha appena vinto due euro dal telefono e' un muro. Il link
+    // personale invece porta dentro il conto direttamente. Basta che una delle
+    // due chiavi abbia il permesso "Login links" su Stripe.
+    for (const [nome, cliente] of [
+      ['prelievi', stripePayoutClient],
+      ['principale', stripeClient],
+    ]) {
+      try {
+        const link = await cliente().accounts.createLoginLink(accountId);
 
-      return { url: link.url };
-    } catch (errore) {
-      logger.info('Link personale al conto non creato: si usa l\'ingresso di Stripe Express.', {
-        codice: errore.code || errore.type,
-      });
-
-      return { url: INGRESSO_STRIPE_EXPRESS };
+        return { url: link.url };
+      } catch (errore) {
+        logger.info(`Link personale al conto non creato con la chiave ${nome}.`, {
+          codice: errore.code || errore.type,
+        });
+      }
     }
+
+    return { url: INGRESSO_STRIPE_EXPRESS };
   }
 );
 
@@ -1907,6 +1941,70 @@ async function scriviNelRegistro(userId, id, riga) {
 const MIN_WITHDRAWAL_CENTS = 1000;
 
 /**
+ * Riprende dal conto del vincitore le spese del prelievo, annullando in parte i
+ * suoi trasferimenti piu' recenti (uno solo puo' essere piu' piccolo delle
+ * spese: i premi da un euro sono trasferimenti da novanta centesimi).
+ *
+ * Torna quanto ha ripreso davvero, anche zero, e **non lancia mai**: chi chiama
+ * fa partire il bonifico comunque, per la cifra che resta.
+ */
+async function prendiLeSpese(stripe, userId, accountId, movimentoId, quanto) {
+  let preso = 0;
+
+  try {
+    const trasferimenti = await db
+      .collection('users')
+      .doc(userId)
+      .collection('spostamenti')
+      .orderBy('createdAt', 'desc')
+      .limit(30)
+      .get();
+
+    for (const doc of trasferimenti.docs) {
+      if (preso >= quanto) {
+        break;
+      }
+
+      const transferId = doc.get('transferId');
+
+      if (doc.get('stato') !== 'fatto' || !transferId) {
+        continue;
+      }
+
+      const trasferimento = await stripe.transfers.retrieve(transferId);
+      const restano =
+        trasferimento.amount - (trasferimento.amount_reversed || 0);
+      const prendi = Math.min(restano, quanto - preso);
+
+      if (prendi <= 0) {
+        continue;
+      }
+
+      await stripe.transfers.createReversal(
+        transferId,
+        {
+          amount: prendi,
+          description: 'Spese di prelievo CRASY',
+          metadata: { userId, movimentoId },
+        },
+        { idempotencyKey: `spese-${movimentoId}-${transferId}` }
+      );
+
+      preso += prendi;
+    }
+  } catch (errore) {
+    logger.error('Spese di prelievo non riprese per intero.', {
+      userId,
+      preso,
+      quanto,
+      errore: String((errore && errore.message) || errore).slice(0, 300),
+    });
+  }
+
+  return preso;
+}
+
+/**
  * **Prelevare: dal conto Stripe del vincitore alla sua banca.**
  *
  * I premi stanno gia' sul suo conto Stripe (vedi `spostaSuStripe`): prelevare
@@ -1956,6 +2054,7 @@ exports.withdrawWallet = onCall(
 
     const saldo = await saldoDelConto(stripe, accountId);
     let suStripe = 0;
+    let speseCents = 0;
 
     if (saldo.disponibile >= MIN_WITHDRAWAL_CENTS) {
       // Il conto riceve i premi ma non puo' ancora mandarli in banca: Stripe
@@ -1966,9 +2065,20 @@ exports.withdrawWallet = onCall(
 
       const movementRef = userRef.collection('wallet').doc();
 
+      // **Prima le spese, poi il bonifico.** Se non si riesce a prenderle il
+      // bonifico parte lo stesso e per intero: nessuno deve perdere un premio
+      // per un nostro problema con Stripe. Quello che manca lo si vede nei log.
+      const spese = await prendiLeSpese(
+        stripe,
+        userId,
+        accountId,
+        movementRef.id,
+        Math.min(SPESE_PRELIEVO_CENTS, saldo.disponibile)
+      );
+
       await stripe.payouts.create(
         {
-          amount: saldo.disponibile,
+          amount: saldo.disponibile - spese,
           currency: 'eur',
           description: 'Premi vinti su CRASY',
           metadata: { userId, movementId: movementRef.id },
@@ -1976,6 +2086,7 @@ exports.withdrawWallet = onCall(
         { stripeAccount: accountId, idempotencyKey: `prelievo-${movementRef.id}` }
       );
 
+      speseCents = spese;
       suStripe = saldo.disponibile;
 
       await db.runTransaction(async (transaction) => {
@@ -1987,6 +2098,7 @@ exports.withdrawWallet = onCall(
         transaction.set(movementRef, {
           kind: 'withdrawal',
           amountCents: -suStripe,
+          feeCents: speseCents,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
       });
@@ -1994,8 +2106,12 @@ exports.withdrawWallet = onCall(
       await scriviNelRegistro(userId, `prelievo_${movementRef.id}`, {
         kind: 'withdrawal',
         amountCents: -suStripe,
+        feeCents: speseCents,
         source: 'bank',
-        note: 'Prelievo: dal tuo conto Stripe alla tua banca',
+        note:
+          speseCents > 0
+            ? `Prelievo: dal tuo conto Stripe alla tua banca (di cui ${(speseCents / 100).toFixed(2).replace('.', ',')} € di spese di prelievo)`
+            : 'Prelievo: dal tuo conto Stripe alla tua banca',
       });
 
       logger.info(`${userId} ha prelevato ${suStripe} centesimi dal suo conto Stripe.`);
@@ -2022,6 +2138,7 @@ exports.withdrawWallet = onCall(
     return {
       ok: true,
       stripeCents: suStripe,
+      speseCents,
       manualeCents: Math.max(0, aMano.quanto),
       inArrivoCents: saldo.inArrivo,
     };

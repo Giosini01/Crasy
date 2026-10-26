@@ -72,6 +72,12 @@ abstract final class ErrorMessageMapper {
     switch (error.code) {
       case 'invalid-email':
         return 'Inserisci un indirizzo email valido.';
+      // **Sospeso dal pannello**, per una missione o una foto vietata. Il
+      // motivo e la durata sono nell'email che gli e' arrivata: qui non si
+      // possono leggere, l'account e' spento. Vedi `functions/sospensioni.js`.
+      case 'user-disabled':
+        return 'Questo account è sospeso. Ti abbiamo scritto per email il '
+            'motivo e la durata: per contestare scrivi a info@crasyapp.com.';
       case 'user-not-found':
       case 'wrong-password':
       case 'invalid-credential':

@@ -138,7 +138,14 @@ abstract final class LegalTexts {
   /// esegue il server, le contestazioni, il tetto di cento euro, le missioni
   /// pagate da CRASY, le mance e il segno Sostenitore, la revoca dall'app del
   /// permesso di usare il saldo, la sicurezza e la responsabilita'.
-  static const String version = '1.1';
+  ///
+  /// **1.2: chi scrive una missione vietata non riavra' le spese.** Una
+  /// missione tolta dopo una segnalazione rende il premio, ma le spese del
+  /// pagamento restano a chi l'ha lanciata.
+  ///
+  /// **1.3: i costi detti chiaramente.** Un servizio fisso di cinque centesimi
+  /// su ogni missione pagata con la carta, e un euro di spese a ogni prelievo.
+  static const String version = '1.3';
 
   /// Chi risponde di questi dati. **Solo la partita IVA, senza ragione
   /// sociale**: e' cosi' che CRASY si firma ovunque, app e sito. Il contatto e'
@@ -189,7 +196,10 @@ CRASY riceve il premio in nome e per conto di chi lo ha messo in palio, al
 solo scopo di consegnarlo al vincitore. Quelle somme non sono ricavi di CRASY e
 restano di chi le ha versate fino al momento in cui vengono trasferite al
 vincitore. Il corrispettivo di CRASY e' unicamente la percentuale trattenuta
-sul premio, indicata nell'app prima del pagamento; il resto va al vincitore.
+sul premio e un servizio fisso di 0,05 euro per ogni missione pagata con la
+carta, indicati nell'app prima del pagamento; il resto va al vincitore. Chi
+lancia la missione paga inoltre le spese del pagamento, indicate nello stesso
+riepilogo.
 
 Le somme ricevute dal vincitore sono corrispettivi per un'opera: possono avere
 rilevanza fiscale per chi le riceve, ed e' responsabilita' del percettore
@@ -207,8 +217,11 @@ Di regola CRASY non custodisce le somme vinte. Alla chiusura della missione il
 premio, al
 netto della percentuale di CRASY, viene trasferito sul conto Stripe del
 vincitore. Da li' il vincitore puo' trasferirlo sul proprio conto bancario a
-partire dall'importo minimo indicato nell'app. Le somme possono diventare
-disponibili alcuni giorni dopo la vittoria, secondo i tempi di Stripe.
+partire dall'importo minimo indicato nell'app. Ogni prelievo ha una spesa fissa
+di 1 euro, che si trattiene dalla somma prelevata e che e' indicata nell'app
+prima della richiesta: contribuisce ai costi che Stripe addebita a CRASY per
+ogni trasferimento verso la banca. Le somme possono diventare disponibili alcuni giorni dopo
+la vittoria, secondo i tempi di Stripe.
 
 Se il trasferimento non e' possibile, per esempio perche' il conto non e'
 ancora stato aperto, la somma resta presso CRASY alle condizioni del punto 4
@@ -225,14 +238,14 @@ missioni gia' pagate.
 
 7. QUANDO IL PREMIO TORNA INDIETRO
 Torna per intero a chi lo aveva messo, spese del pagamento comprese, se alla
-missione non partecipa nessuno o nessuna partecipazione e' valida, se una
-sfida a una persona viene rifiutata o non viene portata a termine, e se CRASY
-rimuove la missione.
+missione non partecipa nessuno o nessuna partecipazione e' valida, e se una
+sfida a una persona viene rifiutata o non viene portata a termine.
 
 Torna il premio, senza le spese del pagamento gia' sostenute, se chi ha
-lanciato la missione la cancella prima che qualcuno vi partecipi, oppure se,
-dove le regole glielo consentono, dichiara che la partecipazione non vale. Una
-missione non si puo' cancellare dal momento in cui qualcuno vi ha partecipato.
+lanciato la missione la cancella prima che qualcuno vi partecipi; se, dove le
+regole glielo consentono, dichiara che la partecipazione non vale; e se CRASY
+rimuove la missione perche' viola queste condizioni (punto 8). Una missione non
+si puo' cancellare dal momento in cui qualcuno vi ha partecipato.
 
 I rimborsi vengono disposti subito ma l'accredito sulla carta dipende dalla
 banca di chi lo riceve, e richiede di norma alcuni giorni lavorativi.
@@ -254,8 +267,9 @@ va eseguita, e va segnalata dall'app. Nessun premio vale un rischio per la
 salute. Una partecipazione che mostra un comportamento pericoloso viene rimossa
 e non puo' vincere, anche se ha ricevuto piu' fiamme.
 CRASY puo' rimuovere in qualunque momento una missione o una partecipazione
-vietata, restituire il premio a chi l'ha messo, sospendere o chiudere l'account
-e, nei casi gravi, segnalare i fatti alle autorita'.
+vietata, restituendo il premio a chi l'ha messo senza le spese del pagamento,
+sospendere o chiudere l'account e, nei casi gravi, segnalare i fatti alle
+autorita'.
 Se tu o qualcun altro siete in pericolo, chiama il 112. Se stai pensando di
 farti del male puoi parlarne con qualcuno: Telefono Amico, 02 2327 2327.
 
@@ -500,7 +514,7 @@ possono parteciparvi le persone che le finanziano. Al vincitore va il premio
 meno la percentuale di CRASY, indicata nell'app prima del pagamento. Il premio arriva sul conto di pagamento a nome
 del vincitore presso Stripe (Termini e Condizioni, punto 5); da li' si
 trasferisce sul proprio conto bancario a partire dall'importo minimo indicato
-nell'app. Se nessuno partecipa, il premio torna per intero a chi l'aveva messo;
+nell'app, con una spesa fissa di 1 euro per ogni prelievo. Se nessuno partecipa, il premio torna per intero a chi l'aveva messo;
 per gli altri rimborsi e per le contestazioni valgono i Termini e Condizioni,
 punto 7.
 
