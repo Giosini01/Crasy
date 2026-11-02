@@ -23,9 +23,10 @@ void main() {
       expect(Season.of(DateTime(2026, 10, 31)), Season.halloween);
     });
 
-    test('il 2 novembre e la fine, il 3 e CRASY di sempre', () {
-      expect(Season.of(DateTime(2026, 11, 2)), Season.halloween);
-      expect(Season.of(DateTime(2026, 11, 3)), Season.base);
+    test('il 31 ottobre e la fine, il 1° novembre e CRASY di sempre', () {
+      expect(Season.of(DateTime(2026, 10, 31, 23, 59)), Season.halloween);
+      expect(Season.of(DateTime(2026, 11)), Season.base);
+      expect(Season.of(DateTime(2026, 11, 2)), Season.base);
     });
 
     test('il natale scavalca il capodanno', () {

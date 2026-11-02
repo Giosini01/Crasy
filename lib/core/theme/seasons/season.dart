@@ -23,7 +23,7 @@ enum Season {
   /// CRASY come e'. Bianco, nero, un rosso.
   base,
 
-  /// Tutto ottobre, e i due giorni di novembre che gli appartengono.
+  /// Tutto ottobre, e basta.
   halloween,
 
   /// Dall'8 dicembre al 6 gennaio.
@@ -44,7 +44,7 @@ enum Season {
     final mese = quando.month;
     final giorno = quando.day;
 
-    if (mese == 10 || (mese == 11 && giorno <= 2)) {
+    if (mese == 10) {
       return Season.halloween;
     }
 
@@ -67,9 +67,9 @@ enum Season {
 
   /// **L'interruttore generale delle stagioni: acceso.**
   ///
-  /// Riacceso il 19 ottobre 2026 per l'uscita del 31: per tutto ottobre e
-  /// fino al 2 novembre l'app ha ragnatele, zucche, pipistrelli e fantasmi; dal
-  /// 3 torna bianca nera e rossa da sola, e dall'8 dicembre arriva il natale.
+  /// Riacceso il 19 ottobre 2026 per l'uscita del 31: per tutto ottobre l'app ha
+  /// ragnatele, zucche, pipistrelli e fantasmi; dal 1° novembre torna bianca nera
+  /// e rossa da sola, e dall'8 dicembre arriva il natale.
   ///
   /// **E' una riga sola di proposito.** Un vestito di stagione deve potersi
   /// togliere in fretta quanto si mette: il giorno in cui non piace piu', o
