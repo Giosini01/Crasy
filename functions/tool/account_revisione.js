@@ -39,6 +39,15 @@
  * non trova nessuno. Inventare un numero vorrebbe dire scriverne uno che
  * appartiene a una persona vera — i numeri italiani sono tutti di qualcuno — e
  * quella persona comparirebbe fra i contatti di chi ce l'ha in rubrica.
+ *
+ * ## Il segno che lo tiene in vita
+ *
+ * **Il server il numero lo guarda sull'account, non sul profilo.** Ogni ora
+ * `purgeUnverifiedAccounts` butta chi non ha un telefono da piu' di ventiquattro
+ * ore, e questo account finiva li': un giorno dopo non esisteva piu', e il
+ * revisore scriveva "non riesco ad accedere". Per questo porta il segno
+ * `revisione`, che quella funzione salta. Lo rimette il deploy del server a ogni
+ * giro (`.github/workflows/server-firebase.yml`).
  */
 
 'use strict';
@@ -120,6 +129,9 @@ async function prepara() {
     console.log('  Password e conferma rimesse a posto.');
   }
 
+  // Vedi "Il segno che lo tiene in vita", qui in cima.
+  await admin.auth().setCustomUserClaims(utente.uid, { revisione: true });
+
   const profilo = db.collection('users').doc(utente.uid);
   const esistente = await profilo.get();
 
@@ -167,6 +179,7 @@ async function prepara() {
   const muri = [
     ['email confermata', auth.emailVerified === true],
     ['email giusta', auth.email === EMAIL],
+    ['al riparo dalla pulizia', auth.customClaims?.revisione === true],
     ['onboarding fatto', riletto.get('onboardingCompleted') === true],
     ['data di nascita', riletto.get('birthDate') != null],
     ['telefono verificato', riletto.get('phoneVerified') === true],
@@ -198,6 +211,11 @@ async function prepara() {
       : '  Qualcosa manca: le righe con NO qui sopra.',
   );
   console.log('');
+
+  // Nel deploy nessuno legge queste righe: deve vedersi dal passo rosso.
+  if (!tutto) {
+    process.exitCode = 1;
+  }
 }
 
 prepara().catch((errore) => {

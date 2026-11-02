@@ -152,6 +152,17 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // **Il menu delle missioni gia' scritte: si legge, non si scrive.**
+    //
+    // Sono i consigli che compaiono quando si lancia una gara, e li scrive
+    // `functions/tool/menu_missioni.js`. Dentro non c'e' niente di privato, ma
+    // un telefono che potesse scriverci metterebbe parole sue in bocca a CRASY,
+    // davanti a tutti.
+    match /missioniPronte/{missione} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
     // **La versione minima dell'app: la legge chiunque, anche senza accesso.**
     //
     // Il muro dell'aggiornamento deve comparire prima del login: chi ha una

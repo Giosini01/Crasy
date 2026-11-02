@@ -124,6 +124,28 @@ jobs:
         working-directory: functions
         run: node tool/migra_seguiti.js --chiave "$RUNNER_TEMP/chiave.json" --scrivi
 
+      - name: Il menu delle missioni e le sfide del giorno
+        # Mettono il database in pari con i due file in functions/dati: il menu
+        # che l'app consiglia quando si lancia una gara, e il calendario delle
+        # sfide gratis. Si possono rifare ogni volta: riscrivono solo cio' che e'
+        # cambiato. Dopo le funzioni, perche' scrivere una sfida del giorno non
+        # deve piu' far partire un annuncio.
+        if: ${{ !cancelled() }}
+        working-directory: functions
+        run: |
+          set -e
+
+          node tool/menu_missioni.js --chiave "$RUNNER_TEMP/chiave.json" --scrivi
+          node tool/sfide_del_giorno.js --chiave "$RUNNER_TEMP/chiave.json" --scrivi
+
+      - name: L'account per la revisione di Apple
+        # Lo ricrea se non c'e', rimette la password che Apple conosce e il segno
+        # che lo tiene al riparo dalla pulizia degli account senza telefono. Un
+        # revisore che non riesce a entrare boccia senza nemmeno guardare.
+        if: ${{ !cancelled() }}
+        working-directory: functions
+        run: node tool/account_revisione.js --chiave "$RUNNER_TEMP/chiave.json" --scrivi
+
       - name: Indice della rubrica
         # Chi si era iscritto prima dell'indice non ci e' mai entrato: senza
         # questo passo, la ricerca fra i contatti non trova nessuno. Il

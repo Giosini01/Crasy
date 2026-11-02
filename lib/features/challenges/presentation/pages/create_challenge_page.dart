@@ -17,6 +17,7 @@ import 'package:crasy/features/challenges/domain/entities/challenge_source.dart'
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/entities/missione_pronta.dart';
 import 'package:crasy/features/challenges/presentation/controllers/create_challenge_controller.dart';
+import 'package:crasy/features/challenges/presentation/providers/missioni_pronte_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/anonimo_switch.dart';
 import 'package:crasy/features/legal/presentation/widgets/legal_sheet.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
@@ -218,6 +219,14 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     final texts = context.texts;
     final creating = ref.watch(createChallengeControllerProvider).isLoading;
 
+    // **Le guarda la schermata, non la fila.** La fila sta dentro una lista che
+    // scorre: scendendo fino al premio esce dall'albero, e se fosse lei a
+    // guardarle si spegnerebbero e tornando su sarebbero altre dieci. Finche'
+    // non arrivano la riga resta alta uguale, cosi' i campi non saltano.
+    final pronte =
+        ref.watch(missioniDelGiroProvider).valueOrNull ??
+        const <MissionePronta>[];
+
     // **Mentre si paga, lo schermo e' coperto.**
     //
     // Non e' solo per dire che sta lavorando: e' per togliere i tasti da sotto
@@ -364,7 +373,10 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                     // Staccato dal premio: attaccato ad "Almeno 1 €" sembrava
                     // la riga dopo della stessa frase.
                     const SizedBox(height: AppSpacing.lg),
-                    _MissioniPronte(onScegli: _prendiLaPronta),
+                    _MissioniPronte(
+                      pronte: pronte,
+                      onScegli: _prendiLaPronta,
+                    ),
                     _Field(
                       label: 'Come si chiama',
                       controller: _title,
@@ -874,18 +886,15 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
 /// facendo sembrare obbligatorio scegliere. Di lato è un'offerta — se ne
 /// vedono due e mezza, si capisce che ce ne sono altre, e si scorre oltre
 /// senza nemmeno guardarle se si ha già la propria idea.
+///
+/// **Quali sono lo decide `missioniDelGiroProvider`**: dieci, e altre dieci
+/// riaprendo dopo dieci minuti.
 class _MissioniPronte extends StatelessWidget {
-  const _MissioniPronte({required this.onScegli});
+  const _MissioniPronte({required this.pronte, required this.onScegli});
+
+  final List<MissionePronta> pronte;
 
   final void Function(MissionePronta pronta) onScegli;
-
-  /// **Si prende una volta sola, non a ogni ridisegno.**
-  ///
-  /// Questa schermata si ridisegna a ogni lettera battuta nei campi qui
-  /// sotto: chiedendo l'ordine ogni volta si rifarebbe il conto trenta volte
-  /// per scrivere un titolo. Il risultato sarebbe lo stesso — dipende dal
-  /// giorno — ma il lavoro no.
-  static final List<MissionePronta> _diOggi = MissionePronta.diOggi();
 
   @override
   Widget build(BuildContext context) {
@@ -913,10 +922,10 @@ class _MissioniPronte extends StatelessWidget {
             // scorre deve poter uscire dai bordi: senza questo, le schede si
             // fermerebbero prima del bordo e sembrerebbero finite.
             padding: EdgeInsets.zero,
-            itemCount: _diOggi.length,
+            itemCount: pronte.length,
             separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
             itemBuilder: (context, i) {
-              final pronta = _diOggi[i];
+              final pronta = pronte[i];
 
               return GestureDetector(
                 onTap: () => onScegli(pronta),

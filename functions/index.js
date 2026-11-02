@@ -2300,6 +2300,15 @@ exports.purgeUnverifiedAccounts = onSchedule('every 60 minutes', async () => {
     for (const persona of elenco.users) {
       const nato = Date.parse(persona.metadata.creationTime);
 
+      // **L'account con cui Apple guarda dentro l'app non si butta mai.** Non ha
+      // un numero di telefono, e di proposito: vedi `tool/account_revisione.js`.
+      // Senza questa riga spariva dopo ventiquattro ore, profilo compreso, ed e'
+      // successo davvero: il 29 ottobre 2026 Apple ha bocciato l'app scrivendo
+      // che con quelle credenziali non si entrava.
+      if (persona.customClaims?.revisione === true) {
+        continue;
+      }
+
       if (!persona.emailVerified) {
         if (nato < scadenzaEmail) {
           senzaEmail.push(persona.uid);
@@ -2934,8 +2943,8 @@ exports.announceDailyChallenge = onSchedule(
     const sfida = await db.collection('challenges').doc(`daily-${oggi}`).get();
 
     if (!sfida.exists) {
-      // Le sfide si scrivono a mano, un mese o due alla volta: se sono finite,
-      // questo e' il posto in cui ce ne si accorge.
+      // Le sfide si scrivono in anticipo (`tool/sfide_del_giorno.js`), fino a una
+      // data: se sono finite, questo e' il posto in cui ce ne si accorge.
       logger.warn('nessuna sfida del giorno per oggi', { oggi });
 
       return;
@@ -3053,6 +3062,14 @@ exports.announceLiveChallenge = onDocumentWritten(
 
     // Fra amici no: quelle hanno gia' il loro avviso, e va a chi le riguarda.
     if (dati.scope === 'friends' || dati.targetUserId) {
+      return;
+    }
+
+    // **La sfida del giorno nemmeno: il suo annuncio parte alle nove del suo
+    // giorno** (`announceDailyChallenge`). Si scrivono in anticipo, un mese alla
+    // volta, e senza questa riga scriverle voleva dire far squillare tutti i
+    // telefoni per una gara che comincia fra tre settimane.
+    if (dati.kind === 'daily') {
       return;
     }
 
