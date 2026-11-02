@@ -533,6 +533,262 @@ abstract final class ContentPolicy {
     hate: ['negrodimerda', 'frociodimerda', 'pezzodimerda'],
   };
 
+  /// Quello che il database rifiuta in una **missione** e il resto dell'app no.
+  ///
+  /// Le regole di Firestore (`saysSomethingForbidden`) fermano titolo e
+  /// consegna con un elenco loro, e per un po' le due meta' non coincidevano:
+  /// il modulo diceva di si', la scrittura veniva respinta, e chi l'aveva
+  /// scritta leggeva "operazione non consentita" senza capire cosa avesse
+  /// sbagliato. Qui sta la differenza, cosi' il modulo la dice per primo.
+  ///
+  /// **Non sta nell'elenco di tutti perche' altrove la decisione e' un'altra.**
+  /// "Che cazzo hai fatto" in un commento e' stupore e passa — sta scritto in
+  /// `content_policy_test.dart` ed e' una scelta presa. Dentro una missione,
+  /// che e' un incarico pagato, il database la ferma da sempre: qui si dice
+  /// con il messaggio giusto invece di lasciarlo scoprire alla scrittura.
+  ///
+  /// `test/core/moderation/content_policy_mission_test.dart` legge le regole di
+  /// Firestore e fallisce se un'espressione che il database rifiuta passa di
+  /// qui: le due liste non possono piu' allontanarsi senza che qualcuno lo
+  /// veda.
+  static const Map<ContentViolation, List<String>> _missionOnly = {
+    selfHarm: ['candeggina'],
+    violence: ['torturar'],
+    sexual: ['reggiseno', 'perizoma', 'luci rosse', 'sexy', 'pisellin'],
+    danger: ['cornicion', 'tetto del treno', 'soffocamento'],
+    profanity: [
+      'cazzo',
+      'cazzat',
+      'stronz',
+      'vaffancul',
+      'affancul',
+      'coglion',
+      'puttan',
+      'mignotta',
+      'zoccola',
+      'porcodio',
+      'dioporco',
+      'diocane',
+      'bitch',
+      'asshole',
+    ],
+  };
+
+  /// Le richieste pericolose dette **senza nessuna delle parole dell'elenco**.
+  ///
+  /// Un elenco di parole prende "salta dal ponte" e lascia passare "tuffati
+  /// dalla scogliera", prende "tagliati le vene" e non "incidi la coscia". Qui
+  /// si guarda un'altra cosa: un'**azione** e il **posto o la cosa** che la
+  /// rende pericolosa, vicini nella stessa frase. "Salta" va benissimo, "il
+  /// ponte" va benissimo, "salta dal ponte" no.
+  ///
+  /// Ogni gruppo e' una lista di radici e **devono comparire tutti i gruppi**,
+  /// a non piu' di `window` parole l'uno dall'altro. Una radice vale per ogni
+  /// parola che comincia cosi' (`tuff` prende "tuffati" e "tuffarsi"); con `=`
+  /// davanti vale solo la parola intera, per quelle corte che stanno dentro
+  /// altre (`=gin` non prende "ginocchio", `=spia` non prende "spiaggia").
+  ///
+  /// **Pochi gruppi, scelti stretti, ed e' voluto.** Ogni coppia nuova costa
+  /// una challenge innocua rifiutata per sbaglio, e un filtro che si arrabbia
+  /// con chi non ha fatto niente viene spento. Per questo l'azione da sola non
+  /// basta mai ("salta", "bevi", "taglia" sono parole di tutti i giorni) e le
+  /// finestre sono corte. Prende il giro di parole piu' comune, non quello di
+  /// chi ci lavora sopra: la rete vera resta chi guarda.
+  ///
+  /// Vale solo per le missioni: sono incarichi pagati, e li' un falso positivo
+  /// costa trenta secondi mentre un falso negativo costa una persona.
+  static const List<_Combo> _combos = [
+    // Il vuoto: saltare o tuffarsi da qualcosa di alto.
+    _Combo(
+      danger,
+      [
+        // Le forme del verbo e non `salt`: "un salto di gioia davanti al ponte"
+        // e' un nome, non una richiesta.
+        ['salta', 'salti', 'tuff'],
+        [
+          'ponte',
+          'ponti',
+          'viadott',
+          'cavalcavia',
+          'scogliera',
+          'scogliere',
+          'burrone',
+          'precipizio',
+          'dirupo',
+          'tetto',
+          'tetti',
+          'terrazz',
+          'balcon',
+          'finestr',
+          'cornicion',
+          'grattacielo',
+          'ringhiera',
+          'parapetto',
+        ],
+      ],
+    ),
+    // La strada e i binari: fermarsi, sdraiarsi o attraversare dove non si deve.
+    _Combo(
+      danger,
+      [
+        ['sdraia', 'stendi', 'dormi', 'siedi', 'fermati', 'attravers'],
+        [
+          'carreggiat',
+          'autostrad',
+          'tangenzial',
+          'rotaia',
+          'rotaie',
+          'binari',
+        ],
+      ],
+    ),
+    // Mandare giu' qualcosa che non si beve.
+    _Combo(
+      selfHarm,
+      [
+        [
+          'bevi',
+          'bere',
+          'ingoia',
+          'ingoiare',
+          'ingerisci',
+          'ingerire',
+          'assaggia',
+          'sorseggia',
+          'assumi',
+          'mischia',
+          'mescola',
+        ],
+        [
+          'candeggin',
+          'varechin',
+          'ammoniac',
+          'detersiv',
+          'antigel',
+          'benzina',
+          'trielina',
+          'solvent',
+          'sonnifer',
+          'psicofarmac',
+        ],
+      ],
+    ),
+    // L'alcol, ma **solo con la quantita'**: "bevi una birra" non e' un
+    // pericolo, "bevi un litro di grappa d'un fiato" si'. Tre gruppi.
+    _Combo(
+      danger,
+      [
+        ['bevi', 'bere', 'scola', 'tracanna', 'ingoia', 'ingoiare'],
+        [
+          'alcol',
+          'vodka',
+          'whisk',
+          'grappa',
+          '=rum',
+          '=gin',
+          'tequila',
+          'superalcol',
+          '=vino',
+          '=vini',
+          '=birra',
+          '=birre',
+          'sambuca',
+        ],
+        [
+          'litro',
+          'litri',
+          'intera',
+          'intero',
+          'fiato',
+          'svien',
+          'ubriac',
+          'shot',
+          'cicchett',
+          '=fila',
+        ],
+      ],
+      window: 10,
+    ),
+    // Farsi del male con una lama senza dire "vene" ne' "polsi". Finestra
+    // stretta: "taglia la torta e mostra il braccio" non deve scattare.
+    _Combo(
+      selfHarm,
+      [
+        [
+          '=tagliati',
+          '=taglia',
+          '=tagliarti',
+          '=tagliarsi',
+          '=incidi',
+          '=incidere',
+          '=graffiati',
+          '=bucati',
+        ],
+        [
+          'braccio',
+          'braccia',
+          'polso',
+          'polsi',
+          'coscia',
+          'cosce',
+          'pancia',
+          'pelle',
+          'corpo',
+          'gamba',
+          'gambe',
+          'avambracc',
+          'addome',
+        ],
+      ],
+      window: 4,
+    ),
+    // Il fuoco sul proprio corpo.
+    _Combo(
+      danger,
+      [
+        ['=brucia', '=bruciare', '=brucio'],
+        [
+          'capelli',
+          'mani',
+          'mano',
+          'braccio',
+          'pelle',
+          'sopracciglia',
+          'barba',
+        ],
+      ],
+    ),
+    // Seguire una persona: atti persecutori, e un incarico che nessuno dovrebbe
+    // dare a un estraneo. "Chiedi a uno sconosciuto" non c'entra: il verbo e'
+    // un altro.
+    _Combo(
+      crime,
+      [
+        ['=pedina', '=pedinare', 'insegui', '=spia', '=spiare'],
+        [
+          'sconosciut',
+          'passant',
+          'ragazza',
+          'ragazzo',
+          'donna',
+          'bambin',
+          'vicina',
+          'vicino',
+          '=ex',
+        ],
+      ],
+    ),
+    // I minorenni in un posto dove non si fotografano. Questa app e' per
+    // maggiorenni e paga per le foto: su questo il margine e' zero.
+    _Combo(
+      sexual,
+      [
+        ['bambin', 'minorenn', 'ragazzin', 'figli', 'nipotin'],
+        ['bagno', 'vasca', 'doccia', 'intim', 'spogliatoi', 'pigiama'],
+      ],
+    ),
+  ];
+
   /// Gli stessi frammenti, con le lettere ripetute schiacciate a una.
   ///
   /// Si calcolano una volta sola all'avvio invece che a ogni controllo: e'
@@ -636,6 +892,89 @@ abstract final class ContentPolicy {
 
   /// Comodo per i moduli: torna il messaggio da mostrare, o `null`.
   static String? validate(String? text) => check(text)?.message;
+
+  /// Il controllo per il testo di una **missione**: titolo e consegna.
+  ///
+  /// E' [check] piu' due cose, e tutte e due valgono solo qui:
+  ///
+  /// - quello che il database rifiuta in una missione e [check] no
+  ///   (`_missionOnly`), cosi' il modulo lo dice con la frase giusta invece di
+  ///   lasciare che sia la scrittura a fallire;
+  /// - le richieste pericolose dette **a giri di parole** (`_combos`): azione e
+  ///   posto vicini nella stessa frase, senza nessuna parola da elenco.
+  ///
+  /// Una missione e' un incarico con dei soldi in mezzo, e per questo qui si
+  /// accetta di rifiutare qualcosa in piu'. Commenti, biografie e didascalie
+  /// restano su [check].
+  static ContentViolation? checkMission(String? text) {
+    final violation = check(text);
+
+    if (violation != null) {
+      return violation;
+    }
+
+    final normalized = _normalize(text ?? '');
+
+    if (normalized.trim().isEmpty) {
+      return null;
+    }
+
+    for (final entry in _missionOnly.entries) {
+      for (final fragment in entry.value) {
+        if (normalized.contains(fragment)) {
+          return entry.key;
+        }
+      }
+    }
+
+    return _combination(normalized);
+  }
+
+  /// Come [validate], per il testo di una missione.
+  static String? validateMission(String? text) => checkMission(text)?.message;
+
+  /// La prima richiesta pericolosa fatta a giri di parole, o `null`.
+  ///
+  /// Scorre il testo a finestre di `window` parole e, per ogni coppia (o
+  /// tripletta) di `_combos`, chiede che **ogni gruppo** abbia almeno una
+  /// parola dentro la finestra.
+  static ContentViolation? _combination(String normalized) {
+    final words = normalized.trim().split(' ');
+
+    if (words.length < 2) {
+      return null;
+    }
+
+    for (final combo in _combos) {
+      for (var start = 0; start < words.length; start++) {
+        final end = start + combo.window > words.length
+            ? words.length
+            : start + combo.window;
+        final span = words.sublist(start, end);
+
+        final complete = combo.groups.every(
+          (group) =>
+              span.any((word) => group.any((stem) => _matchesStem(word, stem))),
+        );
+
+        if (complete) {
+          return combo.violation;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /// Se [word] e' coperta da [stem]: comincia cosi', oppure — con `=` davanti —
+  /// e' esattamente quella.
+  static bool _matchesStem(String word, String stem) {
+    if (stem.startsWith('=')) {
+      return word == stem.substring(1);
+    }
+
+    return word.startsWith(stem);
+  }
 
   /// Controlla piu' pezzi insieme — titolo e consegna — e torna il primo
   /// problema.
@@ -754,6 +1093,18 @@ abstract final class ContentPolicy {
 
     return buffer.toString();
   }
+}
+
+/// Una richiesta pericolosa che si riconosce da **due o tre cose insieme**.
+///
+/// Vedi `ContentPolicy._combos`: [groups] sono liste di radici, devono esserci
+/// tutti i gruppi entro [window] parole.
+class _Combo {
+  const _Combo(this.violation, this.groups, {this.window = 6});
+
+  final ContentViolation violation;
+  final List<List<String>> groups;
+  final int window;
 }
 
 /// Una regola violata, con la frase da mostrare a chi l'ha violata.

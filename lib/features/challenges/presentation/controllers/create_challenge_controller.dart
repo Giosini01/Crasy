@@ -42,7 +42,7 @@ abstract final class ChallengeDraftValidators {
       return 'Al massimo $titleMaxLength caratteri.';
     }
 
-    return ContentPolicy.validate(title);
+    return ContentPolicy.validateMission(title);
   }
 
   static String? validateBrief(String? value) {
@@ -61,7 +61,11 @@ abstract final class ChallengeDraftValidators {
     // consegna sbagliata — "tagliati", "sali sul cornicione" — non e' un
     // contenuto discutibile, e' una persona che si fa male perche' gliel'ha
     // chiesto la nostra app, in cambio di soldi nostri.
-    return ContentPolicy.validate(brief);
+    //
+    // Per questo e' `validateMission` e non `validate`: oltre all'elenco ferma
+    // tutto quello che il database rifiuta in una missione, e le richieste
+    // pericolose dette a giri di parole.
+    return ContentPolicy.validateMission(brief);
   }
 
   /// Il premio piu' piccolo che si possa mettere: **un euro**.

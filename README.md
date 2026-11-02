@@ -432,6 +432,26 @@ rifiutano i casi piu' espliciti anche a chi scrivesse saltando l'app, poi un
 controllo automatico sul server. **In fondo alla catena serve qualcuno che
 guardi**, e va messo in conto prima di aprire al pubblico.
 
+Per il testo di una **missione** (titolo e consegna) il controllo dell'app e'
+`ContentPolicy.checkMission`, che aggiunge due cose a quello di tutti:
+
+- **quello che il database rifiuta e l'app no.** Le regole di Firestore hanno un
+  elenco loro, e quando non coincideva col modulo si compilava tutto per leggere
+  "operazione non consentita". `test/core/moderation/content_policy_mission_test.dart`
+  legge `firestore.rules` e fallisce se un'espressione rifiutata dal database
+  passa dal modulo: una riga aggiunta alle regole e dimenticata nell'app non
+  arriva piu' a un utente;
+- **le richieste a giri di parole.** Un elenco prende "salta dal ponte" e lascia
+  passare "tuffati dalla scogliera". `_combos` guarda un'azione e il posto che la
+  rende pericolosa **vicini nella stessa frase**: "salta" va bene, "il ponte" va
+  bene, "salta dal ponte" no. Sono pochi gruppi e scelti stretti, perche' ogni
+  coppia nuova costa una missione innocua rifiutata per sbaglio. Prende il giro
+  di parole piu' comune, non quello di chi ci lavora sopra.
+
+Le coppie valgono **solo nell'app**: le regole di Firestore restano un elenco di
+frammenti, perche' una regex abbastanza lunga da contenerle smetterebbe di
+compilare. Chi scrive sul database direttamente le scavalca.
+
 ### Le foto
 
 Nudita' e contenuti sessuali non sono ammessi. Il controllo e' scritto e sta in
