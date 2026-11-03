@@ -4,6 +4,9 @@
  * Su Stripe arriva tutto insieme: premi di altri, spese e la parte di CRASY. Qui si
  * divide, incasso per incasso, con le spese vere lette da Stripe. L'AI si paga in dollari
  * e a parte, quindi non si sottrae: sommare due valute farebbe un numero che non e' vero.
+ *
+ * Di Stripe si mostra solo quello che prende in piu'. La commissione sugli incassi non ha
+ * una cifra sua, ma resta dentro "Ti resta" e "Tuo": senza, quei numeri sarebbero falsi.
  */
 import {
   caricaIn,
@@ -36,7 +39,6 @@ async function caricaGuadagni(dove, giorni) {
       pannello('contiStripe', { giorni }),
     ]);
     const tiResta = t.guadagno - conti.altreSpese;
-    const costaStripe = t.speseStripe + conti.altreSpese;
 
     metti(
       dove,
@@ -58,9 +60,9 @@ async function caricaGuadagni(dove, giorni) {
         <div class="occhiello occhiello--rosso" style="margin:22px 0 10px">Quanto spendi</div>
         <div class="numeri">
           <div class="numero">
-            <div class="occhiello">Stripe</div>
-            <div class="numero__cifra">${euro(costaStripe)}</div>
-            <div class="numero__nota">${euro(t.speseStripe)} sugli incassi, ${euro(conti.altreSpese)} a parte</div>
+            <div class="occhiello">Extra Stripe</div>
+            <div class="numero__cifra">${euro(conti.altreSpese)}</div>
+            <div class="numero__nota">quello che prende oltre alla commissione sugli incassi</div>
           </div>
           <div class="numero">
             <div class="occhiello">Rimborsi fatti</div>
@@ -79,7 +81,7 @@ async function caricaGuadagni(dove, giorni) {
           ? html`<div class="tabella-giro" style="margin-top:14px"><table>
               <thead><tr>
                 <th>Quando</th><th>Cosa</th><th class="num">Pagato</th><th class="num">Reso</th>
-                <th class="num">Stripe</th><th class="num">Al vincitore</th><th class="num">Tuo</th><th>Stato</th>
+                <th class="num">Al vincitore</th><th class="num">Tuo</th><th>Stato</th>
               </tr></thead>
               <tbody>
                 ${righe.map(
@@ -88,7 +90,6 @@ async function caricaGuadagni(dove, giorni) {
                     <td>${r.cosa}${r.titolo ? html`<div class="sotto-riga">${r.titolo}</div>` : ''}</td>
                     <td class="num">${euro(r.pagato)}</td>
                     <td class="num">${r.reso ? euro(r.reso) : '—'}</td>
-                    <td class="num">${euro(r.stripe)}</td>
                     <td class="num">${r.alVincitore ? euro(r.alVincitore) : '—'}</td>
                     <td class="num"><b class="${r.tuo < 0 ? 'rosso' : ''}">${euro(r.tuo)}</b></td>
                     <td class="sotto-riga">${r.stato}</td>
