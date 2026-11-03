@@ -1,48 +1,16 @@
-import 'dart:io';
-
 import 'package:crasy/core/moderation/content_policy.dart';
 import 'package:crasy/features/challenges/presentation/controllers/create_challenge_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Il controllo sul testo di una **missione**: titolo e consegna.
 ///
-/// Una missione e' un incarico con dei soldi in mezzo, e il controllo ha due
-/// difetti noti che queste prove tengono sotto occhio:
-///
-/// - le regole di Firestore hanno un elenco loro, e per un po' non coincideva
-///   con quello dell'app: il modulo diceva di si', la scrittura veniva
-///   respinta, e chi l'aveva scritta leggeva "operazione non consentita";
-/// - un elenco di parole non vede chi gira intorno: "tuffati dalla scogliera"
-///   passa anche quando "salta dal ponte" no.
+/// Una missione e' un incarico con dei soldi in mezzo, e un elenco di parole non
+/// vede chi gira intorno: "tuffati dalla scogliera" passa anche quando "salta dal
+/// ponte" no. Qui si controlla quello che il modulo dice subito; l'ultima parola e'
+/// del server, e i suoi giri di parole sono provati in
+/// `functions/test/parole.test.js`.
 void main() {
-  group('il modulo e il database dicono la stessa cosa', () {
-    test('tutto quello che le regole di Firestore rifiutano, il modulo lo '
-        'rifiuta prima', () {
-      final espressioni = _espressioniDelleRegole();
-
-      // Se il formato delle regole cambia e la lettura non trova piu' niente,
-      // questa prova deve fallire e non passare a vuoto.
-      expect(
-        espressioni.length,
-        greaterThan(80),
-        reason: 'Non riesco piu\' a leggere `saysSomethingForbidden` in '
-            'firestore.rules: aggiorna `_espressioniDelleRegole`.',
-      );
-
-      final sfuggite = [
-        for (final espressione in espressioni)
-          if (ContentPolicy.checkMission(espressione) == null) espressione,
-      ];
-
-      expect(
-        sfuggite,
-        isEmpty,
-        reason: 'Il database le rifiuta e il modulo le lascia passare: chi le '
-            'scrive vede "operazione non consentita" invece del motivo. '
-            'Aggiungile a `_missionOnly` in content_policy.dart.',
-      );
-    });
-
+  group('quello che in una missione si ferma', () {
     test('una parolaccia passa in un commento ma non in una missione', () {
       // Una decisione gia' presa: "che cazzo hai fatto" e' stupore. Dentro una
       // missione, che e' un incarico pagato, il database la ferma da sempre.
@@ -149,29 +117,4 @@ void main() {
       });
     }
   });
-}
-
-/// Le espressioni che `saysSomethingForbidden` cerca nei testi di una missione.
-///
-/// La funzione e' fatta di blocchi `'.*(uno|due|tre).*'`: si tolgono le
-/// alternative una per una. Legge il file vero, cosi' una riga aggiunta alle
-/// regole e dimenticata nell'app fa fallire questa prova invece di far fallire
-/// un utente.
-List<String> _espressioniDelleRegole() {
-  final regole = File('firestore.rules').readAsStringSync();
-  final inizio = regole.indexOf('function saysSomethingForbidden');
-  // Il primo `}` a quattro spazi dopo l'inizio: chiude la funzione. Non cerca
-  // il fine riga intero, che su Windows e' `\r\n`.
-  final fine = regole.indexOf(RegExp(r'\n    \}'), inizio);
-
-  if (inizio < 0 || fine < 0) {
-    return const [];
-  }
-
-  final corpo = regole.substring(inizio, fine);
-  final blocchi = RegExp(r"'\.\*\(([^)]*)\)\.\*'").allMatches(corpo);
-
-  return [
-    for (final blocco in blocchi) ...blocco.group(1)!.split('|'),
-  ];
 }

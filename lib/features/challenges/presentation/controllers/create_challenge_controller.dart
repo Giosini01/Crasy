@@ -86,7 +86,7 @@ abstract final class ChallengeDraftValidators {
       return 'Al massimo $duelMessageMaxLength caratteri.';
     }
 
-    return ContentPolicy.validate(messaggio);
+    return ContentPolicy.validateMission(messaggio);
   }
 
   /// Il premio piu' piccolo che si possa mettere: **un euro**.

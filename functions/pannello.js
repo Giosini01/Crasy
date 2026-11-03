@@ -931,7 +931,7 @@ async function dimentica({ id }, chi) {
 }
 
 /** Quante prove della batteria vanno insieme: una alla volta non starebbe nel tempo. */
-const PROVE_INSIEME = 8;
+const PROVE_INSIEME = 12;
 
 /**
  * **La batteria: tutte le missioni di prova, piu' quelle insegnate.** Quello che conta e'

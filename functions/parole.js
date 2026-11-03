@@ -292,6 +292,95 @@ const INNOCUE = new Set([
  */
 const TRONCHE_INNOCUE = ['passerà', 'culò', 'cullò', 'pennè', 'negrì', 'taccheggiò', 'cazzò'];
 
+/**
+ * **Le richieste pericolose dette senza nessuna parola vietata.** Un elenco prende "salta
+ * dal ponte" e non "tuffati dalla scogliera": qui si guardano un'azione e il posto o la
+ * cosa che la rende pericolosa, vicini nella stessa frase. "Salta" va benissimo, "il
+ * ponte" va benissimo, "salta dal ponte" no.
+ *
+ * Ogni gruppo e' una lista di radici e **devono esserci tutti i gruppi**, entro `finestra`
+ * parole. Una radice vale per ogni parola che comincia cosi'; con `=` davanti vale solo la
+ * parola intera, per quelle corte che stanno dentro altre (`=gin` non e' "ginocchio").
+ *
+ * Sono gli stessi di `_combos` in `lib/core/moderation/content_policy.dart`: li' servono a
+ * dirlo subito a chi scrive, qui a fermare chi salta l'app.
+ */
+const COMBINAZIONI = [
+  // Il vuoto: saltare o tuffarsi da qualcosa di alto.
+  {
+    categoria: 'pericolo',
+    gruppi: [
+      ['salta', 'salti', 'tuff'],
+      [
+        'ponte', 'ponti', 'viadott', 'cavalcavia', 'scogliera', 'scogliere', 'burrone', 'precipizio',
+        'dirupo', 'tetto', 'tetti', 'terrazz', 'balcon', 'finestr', 'cornicion', 'grattacielo',
+        'ringhiera', 'parapetto',
+      ],
+    ],
+  },
+  // La strada e i binari: fermarsi, sdraiarsi o attraversare dove non si deve.
+  {
+    categoria: 'pericolo',
+    gruppi: [
+      ['sdraia', 'stendi', 'dormi', 'siedi', 'fermati', 'attravers'],
+      ['carreggiat', 'autostrad', 'tangenzial', 'rotaia', 'rotaie', 'binari'],
+    ],
+  },
+  // Mandare giu' qualcosa che non si beve.
+  {
+    categoria: 'autolesionismo',
+    gruppi: [
+      ['bevi', 'bere', 'ingoia', 'ingoiare', 'ingerisci', 'ingerire', 'assaggia', 'sorseggia', 'assumi', 'mischia', 'mescola'],
+      ['candeggin', 'varechin', 'ammoniac', 'detersiv', 'antigel', 'benzina', 'trielina', 'solvent', 'sonnifer', 'psicofarmac'],
+    ],
+  },
+  // L'alcol, ma solo con la quantita': "bevi una birra" non e' un pericolo.
+  {
+    categoria: 'pericolo',
+    finestra: 10,
+    gruppi: [
+      ['bevi', 'bere', 'scola', 'tracanna', 'ingoia', 'ingoiare'],
+      ['alcol', 'vodka', 'whisk', 'grappa', '=rum', '=gin', 'tequila', 'superalcol', '=vino', '=vini', '=birra', '=birre', 'sambuca'],
+      ['litro', 'litri', 'intera', 'intero', 'fiato', 'svien', 'ubriac', 'shot', 'cicchett', '=fila'],
+    ],
+  },
+  // Farsi del male con una lama senza dire "vene" ne' "polsi".
+  {
+    categoria: 'autolesionismo',
+    finestra: 4,
+    gruppi: [
+      ['=tagliati', '=taglia', '=tagliarti', '=tagliarsi', '=incidi', '=incidere', '=graffiati', '=bucati'],
+      ['braccio', 'braccia', 'polso', 'polsi', 'coscia', 'cosce', 'pancia', 'pelle', 'corpo', 'gamba', 'gambe', 'avambracc', 'addome'],
+    ],
+  },
+  // Il fuoco sul proprio corpo.
+  {
+    categoria: 'pericolo',
+    gruppi: [
+      ['=brucia', '=bruciare', '=brucio'],
+      ['capelli', 'mani', 'mano', 'braccio', 'pelle', 'sopracciglia', 'barba'],
+    ],
+  },
+  // Seguire una persona: atti persecutori.
+  {
+    categoria: 'reato',
+    gruppi: [
+      ['=pedina', '=pedinare', 'insegui', '=spia', '=spiare'],
+      ['sconosciut', 'passant', 'ragazza', 'ragazzo', 'donna', 'bambin', 'vicina', 'vicino', '=ex'],
+    ],
+  },
+  // I minorenni in un posto dove non si fotografano: su questo il margine e' zero.
+  {
+    categoria: 'sessuale',
+    gruppi: [
+      ['bambin', 'minorenn', 'ragazzin', 'figli', 'nipotin'],
+      ['bagno', 'vasca', 'doccia', 'intim', 'spogliatoi', 'pigiama'],
+    ],
+  },
+];
+
+const FINESTRA_NORMALE = 6;
+
 // ---------------------------------------------------------------------------
 // Gli elenchi gialli
 // ---------------------------------------------------------------------------
@@ -547,6 +636,11 @@ function letture(testo) {
     chiaro,
     normali: normali.map((lettura) => ` ${lettura} `),
     schiacciate: schiacciate.map((lettura) => ` ${lettura} `),
+    // Parola per parola, per i giri di parole. Le ripetizioni si riducono a due e non a
+    // una: l'italiano ha le doppie, e `salta` deve restare `salta` in `saltaaaa`.
+    frasi: distinte(normali.map((lettura) => lettura.replace(/([a-z])\1{2,}/g, '$1$1'))).map(
+      (lettura) => lettura.split(' ')
+    ),
     // Le stesse parole, dritte e lette dall'ultima lettera alla prima.
     sequenze: [...dritte, ...dritte.map(alRovescio)],
     // Le parole una per una, per il confronto con un margine di errore.
@@ -557,6 +651,35 @@ function letture(testo) {
 // ---------------------------------------------------------------------------
 // Il confronto
 // ---------------------------------------------------------------------------
+
+function radiceCombacia(parola, radice) {
+  return radice.startsWith('=') ? parola === radice.slice(1) : parola.startsWith(radice);
+}
+
+/**
+ * La prima richiesta pericolosa fatta a giri di parole: si scorre il testo a finestre, e
+ * in una finestra deve esserci una parola per ogni gruppo.
+ */
+function cercaCombinazione(parole, consentite) {
+  for (const { categoria, gruppi, finestra = FINESTRA_NORMALE } of COMBINAZIONI) {
+    for (let inizio = 0; inizio < parole.length; inizio += 1) {
+      const tratto = parole.slice(inizio, inizio + finestra);
+      const trovate = gruppi.map((gruppo) =>
+        tratto.find((parola) => gruppo.some((radice) => radiceCombacia(parola, radice)))
+      );
+
+      if (trovate.every(Boolean)) {
+        const termine = trovate.join(' + ');
+
+        if (!consentite.has(termine)) {
+          return { categoria, termine };
+        }
+      }
+    }
+  }
+
+  return null;
+}
 
 /** Quante correzioni di una lettera separano due parole, fermandosi a due. */
 function quasiUguali(a, b) {
@@ -828,6 +951,14 @@ function controlla(testi, opzioni = {}) {
       }
     }
 
+    for (const parole of let_.frasi) {
+      const giro = cercaCombinazione(parole, consentite);
+
+      if (giro) {
+        segnaRossa(giro.categoria, giro.termine, testo);
+      }
+    }
+
     for (const parola of let_.parole) {
       if (parola.length < 6) {
         continue;
@@ -893,6 +1024,7 @@ module.exports = {
   letture,
   pulisci,
   // Per le prove e per la scansione col dizionario.
+  COMBINAZIONI,
   ROSSE,
   ROSSE_INTERE,
   GIALLE,

@@ -8,7 +8,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { controlla, letture } = require('../parole');
+const { COMBINAZIONI, controlla, letture } = require('../parole');
 
 function rossa(testo) {
   return controlla([testo]).rossa;
@@ -247,4 +247,103 @@ test("le missioni gia scritte dentro l'app non si fermano", () => {
 
     assert.equal(esito.rossa, null, `${titolo}: ${JSON.stringify(esito.rossa)}`);
   }
+});
+
+test('i giri di parole si fermano anche sul server', () => {
+  for (const [testo, categoria] of [
+    ['Sdraiati sulla carreggiata e fatti una foto', 'pericolo'],
+    ['Stenditi sui binari per 10 secondi', 'pericolo'],
+    ["Tuffati dalla scogliera piu' alta che trovi", 'pericolo'],
+    ['Salta giu dal balcone e riprendi tutto', 'autolesionismo'],
+    ["Bevi mezza bottiglia di vodka tutta d'un fiato", 'pericolo'],
+    ['Scola un litro di grappa e riprendilo', 'pericolo'],
+    ["Brucia i peli del braccio con l'accendino", 'pericolo'],
+    ["Attraversa l'autostrada a occhi chiusi", 'pericolo'],
+    ['Fermati in mezzo alla tangenziale', 'pericolo'],
+    ["Ingerisci un po' di candeggina e mostra la faccia", 'autolesionismo'],
+    ['Mescola dei sonniferi nella birra e bevila', 'autolesionismo'],
+    ['Taglia il tuo braccio e fotografa', 'autolesionismo'],
+    ['Incidi la coscia con un coltello', 'autolesionismo'],
+    ['Pedina una ragazza fino a casa', 'reato'],
+    ['Insegui uno sconosciuto per dieci minuti', 'reato'],
+    ['Foto di tuo figlio mentre fa il bagno', 'sessuale'],
+    ['SALTAAAA dal tetto', 'autolesionismo'],
+    ['S4lta dal b4lcone', 'autolesionismo'],
+    ['TUFFATIIII dalla scogliera', 'pericolo'],
+    ['Tuff4ti d4lla sc0gliera', 'pericolo'],
+  ]) {
+    assert.ok(rossa(testo), `doveva fermarsi: ${testo}`);
+    assert.equal(rossa(testo).categoria, categoria, testo);
+  }
+});
+
+test('le frasi vicine a quelle vietate non si fermano', () => {
+  for (const testo of [
+    'Fatti una foto mentre salti',
+    'Fai un salto di gioia davanti al ponte vecchio',
+    'salto mortale sul divano',
+    'Fai un tuffo in piscina',
+    'Fotografa un ponte illuminato di notte',
+    'Fotografa un tetto rosso',
+    'Fatti una foto sul balcone di casa',
+    "Il palazzo piu' alto che vedi dal tuo balcone",
+    'Fermati al semaforo e saluta il vicino',
+    'Dormi con il tuo cane e fotografalo',
+    'Fotografa la stazione ferroviaria',
+    "Bevi un caffe' e mostra la tazza",
+    "Bevi un bicchiere d'acqua tutto d'un fiato",
+    'Bevi una birra con gli amici e brindate',
+    'Taglia la torta e mostra il braccio del tuo amico',
+    'tagliati i capelli davanti allo specchio',
+    'Cuoci le tagliatelle e mostra il piatto',
+    'Segui le indicazioni e chiedi a uno sconosciuto una foto',
+    'Fai una foto in spiaggia con la spia accesa',
+    'Mostra il tuo bambino che ride',
+    'Fai il bagno al mare con un amico',
+    "Il tuo bagno piu' strano",
+    'Foto a un uccello sul balcone',
+    'Fai una foto con un porcospino',
+    'Balla in mezzo alla piazza',
+  ]) {
+    assert.equal(rossa(testo), null, `non doveva fermarsi: ${testo}`);
+  }
+});
+
+test('nessun consiglio del menu si ferma alle parole', () => {
+  const menu = require('../dati/missioni_pronte.json');
+
+  assert.ok(menu.length > 100);
+
+  for (const missione of menu) {
+    const esito = controlla([missione.titolo, missione.consegna]);
+
+    assert.equal(esito.rossa, null, `${missione.titolo}: ${JSON.stringify(esito.rossa)}`);
+  }
+});
+
+test('dal pannello si riapre anche un giro di parole', () => {
+  const testo = 'Tuffati dalla scogliera';
+
+  assert.ok(rossa(testo));
+  assert.equal(
+    controlla([testo], { consentite: ['tuffati + scogliera'] }).rossa,
+    null
+  );
+});
+
+test('i giri di parole sono gli stessi dell app', () => {
+  // Il server deve fermare almeno quello che il modulo dice di fermare, altrimenti chi salta
+  // l'app passa. Si legge il file dell'app, per non doverli tenere uguali a occhio.
+  const dart = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'lib', 'core', 'moderation', 'content_policy.dart'),
+    'utf8'
+  );
+  const daQui = dart.slice(dart.indexOf('List<_Combo> _combos'));
+  // Senza i commenti: i loro apostrofi sembrerebbero delle stringhe.
+  const blocco = daQui.slice(0, daQui.indexOf('\n  ];')).replace(/\/\/.*$/gm, '');
+  const nellApp = [...blocco.matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  const sulServer = COMBINAZIONI.flatMap((c) => c.gruppi.flat());
+
+  assert.ok(nellApp.length > 50);
+  assert.deepEqual([...new Set(nellApp)].sort(), [...new Set(sulServer)].sort());
 });

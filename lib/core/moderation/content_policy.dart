@@ -535,24 +535,13 @@ abstract final class ContentPolicy {
     hate: ['negrodimerda', 'frociodimerda', 'pezzodimerda'],
   };
 
-  /// Quello che il database rifiuta in una **missione** e il resto dell'app no.
-  ///
-  /// Le regole di Firestore (`saysSomethingForbidden`) fermano titolo e
-  /// consegna con un elenco loro, e per un po' le due meta' non coincidevano:
-  /// il modulo diceva di si', la scrittura veniva respinta, e chi l'aveva
-  /// scritta leggeva "operazione non consentita" senza capire cosa avesse
-  /// sbagliato. Qui sta la differenza, cosi' il modulo la dice per primo.
+  /// Quello che in una **missione** si ferma, e nel resto dell'app no.
   ///
   /// **Non sta nell'elenco di tutti perche' altrove la decisione e' un'altra.**
   /// "Che cazzo hai fatto" in un commento e' stupore e passa — sta scritto in
   /// `content_policy_test.dart` ed e' una scelta presa. Dentro una missione,
-  /// che e' un incarico pagato, il database la ferma da sempre: qui si dice
-  /// con il messaggio giusto invece di lasciarlo scoprire alla scrittura.
-  ///
-  /// `test/core/moderation/content_policy_mission_test.dart` legge le regole di
-  /// Firestore e fallisce se un'espressione che il database rifiuta passa di
-  /// qui: le due liste non possono piu' allontanarsi senza che qualcuno lo
-  /// veda.
+  /// che e' un incarico pagato, si ferma: qui si dice subito, con il messaggio
+  /// giusto. L'ultima parola e' del server, in `functions/parole.js`.
   static const Map<ContentViolation, List<String>> _missionOnly = {
     selfHarm: ['candeggina'],
     violence: ['torturar'],
@@ -899,9 +888,8 @@ abstract final class ContentPolicy {
   ///
   /// E' [check] piu' due cose, e tutte e due valgono solo qui:
   ///
-  /// - quello che il database rifiuta in una missione e [check] no
-  ///   (`_missionOnly`), cosi' il modulo lo dice con la frase giusta invece di
-  ///   lasciare che sia la scrittura a fallire;
+  /// - quello che in una missione si ferma e altrove no (`_missionOnly`), cosi'
+  ///   il modulo lo dice subito invece di aspettare la risposta del server;
   /// - le richieste pericolose dette **a giri di parole** (`_combos`): azione e
   ///   posto vicini nella stessa frase, senza nessuna parola da elenco.
   ///

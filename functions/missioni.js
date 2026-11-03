@@ -48,6 +48,7 @@ const admin = require('firebase-admin');
 const { controlla, formaCanonica, CATEGORIE } = require('./parole');
 const giudice = require('./giudice');
 const { foglioDi } = require('./autori');
+const MENU = require('./dati/missioni_pronte.json');
 
 const PROPOSTE = 'missioniProposte';
 const GIUDIZI = 'giudizi';
@@ -182,6 +183,40 @@ function improntaDi({ title, brief, duelMessage }) {
     )
     .digest('hex');
 }
+
+/**
+ * **I consigli su cui il modello ha un dubbio.** Passati tutti e 242 dal modello vero, questi
+ * sono rimasti sotto 80, e sotto 80 decide una persona anche quando il testo e' nostro: fanno
+ * la strada di tutte le altre missioni. La prima volta arrivano in coda, e una volta approvati
+ * la decisione vale per chiunque li scelga dopo.
+ */
+const CONSIGLI_DA_GUARDARE = [
+  'SPAGHETTI SENZA MANI, IN VENTI SECONDI',
+  "IL 'CIAO' CHE FA PERDERE IL TRENO",
+  "L'ULTIMA FOTO DELLA TUA GALLERIA",
+  'INVITA A BALLARE UNO SCONOSCIUTO',
+  'IL CONTATTO SALVATO COL NOME PEGGIORE',
+  'IL NO PIÙ BRUTALE CHE HAI RICEVUTO',
+  'TOGLITI UN GUANTO COME IN GILDA',
+  'LA DICHIARAZIONE IN GINOCCHIO',
+  "L'ALBA DI OGGI, FUORI CASA",
+  'LO SCREENSHOT DELLA LITE PIÙ ASSURDA',
+];
+
+/**
+ * **I consigli del menu li ha scritti CRASY.** E' la stessa app a proporli quando si lancia
+ * una gara: farne giudicare uno dal modello, e magari tenerlo fermo, vorrebbe dire
+ * consigliare una cosa e poi non lasciarla fare. Valgono solo scritti esattamente cosi':
+ * basta cambiare una parola, e si torna a controllarli come tutti gli altri.
+ *
+ * Una persona puo' sempre rifiutarne uno, e una parola rossa aggiunta dal pannello vale
+ * anche per loro. Per togliere un consiglio si toglie dal file: `dati/missioni_pronte.json`.
+ */
+const IMPRONTE_DEL_MENU = new Set(
+  MENU.filter((missione) => !CONSIGLI_DA_GUARDARE.includes(missione.titolo)).map((missione) =>
+    improntaDi({ title: missione.titolo, brief: missione.consegna, duelMessage: '' })
+  )
+);
 
 /**
  * **La gara, con gli stessi campi di sempre.**
@@ -507,6 +542,10 @@ async function valutaPerProva({ title, brief, duelMessage }, impostazioni) {
     return { ...base, giudizio: null, voto: null, strada: 'bloccata', costo: 0 };
   }
 
+  if (IMPRONTE_DEL_MENU.has(impronta)) {
+    return { ...base, menu: true, giudizio: null, voto: null, strada: 'inGara', costo: 0 };
+  }
+
   const giudizio = await giudice.giudica(
     { titolo: title, consegna: brief, messaggio: duelMessage },
     { esempi: impostazioni.esempi }
@@ -661,6 +700,25 @@ async function proponi(uid, richiesta) {
       voto: null,
     });
     await creaLaGara(ref.id, { ...base });
+
+    return { stato: 'inGara', challengeId: ref.id };
+  }
+
+  if (
+    IMPRONTE_DEL_MENU.has(impronta) &&
+    !controlla([richiesta.title, richiesta.brief, richiesta.duelMessage], impostazioni).rossa
+  ) {
+    const ref = proposte.doc();
+
+    await ref.set({
+      ...base,
+      stato: 'approvata',
+      fonte: 'menu',
+      filtro: { rossa: null, gialle: [] },
+      giudizio: null,
+      voto: null,
+    });
+    await creaLaGara(ref.id, base);
 
     return { stato: 'inGara', challengeId: ref.id };
   }
@@ -1018,6 +1076,7 @@ const pulisciLeProposte = onSchedule(
 
 module.exports = {
   CATEGORIE,
+  CONSIGLI_DA_GUARDARE,
   GIUDIZI,
   IMPOSTAZIONI,
   LIMITI,

@@ -744,6 +744,90 @@ test('la batteria dice chi sarebbe uscito da solo, senza far nascere niente', as
   assert.equal(giu.righe.find((r) => r.title === 'Il treno che arriva').esito, 'guasto');
 });
 
+test('i consigli del menu escono subito, ma solo scritti cosi', async () => {
+  const menu = require('../dati/missioni_pronte.json');
+  const [primo, secondo, terzo] = menu.filter(
+    (m) => !missioni.CONSIGLI_DA_GUARDARE.includes(m.titolo)
+  );
+
+  // Un modello che direbbe di no: su un consiglio non deve nemmeno essere chiamato.
+  prossimoVoto = voto(10);
+  chiamate = 0;
+
+  const esito = await proponi(richiesta({ title: primo.titolo, brief: primo.consegna }));
+
+  assert.equal(esito.stato, 'inGara');
+  assert.equal(chiamate, 0);
+
+  const proposta = await db.collection('missioniProposte').doc(esito.challengeId).get();
+
+  assert.equal(proposta.get('fonte'), 'menu');
+
+  // Maiuscole e spazi non cambiano niente.
+  const uguale = await proponi(
+    richiesta({ title: primo.titolo.toLowerCase(), brief: `  ${primo.consegna}  ` })
+  );
+
+  assert.equal(uguale.stato, 'inGara');
+
+  // Una parola cambiata, e si torna al controllo.
+  const cambiata = await proponi(
+    richiesta({ title: primo.titolo, brief: `${primo.consegna} In autostrada.` })
+  );
+
+  assert.equal(cambiata.stato, 'inControllo');
+
+  // Una persona puo' rifiutarne uno, e vale.
+  await db
+    .collection('giudizi')
+    .doc(missioni.improntaDi({ title: secondo.titolo, brief: secondo.consegna, duelMessage: '' }))
+    .set({ decisione: 'rifiutata', motivoDecisione: 'non ci piace piu' });
+
+  const rifiutato = await proponi(richiesta({ title: secondo.titolo, brief: secondo.consegna }));
+
+  assert.equal(rifiutato.stato, 'bloccata');
+
+  // E la prova dal banco dice la stessa cosa, senza far nascere niente.
+  const prova = await pannelloCome('provaLancio', { title: terzo.titolo, brief: terzo.consegna });
+
+  assert.equal(prova.menu, true);
+  assert.equal(prova.strada, 'inGara');
+  assert.equal(prova.costo, 0);
+});
+
+test('i consigli su cui il modello ha un dubbio passano da una persona', async () => {
+  const menu = require('../dati/missioni_pronte.json');
+
+  // Un titolo scritto male li farebbe uscire senza controllo, senza dire niente a nessuno.
+  for (const titolo of missioni.CONSIGLI_DA_GUARDARE) {
+    assert.ok(menu.some((m) => m.titolo === titolo), `non e' nel menu: ${titolo}`);
+  }
+
+  const consiglio = menu.find((m) => m.titolo === missioni.CONSIGLI_DA_GUARDARE[0]);
+
+  prossimoVoto = voto(58);
+  chiamate = 0;
+
+  const esito = await proponi(richiesta({ title: consiglio.titolo, brief: consiglio.consegna }));
+
+  assert.equal(esito.stato, 'inControllo');
+  assert.equal(chiamate, 1);
+
+  await pannelloCome('decidiProposta', { id: esito.propostaId, decisione: 'approva' });
+
+  // Approvato una volta, e il prossimo che lo sceglie non aspetta.
+  prossimoVoto = voto(10);
+  chiamate = 0;
+
+  const dopo = await proponi(
+    richiesta({ title: consiglio.titolo, brief: consiglio.consegna }),
+    'qualcun-altro'
+  );
+
+  assert.equal(dopo.stato, 'inGara');
+  assert.equal(chiamate, 0);
+});
+
 test('il pannello si apre solo agli amministratori', async () => {
   await assert.rejects(pannelloCome('panoramica', {}, CHI, {}), /Non sei un amministratore/);
   await assert.rejects(

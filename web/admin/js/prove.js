@@ -43,21 +43,14 @@ function cosaSuccede(e, premio) {
     };
   }
 
-  if (e.precedente === 'approvata') {
-    return {
-      vede: 'Una persona ha già approvato questo stesso testo: esce senza passare di nuovo dal controllo.',
-      soldi: premio > 0 ? `Si apre il pagamento di ${euro(premio)} di premio, e i soldi si prendono lì.` : 'È gratis: nessun pagamento.',
-    };
-  }
-
-  if (e.strada === 'bloccata') {
+  if (e.strada === 'bloccata' && e.precedente !== 'approvata') {
     return {
       vede: `“${e.filtro.rossa.messaggio}”`,
       soldi: 'Non paga niente: la missione non nasce, e può riscriverla.',
     };
   }
 
-  if (e.strada === 'inGara') {
+  if (e.strada === 'inGara' || e.precedente === 'approvata') {
     return {
       vede: premio > 0 ? '“Missione approvata: ora paghi il premio e parte.”' : 'La missione è subito in gara.',
       soldi: premio > 0 ? `Si apre il pagamento di ${euro(premio)} di premio, e i soldi si prendono lì. Il tempo parte quando paga.` : 'È gratis: nessun pagamento.',
@@ -81,11 +74,16 @@ function esitoProva(e, dati) {
     <div class="carta__cima">
       <div>
         <div class="occhiello occhiello--rosso">Cosa succederebbe</div>
-        <h2 style="margin:6px 0 0">${e.precedente ? `Già ${e.precedente}` : STRADE[e.strada] || e.strada}</h2>
+        <h2 style="margin:6px 0 0">${e.precedente ? `Già ${e.precedente}` : e.menu ? 'Viene dai consigli' : STRADE[e.strada] || e.strada}</h2>
       </div>
       ${bollinoVoto(e.voto, true)}
     </div>
     ${ilPerche({ filtro: e.filtro, giudizio: e.giudizio, voto: e.voto })}
+    ${e.precedente === 'approvata'
+      ? html`<p class="perche">Una persona ha già approvato questo stesso testo: non passa di nuovo dal controllo.</p>`
+      : e.menu
+      ? html`<p class="perche">È uno dei consigli di CRASY, scritto così com'è: non passa dal modello e non costa niente. Basta cambiare una parola e torna al controllo.</p>`
+      : ''}
     <p class="perche"><b>Chi la lancia legge:</b> ${vede}</p>
     <p class="perche"><b>I soldi:</b> ${soldi}</p>
     <p class="sotto-riga" style="margin:12px 0 0">Non è nato niente: nessuna gara, nessun avviso, nessun pagamento.${

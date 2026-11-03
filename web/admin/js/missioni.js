@@ -155,7 +155,11 @@ function cartaProposta(p, { soloLettura = false } = {}) {
       : ''}
     ${p.stato === 'approvata'
       ? html`<p class="perche">
-          ${p.fonte === 'ai' ? html`<b>Uscita da sola.</b>` : html`<b>Approvata</b>${p.decisaDa ? html` da ${p.decisaDa}` : ''}.`}
+          ${p.fonte === 'ai'
+            ? html`<b>Uscita da sola.</b>`
+            : p.fonte === 'menu'
+            ? html`<b>Uno dei consigli di CRASY:</b> non passa dal controllo.`
+            : html`<b>Approvata</b>${p.decisaDa ? html` da ${p.decisaDa}` : ''}.`}
           ${p.challengeId ? html` <a href="#/missione/${encodeURIComponent(p.challengeId)}">Apri la gara</a>` : html` Aspetta il pagamento.`}
         </p>`
       : ''}
