@@ -128,6 +128,16 @@ class _MissioneApprovataPageState extends ConsumerState<MissioneApprovataPage> {
     // Si chiede, non si prende: il portafoglio e' denaro che sta aspettando di
     // uscire sul conto. Vedi `chiediComePagare`.
     if (saldo >= premio) {
+      // Il saldo conta anche i premi che Stripe non ha ancora reso spendibili:
+      // si chiede prima di promettere.
+      final spendibile = await ref
+          .read(paymentsServiceProvider)
+          .saldoSpendibile();
+
+      if (!mounted) {
+        return;
+      }
+
       setState(() => _lavoro = false);
 
       final scelta = await chiediComePagare(
@@ -135,6 +145,7 @@ class _MissioneApprovataPageState extends ConsumerState<MissioneApprovataPage> {
         premioCents: premio,
         saldoCents: saldo,
         conLaCartaCents: PrizeLedger.chargeCents(premio),
+        spendibile: spendibile,
       );
 
       // Chiuso il foglio senza scegliere: non e' un errore e non si dice niente.

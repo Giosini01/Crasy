@@ -717,7 +717,8 @@ exports.stripeWebhook = onRequest(
           await accendiLaGara(
             event.data.object.metadata &&
               event.data.object.metadata.challengeId,
-            event.data.object.id
+            event.data.object.id,
+            event.data.object.amount_received || event.data.object.amount
           );
           break;
 
@@ -776,7 +777,8 @@ async function onCheckoutCompleted(session) {
 
   await accendiLaGara(
     session.metadata && session.metadata.challengeId,
-    session.payment_intent
+    session.payment_intent,
+    session.amount_total
   );
 }
 
@@ -789,7 +791,7 @@ async function onCheckoutCompleted(session) {
  * dire che un giorno una delle due dimentica di far ripartire il cronometro, e
  * nessuno se ne accorge finche' non e' su una gara vera.
  */
-async function accendiLaGara(challengeId, paymentIntentId) {
+async function accendiLaGara(challengeId, paymentIntentId, pagatoCents = null) {
   if (!challengeId) {
     return;
   }
@@ -871,6 +873,9 @@ async function accendiLaGara(challengeId, paymentIntentId) {
       challengeTitle: dopo.get('title') || '',
       source: dopo.get('paidFromWallet') === true ? 'wallet' : 'card',
       note: 'Premio messo in palio',
+      // **Quanto ha pagato davvero la carta**: il premio piu' le spese. Senza,
+      // la riga dice -2 e il rimborso +2,29, e sembra che i conti non tornino.
+      ...(pagatoCents && dopo.get('paidFromWallet') !== true ? { pagatoCents } : {}),
     }
   );
 
@@ -1106,6 +1111,32 @@ async function saldoDelConto(stripe, accountId) {
     disponibile: Math.max(0, somma(saldo.available)),
     inArrivo: Math.max(0, somma(saldo.pending)),
   };
+}
+
+/**
+ * **Entro quando diventa spendibile quello che e' in arrivo**, in millisecondi. Lo
+ * dice Stripe, riga per riga. E' un di piu': se non lo dice, l'app scrive "fra
+ * qualche giorno" e nessuno resta fermo per una data.
+ */
+async function quandoArrivano(stripe, accountId) {
+  try {
+    const righe = await stripe.balanceTransactions.list(
+      { limit: 30 },
+      { stripeAccount: accountId }
+    );
+    const date = righe.data
+      .filter((riga) => riga.status === 'pending' && riga.amount > 0 && riga.available_on)
+      .map((riga) => riga.available_on);
+
+    return date.length ? Math.max(...date) * 1000 : null;
+  } catch (errore) {
+    logger.warn('Data dei soldi in arrivo non letta.', {
+      accountId,
+      errore: String((errore && errore.message) || errore).slice(0, 300),
+    });
+
+    return null;
+  }
 }
 
 /**
@@ -1478,15 +1509,34 @@ exports.statoConto = onCall(
     // stesso: chi deve solo entrare in gara non deve restare fuori per un
     // numero da mostrare.
     let saldo = { disponibile: 0, inArrivo: 0 };
+    let letto = false;
 
     try {
       saldo = await saldoDelConto(stripe, accountId);
+      letto = true;
     } catch (errore) {
       logger.warn('Saldo del conto non letto.', {
         userId,
         errore: String((errore && errore.message) || errore).slice(0, 300),
       });
     }
+
+    // **Quanto si puo' spendere adesso**, per dirlo prima di promettere "esce
+    // subito". Solo se Stripe ha risposto: uno zero inventato direbbe a chi ha
+    // dei soldi che non li puo' usare.
+    //
+    // La custodia che non e' potuta passare sul conto si spende lo stesso, ma
+    // non si somma: `payChallengeFromWallet` paga o dall'una o dall'altro.
+    const spendibile = letto
+      ? {
+          spendibileCents: Math.max(
+            (await userRef.get()).get('walletCents') || 0,
+            saldo.disponibile
+          ),
+          inArrivoEntro:
+            saldo.inArrivo > 0 ? await quandoArrivano(stripe, accountId) : null,
+        }
+      : {};
 
     return {
       collegato: true,
@@ -1495,6 +1545,7 @@ exports.statoConto = onCall(
       prelievi: conto.prelievi,
       disponibileCents: saldo.disponibile,
       inArrivoCents: saldo.inArrivo,
+      ...spendibile,
     };
   }
 );
@@ -2348,6 +2399,8 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
       source: dove === 'portafoglio' ? 'wallet' : 'card',
       note: soloIlPremio
         ? 'Rimborso: hai annullato la missione'
+        : dove === 'carta'
+        ? 'Rimborso di premio e spese: non ha partecipato nessuno'
         : 'Rimborso: non ha partecipato nessuno',
     });
   }
@@ -3331,3 +3384,5 @@ async function registraMancia(metadata, paymentIntentId) {
 exports.stripeClient = stripeClient;
 exports.stripePayoutClient = stripePayoutClient;
 exports.saldoDelConto = saldoDelConto;
+exports.quandoArrivano = quandoArrivano;
+exports.accendiLaGara = accendiLaGara;

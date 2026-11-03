@@ -1,6 +1,7 @@
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/utils/app_money.dart';
+import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 import 'package:crasy/features/payments/domain/prize_ledger.dart';
 import 'package:crasy/features/payments/presentation/providers/payments_providers.dart';
 import 'package:flutter/material.dart';
@@ -42,6 +43,9 @@ class RiepilogoPremio extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
     final saldo = ref.watch(walletBalanceProvider);
+    final spendibile = paymentsEnabled && saldo >= cents
+        ? ref.watch(saldoSpendibileProvider).valueOrNull
+        : null;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -82,7 +86,21 @@ class RiepilogoPremio extends ConsumerWidget {
           // Compare solo se il saldo copre il premio, come il foglio dopo:
           // scriverlo quando non basta vorrebbe dire annunciare una strada che
           // poi non si apre.
-          if (saldo >= cents) ...[
+          //
+          // E se il saldo c'e' ma non e' ancora spendibile si dice anche questo,
+          // qui, prima che la strada si chiuda davanti a chi l'ha scelta.
+          if (spendibile != null && !spendibile.basta(cents)) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                spendibile.spiegaA(saldo),
+                style: context.texts.bodySmall?.copyWith(
+                  color: palette.textFaint,
+                ),
+              ),
+            ),
+          ] else if (saldo >= cents) ...[
             const SizedBox(height: AppSpacing.xs),
             _RigaDelConto(
               label: 'Oppure dal portafoglio',

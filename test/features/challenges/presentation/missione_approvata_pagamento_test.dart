@@ -6,6 +6,7 @@ import 'package:crasy/features/challenges/domain/entities/proposta_missione.dart
 import 'package:crasy/features/challenges/presentation/pages/missione_approvata_page.dart';
 import 'package:crasy/features/payments/data/payments_service.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
+import 'package:crasy/features/payments/domain/entities/saldo_spendibile.dart';
 import 'package:crasy/features/payments/domain/prize_ledger.dart';
 import 'package:crasy/features/payments/presentation/providers/payments_providers.dart';
 import 'package:crasy/features/payments/presentation/widgets/riepilogo_premio.dart';
@@ -41,6 +42,7 @@ class _Cassa extends Fake implements PaymentsService {
     this.inArrivo = false,
     this.consensoMancante = false,
     this.guasto,
+    this.spendibile,
   });
 
   final bool conLaCarta;
@@ -49,9 +51,13 @@ class _Cassa extends Fake implements PaymentsService {
   final bool inArrivo;
   final bool consensoMancante;
   final Object? guasto;
+  final SaldoSpendibile? spendibile;
 
   final pagateConLaCarta = <String>[];
   final pagateDalPortafoglio = <String>[];
+
+  @override
+  Future<SaldoSpendibile?> saldoSpendibile() async => spendibile;
 
   @override
   Future<bool> payChallenge(
@@ -185,6 +191,65 @@ void main() {
   });
 
   group('il pagamento', skip: !paymentsEnabled, () {
+    testWidgets('il saldo non ancora spendibile si dice prima di scegliere', (
+      tester,
+    ) async {
+      final cassa = _Cassa(
+        spendibile: SaldoSpendibile(
+          spendibileCents: 10,
+          inArrivoCents: premio - 10,
+          inArrivoEntro: DateTime(2026, 11, 5),
+        ),
+      );
+
+      await apri(tester, cassa, saldo: premio);
+
+      // Gia' nel riepilogo: niente "oppure dal portafoglio".
+      expect(find.text('Oppure dal portafoglio'), findsNothing);
+      expect(find.textContaining('entro il 5 novembre'), findsOneWidget);
+
+      await tester.tap(find.text('PAGA E LANCIA'));
+      await tester.pumpAndSettle();
+
+      // Nel foglio c'e', spento e con il motivo: toccarlo non paga niente.
+      await tester.tap(find.text('Dal portafoglio · non ancora'));
+      await tester.pumpAndSettle();
+      expect(cassa.pagateDalPortafoglio, isEmpty);
+      expect(find.text('Dal portafoglio · non ancora'), findsOneWidget);
+
+      await tester.tap(
+        find.text(
+          'Con la carta · ${AppMoney.format(PrizeLedger.chargeCents(premio))}',
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(cassa.pagateConLaCarta, ['gara-1']);
+      expect(cassa.pagateDalPortafoglio, isEmpty);
+    });
+
+    testWidgets('se quello che si puo spendere basta, resta tutto come prima', (
+      tester,
+    ) async {
+      final cassa = _Cassa(
+        spendibile: const SaldoSpendibile(
+          spendibileCents: premio,
+          inArrivoCents: 90,
+        ),
+      );
+
+      await apri(tester, cassa, saldo: premio + 90);
+      await tester.tap(find.text('PAGA E LANCIA'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.text('Dal portafoglio · ${AppMoney.format(premio)}'),
+      );
+      await tester.pumpAndSettle();
+
+      expect(cassa.pagateDalPortafoglio, ['gara-1']);
+    });
+
     testWidgets('senza saldo si va alla carta, e poi alla gara', (
       tester,
     ) async {

@@ -77,6 +77,8 @@ class _WalletPageState extends ConsumerState<WalletPage> {
         return;
       }
 
+      ref.invalidate(saldoSpendibileProvider);
+
       final motivo = esito.motivo;
 
       if (motivo == null) {
@@ -288,6 +290,9 @@ class _WalletPageState extends ConsumerState<WalletPage> {
     final inViaggio = wallet.withdrawingCents;
     final balance = ref.watch(walletBalanceProvider);
     final quanto = Wallet.minimumWithdrawalCents - balance;
+    final spendibile = paymentsEnabled && balance > 0
+        ? ref.watch(saldoSpendibileProvider).valueOrNull
+        : null;
 
     // **Mentre carica, la fiamma: niente zeri.** Prima la pagina si disegnava
     // subito con quello che non era ancora arrivato — "HAI VINTO € 0,00", un
@@ -397,6 +402,23 @@ class _WalletPageState extends ConsumerState<WalletPage> {
                                 color: palette.textSecondary,
                               ),
                             ),
+                            // **Sono tuoi, ma non tutti sono gia' spendibili.**
+                            // Il numero grande li conta tutti: senza questa riga
+                            // lo si scopre solo quando l'app dice di no.
+                            if (spendibile != null &&
+                                spendibile.inArrivoCents > 0) ...[
+                              const SizedBox(height: AppSpacing.xs),
+                              Text(
+                                '${AppMoney.format(spendibile.spendibileCents)} '
+                                'pronti da usare, '
+                                '${AppMoney.format(spendibile.inArrivoCents)} in '
+                                'arrivo: Stripe li rende spendibili '
+                                '${spendibile.quando}.',
+                                style: texts.bodySmall?.copyWith(
+                                  color: palette.textPrimary,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),

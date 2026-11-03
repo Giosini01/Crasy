@@ -1,3 +1,5 @@
+import 'package:crasy/core/utils/app_money.dart';
+
 /// **Una riga dell'estratto conto: un movimento di denaro, e basta.**
 ///
 /// ## Perche' non bastavano i movimenti del portafoglio
@@ -21,6 +23,7 @@ class LedgerEntry {
     this.source = '',
     this.note = '',
     this.at,
+    this.pagatoCents = 0,
   });
 
   final String id;
@@ -46,7 +49,35 @@ class LedgerEntry {
   final String note;
   final DateTime? at;
 
+  /// **Quanto ha pagato davvero la carta**: il premio piu' le spese.
+  ///
+  /// [amountCents] su un pagamento e' solo il premio. Letta da sola, una missione
+  /// da due euro diceva -2, e il suo rimborso +2,29: sembrava che i soldi
+  /// fossero aumentati. Zero sulle righe scritte prima che questo campo
+  /// esistesse.
+  final int pagatoCents;
+
   bool get isIn => amountCents > 0;
+
+  bool get _conLaCarta => kind == 'challengePayment' && source == 'card';
+
+  /// La cifra da mostrare: quello che e' uscito davvero, quando lo si sa.
+  int get cifra => _conLaCarta && pagatoCents > 0 ? -pagatoCents : amountCents;
+
+  /// Cosa e' successo, in parole. Sulle righe vecchie con la carta dice che la
+  /// cifra e' solo il premio: quanto ha pagato la carta li' non e' scritto.
+  String get nota {
+    if (!_conLaCarta) {
+      return note;
+    }
+
+    if (pagatoCents <= 0) {
+      return 'Solo il premio: la carta ha pagato anche le spese';
+    }
+
+    return '${AppMoney.format(-amountCents)} di premio più '
+        '${AppMoney.format(pagatoCents + amountCents)} di spese';
+  }
 
   /// Il titolo della riga: la gara se c'e', altrimenti cosa e' successo.
   String get label {

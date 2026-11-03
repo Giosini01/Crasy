@@ -38,6 +38,8 @@ on:
       - '**.md'
       - 'firestore.rules'
       - 'storage.rules'
+      - 'functions/**'
+      - 'web/admin/**'
 
 # Su repo pubblico i secret non sono leggibili dalle pull request dei fork:
 # questo workflow gira solo su push a main e su avvio manuale.

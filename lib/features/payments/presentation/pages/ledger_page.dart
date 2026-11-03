@@ -42,6 +42,7 @@ class LedgerPage extends ConsumerWidget {
     final palette = context.palette;
     final registro = ref.watch(ledgerProvider);
     final movimenti = registro.valueOrNull;
+    final saldo = ref.watch(walletProvider).valueOrNull?.balanceCents;
 
     return Scaffold(
       appBar: AppBar(
@@ -80,11 +81,39 @@ class LedgerPage extends ConsumerWidget {
               AppSpacing.page,
               AppSpacing.xxl,
             ),
-            itemCount: righe.length,
+            itemCount: righe.length + 1,
             separatorBuilder: (_, _) => Divider(color: palette.line, height: 1),
-            itemBuilder: (context, index) => _Riga(movimento: righe[index]),
+            itemBuilder: (context, index) => index == 0
+                ? _Spiegazione(saldoCents: saldo)
+                : _Riga(movimento: righe[index - 1]),
           ),
         },
+      ),
+    );
+  }
+}
+
+/// **Perche' sommando le righe non viene il saldo.** Questo elenco racconta tutti
+/// i soldi, e quelli passati dalla carta il portafoglio non li vede mai: senza
+/// dirlo, chi fa la somma pensa che ne manchino.
+class _Spiegazione extends StatelessWidget {
+  const _Spiegazione({required this.saldoCents});
+
+  final int? saldoCents;
+
+  @override
+  Widget build(BuildContext context) {
+    final saldo = saldoCents;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Text(
+        'Le righe con scritto "carta" sono passate dalla tua carta: non '
+        'toccano il portafoglio'
+        '${saldo == null ? '' : ', dove ora hai ${AppMoney.format(saldo)}'}.',
+        style: context.texts.bodySmall?.copyWith(
+          color: context.palette.textSecondary,
+        ),
       ),
     );
   }
@@ -104,7 +133,7 @@ class _Riga extends StatelessWidget {
     // sola, separate da un punto — tre righe impilate per ogni movimento
     // trasformerebbero un elenco di venti in un muro.
     final sotto = [
-      if (movimento.note.isNotEmpty) movimento.note,
+      if (movimento.nota.isNotEmpty) movimento.nota,
       if (movimento.dove.isNotEmpty) movimento.dove,
       if (movimento.at case final quando?) AppDateUtils.shortTimeAgo(quando),
     ].join(' · ');
@@ -140,7 +169,7 @@ class _Riga extends StatelessWidget {
           // un premio e un pagamento della stessa cifra sono due righe uguali.
           Text(
             '${movimento.isIn ? '+' : ''}'
-            '${AppMoney.format(movimento.amountCents)}',
+            '${AppMoney.format(movimento.cifra)}',
             style: texts.titleSmall?.copyWith(
               color: movimento.isIn ? palette.accent : palette.textSecondary,
             ),

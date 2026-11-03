@@ -412,11 +412,22 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
       final saldo = ref.read(walletBalanceProvider);
 
       if (premio > 0 && saldo >= premio && mounted) {
+        // Il saldo conta anche i premi che Stripe non ha ancora reso
+        // spendibili: si chiede prima di promettere.
+        final spendibile = await ref
+            .read(paymentsServiceProvider)
+            .saldoSpendibile();
+
+        if (!mounted) {
+          return false;
+        }
+
         final scelta = await chiediComePagare(
           context,
           premioCents: premio,
           saldoCents: saldo,
           conLaCartaCents: PrizeLedger.chargeCents(premio),
+          spendibile: spendibile,
         );
 
         if (scelta == null) {

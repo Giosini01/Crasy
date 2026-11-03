@@ -186,7 +186,7 @@ function righeMovimenti(righe) {
               <div>${MOVIMENTI[m.kind] || m.kind}${m.challengeTitle ? html` <span class="tenue">· ${m.challengeTitle}</span>` : ''}</div>
               <div class="sotto-riga">${quando(m.quando)}</div>
             </div>
-            <b class="nowrap ${m.amountCents > 0 ? 'rosso' : ''}">${euro(m.amountCents)}</b>
+            <b class="nowrap ${m.amountCents > 0 ? 'rosso' : ''}">${euro(m.pagatoCents ? -m.pagatoCents : m.amountCents)}</b>
           </div>`
         )}
       </div>`

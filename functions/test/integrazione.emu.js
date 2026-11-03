@@ -22,6 +22,14 @@ process.env.OPENAI_API_KEY = 'spenta';
 process.env.STRIPE_SECRET_KEY = 'sk_test_finta';
 process.env.STRIPE_PAYOUT_KEY = 'da-sostituire';
 
+// Il pacchetto di Stripe, per le funzioni che se lo creano da sole.
+let stripeFinto = {};
+
+require('stripe');
+require.cache[require.resolve('stripe')].exports = function StripeFinto() {
+  return stripeFinto;
+};
+
 // Come in produzione: e' `index.js` che accende Firebase e carica tutto il resto.
 const funzioni = require('../index');
 const giudice = require('../giudice');
@@ -826,6 +834,103 @@ test('i consigli su cui il modello ha un dubbio passano da una persona', async (
 
   assert.equal(dopo.stato, 'inGara');
   assert.equal(chiamate, 0);
+});
+
+test('il saldo dice quanto si puo spendere adesso, e cosa e ancora in arrivo', async () => {
+  const entro = Math.floor(Date.now() / 1000) + 3 * 24 * 60 * 60;
+  const saldoVero = async () => ({
+    available: [{ currency: 'eur', amount: 10 }],
+    pending: [{ currency: 'eur', amount: 90 }],
+  });
+  const righeVere = async () => ({
+    data: [
+      { status: 'available', amount: 10, available_on: entro - 900000 },
+      { status: 'pending', amount: 90, available_on: entro },
+    ],
+  });
+
+  stripeFinto = {
+    accounts: {
+      retrieve: async () => ({
+        capabilities: { transfers: 'active' },
+        payouts_enabled: true,
+        details_submitted: true,
+      }),
+    },
+    balance: { retrieve: saldoVero },
+    balanceTransactions: { list: righeVere },
+  };
+
+  // Una persona solo per questa prova: gli altri conti del pannello non si toccano.
+  const chi = 'conto1';
+  const utente = db.collection('users').doc(chi);
+
+  await utente.set({
+    stripeAccountId: 'acct_1',
+    payoutReady: true,
+    walletCents: 0,
+    stripeCents: 100,
+  });
+
+  try {
+    const esito = await chiama(payments.statoConto, {}, chi);
+
+    assert.equal(esito.pronto, true);
+    assert.equal(esito.spendibileCents, 10);
+    assert.equal(esito.inArrivoCents, 90);
+    assert.equal(esito.inArrivoEntro, entro * 1000);
+
+    // La data e' un di piu': senza, le cifre restano.
+    stripeFinto.balanceTransactions.list = async () => {
+      throw new Error('giu');
+    };
+
+    const senzaData = await chiama(payments.statoConto, {}, chi);
+
+    assert.equal(senzaData.spendibileCents, 10);
+    assert.equal(senzaData.inArrivoEntro, null);
+
+    // Stripe che non risponde: nessuno zero inventato.
+    stripeFinto.balance.retrieve = async () => {
+      throw new Error('giu');
+    };
+
+    const senzaSaldo = await chiama(payments.statoConto, {}, chi);
+
+    assert.equal(senzaSaldo.pronto, true);
+    assert.equal('spendibileCents' in senzaSaldo, false);
+  } finally {
+    await utente.delete();
+  }
+});
+
+test('la riga di un pagamento con la carta dice quanto ha pagato davvero', async () => {
+  const gara = db.collection('challenges').doc();
+
+  await gara.set({
+    title: 'Con la carta',
+    createdByUserId: 'conto2',
+    prizeCents: 200,
+    prizeStatus: 'unpaid',
+  });
+
+  await payments.accendiLaGara(gara.id, 'pi_finto', 234);
+
+  const registro = await db
+    .collection('users')
+    .doc('conto2')
+    .collection('ledger')
+    .doc(`pagamento_${gara.id}`)
+    .get();
+
+  assert.equal(registro.get('amountCents'), -200);
+  assert.equal(registro.get('pagatoCents'), 234);
+  assert.equal(registro.get('source'), 'card');
+
+  // Le altre prove contano gare e persone: queste non restano in giro. La persona
+  // la crea il pagamento, che le somma il premio messo in palio.
+  await gara.delete();
+  await db.collection('users').doc('conto2').delete();
 });
 
 test('il pannello si apre solo agli amministratori', async () => {

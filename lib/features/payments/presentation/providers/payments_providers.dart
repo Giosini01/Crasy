@@ -6,6 +6,7 @@ import 'package:crasy/features/payments/data/wallet_repository.dart';
 import 'package:crasy/features/payments/domain/entities/ledger_entry.dart';
 import 'package:crasy/features/payments/domain/entities/payout_details.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
+import 'package:crasy/features/payments/domain/entities/saldo_spendibile.dart';
 import 'package:crasy/features/payments/domain/entities/wallet.dart';
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,6 +41,18 @@ final walletBalanceProvider = Provider<int>((ref) {
   }
 
   return ref.watch(myPrizeCentsProvider);
+});
+
+/// **Quanto si puo' spendere adesso.** Nullo quando non si sa: vedi
+/// `PaymentsService.saldoSpendibile`.
+final saldoSpendibileProvider = FutureProvider.autoDispose<SaldoSpendibile?>((
+  ref,
+) {
+  if (!paymentsEnabled) {
+    return null;
+  }
+
+  return ref.watch(paymentsServiceProvider).saldoSpendibile();
 });
 
 /// I miei dati per il prelievo, se li ho gia' messi.

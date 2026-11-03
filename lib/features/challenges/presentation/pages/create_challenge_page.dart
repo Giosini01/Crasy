@@ -376,10 +376,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                     // Staccato dal premio: attaccato ad "Almeno 1 €" sembrava
                     // la riga dopo della stessa frase.
                     const SizedBox(height: AppSpacing.lg),
-                    _MissioniPronte(
-                      pronte: pronte,
-                      onScegli: _prendiLaPronta,
-                    ),
+                    _MissioniPronte(pronte: pronte, onScegli: _prendiLaPronta),
                     _Field(
                       label: 'Come si chiama',
                       controller: _title,
@@ -744,11 +741,22 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
       final saldo = ref.read(walletBalanceProvider);
 
       if (saldo >= prizeCents) {
+        // Il saldo conta anche i premi che Stripe non ha ancora reso
+        // spendibili: si chiede prima di promettere.
+        final spendibile = await ref
+            .read(paymentsServiceProvider)
+            .saldoSpendibile();
+
+        if (!mounted) {
+          return;
+        }
+
         final scelta = await chiediComePagare(
           context,
           premioCents: prizeCents,
           saldoCents: saldo,
           conLaCartaCents: PrizeLedger.chargeCents(prizeCents),
+          spendibile: spendibile,
         );
 
         if (!mounted) {

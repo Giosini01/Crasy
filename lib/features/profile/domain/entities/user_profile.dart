@@ -166,13 +166,48 @@ class UserProfile {
   final bool permissionsSeen;
 
   /// Ha verificato il numero.
-  /// Se ha accettato **la versione che gira adesso**.
+  /// Se ha accettato **la versione che gira adesso, o una piu' recente**.
   ///
   /// Cambiando i testi cambia la versione, e da quel momento questo torna falso
   /// per tutti: e' il modo in cui un testo nuovo viene davvero letto invece di
   /// essere pubblicato e basta.
-  bool acceptedLegalVersion(String current) =>
-      legalVersion.isNotEmpty && legalVersion == current;
+  ///
+  /// **"O piu' recente" evita di chiedere il si' all'infinito.** Il sito si
+  /// aggiorna in pochi minuti, i telefoni quando arriva la build nuova. Finche'
+  /// le due versioni erano diverse e il confronto era "uguale", chi usava sia
+  /// il sito sia l'app doveva riaccettare a ogni passaggio, e ognuno scriveva
+  /// la sua versione sopra quella dell'altro.
+  bool acceptedLegalVersion(String current) {
+    final accettata = _numeriDellaVersione(legalVersion);
+    final richiesta = _numeriDellaVersione(current);
+
+    // Una versione che non e' fatta di numeri vale solo se e' identica.
+    if (accettata == null || richiesta == null) {
+      return legalVersion.isNotEmpty && legalVersion == current;
+    }
+
+    final quanti = accettata.length > richiesta.length
+        ? accettata.length
+        : richiesta.length;
+
+    // Numero per numero, e non come testo: `1.10` viene dopo `1.9`.
+    for (var i = 0; i < quanti; i++) {
+      final questa = i < accettata.length ? accettata[i] : 0;
+      final quella = i < richiesta.length ? richiesta[i] : 0;
+
+      if (questa != quella) {
+        return questa > quella;
+      }
+    }
+
+    return true;
+  }
+
+  static List<int>? _numeriDellaVersione(String versione) {
+    final numeri = versione.split('.').map(int.tryParse).toList();
+
+    return numeri.contains(null) ? null : numeri.cast<int>();
+  }
 
   bool get hasPhoto => (photoUrl ?? '').isNotEmpty;
 

@@ -264,6 +264,41 @@ void main() {
     expect(container.read(sessionLandingRouteProvider), AppRoutes.consents);
   });
 
+  test('chi ha accettato una versione piu nuova di questa app non si ferma', () async {
+    // Il sito si aggiorna prima dei telefoni: chi ha accettato li' i testi nuovi
+    // non deve riaccettare quelli vecchi aprendo l'app, e nemmeno riscriverli
+    // sopra, altrimenti il sito glieli richiede alla volta dopo.
+    final container = containerWith(
+      FakeAuthRepository(currentUser: user),
+      overrides: [
+        currentUserProfileProvider.overrideWith(
+          (ref) => Stream.value(
+            UserProfile(
+              id: 'user-1',
+              username: 'martina',
+              birthDate: DateTime(2000, 1, 1),
+              createdAt: null,
+              updatedAt: null,
+              onboardingCompleted: true,
+              legalVersion: '99.0',
+              legalAcceptedAt: DateTime(2026),
+              phoneVerified: true,
+              contactsPromptSeen: true,
+            ),
+          ),
+        ),
+      ],
+    );
+
+    await container.read(currentUserProfileProvider.future);
+    await container.pump();
+
+    expect(
+      container.read(sessionLandingRouteProvider),
+      isNot(AppRoutes.consents),
+    );
+  });
+
   test('il giro di presentazione si fa prima di entrare', () async {
     // **Le quattro regole prima dell'elenco delle gare.** Senza, la prima
     // schermata e' una lista e nessuno ha detto quante fiamme si hanno: si

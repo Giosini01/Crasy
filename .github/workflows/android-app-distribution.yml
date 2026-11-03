@@ -34,6 +34,7 @@ on:
       - 'firestore.rules'
       - 'storage.rules'
       - 'functions/**'
+      - 'web/admin/**'
 
 concurrency:
   group: android-app-distribution

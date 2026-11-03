@@ -1224,6 +1224,7 @@ async function persona({ uid }) {
       id: foglio.id,
       kind: d.kind || '',
       amountCents: d.amountCents || 0,
+      pagatoCents: d.pagatoCents || 0,
       challengeTitle: d.challengeTitle || d.title || '',
       quando: ms(d.createdAt) || ms(d.at),
     };

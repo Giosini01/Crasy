@@ -1,5 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:crasy/core/theme/app_colors.dart';
+import 'package:crasy/features/payments/domain/entities/saldo_spendibile.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -118,6 +119,39 @@ class PaymentsService {
       disponibileCents: cifra('disponibileCents'),
       inArrivoCents: cifra('inArrivoCents'),
     );
+  }
+
+  /// **Quanto si puo' spendere adesso**, da chiedere prima di proporre il
+  /// portafoglio. Vedi [SaldoSpendibile].
+  ///
+  /// Nullo quando non si sa — conto non ancora pronto, Stripe che non risponde,
+  /// un server di prima. Non e' un guasto: la strada resta aperta, e l'ultima
+  /// parola al momento di pagare e' comunque del server.
+  Future<SaldoSpendibile?> saldoSpendibile() async {
+    try {
+      final risposta = await _functions
+          .httpsCallable('statoConto')
+          .call<Map<Object?, Object?>>()
+          .timeout(const Duration(seconds: 10));
+      final dati = risposta.data;
+      final spendibile = dati['spendibileCents'];
+
+      if (spendibile is! num) {
+        return null;
+      }
+
+      final entro = dati['inArrivoEntro'];
+
+      return SaldoSpendibile(
+        spendibileCents: spendibile.toInt(),
+        inArrivoCents: (dati['inArrivoCents'] as num?)?.toInt() ?? 0,
+        inArrivoEntro: entro is num
+            ? DateTime.fromMillisecondsSinceEpoch(entro.toInt())
+            : null,
+      );
+    } on Object {
+      return null;
+    }
   }
 
   Future<bool> payChallenge(

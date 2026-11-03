@@ -2,6 +2,7 @@ import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
+import 'package:crasy/features/payments/domain/entities/saldo_spendibile.dart';
 import 'package:flutter/material.dart';
 
 /// Con cosa si paga il premio di una missione.
@@ -36,11 +37,19 @@ enum PayChoice {
 ///
 /// E' una differenza vera e si scrive, perche' chi legge due cifre diverse per
 /// la stessa gara senza una spiegazione pensa a un errore.
+///
+/// ## Quando il saldo c'e' ma non e' ancora spendibile
+///
+/// [spendibile] dice quanto si puo' usare adesso. Se non basta il portafoglio
+/// resta nel foglio, spento e con il motivo: farlo sparire farebbe chiedere
+/// dove sono finiti i soldi, lasciarlo acceso vorrebbe dire promettere "esce
+/// subito" e farsi dire di no un attimo dopo.
 Future<PayChoice?> chiediComePagare(
   BuildContext context, {
   required int premioCents,
   required int saldoCents,
   required int conLaCartaCents,
+  SaldoSpendibile? spendibile,
 }) {
   return ModalSheet.show<PayChoice>(
     context: context,
@@ -52,6 +61,7 @@ Future<PayChoice?> chiediComePagare(
         premioCents: premioCents,
         saldoCents: saldoCents,
         conLaCartaCents: conLaCartaCents,
+        spendibile: spendibile,
         onPick: (scelta) => Navigator.of(sheetContext).pop(scelta),
       ),
     ),
@@ -63,38 +73,50 @@ class _Scelta extends StatelessWidget {
     required this.premioCents,
     required this.saldoCents,
     required this.conLaCartaCents,
+    required this.spendibile,
     required this.onPick,
   });
 
   final int premioCents;
   final int saldoCents;
   final int conLaCartaCents;
+  final SaldoSpendibile? spendibile;
   final void Function(PayChoice scelta) onPick;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
     final texts = context.texts;
+    final inAttesa = spendibile;
+    final fermo = inAttesa != null && !inAttesa.basta(premioCents);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _Riga(
-          titolo: 'Dal portafoglio · ${AppMoney.format(premioCents)}',
-          nota:
-              'Hai ${AppMoney.format(saldoCents)}. Esce subito e la gara '
-              'parte adesso, senza commissioni.',
-          forte: true,
-          onTap: () => onPick(PayChoice.portafoglio),
-        ),
+        if (fermo)
+          _Riga(
+            titolo: 'Dal portafoglio · non ancora',
+            nota: inAttesa.spiegaA(saldoCents),
+            forte: false,
+            onTap: null,
+          )
+        else
+          _Riga(
+            titolo: 'Dal portafoglio · ${AppMoney.format(premioCents)}',
+            nota:
+                'Hai ${AppMoney.format(saldoCents)}. Esce subito e la gara '
+                'parte adesso, senza commissioni.',
+            forte: true,
+            onTap: () => onPick(PayChoice.portafoglio),
+          ),
         Divider(color: palette.line, height: 1),
         _Riga(
           titolo: 'Con la carta · ${AppMoney.format(conLaCartaCents)}',
           nota:
               'Il portafoglio resta dov\'è. Costa un po\' di più: '
               'sull\'incasso c\'è una commissione.',
-          forte: false,
+          forte: fermo,
           onTap: () => onPick(PayChoice.carta),
         ),
         const SizedBox(height: AppSpacing.md),
@@ -122,7 +144,8 @@ class _Riga extends StatelessWidget {
   /// Se e' la strada consigliata: il titolo in rosso invece che in nero.
   final bool forte;
 
-  final VoidCallback onTap;
+  /// Nullo quando la strada e' spenta: si legge, ma non si tocca.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -141,7 +164,11 @@ class _Riga extends StatelessWidget {
             Text(
               titolo,
               style: texts.titleMedium?.copyWith(
-                color: forte ? palette.accent : palette.textPrimary,
+                color: forte
+                    ? palette.accent
+                    : onTap == null
+                    ? palette.textFaint
+                    : palette.textPrimary,
               ),
             ),
             const SizedBox(height: AppSpacing.xxs),

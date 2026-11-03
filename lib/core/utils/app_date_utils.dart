@@ -19,6 +19,11 @@ abstract final class AppDateUtils {
     return '${value.day} ${_months[value.month - 1]} ${value.year}';
   }
 
+  /// Giorno e mese: `5 novembre`.
+  static String formatDayMonth(DateTime value) {
+    return '${value.day} ${_months[value.month - 1]}';
+  }
+
   /// Quanto manca alla chiusura di una challenge.
   ///
   /// La forma cambia con la scala, e non per capriccio: a tre giorni dalla fine

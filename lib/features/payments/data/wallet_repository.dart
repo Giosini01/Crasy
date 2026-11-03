@@ -138,6 +138,8 @@ class WalletRepository {
             source: documento.data()['source'] as String? ?? '',
             note: documento.data()['note'] as String? ?? '',
             at: (documento.data()['at'] as Timestamp?)?.toDate(),
+            pagatoCents:
+                (documento.data()['pagatoCents'] as num?)?.toInt() ?? 0,
           ),
       ];
 
