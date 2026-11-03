@@ -7,10 +7,10 @@
 /// l'app: la voce gira, e l'unica cosa che CRASY promette e' che i soldi ci
 /// siano davvero.
 ///
-/// Lo stato lo scrive **solo il server**. Il telefono puo' creare una challenge
-/// solo in [unpaid], e le regole di Firestore lo impongono: se il client
-/// potesse scrivere [held], scrivere "pagata" e non pagare sarebbe questione di
-/// dieci righe di codice.
+/// Lo stato lo scrive **solo il server**. E' lui a creare le challenge, che
+/// nascono sempre in [unpaid], e le regole di Firestore non lasciano a nessun
+/// telefono toccare questo campo: se il client potesse scrivere [held], scrivere
+/// "pagata" e non pagare sarebbe questione di dieci righe di codice.
 enum PrizeStatus {
   /// Creata, non pagata. **Non si vede da nessuna parte.**
   ///

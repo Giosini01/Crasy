@@ -75,6 +75,10 @@ abstract class ChallengeRepository {
   /// Lancia una challenge. Torna quella creata, con il suo identificativo.
   ///
   /// L'oggetto passato arriva senza `id` — lo assegna chi scrive.
+  ///
+  /// **Puo' non uscire.** Su Firestore passa prima da un controllo, e se resta a
+  /// guardarla una persona, o si ferma, non torna una gara ma un'eccezione: vedi
+  /// `MissioneInControllo`, `MissioneDaPagare` e `MissioneBloccata`.
   Future<Challenge> createChallenge(Challenge challenge);
 
   /// Cancella una gara a cui non ha partecipato nessuno.

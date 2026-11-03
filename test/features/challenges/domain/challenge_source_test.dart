@@ -1,4 +1,5 @@
 import 'package:crasy/features/challenges/data/mappers/challenge_mapper.dart';
+import 'package:crasy/features/challenges/data/repositories/firestore_challenge_repository.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
@@ -12,16 +13,17 @@ import 'package:flutter_test/flutter_test.dart';
 /// tutto lo storico di CRASY — e la regola che tiene in piedi il prodotto
 /// sarebbe saltata in silenzio, senza un errore da nessuna parte.
 void main() {
-  Challenge gara({ChallengeSource source = ChallengeSource.instant}) => Challenge(
-    id: 'g1',
-    title: 'UNA GARA',
-    brief: 'Fai una cosa.',
-    prizeCents: 1000,
-    scope: ChallengeScope.global,
-    source: source,
-    startsAt: DateTime(2026, 1, 1, 10),
-    endsAt: DateTime(2026, 1, 1, 12),
-  );
+  Challenge gara({ChallengeSource source = ChallengeSource.instant}) =>
+      Challenge(
+        id: 'g1',
+        title: 'UNA GARA',
+        brief: 'Fai una cosa.',
+        prizeCents: 1000,
+        scope: ChallengeScope.global,
+        source: source,
+        startsAt: DateTime(2026, 1, 1, 10),
+        endsAt: DateTime(2026, 1, 1, 12),
+      );
 
   group('come si legge dal database', () {
     test('una gara senza il campo e istantanea', () {
@@ -45,18 +47,19 @@ void main() {
 
   group('il giro completo dal database e ritorno', () {
     test('una gara d archivio resta d archivio', () {
-      final scritta = ChallengeMapper.toCreateMap(
+      // La gara la scrive il server, con il valore che gli arriva da qui.
+      final partita = FirestoreChallengeRepository.corpoDellaProposta(
         gara(source: ChallengeSource.archive),
       );
 
-      expect(scritta['source'], 'archive');
+      expect(partita['source'], 'archive');
 
       final riletta = ChallengeMapper.fromFirestore('g1', {
-        ...scritta,
-        // Le date tornano indietro come le scrive Firestore; qui basta che il
-        // campo che ci interessa sopravviva al giro.
-        'startsAt': null,
-        'endsAt': null,
+        'title': 'UNA GARA',
+        'brief': 'Fai una cosa.',
+        'prizeCents': 1000,
+        'scope': 'global',
+        'source': partita['source'],
       });
 
       expect(riletta.source, ChallengeSource.archive);

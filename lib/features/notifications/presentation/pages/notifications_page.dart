@@ -10,6 +10,7 @@ import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/challenges/presentation/widgets/esito_missione.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
@@ -601,6 +602,31 @@ class _Row extends ConsumerWidget {
       return;
     }
 
+    // **Una missione che non puo' uscire apre il perche'.** Una gara non c'e', e
+    // chi l'ha scritta vuole sapere il motivo e cosa ci puo' fare.
+    if (notification.kind == NotificationKind.missionRejected) {
+      unawaited(
+        mostraMissioneRifiutata(
+          context,
+          titolo: notification.challengeTitle,
+          motivo: notification.motivo,
+        ),
+      );
+
+      return;
+    }
+
+    // **Approvata con un premio: la gara non esiste ancora**, nasce quando si paga.
+    // Gratis la gara c'e' gia', e questa riga passa oltre come tutte le altre.
+    if (notification.kind == NotificationKind.missionApproved &&
+        notification.challengeId.isEmpty) {
+      if (notification.propostaId.isNotEmpty) {
+        context.push(AppRoutes.missioneApprovataOf(notification.propostaId));
+      }
+
+      return;
+    }
+
     if (notification.challengeId.isEmpty) {
       return;
     }
@@ -914,6 +940,9 @@ class _Face extends StatelessWidget {
         NotificationKind.restored => Icons.visibility_rounded,
         NotificationKind.duelNoVerdict => Icons.hourglass_disabled_rounded,
         NotificationKind.pickWinner => Icons.gavel_rounded,
+        // Le risposte su una missione proposta: non le ha firmate nessuno.
+        NotificationKind.missionApproved => Icons.check_circle_rounded,
+        NotificationKind.missionRejected => Icons.block_rounded,
         _ => Icons.notifications_rounded,
       };
 
@@ -1011,6 +1040,14 @@ class _Face extends StatelessWidget {
       NotificationKind.partyMission => (
         Icons.celebration_rounded,
         palette.accent,
+      ),
+      NotificationKind.missionApproved => (
+        Icons.check_circle_rounded,
+        palette.accent,
+      ),
+      NotificationKind.missionRejected => (
+        Icons.block_rounded,
+        palette.textPrimary,
       ),
     };
 

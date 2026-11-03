@@ -149,6 +149,24 @@ enum NotificationKind {
   /// solo. Come [removed] non ha un interruttore: riguarda una propria foto in
   /// una gara con dei soldi, e i minuti che restano servono a prendere fiamme.
   restored,
+
+  /// **La missione che avevi proposto e' approvata.**
+  ///
+  /// Una missione che il controllo automatico non se la sente di far uscire da
+  /// sola la guarda una persona, e chi l'ha scritta sta aspettando. Se e' gratis
+  /// e' gia' in gara, e [AppNotification.challengeId] dice quale; con un premio
+  /// la gara non esiste ancora: si paga da [AppNotification.propostaId].
+  ///
+  /// Come [removed] non ha un interruttore: e' la risposta a una cosa che si e'
+  /// chiesta, e zittirla vorrebbe dire restare ad aspettarla per sempre.
+  missionApproved,
+
+  /// **La missione che avevi proposto non puo' uscire.**
+  ///
+  /// La scrive solo una persona del team, e [AppNotification.motivo] e' quello che
+  /// ha scritto lei. Chi si ferma alle parole non riceve questa notizia: lo legge
+  /// subito a schermo, nel modulo.
+  missionRejected,
 }
 
 /// In quale sezione della campanella finisce una notizia.
@@ -213,6 +231,8 @@ class AppNotification {
     this.motivo = '',
     this.automatico = false,
     this.revisione = '',
+    this.propostaId = '',
+    this.premioCents = 0,
     this.createdAt,
   });
 
@@ -252,6 +272,13 @@ class AppNotification {
   /// poi `chiesta`, poi `respinta`. Quando la foto torna in gara l'avviso se ne
   /// va, e al suo posto arriva [NotificationKind.restored].
   final String revisione;
+
+  /// La missione proposta di cui si parla, per [NotificationKind.missionApproved]
+  /// e [NotificationKind.missionRejected]: finche' non e' pagata, la gara non c'e'.
+  final String propostaId;
+
+  /// Quanto vale il premio di quella missione. Zero se e' gratis.
+  final int premioCents;
 
   /// **Il motivo, detto come una frase.** Sta nell'entita' come [message]: e'
   /// la stessa frase nella riga e nel foglio che si apre toccandola.
@@ -340,6 +367,13 @@ class AppNotification {
     NotificationKind.removed => 'La tua foto è stata tolta dalla gara',
     NotificationKind.restored => 'La tua foto è tornata in gara',
     NotificationKind.comment => '$actorTag ha commentato la tua foto',
+    // Con la gara in mano e' gia' uscita; senza, manca il pagamento.
+    NotificationKind.missionApproved =>
+      challengeId.isNotEmpty
+          ? 'La tua missione è approvata: è in gara'
+          : 'La tua missione è approvata: paga il premio e parte',
+    NotificationKind.missionRejected =>
+      'La tua missione non può uscire: tocca per sapere perché',
   };
 
   /// In quale sezione finisce.
@@ -378,6 +412,10 @@ class AppNotification {
     // sarebbe la cosa piu' stonata della campanella.
     NotificationKind.removed => NotificationGroup.participations,
     NotificationKind.restored => NotificationGroup.participations,
+    // **Con le partecipazioni, dove si guardano le proprie missioni.** Non sono
+    // sfide — una gara pubblica non e' una sfida a nessuno — e non sono vittorie.
+    NotificationKind.missionApproved ||
+    NotificationKind.missionRejected => NotificationGroup.participations,
   };
 
   /// La sezione di un tipo di notizia, senza avere la notizia in mano: serve

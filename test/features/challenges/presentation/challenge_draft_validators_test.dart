@@ -2,8 +2,8 @@ import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/presentation/controllers/create_challenge_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Le stesse condizioni sono scritte anche nelle regole di Firestore. Se qui
-/// passa qualcosa che li' verrebbe rifiutato, l'utente compila tutto per poi
+/// Le stesse condizioni sono scritte anche sul server, in `leggiLaRichiesta`. Se
+/// qui passa qualcosa che li' verrebbe rifiutato, l'utente compila tutto per poi
 /// vedersi respingere l'invio senza capire perche'.
 void main() {
   group('titolo', () {

@@ -145,7 +145,12 @@ abstract final class LegalTexts {
   ///
   /// **1.3: i costi detti chiaramente.** Un servizio fisso di cinque centesimi
   /// su ogni missione pagata con la carta, e un euro di spese a ogni prelievo.
-  static const String version = '1.3';
+  ///
+  /// **1.4: le missioni si controllano prima di uscire.** Il testo passa da un
+  /// elenco di parole vietate e da un sistema di intelligenza artificiale, e se
+  /// serve da una persona. L'informativa dice chi fornisce quel sistema e cosa
+  /// riceve, e i Termini non dicono piu' che le missioni non si guardano prima.
+  static const String version = '1.4';
 
   /// Chi risponde di questi dati. **Solo la partita IVA, senza ragione
   /// sociale**: e' cosi' che CRASY si firma ovunque, app e sito. Il contatto e'
@@ -281,14 +286,23 @@ il limite giornaliero vengono escluse in automatico. Chi si vede togliere una
 foto riceve un avviso con il motivo e con l'indicazione se la decisione e'
 automatica, e dall'avviso puo' chiedere che la riguardi una persona del team.
 Si puo' contestare qualunque rimozione anche scrivendo a info@crasyapp.com.
+Il testo di ogni missione viene controllato prima di uscire, in automatico e
+anche con un sistema di intelligenza artificiale. Una missione che contiene
+parole vietate viene fermata subito, in automatico, e si puo' riscrivere. Se il
+controllo automatico non basta la guarda una persona del team: finche' non ha
+deciso, la missione non esce e non si paga niente. Il rifiuto dopo questo
+controllo lo decide sempre una persona; chi ha proposto la missione riceve il
+motivo e puo' contestarlo scrivendo a info@crasyapp.com.
 
 10. RESPONSABILITA'
 10.1 CRASY offre un servizio di memorizzazione e pubblicazione di contenuti
-caricati dagli utenti (missioni, foto, video): non li crea, non li commissiona e
-non li verifica uno per uno prima della pubblicazione. Ai sensi del Regolamento
-(UE) 2022/2065 (Digital Services Act), CRASY non risponde di questi contenuti
-finche' non ne ha effettiva conoscenza, e quando ne viene a conoscenza li
-rimuove senza ritardo.
+caricati dagli utenti (missioni, foto, video): non li crea e non li commissiona.
+Il controllo delle missioni del punto 9 serve a fermare quello che e' vietato:
+non garantisce che una missione sia sicura o lecita, e non la rende un'iniziativa
+di CRASY. Foto e video non vengono guardati uno per uno da una persona prima della
+pubblicazione. Ai sensi del Regolamento (UE) 2022/2065 (Digital Services Act),
+CRASY non risponde di questi contenuti finche' non ne ha effettiva conoscenza, e
+quando ne viene a conoscenza li rimuove senza ritardo.
 10.2 Chi lancia una missione ne e' l'unico autore e l'unico responsabile, per il
 contenuto e per le conseguenze. Garantisce che la missione e' lecita e
 realizzabile senza rischi per la salute e la sicurezza di chiunque.
@@ -348,8 +362,8 @@ QUALI DATI TRATTIAMO
 - Dati di profilo, se li inserisci: una riga di descrizione, la citta', la foto
   profilo.
 - Contenuti che carichi: foto e video mandati alle missioni, con la loro data.
-- Attivita' nell'app: missioni lanciate, partecipazioni, fiamme date, amicizie,
-  notifiche.
+- Attivita' nell'app: missioni lanciate o proposte, con l'esito del loro
+  controllo, partecipazioni, fiamme date, amicizie, notifiche.
 - Dati di pagamento: gestiti dal fornitore del servizio di pagamento. CRASY non
   conserva i numeri delle carte.
 - Dati tecnici: registri di accesso e di errore necessari a far funzionare e
@@ -380,7 +394,10 @@ A CHI COMUNICHIAMO I DATI
 A fornitori che trattano i dati per nostro conto, nominati responsabili ai sensi
 dell'art. 28 GDPR: Google (Firebase: autenticazione, database, archiviazione
 file, hosting; Cloud Vision e Video Intelligence per il controllo automatico di
-foto e video) e Stripe, il fornitore dei pagamenti. Alcuni di questi possono trattare
+foto e video), Stripe, il fornitore dei pagamenti, e OpenAI (Stati Uniti), il
+fornitore del sistema di intelligenza artificiale che valuta il testo delle
+missioni prima che escano: riceve solo il testo della missione, senza il nome,
+l'email o altri identificativi di chi l'ha scritta. Alcuni di questi possono trattare
 dati fuori dallo Spazio economico europeo: in quel caso il trasferimento avviene
 sulla base delle clausole contrattuali tipo approvate dalla Commissione europea.
 Non vendiamo i tuoi dati a nessuno.
@@ -390,6 +407,7 @@ PER QUANTO TEMPO LI TENIAMO
 - Foto e video delle missioni: le partecipazioni che non hanno vinto vengono
   cancellate poco dopo la chiusura della missione. La foto vincitrice resta come
   trofeo nel profilo di chi ha vinto e di chi ha commissionato la missione.
+- Missioni proposte e l'esito del loro controllo: sei mesi.
 - Dati di pagamento e documenti contabili: per il tempo imposto dalla legge
   fiscale.
 - Registri tecnici di sicurezza: per il tempo necessario a individuare abusi.
@@ -414,6 +432,12 @@ missione.
 Le foto e i video che mandi possono essere controllati in automatico per
 trovare contenuti vietati. Se una tua foto viene tolta cosi', l'avviso te lo
 dice, e puoi chiedere che la riguardi una persona del team.
+Il testo delle missioni viene controllato prima di uscire: da un elenco di parole
+vietate e da un sistema di intelligenza artificiale, che gli assegna un voto di
+sicurezza. Se il voto e' alto la missione esce da sola. Se non lo e' la guarda una
+persona del team, ed e' lei a decidere: il sistema da solo non rifiuta nessuna
+missione. Le parole vietate invece la fermano subito, in automatico: puoi
+riscriverla, o chiedere che la riguardi una persona scrivendo a info@crasyapp.com.
 ''',
   );
 
@@ -522,6 +546,9 @@ punto 7.
 Le foto possono essere controllate in automatico e segnalate dagli altri
 utenti. Chi si vede togliere una foto riceve un avviso con il motivo e puo'
 chiedere che la riguardi una persona del team.
+Il testo di ogni missione viene controllato prima di uscire, in automatico e con
+un sistema di intelligenza artificiale. Se non basta la guarda una persona del
+team: finche' non ha deciso, la missione non esce e non si paga niente.
 
 8. IL RESTO
 Per tutto quello che non e' scritto qui valgono i Termini e Condizioni.

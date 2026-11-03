@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:crasy/features/challenges/data/repositories/firestore_challenge_repository.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/presentation/controllers/participation_controller.dart';
@@ -11,6 +12,22 @@ abstract final class ErrorMessageMapper {
     if (error is VideoTroppoLungo) {
       return 'Questo video dura ${error.durata.inSeconds} secondi e il massimo '
           'e ${MediaKind.maxVideoDuration.inSeconds}. Scegline uno piu corto.';
+    }
+
+    // La frase la scrive il server: sa lui perche' si e' fermata.
+    if (error is MissioneBloccata) {
+      return error.messaggio;
+    }
+
+    // **Questi due non sono errori**, e le schermate del lancio li gestiscono
+    // prima di arrivare qui. Se uno passasse lo stesso, deve dire la cosa vera.
+    if (error is MissioneInControllo) {
+      return 'La missione è in controllo: la guarda una persona del team. Non '
+          'paghi niente finché non è approvata.';
+    }
+
+    if (error is MissioneDaPagare) {
+      return 'Questa missione è già approvata: manca solo il pagamento.';
     }
 
     if (error is ChallengeClosedException) {
@@ -40,6 +57,20 @@ abstract final class ErrorMessageMapper {
       return _mapAuthError(error);
     }
 
+    // **Una funzione del server che dice di no, dice anche perche'.**
+    //
+    // Sta prima del ramo qui sotto, che la prenderebbe lo stesso — e direbbe "il
+    // tempo e' scaduto" a chi ha proposto troppe missioni, o e' stato bloccato
+    // dalla persona che voleva sfidare. Quella frase e' giusta per una scrittura
+    // sul database, dove un rifiuto vuol dire quasi sempre quello.
+    if (error is FirebaseFunctionsException) {
+      final frase = _fraseDelServer(error);
+
+      if (frase != null) {
+        return frase;
+      }
+    }
+
     if (error is FirebaseException) {
       return _mapFirebaseError(error);
     }
@@ -66,6 +97,25 @@ abstract final class ErrorMessageMapper {
 
     return 'Si e verificato un problema. Riprova tra poco. '
         '(${error.runtimeType})';
+  }
+
+  /// La frase scritta dal server per chi legge, nei casi in cui ce n'e' una.
+  ///
+  /// **Solo questi codici, e non tutti.** Sono i rifiuti che il nostro codice
+  /// scrive di proposito, in italiano. Un `internal` o un `unavailable` portano
+  /// invece il messaggio di chissa' cosa, spesso in inglese, e non sono da
+  /// mostrare a nessuno.
+  static String? _fraseDelServer(FirebaseFunctionsException error) {
+    const conUnaFrase = {
+      'invalid-argument',
+      'permission-denied',
+      'resource-exhausted',
+      'failed-precondition',
+      'not-found',
+    };
+    final frase = error.message?.trim() ?? '';
+
+    return conUnaFrase.contains(error.code) && frase.isNotEmpty ? frase : null;
   }
 
   static String _mapAuthError(FirebaseAuthException error) {

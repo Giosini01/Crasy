@@ -10,11 +10,13 @@ import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/filter_field.dart';
 import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
+import 'package:crasy/features/challenges/data/repositories/firestore_challenge_repository.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/presentation/controllers/create_challenge_controller.dart';
 import 'package:crasy/features/challenges/presentation/controllers/duel_controller.dart';
 import 'package:crasy/features/challenges/presentation/widgets/anonimo_switch.dart';
+import 'package:crasy/features/challenges/presentation/widgets/esito_missione.dart';
 import 'package:crasy/features/challenges/presentation/widgets/privacy_note.dart';
 import 'package:crasy/features/friends/domain/entities/friendship.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
@@ -220,7 +222,10 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
                             textCapitalization: TextCapitalization.characters,
                             decoration: const InputDecoration(
                               labelText: 'Titolo',
-                              hintText: 'BALLA IN MEZZO ALLA STRADA',
+                              // **L'esempio dev'essere uno che si puo' lanciare.**
+                              // Prima c'era "balla in mezzo alla strada", che il filtro
+                              // ferma: la schermata suggeriva una missione vietata.
+                              hintText: 'BALLA PER DIECI SECONDI',
                             ),
                             maxLength: ChallengeDraftValidators.titleMaxLength,
                             validator: ChallengeDraftValidators.validateTitle,
@@ -249,8 +254,14 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
                               labelText: 'Scrivigli qualcosa (se vuoi)',
                               hintText: 'Vediamo se ce la fai.',
                             ),
-                            maxLength: 140,
+                            maxLength:
+                                ChallengeDraftValidators.duelMessageMaxLength,
                             textCapitalization: TextCapitalization.sentences,
+                            // **Era l'unico testo della sfida che non guardava
+                            // nessuno.** Titolo e consegna passavano dal filtro, e
+                            // questa riga arrivava all'amico com'era scritta.
+                            validator:
+                                ChallengeDraftValidators.validateDuelMessage,
                           ),
                           const SizedBox(height: AppSpacing.md),
                           _MediaKindPicker(
@@ -345,6 +356,9 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
                           // Chi sfida una persona sola deve sapere che quello
                           // che si scambiano resta fra loro.
                           const PrivacyNote(text: PrivacyNote.sfida),
+                          const SizedBox(height: AppSpacing.sm),
+                          // **Quando si prendono i soldi, detto prima di premere.**
+                          AvvisoPrimaDelLancio(conPremio: !_gratis),
                           const SizedBox(height: AppSpacing.lg),
                           CrasyButton(
                             label: _daPagare == null
@@ -353,6 +367,18 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
                             loading: busy,
                             onPressed: busy ? null : _launch,
                           ),
+                          // Il testo lo legge il controllo prima di partire: senza
+                          // questa riga sembra un tasto bloccato.
+                          if (busy) ...[
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              'Controlliamo la sfida: ci vuole qualche secondo.',
+                              textAlign: TextAlign.center,
+                              style: texts.bodySmall?.copyWith(
+                                color: palette.textFaint,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -482,6 +508,27 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
     if (id == null) {
       final errore = ref.read(duelControllerProvider).error;
 
+      // **Non e' un errore: la guarda una persona.** All'amico non arriva niente
+      // e nessuno ha pagato: si dice, e il modulo se ne va.
+      if (errore is MissioneInControllo) {
+        await mostraMissioneInControllo(context);
+
+        if (mounted) {
+          context.pop();
+        }
+
+        return;
+      }
+
+      // Una persona l'aveva gia' approvata: manca solo il pagamento.
+      if (errore is MissioneDaPagare) {
+        context.pushReplacement(
+          AppRoutes.missioneApprovataOf(errore.propostaId),
+        );
+
+        return;
+      }
+
       setState(
         () => _error = errore == null
             ? 'Non siamo riusciti a lanciare la sfida. Riprova.'
@@ -503,6 +550,7 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
     // lasciar partecipare, il guasto si e' fatto visibile: l'amico sfidato non
     // riusciva nemmeno a mandare la foto. Era il sintomo, non la causa.
     if (paymentsEnabled && premio > 0) {
+      avvisaApprovata(context);
       await _pagaEApri(id);
 
       return;
@@ -688,8 +736,9 @@ class _Rules extends StatelessWidget {
     if (gratis)
       'Non c’è premio in denaro: in palio c’è la parola data.'
     else
-      'Il premio lo paghi adesso e lo custodisce CRASY: va a chi vince, meno '
-          'il 10%. Se l’amico non la fa, rifiuta o non vale, ti torna indietro.',
+      'Il premio lo paghi dopo il controllo e lo custodisce CRASY: va a chi '
+          'vince, meno il 10%. Se l’amico non la fa, rifiuta o non vale, ti torna '
+          'indietro.',
     // **Questa riga vale il doppio da quando c’è il giudizio.** Chi
     // riceve la sfida deve sapere prima che a dire se vale sarà chi
     // gliel’ha lanciata: scoprirlo il giorno del “non vale”

@@ -11,6 +11,7 @@ import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
+import 'package:crasy/features/challenges/data/repositories/firestore_challenge_repository.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_source.dart';
@@ -19,11 +20,13 @@ import 'package:crasy/features/challenges/domain/entities/missione_pronta.dart';
 import 'package:crasy/features/challenges/presentation/controllers/create_challenge_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/missioni_pronte_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/anonimo_switch.dart';
+import 'package:crasy/features/challenges/presentation/widgets/esito_missione.dart';
 import 'package:crasy/features/legal/presentation/widgets/legal_sheet.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 import 'package:crasy/features/payments/domain/prize_ledger.dart';
 import 'package:crasy/features/payments/presentation/providers/payments_providers.dart';
 import 'package:crasy/features/payments/presentation/widgets/pay_choice.dart';
+import 'package:crasy/features/payments/presentation/widgets/riepilogo_premio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -383,7 +386,12 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                       // Il suggerimento e' nella stessa lingua e nello stesso tono
                       // della consegna qui sotto: due esempi che si leggono di fila
                       // devono sembrare scritti dalla stessa persona.
-                      hint: 'Foto con uno sconosciuto',
+                      //
+                      // **E l'esempio dev'essere uno che il controllo fa passare.**
+                      // Quello che si legge qui uno lo copia: prima c'era una foto
+                      // con uno sconosciuto per strada, che adesso aspetterebbe una
+                      // persona a ogni lancio.
+                      hint: 'La vista dalla tua finestra',
                       maxLength: ChallengeDraftValidators.titleMaxLength,
                       validator: ChallengeDraftValidators.validateTitle,
                     ),
@@ -391,8 +399,8 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                       label: 'Cosa devono fare',
                       controller: _brief,
                       hint:
-                          'Fermate uno sconosciuto per strada e fatevi fotografare '
-                          'insieme.',
+                          'Aprite e scattate, adesso. Vince quella che nessuno si '
+                          'aspetta.',
                       maxLines: 3,
                       maxLength: ChallengeDraftValidators.briefMaxLength,
                       validator: ChallengeDraftValidators.validateBrief,
@@ -507,16 +515,32 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                     // "507,75" e' il tipo di sorpresa che, in un'app che maneggia
                     // soldi, non si recupera piu'.
                     if (_daPagareOra) _PaymentSummary(prize: _prize),
-                    // **Gratis non si paga, e il tasto non lo dice.** "Paga e
-                    // lancia" su una gara da zero euro fa pensare a un addebito
-                    // che non c'e', proprio a chi aveva scelto GRATIS.
+                    // **Quando si prendono i soldi, detto prima di premere.**
+                    AvvisoPrimaDelLancio(conPremio: _daPagareOra),
+                    const SizedBox(height: AppSpacing.md),
+                    // **Il tasto non dice "paga".** Premendolo non si paga: si fa
+                    // controllare la missione, e il pagamento si apre solo se passa.
+                    // Se e' gia' passata e il pagamento non e' andato, si riprova.
                     CrasyButton(
-                      label: _daPagareOra
-                          ? 'Paga e lancia la challenge'
-                          : 'Lancia la challenge',
+                      label: _daPagare == null
+                          ? 'Lancia la challenge'
+                          : 'Paga il premio',
                       loading: creating,
                       onPressed: _submit,
                     ),
+                    // **Qualche secondo con la fiamma che gira, e si dice cosa
+                    // sta succedendo.** Il testo lo legge il controllo prima che
+                    // la missione esca: senza questa riga sembra un tasto bloccato.
+                    if (creating) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Controlliamo la missione: ci vuole qualche secondo.',
+                        textAlign: TextAlign.center,
+                        style: texts.bodySmall?.copyWith(
+                          color: palette.textFaint,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.sm),
                     // Detto prima, non dopo. E' l'unica riga di questa schermata che
                     // parla di soldi veri, e chi la legge deve poterci ripensare
@@ -524,21 +548,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                     if (!_gratisOra)
                       Text(
                         paymentsEnabled
-                            // **Detto prima di pagare, non dopo.**
-                            //
-                            // Sono le due cose che uno scopre nel momento sbagliato se
-                            // non gliele dici adesso: che cancellando **non torna
-                            // tutto** — restano fuori le spese di pagamento, gia'
-                            // uscite — e che i soldi non rientrano in tempo reale.
-                            // Chi lo legge qui non ha sorprese; chi lo scopre dopo
-                            // pensa di essere stato fregato, ed e' la stessa cosa
-                            // vista da due momenti diversi.
-                            ? 'Il premio lo trattiene CRASY fino alla fine della '
-                                  'challenge, poi lo gira a chi vince. Se non '
-                                  'partecipa nessuno ti torna indietro intero. Se '
-                                  'invece la cancelli tu, ti torna il premio ma non '
-                                  'le spese di pagamento — e la banca ci mette 5-10 '
-                                  'giorni a rimettertelo sulla carta.'
+                            ? RiepilogoPremio.avvertenza
                             : 'Il premio lo paghi tu. CRASY non fa da garante e non '
                                   'trattiene i soldi: mettine uno che puoi davvero '
                                   'dare.',
@@ -670,6 +680,28 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     if (challengeId == null) {
       final error = ref.read(createChallengeControllerProvider).error;
 
+      // **Non e' un errore: la guarda una persona.** La missione non e' ancora una
+      // gara e nessuno ha pagato niente: si dice, e il modulo se ne va. Riscriverla
+      // da qui non servirebbe, la risposta arriva in campanella.
+      if (error is MissioneInControllo) {
+        await mostraMissioneInControllo(context);
+
+        if (mounted) {
+          context.pop();
+        }
+
+        return;
+      }
+
+      // Una persona l'aveva gia' approvata: manca solo il pagamento.
+      if (error is MissioneDaPagare) {
+        context.pushReplacement(
+          AppRoutes.missioneApprovataOf(error.propostaId),
+        );
+
+        return;
+      }
+
       setState(() {
         _error = error == null
             ? 'Non siamo riusciti a lanciarla. Riprova.'
@@ -681,6 +713,8 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
 
     // Da qui in poi la missione esiste. Se il pagamento non riesce, e' questa
     // che si riprova a pagare.
+    final primoLancio = _daPagare == null;
+
     _daPagare = challengeId;
 
     // A pagamenti accesi la challenge **non e' ancora nata**: e' scritta ma non
@@ -691,6 +725,10 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     // fra amici e' visibile da subito, e mandarla a Stripe con zero euro
     // voleva dire un rifiuto del server e una gara bloccata a meta'.
     if (paymentsEnabled && prizeCents > 0) {
+      if (primoLancio) {
+        avvisaApprovata(context);
+      }
+
       // **Se i soldi ce li hai gia' su CRASY, si puo' pagare con quelli.**
       //
       // La cosa piu' naturale da fare con un premio vinto e' rimetterlo in
@@ -984,16 +1022,13 @@ class _MissioniPronte extends StatelessWidget {
   }
 }
 
-class _PaymentSummary extends ConsumerWidget {
+class _PaymentSummary extends StatelessWidget {
   const _PaymentSummary({required this.prize});
 
   final TextEditingController prize;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final palette = context.palette;
-    final saldo = ref.watch(walletBalanceProvider);
-
+  Widget build(BuildContext context) {
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: prize,
       builder: (context, value, child) {
@@ -1006,111 +1041,8 @@ class _PaymentSummary extends ConsumerWidget {
           return const SizedBox.shrink();
         }
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-          child: Column(
-            children: [
-              Divider(color: palette.line),
-              const SizedBox(height: AppSpacing.sm),
-              _SummaryRow(
-                label: 'Paghi ora',
-                value: AppMoney.format(PrizeLedger.chargeCents(cents)),
-                strong: true,
-              ),
-              _SummaryRow(
-                label: 'Va a chi vince',
-                value: AppMoney.format(PrizeLedger.payoutCents(cents)),
-              ),
-              _SummaryRow(
-                label: 'Trattiene CRASY',
-                value: AppMoney.format(PrizeLedger.commissionCents(cents)),
-              ),
-              _SummaryRow(
-                label: 'Commissioni banca',
-                value: AppMoney.format(PrizeLedger.processingFeeCents(cents)),
-              ),
-              _SummaryRow(
-                label: 'Servizio CRASY',
-                value: AppMoney.format(PrizeLedger.serviceCents),
-              ),
-              // **Il portafoglio si dice qui, non al momento di pagare.**
-              //
-              // La scelta fra carta e portafoglio compare dopo, quando si
-              // preme il tasto — ed era l'unico posto in cui compariva. Chi non
-              // arriva in fondo non sa nemmeno che si puo' fare, e chi ci
-              // arriva se la trova addosso senza averci pensato. Il momento in
-              // cui serve saperlo e' **mentre si sceglie la cifra**: e' li' che
-              // uno decide quanto mettere, e sapere di avere un euro gia'
-              // dentro cambia la decisione.
-              //
-              // Compare solo se il saldo copre il premio, come il foglio dopo:
-              // scriverlo quando non basta vorrebbe dire annunciare una strada
-              // che poi non si apre.
-              if (saldo >= cents) ...[
-                const SizedBox(height: AppSpacing.xs),
-                _SummaryRow(
-                  label: 'Oppure dal portafoglio',
-                  value: AppMoney.format(cents),
-                  accent: true,
-                ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Hai ${AppMoney.format(saldo)}: pagando da lì non ci sono '
-                    'commissioni, e te lo chiediamo prima di toccarli.',
-                    style: context.texts.bodySmall?.copyWith(
-                      color: palette.textFaint,
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(height: AppSpacing.sm),
-              Divider(color: palette.line),
-              const SizedBox(height: AppSpacing.md),
-            ],
-          ),
-        );
+        return RiepilogoPremio(cents: cents, primaRiga: 'Pagherai');
       },
-    );
-  }
-}
-
-class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({
-    required this.label,
-    required this.value,
-    this.strong = false,
-    this.accent = false,
-  });
-
-  final String label;
-  final String value;
-  final bool strong;
-
-  /// La riga in rosso: la usa il portafoglio, che non e' un costo in piu' ma
-  /// **un'altra strada** per lo stesso. In grigio come le altre si leggerebbe
-  /// come una quarta voce del conto, cioe' come altri soldi da tirare fuori.
-  final bool accent;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-    final texts = context.texts;
-    final style = accent
-        ? texts.titleMedium?.copyWith(color: palette.accent)
-        : strong
-        ? texts.titleMedium
-        : texts.bodySmall?.copyWith(color: palette.textSecondary);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: style),
-          Text(value, style: style),
-        ],
-      ),
     );
   }
 }

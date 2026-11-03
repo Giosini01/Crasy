@@ -1,0 +1,518 @@
+/*
+ * **Il pannello e' CRASY.** Stesse regole di crasyapp.com e dell'app: bianco, nero,
+ * grigi e un rosso. Il rosso dice tre cose e basta: quanto vale, cosa toccare, cosa
+ * e' urgente. Niente ombre e niente sfumature: a separare le cose sono lo spazio e un
+ * filetto, e a fare la gerarchia e' la tipografia.
+ */
+:root {
+  --rosso: #FA0000;
+  --rosso-fondo: #E00000;
+  --rosso-velo: #FFF0F0;
+  --inchiostro: #0A0A0B;
+  --tenue: #6B6B70;
+  --fioco: #A1A1A6;
+  --riga: #E8E8EA;
+  --spento: #F4F4F5;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: #FFF;
+  color: var(--inchiostro);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+[hidden] { display: none !important; }
+
+a { color: inherit; }
+.rosso { color: var(--rosso); }
+.tenue { color: var(--tenue); }
+.fioco { color: var(--fioco); }
+.nowrap { white-space: nowrap; }
+.errore { color: var(--rosso); font-weight: 700; }
+code { font-size: 13px; background: var(--spento); border-radius: 6px; padding: 1px 6px; user-select: all; }
+
+/* --- titoli ---------------------------------------------------------- */
+
+h1 {
+  font-size: clamp(36px, 5.4vw, 60px);
+  line-height: .95;
+  letter-spacing: -.035em;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+h2 {
+  font-size: 22px;
+  line-height: 1.1;
+  letter-spacing: -.02em;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin: 0 0 12px;
+}
+
+h3 { font-size: 16px; margin: 0; }
+
+.occhiello {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--fioco);
+}
+
+.occhiello--rosso { color: var(--rosso); }
+
+.testata {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 26px;
+}
+
+.testata__sotto { color: var(--tenue); margin: 10px 0 0; max-width: 62ch; }
+
+.sezione { margin-top: 38px; }
+
+/* --- tasti ------------------------------------------------------------ */
+
+.tasto {
+  font: inherit;
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1.2;
+  border: 1px solid var(--riga);
+  background: #FFF;
+  color: var(--inchiostro);
+  border-radius: 999px;
+  padding: 10px 18px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.tasto:hover { border-color: var(--inchiostro); }
+.tasto:disabled { opacity: .45; cursor: default; }
+.tasto:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--inchiostro);
+  outline-offset: 2px;
+}
+
+.tasto--nero { background: var(--inchiostro); border-color: var(--inchiostro); color: #FFF; }
+.tasto--rosso { background: var(--rosso-fondo); border-color: var(--rosso-fondo); color: #FFF; }
+.tasto--rosso:hover { border-color: var(--inchiostro); }
+.tasto--bordo-rosso { border-color: var(--rosso); color: var(--rosso); }
+.tasto--bordo-rosso:hover { border-color: var(--rosso); background: var(--rosso-velo); }
+.tasto--piccolo { padding: 6px 12px; font-size: 12px; }
+.tasto--largo { width: 100%; padding: 14px 18px; font-size: 14px; }
+
+.comandi { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* --- campi ------------------------------------------------------------ */
+
+label { display: block; font-size: 12px; font-weight: 700; color: var(--tenue); margin: 0 0 4px; }
+
+input[type=email], input[type=password], input[type=text], input[type=search], input[type=number], textarea, select {
+  width: 100%;
+  font: inherit;
+  padding: 11px 14px;
+  border: 1px solid var(--riga);
+  border-radius: 12px;
+  background: #FFF;
+  color: var(--inchiostro);
+}
+
+textarea { min-height: 84px; resize: vertical; }
+
+/* --- l'accesso -------------------------------------------------------- */
+
+.accesso { max-width: 400px; margin: 0 auto; padding: 56px 22px; }
+.accesso .marchio { display: block; margin-bottom: 38px; }
+.accesso .occhiello-testo { color: var(--tenue); margin: 16px 0 28px; }
+.accesso input { margin-bottom: 14px; }
+.accesso .errore { margin-top: 16px; }
+
+/* --- l'impianto ------------------------------------------------------- */
+
+.tavolo { display: flex; min-height: 100vh; }
+
+.fianco {
+  width: 212px;
+  flex: none;
+  border-right: 1px solid var(--riga);
+  padding: 24px 14px;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.fianco__marchio { display: block; padding: 0 10px 22px; }
+.fianco__marchio img { display: block; }
+.fianco__chi { margin-top: auto; padding: 18px 10px 0; font-size: 12px; display: grid; gap: 8px; justify-items: start; overflow-wrap: anywhere; }
+
+.voci { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+
+.voce {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: var(--tenue);
+}
+
+.voce:hover { color: var(--inchiostro); background: var(--spento); }
+.voce.scelta { color: var(--rosso); background: var(--rosso-velo); }
+
+.bollo {
+  background: var(--rosso);
+  color: #FFF;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  min-width: 20px;
+  padding: 1px 6px;
+  text-align: center;
+  letter-spacing: 0;
+}
+
+.contenuto { flex: 1; min-width: 0; padding: 36px clamp(18px, 4vw, 48px) 80px; max-width: 1180px; outline: none; }
+
+@media (max-width: 860px) {
+  .tavolo { display: block; }
+  .fianco {
+    width: auto;
+    height: auto;
+    position: sticky;
+    z-index: 5;
+    background: #FFF;
+    border-right: 0;
+    border-bottom: 1px solid var(--riga);
+    padding: 10px 12px;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+  }
+  .fianco__marchio { padding: 0 6px 0 0; flex: none; }
+  .fianco__marchio img { width: 64px; }
+  .voci { display: flex; overflow-x: auto; flex: 1; scrollbar-width: none; }
+  .voci::-webkit-scrollbar { display: none; }
+  .voce { white-space: nowrap; padding: 7px 9px; font-size: 12px; }
+  /* Sul telefono resta il tasto per uscire, senza l'indirizzo: non ci starebbe. */
+  .fianco__chi { display: block; margin: 0; padding: 0; flex: none; }
+  .fianco__chi #chi { display: none; }
+  .contenuto { padding-top: 24px; }
+}
+
+/* --- i numeri --------------------------------------------------------- */
+
+.numeri { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+
+.numero {
+  border: 1px solid var(--riga);
+  border-radius: 18px;
+  padding: 16px 18px;
+  text-decoration: none;
+  display: block;
+}
+
+a.numero:hover { border-color: var(--inchiostro); }
+
+.numero__cifra {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -.035em;
+  line-height: 1.05;
+  margin-top: 6px;
+}
+
+.numero__cifra small { font-size: 15px; letter-spacing: -.01em; font-weight: 700; color: var(--tenue); }
+.numero__nota { font-size: 12px; color: var(--tenue); margin-top: 4px; }
+.numero--allarme { border-color: var(--rosso); }
+.numero--allarme .numero__cifra { color: var(--rosso); }
+
+/* Il lavoro da fare: la prima cosa che si legge entrando. */
+.dafare { display: grid; gap: 8px; }
+
+.dafare__riga {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border: 1px solid var(--riga);
+  border-radius: 14px;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.dafare__riga:hover { border-color: var(--inchiostro); }
+.dafare__riga b { font-size: 24px; font-weight: 800; letter-spacing: -.03em; color: var(--rosso); min-width: 34px; }
+.dafare__riga span { flex: 1; }
+.tuttofatto { padding: 18px; border: 1px solid var(--riga); border-radius: 14px; color: var(--tenue); }
+
+.avviso {
+  border: 1px solid var(--rosso);
+  background: var(--rosso-velo);
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+}
+
+.avviso strong { color: var(--rosso); }
+
+.nota {
+  border: 1px solid var(--riga);
+  background: var(--spento);
+  border-radius: 14px;
+  padding: 14px 18px;
+  color: var(--tenue);
+  font-size: 14px;
+}
+
+/* --- le schede --------------------------------------------------------- */
+
+.schede { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 22px; }
+
+.scheda {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--riga);
+  background: #FFF;
+  color: var(--tenue);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.scheda:hover { color: var(--inchiostro); border-color: var(--inchiostro); }
+.scheda.scelta { background: var(--inchiostro); border-color: var(--inchiostro); color: #FFF; }
+
+/* --- la carta: la missione com'e' nell'app ------------------------------ */
+
+.carte { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); align-items: start; }
+
+@media (max-width: 480px) { .carte { grid-template-columns: 1fr; } }
+
+.carta { border: 1px solid var(--riga); border-radius: 22px; padding: 20px; min-width: 0; }
+.carta--urgente { border-color: var(--rosso); }
+.carta__cima { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.premio { font-size: 40px; line-height: 1; font-weight: 800; letter-spacing: -.04em; color: var(--rosso); }
+.premio--gratis { color: var(--inchiostro); }
+.gara { font-size: 17px; font-weight: 800; line-height: 1.15; text-transform: uppercase; letter-spacing: -.01em; margin: 14px 0 4px; overflow-wrap: anywhere; }
+.consegna { font-size: 14px; color: var(--tenue); margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+
+.riga-sfida {
+  font-size: 14px;
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  background: var(--spento);
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+
+.voto {
+  flex: none;
+  text-align: right;
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -.04em;
+}
+
+.voto small { font-size: 12px; font-weight: 700; letter-spacing: 0; color: var(--fioco); }
+.voto--basso { color: var(--rosso); }
+.voto--medio { color: var(--inchiostro); }
+.voto--alto { color: var(--fioco); }
+.voto--niente { color: var(--fioco); font-size: 13px; letter-spacing: 0; padding-top: 4px; }
+
+.perche { font-size: 13px; margin: 12px 0 0; padding-top: 12px; border-top: 1px solid var(--riga); overflow-wrap: anywhere; }
+.perche b { font-weight: 800; }
+
+.pastiglie { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 10px; }
+
+.pastiglia {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--riga);
+  color: var(--tenue);
+  white-space: nowrap;
+}
+
+.pastiglia--rossa { border-color: var(--rosso); color: var(--rosso); }
+.pastiglia--piena { background: var(--inchiostro); border-color: var(--inchiostro); color: #FFF; }
+
+.fatti { font-size: 12px; color: var(--tenue); margin: 12px 0 0; display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.fatti a { font-weight: 700; color: var(--inchiostro); }
+
+.carta .comandi { margin-top: 16px; }
+
+/* --- le tabelle --------------------------------------------------------- */
+
+.tabella-giro { overflow-x: auto; border: 1px solid var(--riga); border-radius: 18px; }
+
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--fioco);
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--riga);
+  white-space: nowrap;
+}
+td { padding: 11px 14px; border-bottom: 1px solid var(--riga); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr.apribile { cursor: pointer; }
+tbody tr.apribile:hover { background: var(--spento); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td b { font-weight: 800; }
+.soldi { font-weight: 800; color: var(--rosso); }
+.titolo-riga { font-weight: 800; text-transform: uppercase; font-size: 13px; letter-spacing: -.01em; }
+.sotto-riga { font-size: 12px; color: var(--tenue); }
+
+.chi { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.faccia {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--spento);
+  flex: none;
+  display: block;
+}
+.faccia--grande { width: 72px; height: 72px; }
+
+/* --- le foto -------------------------------------------------------------- */
+
+.griglia { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+
+.foto { min-width: 0; }
+.foto__media {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  background: var(--spento);
+  border-radius: 22px;
+}
+.foto__vuota { display: flex; align-items: center; justify-content: center; color: var(--fioco); font-size: 12px; text-align: center; padding: 12px; }
+.foto--fuori .foto__media { opacity: .4; }
+.foto__sotto { margin-top: 8px; font-size: 13px; }
+.foto__fiamme { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; color: var(--rosso); }
+.foto__fiamme svg { width: 14px; height: 14px; }
+.foto__titolo { font-size: 12px; color: var(--tenue); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.foto .comandi { margin-top: 8px; }
+
+/* --- la scheda di una persona ------------------------------------------------ */
+
+.persona-testa { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.persona-testa h1 { font-size: clamp(28px, 4vw, 44px); text-transform: none; }
+
+.dati { display: grid; grid-template-columns: max-content 1fr; gap: 4px 18px; margin: 0; font-size: 14px; }
+.dati dt { color: var(--tenue); }
+.dati dd { margin: 0; overflow-wrap: anywhere; }
+
+.righe > div { padding: 10px 0; border-bottom: 1px solid var(--riga); }
+.righe > div:last-child { border-bottom: 0; }
+
+/* --- la prova del filtro ------------------------------------------------------ */
+
+.prova { display: grid; gap: 12px; max-width: 620px; }
+.prova__esito { margin-top: 18px; }
+.voto--enorme { font-size: 64px; }
+
+/* --- le regole ------------------------------------------------------------------ */
+
+.interruttore { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; color: var(--inchiostro); font-weight: 400; margin: 0; cursor: pointer; }
+.interruttore input { width: 20px; height: 20px; margin-top: 2px; flex: none; accent-color: var(--rosso); }
+.soglie { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); max-width: 620px; }
+
+.scala { display: flex; border-radius: 12px; overflow: hidden; max-width: 620px; font-size: 12px; font-weight: 800; }
+.scala > div { padding: 10px 12px; }
+.scala__mano { background: var(--rosso-velo); color: var(--rosso); }
+.scala__conferma { background: var(--spento); }
+.scala__auto { background: var(--inchiostro); color: #FFF; }
+
+/* --- il calendario delle missioni automatiche ------------------------------------ */
+
+.calendario { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+.giorno { border: 1px solid var(--riga); border-radius: 14px; overflow: hidden; }
+.giorno__testa { background: var(--spento); padding: 7px 12px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.giorno--oggi .giorno__testa { background: var(--rosso); color: #FFF; }
+.giorno__voce { padding: 9px 12px; border-top: 1px solid var(--riga); font-size: 13px; }
+.giorno__voce:first-of-type { border-top: 0; }
+
+.barra { height: 6px; background: var(--riga); border-radius: 999px; overflow: hidden; margin: 12px 0; max-width: 620px; }
+.barra div { height: 100%; background: var(--rosso); }
+
+/* --- la domanda ---------------------------------------------------------------------- */
+
+.domanda {
+  border: 1px solid var(--riga);
+  border-radius: 22px;
+  padding: 24px;
+  width: min(480px, calc(100vw - 32px));
+  color: var(--inchiostro);
+}
+
+.domanda::backdrop { background: rgba(10, 10, 11, .45); }
+.domanda h2 { margin-bottom: 8px; }
+.domanda p { color: var(--tenue); margin: 0 0 14px; white-space: pre-wrap; }
+.domanda form { display: grid; gap: 12px; }
+.domanda .comandi { justify-content: flex-end; margin-top: 6px; }
+.scelte-motivo { display: flex; gap: 6px; flex-wrap: wrap; }
+.scelte-motivo .scheda { font-size: 12px; padding: 5px 10px; }
+
+/* --- i messaggi -------------------------------------------------------------------------- */
+
+.messaggi { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); display: grid; gap: 8px; z-index: 50; width: min(520px, calc(100vw - 32px)); }
+
+.messaggio {
+  background: var(--inchiostro);
+  color: #FFF;
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.messaggio--errore { background: var(--rosso-fondo); }
+
+.vuoto { color: var(--tenue); padding: 26px 0; }
+.carico { color: var(--fioco); padding: 26px 0; }
+.indietro { display: inline-block; margin-bottom: 18px; font-size: 13px; font-weight: 800; color: var(--tenue); text-decoration: none; }
+.indietro:hover { color: var(--inchiostro); }

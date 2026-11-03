@@ -354,25 +354,85 @@ class FirestoreChallengeRepository implements ChallengeRepository {
 
   @override
   Future<Challenge> createChallenge(Challenge challenge) async {
-    final document = _challenges.doc();
+    // **La missione non si scrive piu' da qui: si propone.**
+    //
+    // Il telefono scriveva il documento e il controllo stava nell'app: chi la
+    // modificava, o scriveva sul database da se', mandava davanti a tutti quello
+    // che voleva, con dei soldi in palio. Adesso le regole non lasciano creare
+    // nessuna gara a nessun telefono, e la gara la scrive il server dopo aver
+    // letto il testo: parola per parola, con l'intelligenza artificiale, e se
+    // serve con una persona. Vedi `functions/missioni.js`.
+    //
+    // **Settantacinque secondi, piu' del server.** Il giudizio puo' durare fino a
+    // settanta: con l'attesa normale di sessanta l'app darebbe per fallita una
+    // missione che intanto sta uscendo, e chi riprova ne lancerebbe due.
+    final risposta = await FirebaseFunctions.instanceFor(region: 'europe-west8')
+        .httpsCallable(
+          'proponiMissione',
+          options: HttpsCallableOptions(timeout: const Duration(seconds: 75)),
+        )
+        .call<Map<Object?, Object?>>(corpoDellaProposta(challenge));
 
-    // **In anonimo, due fogli nello stesso colpo.** La gara senza autore, e
-    // l'autore in `autoriAnonimi/{gara}`, che legge solo lui: le regole del
-    // database accettano l'una solo insieme all'altro. Vedi
-    // `ChallengeMapper.toCreateMap`.
-    final scrittura = _firestore.batch()
-      ..set(document, ChallengeMapper.toCreateMap(challenge));
+    return challenge.copyWith(id: idDellaGara(risposta.data));
+  }
 
-    if (challenge.anonimo) {
-      scrittura.set(_firestore.collection('autoriAnonimi').doc(document.id), {
-        'uid': challenge.createdByUserId,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+  /// **Cosa si manda al server per proporre una missione.**
+  ///
+  /// Solo quello che ha scelto chi la lancia. Chi la puo' vedere, come si chiama
+  /// chi la lancia e come si chiama lo sfidato li decide il server: arrivando da
+  /// qui, basterebbe un telefono modificato per mettere un altro nome su una gara.
+  static Map<String, Object?> corpoDellaProposta(Challenge challenge) {
+    return {
+      'title': challenge.title,
+      'brief': challenge.brief,
+      'prizeCents': challenge.prizeCents,
+      'scope': challenge.scope.name,
+      'maxParticipants': challenge.maxParticipants,
+      'mediaKind': challenge.mediaKind.name,
+      'source': challenge.source.name,
+      // La durata e non le due date: l'ora di inizio la mette il server, e
+      // l'orologio di un telefono non deve poter spostare una gara.
+      'minutes': challenge.endsAt.difference(challenge.startsAt).inMinutes,
+      'anonimo': challenge.anonimo,
+      if (challenge.targetUserId.isNotEmpty) ...{
+        'targetUserId': challenge.targetUserId,
+        'duelMessage': challenge.duelMessage,
+      },
+    };
+  }
+
+  /// **Cosa ha risposto il server**: l'identificativo della gara, se e' uscita.
+  ///
+  /// Negli altri casi la gara non c'e', e chi chiama deve saperlo: si lancia
+  /// un'eccezione per ognuno, cosi' un esito che nessuno ha gestito finisce in un
+  /// messaggio a schermo invece che in una gara con l'identificativo vuoto.
+  static String idDellaGara(Map<Object?, Object?> risposta) {
+    final proposta = risposta['propostaId'];
+    final propostaId = proposta is String ? proposta : '';
+
+    switch (risposta['stato']) {
+      case 'inGara':
+        final gara = risposta['challengeId'];
+
+        if (gara is String && gara.isNotEmpty) {
+          return gara;
+        }
+      case 'inControllo':
+        throw MissioneInControllo(propostaId);
+      case 'daPagare':
+        throw MissioneDaPagare(propostaId);
+      case 'bloccata':
+        final messaggio = risposta['messaggio'];
+
+        throw MissioneBloccata(
+          messaggio is String && messaggio.isNotEmpty
+              ? messaggio
+              : 'Questa missione non può uscire così. Riscrivila.',
+        );
     }
 
-    await scrittura.commit();
-
-    return challenge.copyWith(id: document.id);
+    // Una risposta che non si sa leggere non e' una gara lanciata.
+    throw StateError('Non siamo riusciti a lanciarla. Riprova.');
   }
 
   @override
@@ -1190,6 +1250,35 @@ class FirestoreChallengeRepository implements ChallengeRepository {
 }
 
 /// La challenge a cui si sta partecipando non esiste piu'.
+/// **La missione non e' uscita: la guarda una persona.**
+///
+/// Non e' un errore, e chi chiama non lo deve mostrare come tale: chi l'ha scritta
+/// non ha sbagliato niente, sta aspettando. E non ha pagato niente.
+class MissioneInControllo implements Exception {
+  const MissioneInControllo(this.propostaId);
+
+  final String propostaId;
+}
+
+/// **Una persona l'aveva gia' approvata**, e manca solo il pagamento: si manda chi
+/// l'ha riscritta uguale alla pagina dove si paga, invece di farla ricontrollare.
+class MissioneDaPagare implements Exception {
+  const MissioneDaPagare(this.propostaId);
+
+  final String propostaId;
+}
+
+/// **La missione si e' fermata**, e [messaggio] dice perche' con le parole che ha
+/// scritto il server. Chi l'ha scritta la puo' riscrivere.
+class MissioneBloccata implements Exception {
+  const MissioneBloccata(this.messaggio);
+
+  final String messaggio;
+
+  @override
+  String toString() => messaggio;
+}
+
 class ChallengeNotFoundException implements Exception {
   const ChallengeNotFoundException();
 

@@ -11,6 +11,12 @@
 #   FIREBASE_SERVICE_ACCOUNT   la chiave di servizio (Secrets)
 #   FIREBASE_PROJECT_ID        l'ID del progetto (Variables)
 #
+# **Un segreto da creare prima del primo deploy**, o il deploy delle funzioni si
+# ferma: la chiave di OpenAI per il giudizio sulle missioni, vedi
+# `functions/giudice.js`.
+#
+#   firebase functions:secrets:set OPENAI_API_KEY
+#
 # La chiave deve poter pubblicare regole e funzioni, non solo il sito. Se il
 # passo "Pubblica" fallisce per permessi, alla chiave (IAM, su Google Cloud)
 # vanno aggiunti i ruoli: Firebase Admin, Cloud Functions Admin, Service
@@ -59,6 +65,13 @@ jobs:
       - name: Dipendenze delle funzioni
         working-directory: functions
         run: npm ci
+
+      - name: Prove del controllo delle missioni
+        # Il filtro parola per parola e le strade del giudizio: si provano senza
+        # credenziali e senza chiamare il modello. Se qui qualcosa non torna non si
+        # pubblica: e' cio' che decide se una missione esce da sola davanti a tutti.
+        working-directory: functions
+        run: npm test
 
       - name: Firebase CLI
         run: npm install --global firebase-tools

@@ -255,6 +255,59 @@ exports.adminListReports = onCall(async (request) => {
 });
 
 /**
+ * **Toglie una foto dalla gara.** Da un punto solo, che serva a una segnalazione o
+ * a un tasto del pannello: stesse conseguenze, stesso avviso.
+ *
+ * **Chi esce dalla gara non conta piu' fra i partecipanti.** Il controllo
+ * automatico lo faceva gia'; qui no, e una missione con l'unica foto tolta restava
+ * a "1 partecipante": chi l'aveva lanciata non poteva piu' cancellarla, perche' il
+ * tasto c'e' solo a zero. Si abbassa una volta sola: una foto gia' fuori non esce
+ * due volte.
+ *
+ * **Perche' e' uscita, scritto sulla foto stessa.** Fra una tolta dal riconoscimento
+ * immagini e una tolta da una persona c'e' una differenza enorme il giorno in cui
+ * qualcuno chiede spiegazioni, e senza questo campo le due sono identiche.
+ */
+async function togliLaFoto(foto, { chi, autore, titolo, motivo = 'altro' }) {
+  const adesso = await foto.get();
+
+  if (!adesso.exists) {
+    throw new HttpsError('not-found', 'Questa foto non c\'è più.');
+  }
+
+  await db.runTransaction(async (t) => {
+    const ora = await t.get(foto);
+
+    if (ora.exists && ora.get('moderation') !== 'rejected') {
+      t.update(foto.parent.parent, {
+        participantsCount: admin.firestore.FieldValue.increment(-1),
+      });
+    }
+
+    t.update(foto, {
+      moderation: 'rejected',
+      moderationReason: 'admin',
+      moderatedBy: chi,
+      moderatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  });
+
+  const challengeId = foto.parent.parent.id;
+
+  await avvisaChiLHaMandata(
+    autore || String(adesso.get('userId') || ''),
+    challengeId,
+    titolo || String(adesso.get('challengeTitle') || ''),
+    { motivo, automatico: false }
+  );
+
+  // Le fiamme che aveva preso tornano a chi gliele aveva date.
+  await liberaLeFiamme(challengeId, foto.id);
+
+  return { tolta: true };
+}
+
+/**
  * **La decisione dell'amministratore su una segnalazione.**
  *
  * Tre sole, e sono quelle che si prendono davvero davanti a una foto:
@@ -355,9 +408,13 @@ exports.adminResolveReport = onCall(
         'perché violava le regole di CRASY.';
     } else {
       daSospendere = String(dati.reportedUserId || '');
-      perche =
-        `La tua foto nella missione "${titolo}" è stata rimossa perché ` +
-        'violava le regole di CRASY.';
+      // Una persona segnalata non ha mandato nessuna foto: l'email deve dire la cosa
+      // vera, e' quella che legge chi deve capire perche' non puo' piu' entrare.
+      perche = foto
+        ? `La tua foto nella missione "${titolo}" è stata rimossa perché ` +
+          'violava le regole di CRASY.'
+        : 'Il tuo profilo è stato segnalato, e una persona del team ha ' +
+          'verificato che violava le regole di CRASY.';
     }
   }
 
@@ -370,42 +427,13 @@ exports.adminResolveReport = onCall(
 
     if (adesso.exists) {
       if (decisione === 'remove') {
-        // **Chi esce dalla gara non conta piu' fra i partecipanti.** Il
-        // controllo automatico lo faceva gia'; qui no, e una missione con
-        // l'unica foto tolta restava a "1 partecipante": chi l'aveva lanciata
-        // non poteva piu' cancellarla, perche' il tasto c'e' solo a zero. Si
-        // abbassa una volta sola: una foto gia' fuori non esce due volte.
-        await db.runTransaction(async (t) => {
-          const ora = await t.get(foto);
-
-          if (ora.exists && ora.get('moderation') !== 'rejected') {
-            t.update(foto.parent.parent, {
-              participantsCount: admin.firestore.FieldValue.increment(-1),
-            });
-          }
-
-          t.update(foto, {
-            moderation: 'rejected',
-            // **Perche' e' uscita, scritto sulla foto stessa.** Fra una tolta
-            // dal riconoscimento immagini e una tolta da una persona c'e' una
-            // differenza enorme il giorno in cui qualcuno chiede spiegazioni,
-            // e senza questo campo le due sono identiche.
-            moderationReason: 'admin',
-            moderatedBy: chi,
-            moderatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-        });
-
-        await avvisaChiLHaMandata(
-          String(dati.reportedUserId || adesso.get('userId') || ''),
-          String(dati.challengeId || ''),
-          String(adesso.get('challengeTitle') || dati.challengeTitle || ''),
+        await togliLaFoto(foto, {
+          chi,
+          autore: String(dati.reportedUserId || adesso.get('userId') || ''),
+          titolo: String(adesso.get('challengeTitle') || dati.challengeTitle || ''),
           // L'ha decisa una persona, per la voce scelta da chi ha segnalato.
-          { motivo: motivoDallaSegnalazione(dati.reason), automatico: false }
-        );
-
-        // Le fiamme che aveva preso tornano a chi gliele aveva date.
-        await liberaLeFiamme(String(dati.challengeId || ''), foto.id);
+          motivo: motivoDallaSegnalazione(dati.reason),
+        });
       }
 
       if (decisione === 'fake') {
@@ -1254,3 +1282,7 @@ exports.adminSaltaLaProssima = onCall(async (request) => {
 
   return fondo.salta(salvadanaio);
 });
+
+// Per il pannello: vedi `pannello.js`.
+exports.togliLaFoto = togliLaFoto;
+exports.rimuoviLaMissione = rimuoviLaMissione;

@@ -95,7 +95,7 @@ class FirestoreNotificationsRepository {
     ) {
       final items = [
         for (final document in snapshot.docs)
-          ?_from(document.id, document.data()),
+          ?daDocumento(document.id, document.data()),
       ];
 
       items.sort((a, b) {
@@ -284,7 +284,7 @@ class FirestoreNotificationsRepository {
 
   /// La riga, o `null` per un tipo che quest'app non sa leggere: vedi
   /// [AppNotification.kindFromName].
-  AppNotification? _from(String id, Map<String, dynamic> data) {
+  static AppNotification? daDocumento(String id, Map<String, dynamic> data) {
     final kind = AppNotification.kindFromName(data['kind'] as String?);
 
     if (kind == null) {
@@ -303,6 +303,8 @@ class FirestoreNotificationsRepository {
       motivo: data['motivo'] as String? ?? '',
       automatico: data['automatico'] as bool? ?? false,
       revisione: data['revisione'] as String? ?? '',
+      propostaId: data['propostaId'] as String? ?? '',
+      premioCents: (data['premioCents'] as num?)?.toInt() ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }

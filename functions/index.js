@@ -336,6 +336,18 @@ exports.chiediRevisione = require('./revisioni').chiediRevisione;
 // Quanto resta davvero a CRASY di ogni incasso.
 exports.adminGuadagni = amministrazione.adminGuadagni;
 
+// **Le missioni nascono sul server, dopo il controllo.** Vedi `missioni.js`.
+const missioni = require('./missioni');
+
+exports.proponiMissione = missioni.proponiMissione;
+exports.leggiLaMiaProposta = missioni.leggiLaMiaProposta;
+exports.lanciaMissioneApprovata = missioni.lanciaMissioneApprovata;
+exports.pulisciLeProposte = missioni.pulisciLeProposte;
+
+// **Il pannello: tutto quello che la pagina di amministrazione vede e fa.**
+exports.adminPannello = require('./pannello').adminPannello;
+
+
 /**
  * Manda una notifica ai telefoni di una persona sola.
  *
@@ -2564,6 +2576,13 @@ exports.sendPushOnNotification = onDocumentCreated(
       pickWinner: gara
         ? `È finita: scegli chi ha vinto ${gara}`
         : 'La tua missione è finita: scegli chi ha vinto',
+      // **La risposta sulla missione che si era proposta.** Sono loro stessi la
+      // notizia, e il motivo di un no sta in campanella, non su uno schermo bloccato
+      // che leggono anche gli altri.
+      missionApproved: dati.premioCents > 0
+        ? 'La tua missione è approvata: paga il premio e parte'
+        : 'La tua missione è approvata: è in gara',
+      missionRejected: 'La tua missione non può uscire. Apri per sapere perché',
       partyMission: gara
         ? `${tag} ha lanciato una missione: ${gara}`
         : `${tag} ha lanciato una missione per il party`,
@@ -4258,3 +4277,73 @@ async function emailAggiornamento({ linkIos, linkAndroid }) {
 
   return conto;
 }
+
+/**
+ * **Una missione aspetta qualcuno: lo si avvisa.**
+ *
+ * Chi l'ha scritta sta aspettando, e una coda che nessuno guarda e' un no detto
+ * male. Una riga sul telefono di chi modera, e una email a info@ con il testo
+ * intero: non tutti hanno l'app in mano quando arriva, e dalla email si capisce
+ * se e' urgente senza aprire niente.
+ *
+ * Le fermate dalle parole restano solo nel pannello: non c'e' niente da decidere,
+ * e chi prova venti volte non deve poter far squillare venti volte un telefono.
+ */
+exports.avvisaDellaProposta = onDocumentCreated(
+  {
+    document: 'missioniProposte/{propostaId}',
+    secrets: [posta.SMTP_PASSWORD, posta.RESEND_API_KEY],
+  },
+  async (event) => {
+    const dati = event.data?.data();
+
+    if (!dati || !['daControllare', 'daConfermare'].includes(dati.stato)) {
+      return;
+    }
+
+    const voto = Number.isInteger(dati.voto) ? `${dati.voto}/100` : 'senza voto';
+    const conferma = dati.stato === 'daConfermare';
+    const frase = `${conferma ? 'Da confermare' : 'Da controllare'} (${voto}): ${dati.title}`;
+
+    const chi = await db.collection('impostazioni').doc('amministratori').get();
+    const amministratori = (chi.exists && chi.get('uids')) || [];
+
+    await Promise.all(
+      amministratori.map((uid) =>
+        mandaAUnaPersona(uid, frase, {
+          kind: 'moderazione',
+          challengeId: '',
+        }).catch((errore) => {
+          logger.warn('avviso a chi modera non partito', { uid, errore });
+        })
+      )
+    );
+
+    const motivo = dati.giudizio?.motivo
+      ? dati.giudizio.motivo
+      : dati.giudizio?.perche ? `L'AI non ha risposto: ${dati.giudizio.perche}` : '';
+    const parole = (dati.filtro?.gialle || []).map((g) => g.termine).join(', ');
+
+    try {
+      await posta.spedisci({
+        from: '"CRASY" <' + posta.CASELLA + '>',
+        to: 'info@crasyapp.com',
+        subject: `Missione ${conferma ? 'da confermare' : 'da controllare'}: ${dati.title}`,
+        text: [
+          `${dati.title}`,
+          `${dati.brief}`,
+          dati.duelMessage ? `Messaggio: ${dati.duelMessage}` : '',
+          `Voto: ${voto}`,
+          motivo ? `Perché: ${motivo}` : '',
+          parole ? `Parole: ${parole}` : '',
+          `Di: @${dati.username}`,
+          'https://crasyapp.com/admin/#/missioni',
+        ]
+          .filter(Boolean)
+          .join('\n\n'),
+      });
+    } catch (errore) {
+      logger.error('email a chi modera non partita', errore);
+    }
+  }
+);

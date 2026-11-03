@@ -13,18 +13,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Le regole di cosa puo' essere una challenge.
 ///
 /// Stanno qui e non dentro la schermata perche' le stesse identiche condizioni
-/// sono scritte anche nelle regole di Firestore: quello che si vede nel modulo
-/// deve combaciare con quello che il database accetta, altrimenti si compila
-/// tutto per poi vedersi rifiutare l'invio senza capire perche'.
+/// sono scritte anche sul server (`leggiLaRichiesta` in `functions/missioni.js`):
+/// quello che si vede nel modulo deve combaciare con quello che il server accetta,
+/// altrimenti si compila tutto per poi vedersi rifiutare l'invio senza capire
+/// perche'.
+///
+/// **Le parole si guardano qui per dirlo subito a chi scrive, non per sicurezza.**
+/// Un telefono si puo' modificare: l'ultima parola su una missione e' del server.
 abstract final class ChallengeDraftValidators {
   static const int titleMinLength = 3;
   static const int titleMaxLength = 60;
   static const int briefMaxLength = 280;
 
-  /// **Il premio massimo, in euro: cento.** Lo stesso tetto sta sul server e
-  /// nelle regole del database. Era un milione, come argine contro le dita che
-  /// scivolano; adesso e' un limite vero, piu' alto di qualunque premio messo
-  /// finora, e si alza tutti e tre insieme.
+  /// La riga per l'amico: la stessa misura del server.
+  static const int duelMessageMaxLength = 140;
+
+  /// **Il premio massimo, in euro: cento.** Lo stesso tetto sta sul server. Era un
+  /// milione, come argine contro le dita che scivolano; adesso e' un limite vero,
+  /// piu' alto di qualunque premio messo finora, e si alza tutti e due insieme.
   static const int prizeMaxEuro = 100;
 
   static String? validateTitle(String? value) {
@@ -66,6 +72,21 @@ abstract final class ChallengeDraftValidators {
     // tutto quello che il database rifiuta in una missione, e le richieste
     // pericolose dette a giri di parole.
     return ContentPolicy.validateMission(brief);
+  }
+
+  /// La riga per l'amico, sulle sfide: facoltativa, ma non senza regole.
+  ///
+  /// E' l'unico posto dell'app in cui si scrive qualcosa che legge una persona
+  /// sola, e proprio per questo non ha meno bisogno degli altri di un filtro: non
+  /// la vede nessun altro che possa segnalarla.
+  static String? validateDuelMessage(String? value) {
+    final messaggio = value?.trim() ?? '';
+
+    if (messaggio.length > duelMessageMaxLength) {
+      return 'Al massimo $duelMessageMaxLength caratteri.';
+    }
+
+    return ContentPolicy.validate(messaggio);
   }
 
   /// Il premio piu' piccolo che si possa mettere: **un euro**.
@@ -210,10 +231,10 @@ class CreateChallengeController extends AsyncNotifier<void> {
       place: scope == ChallengeScope.local ? place.trim().toUpperCase() : '',
       // **Chi la puo' vedere, scritto dentro la gara.**
       //
-      // Per una gara riservata: io e i miei amici di adesso. La fotografia si
-      // scatta al momento del lancio e non cambia piu' — un amico fatto domani
-      // non vedra' la gara di oggi, ed e' voluto: chi entra a meta' partita non
-      // ha visto la sfida da cui e' nata.
+      // Per una gara riservata: io e i miei amici di adesso. Vale per le gare
+      // d'esempio: **quelle vere non lo mandano nemmeno**, l'elenco lo fa il server
+      // quando la missione esce. Fra la scrittura e l'uscita possono passare delle
+      // ore, e chi la puo' vedere non deve deciderlo un telefono.
       audience: scope == ChallengeScope.friends
           ? [
               authState.user.id,

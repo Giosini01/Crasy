@@ -9,7 +9,9 @@
   "scripts": {
     "serve": "firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "test": "node --test \"test/*.test.js\"",
+    "test:server": "firebase emulators:exec --only firestore,auth --project demo-crasy \"node --test test/integrazione.emu.js\""
   },
   "dependencies": {
     "@google-cloud/video-intelligence": "^5.0.0",
@@ -17,6 +19,7 @@
     "firebase-admin": "^13.0.2",
     "firebase-functions": "^6.3.1",
     "nodemailer": "^9.1.1",
+    "openai": "^7.48.0",
     "stripe": "^22.5.0"
   }
 }

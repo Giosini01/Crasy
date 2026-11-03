@@ -27,16 +27,14 @@
 /// una challenge innocua. **Un filtro che si arrabbia con chi non ha fatto
 /// niente perde la fiducia di tutti, e finisce disattivato.**
 ///
-/// Resta la prima delle tre porte:
+/// **Per le missioni e' solo un primo avviso.** Serve a dirlo subito a chi scrive:
+/// un telefono si puo' modificare, quindi l'ultima parola su una missione e' del
+/// server, che rilegge il testo con un elenco suo (`functions/parole.js`), lo fa
+/// giudicare da un'intelligenza artificiale e se serve da una persona. Vedi
+/// `functions/missioni.js`.
 ///
-/// 1. qui, subito, prima ancora di scrivere sul database;
-/// 2. le regole di Firestore, che rifiutano i casi piu' espliciti anche se
-///    qualcuno scrivesse saltando l'app;
-/// 3. un controllo automatico sul server, e prima o poi degli occhi umani.
-///
-/// Una lista di parole da sola darebbe una falsa sicurezza. In fondo alla
-/// catena serve qualcuno che guardi, e va messo in conto prima di aprire al
-/// pubblico.
+/// Per commenti, didascalie, nomi e descrizioni, invece, questa resta la porta
+/// principale.
 abstract final class ContentPolicy {
   /// Perche' un testo e' stato rifiutato.
   ///
@@ -273,9 +271,9 @@ abstract final class ContentPolicy {
       // cui questo file mette in guardia in cima — quello che il modulo
       // accetta dev'essere quello che il database accetta.
       //
-      // Allineate qui, e non tolte di la': su un'app che **paga** per una
-      // foto, "mandami una foto in mutande" e' una richiesta di materiale
-      // sessuale con dei soldi in mezzo, non un modo di dire.
+      // Allineate qui: su un'app che **paga** per una foto, "mandami una foto in
+      // mutande" e' una richiesta di materiale sessuale con dei soldi in mezzo,
+      // non un modo di dire. Oggi sulle missioni l'ultima parola e' del server.
       'in mutande',
       'foto sexy',
       'video sexy',
@@ -391,7 +389,6 @@ abstract final class ContentPolicy {
     ],
     hate: [
       'sei un ritardat',
-      'negr',
       'froci',
       'ricchion',
       'zingar',
@@ -466,8 +463,13 @@ abstract final class ContentPolicy {
     // perche' fra amici si dicono per scherzo, e un filtro che li ferma
     // trasforma una presa in giro in un errore rosso.
     hate: [
+      // **Parole intere, e non il frammento che c'era.** `negr` fermava anche
+      // "negroni", e un filtro che si arrabbia per un cocktail perde la fiducia di
+      // tutti.
       'negro',
       'negri',
+      'negra',
+      'negre',
       'frocio',
       'froci',
       'ricchione',

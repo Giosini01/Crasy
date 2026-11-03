@@ -162,6 +162,76 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "missioniProposte",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "stato",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "missioniProposte",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "impronta",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "stato",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "missioniProposte",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "stato",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "missioniProposte",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "impronta",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "challenges",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "prizeStatus",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "prizeCents",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [
@@ -230,6 +300,33 @@
         },
         {
           "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
+      "comment": "Il pannello guarda le foto di tutte le gare, dalla piu' recente: e' una query sul gruppo di collezioni, e per quelle l'indice a campo singolo Firestore NON lo crea da se'. Le tre voci con scope COLLECTION sono quelle automatiche, ripetute qui perche' un fieldOverride sostituisce l'automatismo invece di aggiungersi.",
+      "collectionGroup": "entries",
+      "fieldPath": "createdAt",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "arrayConfig": "CONTAINS",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        },
+        {
+          "order": "DESCENDING",
           "queryScope": "COLLECTION_GROUP"
         }
       ]

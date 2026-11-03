@@ -77,6 +77,15 @@ abstract final class AppRoutes {
   static const participate = '/challenge/:id/partecipa';
   static const create = '/crea';
 
+  /// **La missione approvata da una persona: si paga, e parte.**
+  ///
+  /// L'identificativo e' quello della proposta, perche' una gara ancora non c'e':
+  /// nasce quando si preme il tasto. Ci porta l'avviso in campanella.
+  static const missioneApprovata = '/missione/:id';
+
+  static String missioneApprovataOf(String propostaId) =>
+      '/missione/$propostaId';
+
   /// I soldi vinti, e il modo di portarseli via.
   ///
   /// **Una schermata sua e non un riquadro nel profilo.** Il riquadro dice

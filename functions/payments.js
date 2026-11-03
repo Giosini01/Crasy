@@ -3327,3 +3327,7 @@ async function registraMancia(metadata, paymentIntentId) {
   }
 }
 
+// Per il pannello: i saldi veri dei conti, chiesti a Stripe. Vedi `pannello.js`.
+exports.stripeClient = stripeClient;
+exports.stripePayoutClient = stripePayoutClient;
+exports.saldoDelConto = saldoDelConto;

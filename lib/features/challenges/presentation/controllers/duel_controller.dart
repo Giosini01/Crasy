@@ -97,9 +97,9 @@ class DuelController extends AsyncNotifier<void> {
       // che l'app ne sappia niente.
       //
       // Il minimo e' un euro, come dappertutto, o zero: la via di mezzo — i
-      // dieci centesimi — non e' un premio ne' uno scherzo. Le regole del
-      // database lasciavano gia' passare tutte e due le cose su una missione
-      // fra amici, quindi qui non si apre nessuna porta nuova.
+      // dieci centesimi — non e' un premio ne' uno scherzo. Il server lascia
+      // passare tutte e due le cose su una missione fra amici, quindi qui non si
+      // apre nessuna porta nuova.
       prizeCents: prizeCents,
       scope: ChallengeScope.friends,
       // Uno solo puo' partecipare: e' una sfida a lui, non una gara aperta.
@@ -109,7 +109,8 @@ class DuelController extends AsyncNotifier<void> {
       place: '',
       // **La vedono in due, e basta.** Nemmeno gli altri amici: una sfida
       // mirata e' una cosa fra due persone, e allargarla al gruppo sarebbe
-      // un'altra funzione — quella c'e' gia', ed e' la missione di party.
+      // un'altra funzione — quella c'e' gia', ed e' la missione di party. Sulle
+      // sfide vere questo elenco lo riscrive il server.
       audience: [meId, targetUserId],
       // **In anonimo il nome non si scrive nemmeno.** Chi riceve la sfida sa
       // solo che arriva da uno dei suoi amici: indovinare chi e' fa parte del
@@ -119,10 +120,9 @@ class DuelController extends AsyncNotifier<void> {
       anonimo: anonimo,
       targetUserId: targetUserId,
       targetUsername: targetUsername,
-      // La riga per l'amico: facoltativa, e tagliata a lunghezza prima di
-      // partire. Il limite lo impongono anche le regole del database — qui si
-      // taglia perche' una riga rifiutata dal server farebbe fallire tutta la
-      // sfida per una parola di troppo.
+      // La riga per l'amico: facoltativa. Il modulo ne controlla la lunghezza e
+      // le parole, e il server rifa' tutti e due i controlli: una riga fermata li'
+      // ferma tutta la sfida, come il titolo.
       duelMessage: message.trim(),
       duelStatus: DuelStatus.pending,
       startsAt: now,
