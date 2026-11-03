@@ -214,6 +214,12 @@ const SERVIZIO_CENTS = 5;
 const SPESE_PRELIEVO_CENTS = 100;
 
 /**
+ * **Quante ore aspetta una missione pagata prima di tornare indietro da sola.** Chi ha
+ * pagato non deve restare appeso: se nessuno decide, i soldi tornano e glielo si dice.
+ */
+const ORE_DI_REVISIONE = 48;
+
+/**
  * **Il premio massimo di una missione: cento euro.** Lo stesso tetto sta nelle
  * regole del database e nel modulo dell'app. Prima era un milione, scritto
  * come argine contro le dita che scivolano; ma un tetto e' anche una promessa
@@ -783,6 +789,21 @@ async function onCheckoutCompleted(session) {
 }
 
 /**
+ * **Cosa cambia sulla proposta quando arrivano i soldi:** entra nella coda di chi decide, e
+ * da questo momento corrono le ore. Una proposta non pagata non fa perdere tempo a nessuno.
+ */
+function revisionePagata(proposta, adesso, pagatoCents) {
+  return {
+    stato: proposta.get('stradaDopoIlPagamento') || 'daControllare',
+    pagataIl: adesso,
+    pagatoCents: pagatoCents || proposta.get('prizeCents') || 0,
+    scadeIl: admin.firestore.Timestamp.fromMillis(
+      adesso.toMillis() + ORE_DI_REVISIONE * 60 * 60 * 1000
+    ),
+  };
+}
+
+/**
  * **Il premio e' arrivato: la gara si accende.**
  *
  * Ci si passa da due strade — la pagina di Stripe sul sito e il foglio nativo
@@ -813,6 +834,30 @@ async function accendiLaGara(challengeId, paymentIntentId, pagatoCents = null) {
     }
 
     const now = admin.firestore.Timestamp.now();
+
+    // **Pagata, ma la deve guardare una persona.** I soldi sono arrivati e la missione
+    // resta in pausa: non la vede nessuno, il tempo non parte, e nella coda del pannello
+    // entra solo adesso. Vedi `missioni.js`.
+    if (snapshot.get('inRevisione') === true) {
+      if (snapshot.get('prizeStatus') !== 'unpaid') {
+        return;
+      }
+
+      const propostaRef = db.collection('missioniProposte').doc(challengeId);
+      const proposta = await transaction.get(propostaRef);
+
+      transaction.update(ref, {
+        prizeStatus: 'inRevisione',
+        stripePaymentIntentId: paymentIntentId || null,
+        paidAt: now,
+      });
+
+      if (proposta.exists) {
+        transaction.update(propostaRef, revisionePagata(proposta, now, pagatoCents));
+      }
+
+      return;
+    }
     const startsAt = snapshot.get('startsAt');
     const endsAt = snapshot.get('endsAt');
     const durationMs =
@@ -872,7 +917,10 @@ async function accendiLaGara(challengeId, paymentIntentId, pagatoCents = null) {
       challengeId,
       challengeTitle: dopo.get('title') || '',
       source: dopo.get('paidFromWallet') === true ? 'wallet' : 'card',
-      note: 'Premio messo in palio',
+      note:
+        dopo.get('inRevisione') === true
+          ? 'Premio messo in palio, missione in revisione'
+          : 'Premio messo in palio',
       // **Quanto ha pagato davvero la carta**: il premio piu' le spese. Senza,
       // la riga dice -2 e il rimborso +2,29, e sembra che i conti non tornino.
       ...(pagatoCents && dopo.get('paidFromWallet') !== true ? { pagatoCents } : {}),
@@ -2197,18 +2245,27 @@ exports.withdrawWallet = onCall(
 );
 
 /**
- * Nessuno ha partecipato: i soldi tornano indietro interi.
+ * **Una missione senza vincitore: i soldi tornano a chi li ha messi, tranne le commissioni
+ * di Stripe.** Stripe non le restituisce sui rimborsi, e CRASY non deve andare in negativo per
+ * una gara andata a vuoto: una decisione di chi gestisce CRASY, scritta nei Termini (punto 7).
  *
- * Interi, comprese le commissioni di Stripe che restano a carico di CRASY. Sono
- * pochi euro e sono la differenza fra "non e' andata" e "mi hanno tenuto dei
- * soldi per niente": la seconda e' la storia che uno racconta agli amici.
+ * `soloIlPremio` e' per chi ha cancellato lui: torna il premio, e resta fuori anche il servizio.
+ * `inRevisione` e' per una missione pagata e mai uscita: vedi `missioni.js`.
  */
-async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
+async function refundChallenge(
+  challengeId,
+  { soloIlPremio = false, inRevisione = false, motivoDelRimborso = null } = {}
+) {
   const stripe = stripeClient();
   const ref = db.collection('challenges').doc(challengeId);
   const snapshot = await ref.get();
+  const statoDelPremio = snapshot.exists ? snapshot.get('prizeStatus') : null;
+  const eraInRevisione = statoDelPremio === 'inRevisione';
 
-  if (!snapshot.exists || snapshot.get('prizeStatus') !== 'held') {
+  // **Una missione in revisione torna solo da qui, una gara in corso mai.** Il controllo e'
+  // su tutti e due i versi: una gara appena rilasciata non deve poter tornare indietro
+  // perche' una decisione vecchia e' arrivata tardi.
+  if (inRevisione ? !eraInRevisione : statoDelPremio !== 'held') {
     return;
   }
 
@@ -2276,17 +2333,10 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
     return;
   }
 
-  // **Chi cancella si tiene il costo della sua decisione; chi resta a mani
-  // vuote no.**
+  // **Le commissioni di Stripe non tornano mai: si sono gia' perse.**
   //
-  // Sono due rimborsi diversi perche' sono due situazioni diverse, e
-  // trattarle uguali sarebbe ingiusto in un verso o nell'altro.
-  //
-  // *Nessuno ha partecipato*: chi ha lanciato non ha fatto niente di male. Ha
-  // messo dei soldi e non si e' presentato nessuno — non e' merito ne' colpa
-  // sua, ed e' proprio il rischio che si prende chi fa giocare gli altri.
-  // Torna tutto, commissioni comprese: trattenergli qualcosa e' il modo piu'
-  // rapido di non fargli lanciare mai piu' una missione.
+  // *Nessuno ha partecipato*, o la missione non e' stata accettata, o nessuno ha risposto in
+  // tempo: torna tutto quello che ha pagato, tranne quelle. CRASY resta a zero.
   //
   // *Ha cancellato lui*: torna **il premio**, e restano fuori le spese. Quelle
   // di Stripe perche' sono uscite davvero e non si recuperano — Stripe non le
@@ -2295,7 +2345,7 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
   // scelta. Senza questa riga, aprire e cancellare in continuazione svuotava
   // il conto di CRASY qualche centesimo alla volta.
   const premio = snapshot.get('prizeCents') || 0;
-  const quanto = soloIlPremio ? premio : undefined;
+  let quanto = soloIlPremio ? premio : undefined;
   // Chi ha pagato, anche in anonimo: i soldi tornano a lui. Vedi `autori.js`.
   const haPagato = await autoreDi(snapshot);
 
@@ -2345,6 +2395,10 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
       }
     }
   } else {
+    if (!soloIlPremio) {
+      quanto = await soldiSenzaLeCommissioni(stripe, paymentIntentId, premio);
+    }
+
     const rimborso = await stripe.refunds.create(
       {
         payment_intent: paymentIntentId,
@@ -2382,8 +2436,8 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
           prizeCents: premio,
           refundedCents: restituito,
           destinazione: dove,
-          // Perche': cancellata da lui, o nessuno ha partecipato.
-          motivo: soloIlPremio ? 'annullata' : 'nessun-partecipante',
+          // Perche': cancellata da lui, nessuno ha partecipato, o non e' mai uscita.
+          motivo: motivoDelRimborso || (soloIlPremio ? 'annullata' : 'nessun-partecipante'),
           stripePaymentIntentId: paymentIntentId || null,
           at: admin.firestore.FieldValue.serverTimestamp(),
         });
@@ -2399,9 +2453,13 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
       source: dove === 'portafoglio' ? 'wallet' : 'card',
       note: soloIlPremio
         ? 'Rimborso: hai annullato la missione'
-        : dove === 'carta'
-        ? 'Rimborso di premio e spese: non ha partecipato nessuno'
-        : 'Rimborso: non ha partecipato nessuno',
+        : `${dove === 'carta' ? 'Rimborso senza le commissioni di Stripe' : 'Rimborso'}: ${
+            motivoDelRimborso === 'non-caricata'
+              ? 'missione non caricata'
+              : motivoDelRimborso === 'non-accettata'
+              ? 'missione non accettata'
+              : 'non ha partecipato nessuno'
+          }`,
     });
   }
 
@@ -2416,8 +2474,9 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
   // una gara da cento euro, non partecipa nessuno, il rimborso torna indietro
   // intero e in cima all'elenco resta scritto che hai fatto giocare la gente.
   //
-  // Una gara anonima non era mai stata contata, e non si scala.
-  if (haPagato && snapshot.get('anonimo') !== true) {
+  // Una gara anonima non era mai stata contata, e non si scala. Nemmeno una ancora in
+  // revisione: si conta quando esce.
+  if (haPagato && snapshot.get('anonimo') !== true && !eraInRevisione) {
     try {
       await db
         .collection('users')
@@ -2435,8 +2494,41 @@ async function refundChallenge(challengeId, { soloIlPremio = false } = {}) {
 
   logger.info(
     `Challenge ${challengeId}: ` +
-      (soloIlPremio ? 'cancellata, premio reso.' : 'nessun partecipante, reso tutto.')
+      (soloIlPremio
+        ? 'cancellata, premio reso.'
+        : 'reso tutto tranne le commissioni di Stripe.')
   );
+
+  return { restituito, dove };
+}
+
+/**
+ * **Quanto torna a chi ha pagato, senza le commissioni di Stripe.** Quelle vere, lette dal
+ * movimento: una carta extra europea costa di piu' di quanto dice il conto dell'app, e cosi'
+ * CRASY resta a zero. Se Stripe non ha ancora scritto il movimento si restituiscono premio e
+ * servizio, che e' quello che resta togliendo le commissioni attese.
+ */
+async function soldiSenzaLeCommissioni(stripe, paymentIntentId, premio) {
+  try {
+    const pagamento = await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ['latest_charge.balance_transaction'],
+    });
+    const carico = pagamento.latest_charge;
+    const movimento = carico && typeof carico === 'object' ? carico.balance_transaction : null;
+    const pagato = (carico && carico.amount) || pagamento.amount || 0;
+
+    if (movimento && typeof movimento === 'object' && Number.isInteger(movimento.fee)) {
+      return Math.max(0, pagato - movimento.fee);
+    }
+  } catch (errore) {
+    // Un rimborso non si ferma per una lettura che non riesce: si usa la cifra attesa.
+    logger.warn('Commissioni del pagamento non lette.', {
+      paymentIntentId,
+      errore: String((errore && errore.message) || errore).slice(0, 300),
+    });
+  }
+
+  return premio + SERVIZIO_CENTS;
 }
 
 /**
@@ -2487,6 +2579,12 @@ exports.cancelChallenge = onCall(
       );
     }
 
+    // Pagata e in attesa di una persona: la risposta arriva da li', entro 48 ore. Cancellarla
+    // qui farebbe sparire la missione con i soldi dentro.
+    if (snapshot.get('prizeStatus') === 'inRevisione') {
+      throw new HttpsError('failed-precondition', 'E\' in revisione: ti rispondiamo entro 48 ore.');
+    }
+
     if (snapshot.get('prizeStatus') === 'held') {
       await refundChallenge(challengeId, { soloIlPremio: true });
     }
@@ -2506,6 +2604,7 @@ module.exports.STRIPE_SECRET_KEY = STRIPE_SECRET_KEY;
 module.exports.STRIPE_PAYOUT_KEY = STRIPE_PAYOUT_KEY;
 module.exports.payWinner = payWinner;
 module.exports.refundChallenge = refundChallenge;
+module.exports.ORE_DI_REVISIONE = ORE_DI_REVISIONE;
 module.exports.commissionCents = commissionCents;
 module.exports.payoutCents = payoutCents;
 module.exports.chargeCents = chargeCents;
@@ -2587,10 +2686,13 @@ exports.payChallengeFromWallet = onCall(
   const challengeRef = db.collection('challenges').doc(challengeId);
   const movimentoRef = userRef.collection('wallet').doc();
 
+  const propostaRef = db.collection('missioniProposte').doc(challengeId);
+
   const esito = await db.runTransaction(async (transaction) => {
-    const [gara, utente] = await Promise.all([
+    const [gara, utente, proposta] = await Promise.all([
       transaction.get(challengeRef),
       transaction.get(userRef),
+      transaction.get(propostaRef),
     ]);
 
     if (!gara.exists) {
@@ -2612,8 +2714,9 @@ exports.payChallengeFromWallet = onCall(
     }
 
     const stato = gara.get('prizeStatus');
+    const inRevisione = gara.get('inRevisione') === true;
 
-    if (stato === 'held' || stato === 'paidOut') {
+    if (stato === 'held' || stato === 'paidOut' || stato === 'inRevisione') {
       // Gia' pagata: si risponde di si' senza toccare niente. E' il secondo
       // tocco sul tasto, e deve finire bene — non con un errore su una cosa
       // che e' andata a buon fine.
@@ -2645,8 +2748,9 @@ exports.payChallengeFromWallet = onCall(
       // funzionano, ma chi legge questo codice fra sei mesi deve poter vedere
       // in un colpo tutto quello che succede a questo utente.
       //
-      // In anonimo la classifica non si muove: vedi il webhook di Stripe.
-      ...(gara.get('anonimo') === true
+      // In anonimo la classifica non si muove: vedi il webhook di Stripe. E in
+      // revisione nemmeno: conta quando la missione esce davvero.
+      ...(gara.get('anonimo') === true || inRevisione
         ? {}
         : {
             totalStakedCents: admin.firestore.FieldValue.increment(premio),
@@ -2654,18 +2758,32 @@ exports.payChallengeFromWallet = onCall(
           }),
     });
 
-    transaction.update(challengeRef, {
-      prizeStatus: 'held',
-      paidAt: adesso,
-      // **Scritto dentro la gara che e' stata pagata col portafoglio.** Non
-      // serve all'app: serve a chi un giorno dovra' far tornare i conti, e
-      // trovera' una gara pagata senza nessun incasso corrispondente su Stripe.
-      paidFromWallet: true,
-      startsAt: adesso,
-      endsAt: admin.firestore.Timestamp.fromMillis(
-        adesso.toMillis() + durata
-      ),
-    });
+    transaction.update(
+      challengeRef,
+      inRevisione
+        ? {
+            // In pausa finche' non la guarda una persona: il tempo parte dopo.
+            prizeStatus: 'inRevisione',
+            paidAt: adesso,
+            paidFromWallet: true,
+          }
+        : {
+            prizeStatus: 'held',
+            paidAt: adesso,
+            // **Scritto dentro la gara che e' stata pagata col portafoglio.** Non
+            // serve all'app: serve a chi un giorno dovra' far tornare i conti, e
+            // trovera' una gara pagata senza nessun incasso corrispondente su Stripe.
+            paidFromWallet: true,
+            startsAt: adesso,
+            endsAt: admin.firestore.Timestamp.fromMillis(
+              adesso.toMillis() + durata
+            ),
+          }
+    );
+
+    if (inRevisione && proposta.exists) {
+      transaction.update(propostaRef, revisionePagata(proposta, adesso, premio));
+    }
 
     // La riga nel portafoglio: senza, il saldo cala e non c'e' scritto perche'.
     transaction.set(movimentoRef, {
@@ -2676,7 +2794,7 @@ exports.payChallengeFromWallet = onCall(
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    return { ok: true, amountCents: premio };
+    return { ok: true, amountCents: premio, inRevisione };
   });
 
   // **La custodia non basta: si paga con il saldo del suo conto Stripe.** E'
@@ -2702,7 +2820,9 @@ exports.payChallengeFromWallet = onCall(
       challengeId,
       challengeTitle: gara.get('title') || '',
       source: 'wallet',
-      note: 'Premio messo in palio, pagato col portafoglio',
+      note: esito.inRevisione
+        ? 'Premio messo in palio col portafoglio, missione in revisione'
+        : 'Premio messo in palio, pagato col portafoglio',
     });
 
     logger.info(
@@ -2832,9 +2952,10 @@ async function pagaDalContoStripe(userId, challengeId) {
 
   try {
     esito = await db.runTransaction(async (transaction) => {
-      const [fresca, fresco] = await Promise.all([
+      const [fresca, fresco, proposta] = await Promise.all([
         transaction.get(challengeRef),
         transaction.get(userRef),
+        transaction.get(db.collection('missioniProposte').doc(challengeId)),
       ]);
 
       if (!fresca.exists) {
@@ -2842,8 +2963,9 @@ async function pagaDalContoStripe(userId, challengeId) {
       }
 
       const stato = fresca.get('prizeStatus');
+      const inRevisione = fresca.get('inRevisione') === true;
 
-      if (stato === 'held' || stato === 'paidOut') {
+      if (stato === 'held' || stato === 'paidOut' || stato === 'inRevisione') {
         // Pagata da questo stesso addebito: e' il secondo tocco, va bene cosi'.
         // Pagata in un altro modo: l'addebito non ha pagato niente e torna.
         return fresca.get('addebitoId') === addebito.id
@@ -2860,7 +2982,7 @@ async function pagaDalContoStripe(userId, challengeId) {
 
       transaction.update(userRef, {
         stripeCents: Math.max(0, (fresco.get('stripeCents') || 0) - premio),
-        ...(fresca.get('anonimo') === true
+        ...(fresca.get('anonimo') === true || inRevisione
           ? {}
           : {
               totalStakedCents: admin.firestore.FieldValue.increment(premio),
@@ -2868,16 +2990,30 @@ async function pagaDalContoStripe(userId, challengeId) {
             }),
       });
 
-      transaction.update(challengeRef, {
-        prizeStatus: 'held',
-        paidAt: adesso,
-        // Come le gare pagate dalla custodia: se si annulla, il premio torna nel
-        // portafoglio — e da li' sul conto Stripe.
-        paidFromWallet: true,
-        addebitoId: addebito.id,
-        startsAt: adesso,
-        endsAt: admin.firestore.Timestamp.fromMillis(adesso.toMillis() + durata),
-      });
+      transaction.update(
+        challengeRef,
+        inRevisione
+          ? {
+              prizeStatus: 'inRevisione',
+              paidAt: adesso,
+              paidFromWallet: true,
+              addebitoId: addebito.id,
+            }
+          : {
+              prizeStatus: 'held',
+              paidAt: adesso,
+              // Come le gare pagate dalla custodia: se si annulla, il premio torna nel
+              // portafoglio — e da li' sul conto Stripe.
+              paidFromWallet: true,
+              addebitoId: addebito.id,
+              startsAt: adesso,
+              endsAt: admin.firestore.Timestamp.fromMillis(adesso.toMillis() + durata),
+            }
+      );
+
+      if (inRevisione && proposta.exists) {
+        transaction.update(proposta.ref, revisionePagata(proposta, adesso, premio));
+      }
 
       transaction.set(movimentoRef, {
         kind: 'challengePayment',

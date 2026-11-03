@@ -58,10 +58,13 @@ function cosaSuccede(e, premio) {
   }
 
   return {
-    vede: '“È in controllo. Una persona del team la guarda. Non paghi niente finché non è approvata. Ti avvisiamo appena c’è una risposta.”',
+    vede:
+      premio > 0
+        ? '“Prima la controlliamo. Paghi adesso e la missione resta in pausa: se viene accettata esce, altrimenti ti tornano i soldi, tranne le commissioni di Stripe.”'
+        : '“È in controllo. Una persona del team la guarda. Ti avvisiamo appena c’è una risposta.”',
     soldi:
       premio > 0
-        ? `Niente adesso. Se la approvi gli arriva l'avviso, paga ${euro(premio)} di premio, e allora parte. Se la rifiuti non paga mai.`
+        ? `Paga subito ${euro(premio)} di premio più le spese. Se la approvi esce e parte il tempo. Se la rifiuti, o passano 48 ore senza risposta, gli tornano i soldi tranne le commissioni di Stripe.`
         : 'È gratis: se la approvi parte subito.',
   };
 }

@@ -24,8 +24,9 @@ import 'package:crasy/features/notifications/domain/entities/app_notification.da
 /// scegli di ricevere, e' la conseguenza di una decisione che ci riguarda.
 /// Lo stesso vale per [NotificationKind.restored], che e' la risposta a quella
 /// decisione: la foto e' tornata in gara. E per [NotificationKind.missionApproved]
-/// e [NotificationKind.missionRejected], che sono la risposta a una missione
-/// proposta: chi le spegnesse resterebbe ad aspettare una cosa gia' successa.
+/// [NotificationKind.missionRejected] e [NotificationKind.missionExpired], che sono la
+/// risposta a una missione proposta: chi le spegnesse resterebbe ad aspettare una cosa
+/// gia' successa.
 ///
 /// ## Dove vive la scelta
 ///

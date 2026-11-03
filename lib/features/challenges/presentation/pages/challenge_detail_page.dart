@@ -32,6 +32,7 @@ import 'package:crasy/features/challenges/presentation/widgets/entry_comments.da
 import 'package:crasy/features/challenges/presentation/widgets/entry_tile.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
+import 'package:crasy/features/challenges/presentation/widgets/modifica_missione.dart';
 import 'package:crasy/features/challenges/presentation/widgets/winner_reveal.dart';
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
@@ -930,8 +931,16 @@ class _BottomAction extends ConsumerWidget {
             // gara non e' piu' solo di chi l'ha lanciata: chi ha partecipato ha
             // speso una delle sue cinque del giorno, e toglierla da sotto
             // vorrebbe dire prendergliela senza dargli niente in cambio.
-            if (challenge.participantsCount == 0)
+            if (challenge.participantsCount == 0) ...[
+              // Finche' non e' entrato nessuno si corregge: istantanea invece che
+              // archiviata, dieci posti invece di quindici. Vedi `ModificaMissione`.
+              if (!challenge.isDuel)
+                TextButton(
+                  onPressed: () => mostraModificaMissione(context, challenge),
+                  child: const Text('Modifica'),
+                ),
               _DeleteChallenge(challenge: challenge),
+            ],
           ],
         ),
         (false, false, final entry?) => Row(
@@ -981,6 +990,11 @@ class _BottomAction extends ConsumerWidget {
             // Dalla prima foto in poi sparisce, come prima.
             if (isMine && challenge.participantsCount == 0) ...[
               const SizedBox(width: AppSpacing.sm),
+              if (!challenge.isDuel)
+                TextButton(
+                  onPressed: () => mostraModificaMissione(context, challenge),
+                  child: const Text('Modifica'),
+                ),
               _DeleteChallenge(challenge: challenge),
             ],
           ],

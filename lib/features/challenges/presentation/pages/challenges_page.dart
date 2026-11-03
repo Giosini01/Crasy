@@ -132,9 +132,8 @@ class ChallengesPage extends ConsumerWidget {
                               // **Mentre arrivano, la fiamma che gira.** Prima
                               // c'era il vuoto sotto l'intestazione, e con poca
                               // rete sembrava una home senza gare.
-                              loading: () => const SliverToBoxAdapter(
-                                child: _InArrivo(),
-                              ),
+                              loading: () =>
+                                  const SliverToBoxAdapter(child: _InArrivo()),
                               error: (_, _) => const _Message(
                                 title: 'Niente da mostrare',
                                 message:

@@ -9,6 +9,7 @@ import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/presentation/pages/challenge_detail_page.dart';
 import 'package:crasy/features/challenges/presentation/pages/create_challenge_page.dart';
 import 'package:crasy/features/challenges/presentation/pages/missione_approvata_page.dart';
+import 'package:crasy/features/challenges/presentation/pages/missione_in_revisione_page.dart';
 import 'package:crasy/features/challenges/presentation/pages/participate_page.dart';
 import 'package:crasy/features/challenges/presentation/pages/recently_ended_page.dart';
 import 'package:crasy/features/friends/presentation/pages/find_friends_page.dart';
@@ -390,6 +391,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         AppRoutes.missioneApprovata,
         (state) =>
             MissioneApprovataPage(propostaId: state.pathParameters['id'] ?? ''),
+      ),
+      _pushedRoute(
+        AppRoutes.missioneInRevisione,
+        (state) => const MissioneInRevisionePage(),
       ),
       _pushedRoute(
         AppRoutes.recentlyEnded,

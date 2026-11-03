@@ -20,6 +20,7 @@ void main() {
         NotificationKind.restored,
         NotificationKind.missionApproved,
         NotificationKind.missionRejected,
+        NotificationKind.missionExpired,
       ]);
     });
 

@@ -164,7 +164,7 @@ void main() {
 
       expect(server.chiamate, 1);
       expect(
-        find.text('Non paghi niente finché non è approvata.'),
+        find.text('Ti avvisiamo appena c’è una risposta.'),
         findsOneWidget,
       );
 
@@ -186,7 +186,7 @@ void main() {
       expect(find.text('Questa missione chiede un reato.'), findsOneWidget);
       expect(find.byType(CreateChallengePage), findsOneWidget);
       expect(
-        find.text('Non paghi niente finché non è approvata.'),
+        find.text('Ti avvisiamo appena c’è una risposta.'),
         findsNothing,
       );
     });
@@ -277,7 +277,7 @@ void main() {
 
       expect(server.chiamate, 1);
       expect(
-        find.text('Non paghi niente finché non è approvata.'),
+        find.text('Ti avvisiamo appena c’è una risposta.'),
         findsOneWidget,
       );
 

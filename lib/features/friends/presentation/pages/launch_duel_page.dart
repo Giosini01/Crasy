@@ -398,6 +398,9 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
   /// Mentre Stripe si apre, lo schermo e' coperto dalla fiamma che gira.
   bool _pagando = false;
 
+  /// La deve guardare una persona: si paga adesso, e resta in pausa.
+  bool _inRevisione = false;
+
   Future<bool> _paga(String challengeId) async {
     if (mounted) {
       setState(() => _pagando = true);
@@ -447,7 +450,12 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
 
       return await ref
           .read(paymentsServiceProvider)
-          .payChallenge(challengeId, returnRoute: AppRoutes.friendsActivity);
+          .payChallenge(
+            challengeId,
+            returnRoute: _inRevisione
+                ? AppRoutes.missioneInRevisione
+                : AppRoutes.friendsActivity,
+          );
     } on Object {
       return false;
     } finally {
@@ -519,8 +527,17 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
     if (id == null) {
       final errore = ref.read(duelControllerProvider).error;
 
-      // **Non e' un errore: la guarda una persona.** All'amico non arriva niente
-      // e nessuno ha pagato: si dice, e il modulo se ne va.
+      // **La deve guardare una persona, e c'e' un premio: si paga adesso.** All'amico
+      // non arriva niente finche' non viene accettata.
+      if (errore is MissioneDaPagareInRevisione) {
+        _inRevisione = true;
+        await _pagaEApri(errore.challengeId);
+
+        return;
+      }
+
+      // **Non e' un errore: la guarda una persona.** All'amico non arriva niente: si
+      // dice, e il modulo se ne va.
       if (errore is MissioneInControllo) {
         await mostraMissioneInControllo(context);
 
@@ -576,6 +593,29 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
   Future<void> _pagaEApri(String id) async {
     setState(() => _daPagare = id);
 
+    // **Tutto quello che succede ai soldi, prima di pagarli.** Ogni volta, anche
+    // riprovando: si sta pagando una sfida che potrebbe non uscire.
+    if (_inRevisione) {
+      final avanti = await chiediConfermaRevisione(
+        context,
+        premioCents: AppMoney.centsFrom(_prize.text) ?? 0,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      if (!avanti) {
+        setState(
+          () => _error =
+              'Non è ancora partita: finché non la paghi non la guarda nessuno. '
+              'È salvata, puoi pagarla da qui.',
+        );
+
+        return;
+      }
+    }
+
     final pagato = await _paga(id);
 
     if (!mounted) {
@@ -593,6 +633,18 @@ class _LaunchDuelPageState extends ConsumerState<LaunchDuelPage> {
     }
 
     _daPagare = null;
+
+    // Pagata ma non ancora uscita: non si apre, si dice cosa succede adesso.
+    if (_inRevisione) {
+      await mostraMissioneInRevisione(context);
+
+      if (mounted) {
+        context.pop();
+      }
+
+      return;
+    }
+
     context.pop();
     context.push(AppRoutes.challengeDetailOf(id));
   }
@@ -747,9 +799,9 @@ class _Rules extends StatelessWidget {
     if (gratis)
       'Non c’è premio in denaro: in palio c’è la parola data.'
     else
-      'Il premio lo paghi dopo il controllo e lo custodisce CRASY: va a chi '
-          'vince, meno il 10%. Se l’amico non la fa, rifiuta o non vale, ti torna '
-          'indietro.',
+      'Il premio lo paghi al lancio e lo custodisce CRASY: va a chi vince, meno '
+          'il 10%. Se l’amico non la fa o rifiuta, ti torna indietro tranne le '
+          'commissioni di Stripe. Se dici tu che non vale, ti torna il premio.',
     // **Questa riga vale il doppio da quando c’è il giudizio.** Chi
     // riceve la sfida deve sapere prima che a dire se vale sarà chi
     // gliel’ha lanciata: scoprirlo il giorno del “non vale”

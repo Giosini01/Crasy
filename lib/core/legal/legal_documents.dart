@@ -150,7 +150,12 @@ abstract final class LegalTexts {
   /// elenco di parole vietate e da un sistema di intelligenza artificiale, e se
   /// serve da una persona. L'informativa dice chi fornisce quel sistema e cosa
   /// riceve, e i Termini non dicono piu' che le missioni non si guardano prima.
-  static const String version = '1.4';
+  ///
+  /// **1.5: una missione da controllare si paga subito.** Resta in pausa finche' non la
+  /// guarda una persona. Se non viene accettata, o se entro 48 ore non risponde nessuno,
+  /// tornano i soldi tranne le commissioni di pagamento. E le commissioni non tornano
+  /// nemmeno quando non partecipa nessuno.
+  static const String version = '1.5';
 
   /// Chi risponde di questi dati. **Solo la partita IVA, senza ragione
   /// sociale**: e' cosi' che CRASY si firma ovunque, app e sito. Il contatto e'
@@ -242,15 +247,23 @@ scrivendo a info@crasyapp.com; la revoca vale da subito e non riguarda le
 missioni gia' pagate.
 
 7. QUANDO IL PREMIO TORNA INDIETRO
-Torna per intero a chi lo aveva messo, spese del pagamento comprese, se alla
-missione non partecipa nessuno o nessuna partecipazione e' valida, e se una
-sfida a una persona viene rifiutata o non viene portata a termine.
+Torna a chi lo aveva messo quello che ha pagato, tranne le commissioni di
+pagamento trattenute da Stripe, che non si recuperano, se alla missione non
+partecipa nessuno o nessuna partecipazione e' valida, e se una sfida a una persona
+viene rifiutata o non viene portata a termine. Se e' stata pagata con il saldo,
+torna tutto sul saldo.
 
 Torna il premio, senza le spese del pagamento gia' sostenute, se chi ha
 lanciato la missione la cancella prima che qualcuno vi partecipi; se, dove le
 regole glielo consentono, dichiara che la partecipazione non vale; e se CRASY
 rimuove la missione perche' viola queste condizioni (punto 8). Una missione non
 si puo' cancellare dal momento in cui qualcuno vi ha partecipato.
+
+Una missione che deve guardare una persona del team (punto 9) si paga quando la si
+lancia, e resta in pausa fino alla decisione. Se non viene accettata, o se entro 48
+ore dal pagamento non riceve risposta, non viene pubblicata e a chi l'ha lanciata
+torna quello che ha pagato, tranne le commissioni di pagamento trattenute da Stripe,
+che non si recuperano. Se e' stata pagata con il saldo, torna tutto sul saldo.
 
 I rimborsi vengono disposti subito ma l'accredito sulla carta dipende dalla
 banca di chi lo riceve, e richiede di norma alcuni giorni lavorativi.
@@ -290,9 +303,10 @@ Il testo di ogni missione viene controllato prima di uscire, in automatico e
 anche con un sistema di intelligenza artificiale. Una missione che contiene
 parole vietate viene fermata subito, in automatico, e si puo' riscrivere. Se il
 controllo automatico non basta la guarda una persona del team: finche' non ha
-deciso, la missione non esce e non si paga niente. Il rifiuto dopo questo
-controllo lo decide sempre una persona; chi ha proposto la missione riceve il
-motivo e puo' contestarlo scrivendo a info@crasyapp.com.
+deciso, la missione non esce, per un massimo di 48 ore; se ha un premio si paga
+quando la si lancia (punto 7). Il rifiuto dopo questo controllo lo decide sempre una
+persona; chi ha proposto la missione riceve il motivo e puo' contestarlo scrivendo a
+info@crasyapp.com. Se passano 48 ore senza risposta la missione non viene caricata.
 
 10. RESPONSABILITA'
 10.1 CRASY offre un servizio di memorizzazione e pubblicazione di contenuti
@@ -538,7 +552,7 @@ possono parteciparvi le persone che le finanziano. Al vincitore va il premio
 meno la percentuale di CRASY, indicata nell'app prima del pagamento. Il premio arriva sul conto di pagamento a nome
 del vincitore presso Stripe (Termini e Condizioni, punto 5); da li' si
 trasferisce sul proprio conto bancario a partire dall'importo minimo indicato
-nell'app, con una spesa fissa di 1 euro per ogni prelievo. Se nessuno partecipa, il premio torna per intero a chi l'aveva messo;
+nell'app, con una spesa fissa di 1 euro per ogni prelievo. Se nessuno partecipa, a chi l'aveva messo torna quello che ha pagato, tranne le commissioni di pagamento;
 per gli altri rimborsi e per le contestazioni valgono i Termini e Condizioni,
 punto 7.
 
@@ -548,7 +562,9 @@ utenti. Chi si vede togliere una foto riceve un avviso con il motivo e puo'
 chiedere che la riguardi una persona del team.
 Il testo di ogni missione viene controllato prima di uscire, in automatico e con
 un sistema di intelligenza artificiale. Se non basta la guarda una persona del
-team: finche' non ha deciso, la missione non esce e non si paga niente.
+team: finche' non ha deciso la missione resta in pausa, per un massimo di 48 ore.
+Se ha un premio si paga quando la si lancia; se non viene accettata, i soldi tornano
+tranne le commissioni di pagamento (Termini e Condizioni, punto 7).
 
 8. IL RESTO
 Per tutto quello che non e' scritto qui valgono i Termini e Condizioni.

@@ -20,6 +20,11 @@ enum PrizeStatus {
   /// che non e' mai esistita.
   unpaid,
 
+  /// **Pagata, ma la deve ancora guardare una persona.** I soldi sono arrivati e la
+  /// missione e' in pausa: non si vede, e il tempo non parte. Se viene accettata
+  /// diventa [held]; se no tornano i soldi, tranne le commissioni di Stripe.
+  inRevisione,
+
   /// Pagata: i soldi sono su CRASY e ci restano fino alla fine.
   ///
   /// **Questo e' l'unico stato in cui una challenge si vede.** Chi la legge in
@@ -33,7 +38,7 @@ enum PrizeStatus {
   /// Rimborsata a chi l'aveva lanciata.
   ///
   /// Succede quando non partecipa nessuno. Non c'e' nessuno a cui dare i soldi,
-  /// e tenerli sarebbe rubare: tornano indietro interi.
+  /// e tenerli sarebbe rubare: tornano indietro, tranne le commissioni di Stripe.
   refunded;
 
   /// Se una challenge in questo stato si puo' mostrare.

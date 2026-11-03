@@ -22,8 +22,13 @@ abstract final class ErrorMessageMapper {
     // **Questi due non sono errori**, e le schermate del lancio li gestiscono
     // prima di arrivare qui. Se uno passasse lo stesso, deve dire la cosa vera.
     if (error is MissioneInControllo) {
-      return 'La missione è in controllo: la guarda una persona del team. Non '
-          'paghi niente finché non è approvata.';
+      return 'La missione è in controllo: la guarda una persona del team. Ti '
+          'avvisiamo appena c’è una risposta.';
+    }
+
+    if (error is MissioneDaPagareInRevisione) {
+      return 'Questa missione deve guardarla una persona del team: paga il premio '
+          'e resta in pausa fino alla risposta.';
     }
 
     if (error is MissioneDaPagare) {

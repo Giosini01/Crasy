@@ -1,9 +1,9 @@
 /*
  * **Le missioni: quelle che aspettano una decisione, e quelle in gara.**
  *
- * Il tasto dice cosa succede davvero. Una missione con un premio approvata non esce
- * subito: chi l'ha scritta riceve l'avviso e paga, e solo allora parte. Una rifiutata
- * non costa niente a nessuno: non ha mai pagato.
+ * Il tasto dice cosa succede davvero. Una missione con un premio in coda e' gia' pagata:
+ * approvandola esce e parte il tempo, rifiutandola tornano i soldi tranne le commissioni di
+ * Stripe. Passate 48 ore senza una decisione, tornano da soli.
  */
 import {
   chiedi,
@@ -36,6 +36,7 @@ const SCHEDE = [
   { id: 'finite', nome: 'Finite' },
   { id: 'approvata', nome: 'Approvate' },
   { id: 'rifiutata', nome: 'Rifiutate' },
+  { id: 'scaduta', nome: 'Scadute' },
 ];
 
 /** Le frasi pronte per un rifiuto: chi l'ha scritta le legge cosi' come sono. */
@@ -54,6 +55,7 @@ const STATI_PREMIO = {
   held: 'premio incassato',
   paidOut: 'premio pagato al vincitore',
   unpaid: 'non pagata',
+  inRevisione: 'pagata, in revisione',
   refunded: 'premio rimborsato',
 };
 
@@ -150,6 +152,22 @@ function cartaProposta(p, { soloLettura = false } = {}) {
         </div>`
       : ''}
     ${ilPerche(p)}
+    ${p.pagataIl && decidibile
+      ? html`<p class="perche">
+          <b>Ha già pagato ${euro(p.pagatoCents || p.prizeCents)}.</b> Se la approvi esce subito e parte
+          il tempo. Se la rifiuti gli tornano i soldi, tranne le commissioni di Stripe.
+          ${p.scadeIl ? html`<span class="rosso">Se non decidi, tornano da soli fra ${restano(p.scadeIl)}.</span>` : ''}
+        </p>`
+      : ''}
+    ${p.rimborso === 'fatto'
+      ? html`<p class="perche"><b>Rimborsati ${euro(p.rimborsatiCents)}</b> ${p.rimborsatiDove === 'portafoglio' ? 'nel portafoglio' : 'sulla carta'}. Le commissioni di Stripe non tornano.</p>`
+      : ''}
+    ${p.rimborso === 'daRifare' || p.rimborso === 'daFare'
+      ? html`<p class="perche rosso"><b>Rimborso non ancora riuscito.</b> Riprovo da solo ogni mezz'ora.</p>`
+      : ''}
+    ${p.stato === 'scaduta'
+      ? html`<p class="perche"><b>Scaduta:</b> nessuno ha deciso entro 48 ore, e non è stata caricata.</p>`
+      : ''}
     ${p.stato === 'rifiutata' && p.motivoDecisione
       ? html`<p class="perche"><b>Rifiutata:</b> ${p.motivoDecisione}${p.decisaDa ? html` <span class="fioco">· ${p.decisaDa}, ${quando(p.decisaIl)}</span>` : ''}</p>`
       : ''}
@@ -171,15 +189,15 @@ function cartaProposta(p, { soloLettura = false } = {}) {
       ${decidibile
         ? html`
             <button class="tasto ${p.stato === 'daConfermare' ? 'tasto--nero' : 'tasto--rosso'}" data-fai="approva" data-id="${p.id}"
-              data-premio="${p.prizeCents}" data-voto="${p.voto === null ? '' : p.voto}" data-stato="${p.stato}">
+              data-premio="${p.prizeCents}" data-voto="${p.voto === null ? '' : p.voto}" data-stato="${p.stato}" data-pagata="${p.pagataIl ? '1' : ''}">
               ${p.stato === 'daConfermare' ? 'Conferma' : p.stato === 'bloccata' ? 'Falso allarme: approva' : 'Manda in gara'}
             </button>
             ${p.stato === 'bloccata'
               ? ''
-              : html`<button class="tasto" data-fai="rifiuta" data-id="${p.id}" data-titolo="${p.title}">Rifiuta</button>`}
+              : html`<button class="tasto" data-fai="rifiuta" data-id="${p.id}" data-titolo="${p.title}" data-pagata="${p.pagataIl ? '1' : ''}">Rifiuta</button>`}
           `
         : ''}
-      ${p.stato === 'rifiutata'
+      ${p.stato === 'rifiutata' && !p.pagataIl
         ? html`<button class="tasto" data-fai="approva" data-id="${p.id}" data-premio="${p.prizeCents}" data-voto="${p.voto === null ? '' : p.voto}" data-stato="${p.stato}">Ci ho ripensato: approva</button>`
         : ''}
       ${p.stato === 'approvata' && !p.challengeId
@@ -236,7 +254,7 @@ export async function mostraMissioni(contenuto, parametri, ancoraQui) {
         numeri
           ? `Da ${numeri.missioni.sogliaAuto} in su escono da sole, da ${numeri.missioni.sogliaConferma} a ${
               numeri.missioni.sogliaAuto - 1
-            } chiedono una conferma, sotto le guardi tu. Finché non decidi non esce niente e nessuno paga.`
+            } chiedono una conferma, sotto le guardi tu. Finché non decidi non esce niente. Chi ha messo un premio ha già pagato: dopo 48 ore senza risposta gli tornano i soldi, tranne le commissioni di Stripe.`
           : ''
       )}
       <div class="schede">
@@ -289,10 +307,13 @@ export async function mostraMissioni(contenuto, parametri, ancoraQui) {
   );
 
   tasti(lista, {
-    approva: async ({ id, premio, voto, stato }) => {
-      const conPremio = Number(premio) > 0;
-      const seguito = conPremio
+    approva: async ({ id, premio, voto, stato, pagata }) => {
+      const giaPagata = pagata === '1';
+      const daPagare = Number(premio) > 0 && !giaPagata;
+      const seguito = daPagare
         ? "Chi l'ha scritta riceve l'avviso, paga il premio, e allora parte."
+        : giaPagata
+        ? 'Ha già pagato: esce subito e parte il tempo.'
         : 'Esce subito.';
 
       // **Un tocco solo dove l'AI era d'accordo.** Dove ha trovato un rischio si chiede
@@ -314,14 +335,14 @@ export async function mostraMissioni(contenuto, parametri, ancoraQui) {
       }
 
       await pannello('decidiProposta', { id, decisione: 'approva' });
-      dillo(conPremio ? 'Approvata: aspetta il pagamento.' : 'Approvata: è in gara.');
+      dillo(daPagare ? 'Approvata: aspetta il pagamento.' : 'Approvata: è in gara.');
       window.dispatchEvent(new Event('pannello:cambiato'));
       await ridisegna();
     },
-    rifiuta: async ({ id, titolo }) => {
+    rifiuta: async ({ id, titolo, pagata }) => {
       const risposta = await chiedi({
         titolo: 'Rifiutare la missione?',
-        testo: `“${titolo}” non uscirà. Non ha pagato niente, quindi non c'è niente da rimborsare. Il motivo arriva a chi l'ha scritta, e la stessa missione non tornerà in coda.`,
+        testo: `“${titolo}” non uscirà. ${pagata === '1' ? 'Ha già pagato: gli tornano i soldi, tranne le commissioni di Stripe.' : "Non ha pagato niente, quindi non c'è niente da rimborsare."} Il motivo arriva a chi l'ha scritta, e la stessa missione non tornerà in coda.`,
         tasto: 'Rifiuta',
         pericolo: true,
         motivo: { etichetta: 'Motivo, lo legge chi l\'ha scritta', obbligatorio: true, scelte: MOTIVI },

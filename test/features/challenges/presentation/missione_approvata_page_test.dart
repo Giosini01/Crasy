@@ -71,13 +71,13 @@ void main() {
     expect(find.text('Non hai pagato niente.'), findsOneWidget);
   });
 
-  testWidgets('ancora in coda: si aspetta, e non si paga', (tester) async {
+  testWidgets('ancora in coda: si aspetta', (tester) async {
     await tester.pumpWidget(_pagina(_proposta('daControllare')));
     await tester.pumpAndSettle();
 
     expect(find.byType(AvvisoInControllo), findsOneWidget);
     expect(
-      find.text('Non paghi niente finché non è approvata.'),
+      find.text('Ti avvisiamo appena c’è una risposta.'),
       findsOneWidget,
     );
     expect(find.text('LANCIA LA MISSIONE'), findsNothing);

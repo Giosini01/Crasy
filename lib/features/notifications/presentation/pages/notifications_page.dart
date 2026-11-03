@@ -610,6 +610,21 @@ class _Row extends ConsumerWidget {
           context,
           titolo: notification.challengeTitle,
           motivo: notification.motivo,
+          rimborsoCents: notification.rimborsoCents,
+          rimborsoDove: notification.rimborsoDove,
+        ),
+      );
+
+      return;
+    }
+
+    if (notification.kind == NotificationKind.missionExpired) {
+      unawaited(
+        mostraMissioneNonCaricata(
+          context,
+          titolo: notification.challengeTitle,
+          rimborsoCents: notification.rimborsoCents,
+          rimborsoDove: notification.rimborsoDove,
         ),
       );
 
@@ -943,6 +958,7 @@ class _Face extends StatelessWidget {
         // Le risposte su una missione proposta: non le ha firmate nessuno.
         NotificationKind.missionApproved => Icons.check_circle_rounded,
         NotificationKind.missionRejected => Icons.block_rounded,
+        NotificationKind.missionExpired => Icons.hourglass_disabled_rounded,
         _ => Icons.notifications_rounded,
       };
 
@@ -1047,6 +1063,10 @@ class _Face extends StatelessWidget {
       ),
       NotificationKind.missionRejected => (
         Icons.block_rounded,
+        palette.textPrimary,
+      ),
+      NotificationKind.missionExpired => (
+        Icons.hourglass_disabled_rounded,
         palette.textPrimary,
       ),
     };

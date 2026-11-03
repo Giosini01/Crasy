@@ -16,13 +16,18 @@
  * 3. **La strada** (`stradaDi`): da 90 esce da sola, da 80 a 89 chiede una
  *    conferma dal pannello, sotto la guarda una persona.
  *
- * ## Prima si controlla, poi si paga
+ * ## Con un premio si paga subito, e poi si aspetta
  *
- * Una missione ferma in controllo **non e' ancora una missione**: sta in
- * `missioniProposte`, e nessuno ha tirato fuori un euro. Se viene rifiutata non c'e'
- * niente da rimborsare e nessuna spesa da perdere; se viene approvata, chi l'ha
- * scritta riceve l'avviso e paga in quel momento. Cosi' CRASY non tiene soldi per
- * una cosa che magari non uscira' mai.
+ * Una missione che deve guardare una persona si paga al lancio e resta in pausa: la gara
+ * e' scritta con `inRevisione`, non la puo' leggere nessuno e il tempo non parte. Nella
+ * coda del pannello entra quando arrivano i soldi. Da li':
+ *
+ * - **Approvata:** esce e parte il tempo.
+ * - **Rifiutata, o 48 ore senza risposta:** non esce, e tornano i soldi tranne le
+ *   commissioni di Stripe (`chiudiLeScadute`, `rimborsaLaRevisione`).
+ *
+ * Una gratis non ha niente da pagare: aspetta in coda, e nasce quando e' approvata. Le
+ * versioni vecchie dell'app non dicono `pagaPrima`: per loro si paga dopo l'approvazione.
  *
  * ## La stessa missione si giudica una volta
  *
@@ -47,7 +52,8 @@ const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
 const { controlla, formaCanonica, CATEGORIE } = require('./parole');
 const giudice = require('./giudice');
-const { foglioDi } = require('./autori');
+const payments = require('./payments');
+const { autoreDi, foglioDi } = require('./autori');
 const MENU = require('./dati/missioni_pronte.json');
 
 const PROPOSTE = 'missioniProposte';
@@ -71,6 +77,16 @@ const PREMIO_MASSIMO_CENTS = 10000;
 const PREMIO_MINIMO_CENTS = 100;
 const MINUTI_MASSIMI = 24 * 60;
 const POSTI_MASSIMI = 1000;
+
+/** Gli stati di chi aspetta una decisione. */
+const CODA = ['daControllare', 'daConfermare'];
+
+/**
+ * **Una missione in revisione non deve poter finire da sola.** La fine scritta sul documento
+ * e' lontana: lo spazzino delle gare scadute non la tocca, e la durata vera parte quando
+ * esce (`minutiDiGara`). Se nessuno la paga mai, si spegne da sola dopo questi giorni.
+ */
+const GIORNI_DI_PAUSA = 40;
 const DESTINATARI_MASSIMI = 300;
 
 /** Un rifiuto fatto bene: un codice per l'app, una frase per chi legge. */
@@ -165,6 +181,9 @@ function leggiLaRichiesta(dati) {
     anonimo,
     targetUserId,
     duelMessage,
+    // L'app sa pagare prima della revisione. Le versioni vecchie non lo sanno: per loro resta
+    // il giro di prima, altrimenti aspetterebbero una risposta su una missione mai pagata.
+    pagaPrima: d.pagaPrima === true,
   };
 }
 
@@ -227,7 +246,7 @@ const IMPRONTE_DEL_MENU = new Set(
  * In anonimo non partono ne' il nome ne' l'identificativo: chi l'ha lanciata si
  * scrive in `autoriAnonimi/{gara}`, che legge solo lui.
  */
-function corpoDellaGara(proposta, { adesso, audience, username }) {
+function corpoDellaGara(proposta, { adesso, audience, username, inRevisione = false }) {
   const anonimo = proposta.anonimo === true;
 
   return {
@@ -236,7 +255,8 @@ function corpoDellaGara(proposta, { adesso, audience, username }) {
     prizeCents: proposta.prizeCents,
     scope: proposta.scope,
     source: proposta.source,
-    audience,
+    // In revisione non la puo' leggere nessuno: chi la puo' vedere si decide quando esce.
+    audience: inRevisione ? [] : audience,
     maxParticipants: proposta.maxParticipants,
     place: '',
     rules: [],
@@ -246,8 +266,10 @@ function corpoDellaGara(proposta, { adesso, audience, username }) {
     anonimo,
     startsAt: adesso,
     endsAt: admin.firestore.Timestamp.fromMillis(
-      adesso.toMillis() + proposta.minutes * 60 * 1000
+      adesso.toMillis() +
+        (inRevisione ? GIORNI_DI_PAUSA * 24 * 60 : proposta.minutes) * 60 * 1000
     ),
+    ...(inRevisione ? { inRevisione: true, minutiDiGara: proposta.minutes } : {}),
     participantsCount: 0,
     winnerEntryId: null,
     targetUserId: proposta.targetUserId || '',
@@ -305,11 +327,11 @@ async function audienceDi(proposta) {
  * passa dall'una all'altra senza cercare, e la stessa proposta non puo' generare due
  * gare.
  */
-async function creaLaGara(id, proposta) {
+async function creaLaGara(id, proposta, { inRevisione = false } = {}) {
   const db = admin.firestore();
   const profilo = await db.collection('users').doc(proposta.uid).get();
   const username = String(profilo.get('username') || '');
-  const audience = await audienceDi(proposta);
+  const audience = inRevisione ? [] : await audienceDi(proposta);
   const gara = db.collection('challenges').doc(id);
   const scrittura = db.batch();
 
@@ -318,6 +340,7 @@ async function creaLaGara(id, proposta) {
       adesso: admin.firestore.Timestamp.now(),
       audience,
       username,
+      inRevisione,
     }),
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   });
@@ -661,6 +684,21 @@ async function proponi(uid, richiesta) {
     if (stato === 'approvata' && !doc.get('challengeId') && doc.get('prizeCents') > 0) {
       return { stato: 'daPagare', propostaId: doc.id };
     }
+
+    // Aveva iniziato e non aveva pagato: si riprende quella, non se ne scrive un'altra.
+    if (stato === 'daPagare') {
+      const gara = await db.collection('challenges').doc(doc.id).get();
+
+      if (
+        gara.exists &&
+        gara.get('prizeStatus') === 'unpaid' &&
+        gara.get('endsAt').toMillis() > Date.now()
+      ) {
+        return { stato: 'daPagareInRevisione', propostaId: doc.id, challengeId: doc.id };
+      }
+
+      await doc.ref.update({ stato: 'abbandonata' });
+    }
   }
 
   // **Cosa ha gia' deciso una persona su questo stesso testo** vale piu' di tutto.
@@ -769,9 +807,33 @@ async function proponi(uid, richiesta) {
     return { stato: 'inGara', challengeId: ref.id };
   }
 
+  // **Con un premio si paga subito, e poi si aspetta.** La missione resta in pausa, non la
+  // vede nessuno e il tempo non parte: nella coda di chi decide entra quando arrivano i
+  // soldi, e da li' corrono le ore. Vedi `accendiLaGara` in `payments.js`.
+  if (richiesta.pagaPrima && richiesta.prizeCents > 0) {
+    await ref.set({
+      ...dati,
+      stato: 'daPagare',
+      stradaDopoIlPagamento: strada,
+      fonte: 'in-attesa',
+    });
+    await creaLaGara(ref.id, base, { inRevisione: true });
+
+    logger.info('missione da pagare, poi in revisione', { propostaId: ref.id, voto, strada });
+
+    return { stato: 'daPagareInRevisione', propostaId: ref.id, challengeId: ref.id };
+  }
+
   // La coda. L'avviso a chi modera parte da `avvisaDellaProposta`, alla nascita di
   // questo documento.
-  await ref.set({ ...dati, stato: strada, fonte: 'in-attesa' });
+  await ref.set({
+    ...dati,
+    stato: strada,
+    fonte: 'in-attesa',
+    scadeIl: admin.firestore.Timestamp.fromMillis(
+      Date.now() + payments.ORE_DI_REVISIONE * 60 * 60 * 1000
+    ),
+  });
 
   logger.info('missione in controllo', { propostaId: ref.id, voto, strada });
 
@@ -795,17 +857,135 @@ async function avvisa(proposta, id, tipo, altro) {
       propostaId: id,
       motivo: altro.motivo || '',
       premioCents: proposta.prizeCents || 0,
+      // Quanto gli e' tornato e dove: e' la prima cosa che chiede chi legge un no.
+      rimborsoCents: altro.rimborsoCents || 0,
+      rimborsoDove: altro.rimborsoDove || '',
       dalServer: true,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 }
 
 /**
+ * **I soldi di una missione che non esce: tutti indietro, tranne le commissioni di Stripe.**
+ *
+ * Prima il rimborso, poi la cancellazione: se Stripe non risponde la missione resta dov'e', la
+ * proposta si segna `daRifare`, e riprova lo spazzino qui sotto. L'avviso parte solo a soldi
+ * partiti: dire "ti abbiamo rimborsato" prima sarebbe una bugia, e poi una lite.
+ */
+async function rimborsaLaRevisione(ref, proposta, tipo, motivo = '') {
+  const db = admin.firestore();
+  const garaId = proposta.challengeId;
+
+  try {
+    let fatto = await payments.refundChallenge(garaId, {
+      inRevisione: true,
+      motivoDelRimborso: tipo === 'missionExpired' ? 'non-caricata' : 'non-accettata',
+    });
+
+    // Un giro precedente l'aveva gia' fatto e si era fermato dopo: resta la ricevuta.
+    if (!fatto) {
+      const ricevuta = await db
+        .collection('users')
+        .doc(proposta.uid)
+        .collection('refunds')
+        .doc(garaId)
+        .get();
+
+      if (!ricevuta.exists) {
+        throw new Error('Nessun rimborso fatto, e nessuna ricevuta.');
+      }
+
+      fatto = {
+        restituito: ricevuta.get('refundedCents') || 0,
+        dove: ricevuta.get('destinazione') || '',
+      };
+    }
+
+    await db.collection('challenges').doc(garaId).delete();
+    await foglioDi(garaId).delete();
+    await ref.update({
+      rimborso: 'fatto',
+      rimborsatiCents: fatto.restituito,
+      rimborsatiDove: fatto.dove,
+      rimborsoTipo: admin.firestore.FieldValue.delete(),
+    });
+    await avvisa(proposta, ref.id, tipo, {
+      motivo,
+      rimborsoCents: fatto.restituito,
+      rimborsoDove: fatto.dove,
+    });
+
+    return { restituitoCents: fatto.restituito, dove: fatto.dove };
+  } catch (errore) {
+    logger.error('rimborso della revisione non riuscito', {
+      propostaId: ref.id,
+      errore: String((errore && errore.message) || errore).slice(0, 300),
+    });
+    await ref.update({ rimborso: 'daRifare', rimborsoTipo: tipo });
+
+    return { daRifare: true };
+  }
+}
+
+/**
+ * **La missione pagata esce.** In una scrittura sola con la proposta: o e' rilasciata e
+ * approvata, o nessuna delle due, e lo spazzino delle 48 ore non puo' passarci in mezzo. Il
+ * tempo parte adesso, e la durata e' quella scelta da chi l'ha lanciata.
+ */
+async function rilasciaLaGara(ref, proposta, cosaScrivere) {
+  const db = admin.firestore();
+  const garaRef = db.collection('challenges').doc(proposta.challengeId);
+  const audience = await audienceDi(proposta);
+
+  return db.runTransaction(async (transazione) => {
+    const [fresco, gara] = await Promise.all([transazione.get(ref), transazione.get(garaRef)]);
+
+    if (
+      !CODA.includes(fresco.get('stato')) ||
+      !gara.exists ||
+      gara.get('prizeStatus') !== 'inRevisione'
+    ) {
+      return false;
+    }
+
+    const adesso = admin.firestore.Timestamp.now();
+    const minuti = gara.get('minutiDiGara') || proposta.minutes || 60;
+    const diChi = gara.get('createdByUserId');
+
+    // Quanto ha messo in palio: si conta quando la missione esce davvero.
+    if (diChi && gara.get('anonimo') !== true) {
+      transazione.set(
+        db.collection('users').doc(diChi),
+        {
+          totalStakedCents: admin.firestore.FieldValue.increment(gara.get('prizeCents') || 0),
+          totalStakedCount: admin.firestore.FieldValue.increment(1),
+        },
+        { merge: true }
+      );
+    }
+
+    transazione.update(garaRef, {
+      prizeStatus: 'held',
+      inRevisione: false,
+      audience,
+      startsAt: adesso,
+      endsAt: admin.firestore.Timestamp.fromMillis(adesso.toMillis() + minuti * 60 * 1000),
+    });
+    transazione.update(ref, cosaScrivere);
+
+    return true;
+  });
+}
+
+/**
  * **Una persona ha deciso.**
  *
- * - Approvata e gratis: esce subito.
- * - Approvata con un premio: chi l'ha scritta riceve l'avviso, e paga quando vuole.
- * - Rifiutata: chi l'ha scritta legge il motivo. Non ha pagato niente.
+ * - Gratis: se e' approvata esce subito.
+ * - Con un premio gia' pagato: se e' approvata esce e parte il tempo; se e' rifiutata tornano i
+ *   soldi, tranne le commissioni di Stripe.
+ * - Con un premio non ancora pagato, dalle versioni vecchie dell'app: chi l'ha scritta riceve
+ *   l'avviso, e paga quando vuole.
+ * - Rifiutata: chi l'ha scritta legge il motivo.
  *
  * **Tutte le proposte con lo stesso testo si chiudono insieme**: dieci persone che
  * scelgono la stessa missione gia' pronta sono lo stesso caso, non dieci. E la
@@ -857,21 +1037,69 @@ async function decidi(id, { decisione, motivo = '', chi }) {
 
   for (const [propostaId, doc] of daChiudere) {
     const proposta = doc.data();
+    const pagataInCoda =
+      Boolean(proposta.pagataIl) && Boolean(proposta.challengeId) && CODA.includes(proposta.stato);
 
-    // Gia' uscita o gia' pagata: non si tocca da qui. Per togliere una missione in
-    // gara c'e' il suo tasto, che restituisce il premio.
-    if (proposta.challengeId) {
+    // Gia' uscita: non si tocca da qui. Per togliere una missione in gara c'e' il suo tasto,
+    // che restituisce il premio.
+    if (proposta.challengeId && !pagataInCoda) {
       esiti.push({ propostaId, saltata: 'già in gara' });
       continue;
     }
 
-    await doc.ref.update({
+    const decisione = {
       stato: scelta,
       fonte: 'admin',
       motivoDecisione: motivo,
       decisaDa: chi,
       decisaIl: admin.firestore.FieldValue.serverTimestamp(),
-    });
+      scadeIl: admin.firestore.FieldValue.delete(),
+    };
+
+    if (pagataInCoda && scelta === 'approvata') {
+      if (await rilasciaLaGara(doc.ref, proposta, decisione)) {
+        await avvisa(proposta, propostaId, 'missionApproved', {
+          challengeId: proposta.challengeId,
+        });
+        esiti.push({ propostaId, stato: scelta, challengeId: proposta.challengeId });
+      } else {
+        esiti.push({ propostaId, saltata: 'già chiusa' });
+      }
+
+      continue;
+    }
+
+    if (pagataInCoda) {
+      // **Chi arriva primo chiude**, fra questa decisione e lo spazzino delle 48 ore: un
+      // rimborso solo, e un avviso solo.
+      const presa = await db.runTransaction(async (transazione) => {
+        const fresco = await transazione.get(doc.ref);
+
+        if (!CODA.includes(fresco.get('stato'))) {
+          return false;
+        }
+
+        transazione.update(doc.ref, {
+          ...decisione,
+          rimborso: 'daFare',
+          rimborsoTipo: 'missionRejected',
+        });
+
+        return true;
+      });
+
+      if (!presa) {
+        esiti.push({ propostaId, saltata: 'già chiusa' });
+        continue;
+      }
+
+      const rimborso = await rimborsaLaRevisione(doc.ref, proposta, 'missionRejected', motivo);
+
+      esiti.push({ propostaId, stato: scelta, rimborso });
+      continue;
+    }
+
+    await doc.ref.update(decisione);
 
     if (scelta === 'rifiutata') {
       // Chi si e' visto fermare dalle parole lo ha gia' letto nel modulo, quando e'
@@ -1030,6 +1258,220 @@ const lanciaMissioneApprovata = onCall(async (request) => {
 });
 
 /**
+ * **Chi modifica una missione a cui non ha partecipato nessuno.**
+ *
+ * Si cambiano le regole del gioco: da dove si prende la foto, foto o video, quanti posti, quanto
+ * dura. Titolo e consegna no: sono passati dal controllo, e un testo nuovo dovrebbe rifarlo. Il
+ * premio nemmeno, perche' e' gia' stato pagato. Dalla prima foto in poi non si tocca piu' niente:
+ * chi e' entrato ha letto delle regole, e quelle restano.
+ */
+const modificaMissione = onCall(async (request) => {
+  const uid = chiChiama(request);
+  const d = request.data || {};
+  const id = typeof d.challengeId === 'string' ? d.challengeId : '';
+
+  if (!id) {
+    throw rifiuta('invalid-argument', 'Manca la missione.');
+  }
+
+  const nuovi = {};
+
+  if (d.source !== undefined) {
+    if (!['instant', 'archive'].includes(d.source)) {
+      throw rifiuta('invalid-argument', 'Il tipo di missione non è valido.');
+    }
+
+    nuovi.source = d.source;
+  }
+
+  if (d.mediaKind !== undefined) {
+    if (!['photo', 'video'].includes(d.mediaKind)) {
+      throw rifiuta('invalid-argument', 'Il tipo di missione non è valido.');
+    }
+
+    nuovi.mediaKind = d.mediaKind;
+  }
+
+  if (d.maxParticipants !== undefined) {
+    if (
+      !Number.isInteger(d.maxParticipants) ||
+      d.maxParticipants < 1 ||
+      d.maxParticipants > POSTI_MASSIMI
+    ) {
+      throw rifiuta('invalid-argument', 'Il numero di posti non è valido.');
+    }
+
+    nuovi.maxParticipants = d.maxParticipants;
+  }
+
+  if (
+    d.minutes !== undefined &&
+    (!Number.isInteger(d.minutes) || d.minutes < 1 || d.minutes > MINUTI_MASSIMI)
+  ) {
+    throw rifiuta('invalid-argument', 'Una missione dura da 1 minuto a 24 ore.');
+  }
+
+  if (!Object.keys(nuovi).length && d.minutes === undefined) {
+    throw rifiuta('invalid-argument', 'Non hai cambiato niente.');
+  }
+
+  const db = admin.firestore();
+  const ref = db.collection('challenges').doc(id);
+  const prima = await ref.get();
+
+  if (!prima.exists) {
+    throw rifiuta('not-found', 'Questa missione non c’è più.');
+  }
+
+  if ((await autoreDi(prima)) !== uid) {
+    throw rifiuta('permission-denied', 'Questa missione non è tua.');
+  }
+
+  await db.runTransaction(async (transazione) => {
+    const gara = await transazione.get(ref);
+    const foto = await transazione.get(ref.collection('entries').limit(1));
+
+    if (!gara.exists) {
+      throw rifiuta('not-found', 'Questa missione non c’è più.');
+    }
+
+    if ((gara.get('participantsCount') || 0) > 0 || !foto.empty) {
+      throw rifiuta('failed-precondition', 'Qualcuno ha già partecipato: non si può più modificare.');
+    }
+
+    if (gara.get('targetUserId')) {
+      throw rifiuta('failed-precondition', 'Una sfida a una persona non si modifica.');
+    }
+
+    const fine = gara.get('endsAt');
+    const pagata = !gara.get('prizeCents') || gara.get('prizeStatus') === 'held';
+
+    // Una gara chiusa ha il vincitore scritto, anche vuoto se non ha vinto nessuno.
+    const chiusa = typeof gara.get('winnerEntryId') === 'string';
+
+    if (!pagata || !fine || fine.toMillis() <= Date.now() || chiusa) {
+      throw rifiuta('failed-precondition', 'Questa missione non è in gara.');
+    }
+
+    const scrittura = { ...nuovi };
+
+    if (d.minutes !== undefined) {
+      const nuovaFine = gara.get('startsAt').toMillis() + d.minutes * 60 * 1000;
+
+      if (nuovaFine <= Date.now() + 60 * 1000) {
+        throw rifiuta('failed-precondition', 'Questa durata è già passata: scegline una più lunga.');
+      }
+
+      scrittura.endsAt = admin.firestore.Timestamp.fromMillis(nuovaFine);
+    }
+
+    transazione.update(ref, scrittura);
+  });
+
+  logger.info('missione modificata', { id, uid, campi: Object.keys(d) });
+
+  return { ok: true };
+});
+
+/**
+ * **Passate 48 ore senza risposta, la missione non esce e i soldi tornano.** Senza spiegazioni
+ * lunghe: chi aspetta legge che non e' stata caricata, e quanto gli e' tornato. Non resta scritta
+ * nessuna decisione sul testo, perche' nessuno ne ha presa una: si puo' rilanciare.
+ *
+ * Qui riprovano anche i rimborsi che Stripe non aveva accettato.
+ */
+async function chiudiLeScadute(ora = Date.now()) {
+  const db = admin.firestore();
+  const scadute = await db
+    .collection(PROPOSTE)
+    .where('scadeIl', '<=', admin.firestore.Timestamp.fromMillis(ora))
+    .limit(100)
+    .get();
+  let chiuse = 0;
+
+  for (const doc of scadute.docs) {
+    const presa = await db.runTransaction(async (transazione) => {
+      const fresco = await transazione.get(doc.ref);
+      const togli = { scadeIl: admin.firestore.FieldValue.delete() };
+
+      if (!CODA.includes(fresco.get('stato'))) {
+        transazione.update(doc.ref, togli);
+
+        return false;
+      }
+
+      transazione.update(doc.ref, {
+        ...togli,
+        stato: 'scaduta',
+        fonte: 'tempo',
+        decisaIl: admin.firestore.FieldValue.serverTimestamp(),
+        ...(fresco.get('pagataIl')
+          ? { rimborso: 'daFare', rimborsoTipo: 'missionExpired' }
+          : {}),
+      });
+
+      return true;
+    });
+
+    if (!presa) {
+      continue;
+    }
+
+    const proposta = doc.data();
+
+    if (proposta.pagataIl && proposta.challengeId) {
+      await rimborsaLaRevisione(doc.ref, proposta, 'missionExpired');
+    } else {
+      await avvisa(proposta, doc.id, 'missionExpired', {});
+    }
+
+    chiuse += 1;
+  }
+
+  // **Anche quelli rimasti a meta'.** `daFare` vuol dire che qualcuno ha chiuso la proposta e
+  // non ha ancora finito: se dopo qualche minuto e' ancora li', il server si e' fermato in
+  // mezzo. Rifarlo non costa niente: Stripe riconosce la richiesta e non rimborsa due volte.
+  const limite = ora - 5 * 60 * 1000;
+  const daRifare = await db
+    .collection(PROPOSTE)
+    .where('rimborso', 'in', ['daFare', 'daRifare'])
+    .limit(50)
+    .get();
+  let riprovati = 0;
+
+  for (const doc of daRifare.docs) {
+    const decisa = doc.get('decisaIl');
+
+    if (doc.get('rimborso') === 'daFare' && decisa && decisa.toMillis() > limite) {
+      continue;
+    }
+
+    await rimborsaLaRevisione(
+      doc.ref,
+      doc.data(),
+      doc.get('rimborsoTipo') || 'missionRejected',
+      doc.get('motivoDecisione') || ''
+    );
+    riprovati += 1;
+  }
+
+  return { chiuse, riprovati };
+}
+
+const scadonoLeRevisioni = onSchedule(
+  {
+    schedule: 'every 30 minutes',
+    timeZone: 'Europe/Rome',
+    secrets: [payments.STRIPE_SECRET_KEY, payments.STRIPE_PAYOUT_KEY],
+  },
+  async () => {
+    const esito = await chiudiLeScadute();
+
+    logger.info('revisioni scadute', esito);
+  }
+);
+
+/**
  * **Quanto si tengono le proposte: sei mesi.** Servono a capire chi ci prova e a
  * rispondere a chi chiede spiegazioni; oltre, sono testi di persone che non servono
  * piu' a nessuno. I contatori dei giorni vecchi se ne vanno con loro.
@@ -1076,6 +1518,7 @@ const pulisciLeProposte = onSchedule(
 
 module.exports = {
   CATEGORIE,
+  CODA,
   CONSIGLI_DA_GUARDARE,
   GIUDIZI,
   IMPOSTAZIONI,
@@ -1084,6 +1527,7 @@ module.exports = {
   SOGLIE_DI_PARTENZA,
   SPESE,
   TETTO_GIUDIZI,
+  chiudiLeScadute,
   corpoDellaGara,
   decidi,
   dimenticaImpostazioni,
@@ -1092,8 +1536,10 @@ module.exports = {
   leggiLaMiaProposta,
   leggiLaRichiesta,
   lanciaMissioneApprovata,
+  modificaMissione,
   proponiMissione,
   pulisciLeProposte,
+  scadonoLeRevisioni,
   valuta,
   valutaPerProva,
 };

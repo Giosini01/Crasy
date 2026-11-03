@@ -1,3 +1,4 @@
+import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 
 /// Cosa e' successo, e chi l'ha fatto.
@@ -165,8 +166,13 @@ enum NotificationKind {
   ///
   /// La scrive solo una persona del team, e [AppNotification.motivo] e' quello che
   /// ha scritto lei. Chi si ferma alle parole non riceve questa notizia: lo legge
-  /// subito a schermo, nel modulo.
+  /// subito a schermo, nel modulo. Se aveva gia' pagato, [AppNotification.rimborsoCents]
+  /// dice quanto gli e' tornato.
   missionRejected,
+
+  /// **Sono passate 48 ore senza risposta: la missione non e' stata caricata.** Senza
+  /// spiegazioni: nessuno l'ha decisa. Se aveva pagato, i soldi sono gia' partiti.
+  missionExpired,
 }
 
 /// In quale sezione della campanella finisce una notizia.
@@ -233,6 +239,8 @@ class AppNotification {
     this.revisione = '',
     this.propostaId = '',
     this.premioCents = 0,
+    this.rimborsoCents = 0,
+    this.rimborsoDove = '',
     this.createdAt,
   });
 
@@ -279,6 +287,12 @@ class AppNotification {
 
   /// Quanto vale il premio di quella missione. Zero se e' gratis.
   final int premioCents;
+
+  /// Quanto e' tornato a chi aveva gia' pagato una missione che non e' uscita.
+  final int rimborsoCents;
+
+  /// Dove e' tornato: `carta` o `portafoglio`.
+  final String rimborsoDove;
 
   /// **Il motivo, detto come una frase.** Sta nell'entita' come [message]: e'
   /// la stessa frase nella riga e nel foglio che si apre toccandola.
@@ -373,7 +387,15 @@ class AppNotification {
           ? 'La tua missione è approvata: è in gara'
           : 'La tua missione è approvata: paga il premio e parte',
     NotificationKind.missionRejected =>
-      'La tua missione non può uscire: tocca per sapere perché',
+      rimborsoCents > 0
+          ? 'La tua missione non è stata accettata: ti tornano '
+                '${AppMoney.format(rimborsoCents)}. Tocca per sapere perché'
+          : 'La tua missione non può uscire: tocca per sapere perché',
+    NotificationKind.missionExpired =>
+      rimborsoCents > 0
+          ? 'La tua missione non è stata caricata: ti tornano '
+                '${AppMoney.format(rimborsoCents)}'
+          : 'La tua missione non è stata caricata',
   };
 
   /// In quale sezione finisce.
@@ -415,7 +437,8 @@ class AppNotification {
     // **Con le partecipazioni, dove si guardano le proprie missioni.** Non sono
     // sfide — una gara pubblica non e' una sfida a nessuno — e non sono vittorie.
     NotificationKind.missionApproved ||
-    NotificationKind.missionRejected => NotificationGroup.participations,
+    NotificationKind.missionRejected ||
+    NotificationKind.missionExpired => NotificationGroup.participations,
   };
 
   /// La sezione di un tipo di notizia, senza avere la notizia in mano: serve

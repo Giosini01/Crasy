@@ -1,7 +1,9 @@
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/utils/app_money.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
+import 'package:crasy/features/payments/domain/prize_ledger.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -9,7 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 ///
 /// Sta sopra il tasto del lancio, nel modulo e nella sfida. E' la risposta alla domanda
 /// che uno si fa con un premio scritto sullo schermo: **quando mi prendono i soldi?**
-/// Solo dopo il controllo, e mai per una missione che non esce.
+/// Al lancio, dopo il controllo automatico. E se poi la missione non esce, cosa torna.
 class AvvisoPrimaDelLancio extends StatelessWidget {
   const AvvisoPrimaDelLancio({required this.conPremio, super.key});
 
@@ -17,10 +19,11 @@ class AvvisoPrimaDelLancio extends StatelessWidget {
   final bool conPremio;
 
   static const conPremioTesto =
-      'Prima di uscire la controlliamo, in pochi secondi. Se è tutto a posto si '
-      'apre il pagamento: i soldi li prendiamo solo in quel momento. Se deve '
-      'guardarla una persona del team non paghi niente: ti avvisiamo appena è '
-      'approvata, e paghi solo allora. Se non può uscire, non paghi mai.';
+      'Prima di uscire la controlliamo, in pochi secondi. Se è tutto a posto '
+      'esce appena paghi. Se deve guardarla una persona del team paghi lo stesso e '
+      'la missione resta in pausa: se viene accettata esce e parte il tempo, se '
+      'non viene accettata ti tornano i soldi, tranne le commissioni di Stripe. Se '
+      'si ferma alle parole vietate non paghi niente.';
 
   static const gratisTesto =
       'Prima di uscire la controlliamo, in pochi secondi. Se deve guardarla una '
@@ -66,10 +69,8 @@ void avvisaApprovata(BuildContext context) {
 /// non se la sente di far uscire da sola. Non e' un errore, e non deve sembrarlo:
 /// chi ha scritto la missione non ha sbagliato niente, sta solo aspettando.
 ///
-/// Dice le tre cose che chi aspetta si chiede subito: **chi la guarda**, **se ha
-/// gia' pagato** e **come sapra' la risposta**. La seconda e' quella che conta di
-/// piu': e' l'unica volta in cui si preme un tasto con scritto "paga" e non parte
-/// nessun pagamento, e senza dirlo si va a controllare l'estratto conto.
+/// Dice le due cose che chi aspetta si chiede subito: **chi la guarda** e **come
+/// sapra' la risposta**.
 Future<void> mostraMissioneInControllo(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
@@ -117,15 +118,274 @@ class AvvisoInControllo extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         Text('Una persona del team la guarda.', style: texts.bodyLarge),
         const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Non paghi niente finché non è approvata.',
-          style: texts.bodyLarge,
-        ),
-        const SizedBox(height: AppSpacing.xs),
         Text('Ti avvisiamo appena c’è una risposta.', style: texts.bodyLarge),
       ],
     );
   }
+}
+
+/// **Prima di pagare, tutto quello che succede ai soldi.**
+///
+/// Si paga una missione che potrebbe non uscire mai: chi lo fa deve saperlo adesso, con le
+/// cifre, non scoprirlo leggendo un rimborso piu' basso di quello che ha pagato. Compare
+/// ogni volta che si sta per pagare, anche riprovando. Torna vero solo se si conferma.
+Future<bool> chiediConfermaRevisione(
+  BuildContext context, {
+  required int premioCents,
+}) async {
+  final risposta = await showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    backgroundColor: context.palette.background,
+    builder: (foglio) => SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.page,
+          0,
+          AppSpacing.page,
+          AppSpacing.lg,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AvvisoPrimaDellaRevisione(premioCents: premioCents),
+            const SizedBox(height: AppSpacing.lg),
+            CrasyButton(
+              label: 'Paga e mandala in revisione',
+              onPressed: () => Navigator.of(foglio).pop(true),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            TextButton(
+              onPressed: () => Navigator.of(foglio).pop(false),
+              child: const Text('Non adesso'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  return risposta == true;
+}
+
+/// Il testo del foglio qui sopra. Le cifre sono quelle del conto che si legge nel modulo.
+class AvvisoPrimaDellaRevisione extends StatelessWidget {
+  const AvvisoPrimaDellaRevisione({required this.premioCents, super.key});
+
+  final int premioCents;
+
+  @override
+  Widget build(BuildContext context) {
+    final texts = context.texts;
+    final pagato = PrizeLedger.chargeCents(premioCents);
+    final commissioni = PrizeLedger.processingFeeCents(premioCents);
+    final torna = pagato - commissioni;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const DisplayTitle('Prima la controlliamo'),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          'Questa missione deve guardarla una persona del team prima di uscire.',
+          style: texts.bodyLarge,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _Segno(
+          icona: Icons.euro_rounded,
+          testo:
+              'Paghi adesso. Con la carta sono ${AppMoney.format(pagato)}: il premio '
+              'di ${AppMoney.format(premioCents)} più le spese. Dal portafoglio '
+              'paghi solo il premio.',
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        const _Segno(
+          icona: Icons.pause_circle_outline_rounded,
+          testo:
+              'Finché non è accettata resta in pausa: non la vede nessuno e il tempo '
+              'non parte.',
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        const _Segno(
+          icona: Icons.check_circle_outline_rounded,
+          testo: 'Se viene accettata esce subito, e il tempo parte da lì.',
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        _Segno(
+          icona: Icons.undo_rounded,
+          testo:
+              'Se non viene accettata i soldi tornano indietro: sulla carta '
+              '${AppMoney.format(torna)}, cioè tutto tranne le commissioni di Stripe '
+              '(circa ${AppMoney.format(commissioni)}), che non si recuperano. Dal '
+              'portafoglio torna tutto nel portafoglio.',
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        const _Segno(
+          icona: Icons.schedule_rounded,
+          testo:
+              'Se entro 48 ore non ti rispondiamo non viene caricata, e i soldi tornano '
+              'nello stesso modo.',
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'Sulla carta la banca ci mette 5-10 giorni lavorativi.',
+          style: texts.bodySmall?.copyWith(color: context.palette.textFaint),
+        ),
+      ],
+    );
+  }
+}
+
+/// **"E' in revisione", appena pagato.** Non e' uscita e non e' un errore: i soldi sono
+/// arrivati, e adesso si aspetta una persona.
+Future<void> mostraMissioneInRevisione(BuildContext context) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    backgroundColor: context.palette.background,
+    builder: (foglio) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.page,
+          0,
+          AppSpacing.page,
+          AppSpacing.lg,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const AvvisoInRevisione(),
+            const SizedBox(height: AppSpacing.lg),
+            CrasyButton(
+              label: 'Ho capito',
+              onPressed: () => Navigator.of(foglio).pop(),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// La stessa frase nel foglio qui sopra e nella pagina dove si torna da Stripe, sul sito.
+class AvvisoInRevisione extends StatelessWidget {
+  const AvvisoInRevisione({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final texts = context.texts;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const DisplayTitle('È in revisione'),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          'La tua missione è in pausa finché una persona del team non la guarda.',
+          style: texts.bodyLarge,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Ti avvisiamo appena c’è una risposta, entro 48 ore.',
+          style: texts.bodyLarge,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Se non viene accettata i soldi tornano indietro, tranne le commissioni '
+          'di Stripe.',
+          style: texts.bodyLarge,
+        ),
+      ],
+    );
+  }
+}
+
+/// **"Non e' stata caricata": sono passate 48 ore senza risposta.** Senza troppe
+/// spiegazioni: cosa e' successo, e dove sono i soldi.
+Future<void> mostraMissioneNonCaricata(
+  BuildContext context, {
+  required String titolo,
+  int rimborsoCents = 0,
+  String rimborsoDove = '',
+}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    backgroundColor: context.palette.background,
+    builder: (_) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.page,
+          0,
+          AppSpacing.page,
+          AppSpacing.lg,
+        ),
+        child: AvvisoNonCaricata(
+          titolo: titolo,
+          rimborsoCents: rimborsoCents,
+          rimborsoDove: rimborsoDove,
+        ),
+      ),
+    ),
+  );
+}
+
+class AvvisoNonCaricata extends StatelessWidget {
+  const AvvisoNonCaricata({
+    required this.titolo,
+    this.rimborsoCents = 0,
+    this.rimborsoDove = '',
+    super.key,
+  });
+
+  final String titolo;
+  final int rimborsoCents;
+  final String rimborsoDove;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final texts = context.texts;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const DisplayTitle('Non è stata caricata'),
+        if (titolo.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            titolo.toUpperCase(),
+            style: texts.labelSmall?.copyWith(color: palette.textFaint),
+          ),
+        ],
+        if (rimborsoCents > 0) ...[
+          const SizedBox(height: AppSpacing.lg),
+          _Segno(
+            icona: Icons.euro_rounded,
+            testo: fraseDelRimborso(rimborsoCents, rimborsoDove),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Quanto e' tornato e dove: la stessa frase in tutti gli avvisi.
+String fraseDelRimborso(int cents, String dove) {
+  final quanto = AppMoney.format(cents);
+
+  return dove == 'portafoglio'
+      ? 'Ti sono tornati $quanto nel portafoglio.'
+      : 'Ti abbiamo rimborsato $quanto sulla carta: le commissioni di Stripe non si '
+            'recuperano. La banca ci mette 5-10 giorni lavorativi.';
 }
 
 /// **Perche' una missione non puo' uscire, in un foglio.**
@@ -133,11 +393,13 @@ class AvvisoInControllo extends StatelessWidget {
 /// Si apre toccando l'avviso in campanella. Il Digital Services Act chiede tre
 /// cose a chi ferma un contenuto: **il motivo**, **chi ha deciso** e **come si
 /// contesta**. Ci sono tutte e tre, piu' quella che uno si chiede per prima: i
-/// soldi. Una missione rifiutata non e' mai stata pagata.
+/// soldi. Se aveva gia' pagato si dice quanto gli e' tornato.
 Future<void> mostraMissioneRifiutata(
   BuildContext context, {
   required String titolo,
   required String motivo,
+  int rimborsoCents = 0,
+  String rimborsoDove = '',
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -152,7 +414,12 @@ Future<void> mostraMissioneRifiutata(
           AppSpacing.page,
           AppSpacing.lg,
         ),
-        child: AvvisoRifiutata(titolo: titolo, motivo: motivo),
+        child: AvvisoRifiutata(
+          titolo: titolo,
+          motivo: motivo,
+          rimborsoCents: rimborsoCents,
+          rimborsoDove: rimborsoDove,
+        ),
       ),
     ),
   );
@@ -164,10 +431,18 @@ class AvvisoRifiutata extends StatelessWidget {
     required this.titolo,
     required this.motivo,
     this.daUnaPersona = true,
+    this.rimborsoCents = 0,
+    this.rimborsoDove = '',
     super.key,
   });
 
   final String titolo;
+
+  /// Quanto gli e' tornato, se aveva gia' pagato. Zero: non aveva pagato niente.
+  final int rimborsoCents;
+
+  /// `carta` o `portafoglio`.
+  final String rimborsoDove;
 
   /// Quello che ha scritto chi ha deciso. Vuoto, non si inventa niente.
   final String motivo;
@@ -209,9 +484,11 @@ class AvvisoRifiutata extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xxs),
         ],
-        const _Segno(
+        _Segno(
           icona: Icons.euro_rounded,
-          testo: 'Non hai pagato niente.',
+          testo: rimborsoCents > 0
+              ? fraseDelRimborso(rimborsoCents, rimborsoDove)
+              : 'Non hai pagato niente.',
         ),
         const SizedBox(height: AppSpacing.lg),
         Text(

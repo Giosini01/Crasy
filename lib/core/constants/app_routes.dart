@@ -86,6 +86,9 @@ abstract final class AppRoutes {
   static String missioneApprovataOf(String propostaId) =>
       '/missione/$propostaId';
 
+  /// **Dove si torna da Stripe, sul sito, avendo pagato una missione in revisione.**
+  static const missioneInRevisione = '/missione-in-revisione';
+
   /// I soldi vinti, e il modo di portarseli via.
   ///
   /// **Una schermata sua e non un riquadro nel profilo.** Il riquadro dice

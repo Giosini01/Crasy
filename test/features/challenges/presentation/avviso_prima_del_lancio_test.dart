@@ -14,17 +14,18 @@ Future<void> _mostra(WidgetTester tester, Widget avviso) {
 
 /// **La domanda a cui risponde: quando mi prendono i soldi?**
 void main() {
-  testWidgets('con un premio dice che i soldi si prendono solo dopo il controllo', (
+  testWidgets('con un premio dice quando si paga, e cosa torna se non esce', (
     tester,
   ) async {
     await _mostra(tester, const AvvisoPrimaDelLancio(conPremio: true));
 
+    expect(find.textContaining('esce appena paghi'), findsOneWidget);
+    expect(find.textContaining('resta in pausa'), findsOneWidget);
     expect(
-      find.textContaining('i soldi li prendiamo solo in quel momento'),
+      find.textContaining('tranne le commissioni di Stripe'),
       findsOneWidget,
     );
     expect(find.textContaining('non paghi niente'), findsOneWidget);
-    expect(find.textContaining('non paghi mai'), findsOneWidget);
   });
 
   testWidgets('gratis non parla di soldi', (tester) async {

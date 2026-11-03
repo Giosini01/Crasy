@@ -19,6 +19,7 @@ import 'package:crasy/features/challenges/domain/entities/file_caricato.dart';
 import 'package:crasy/features/challenges/domain/entities/media_kind.dart';
 import 'package:crasy/features/challenges/domain/entities/ritaglio.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
+import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 
@@ -394,6 +395,10 @@ class FirestoreChallengeRepository implements ChallengeRepository {
       // l'orologio di un telefono non deve poter spostare una gara.
       'minutes': challenge.endsAt.difference(challenge.startsAt).inMinutes,
       'anonimo': challenge.anonimo,
+      // Questa versione sa pagare prima della revisione: vedi
+      // [MissioneDaPagareInRevisione]. Le versioni vecchie non lo dicono, e per loro
+      // il server resta sul giro di prima.
+      if (paymentsEnabled) 'pagaPrima': true,
       if (challenge.targetUserId.isNotEmpty) ...{
         'targetUserId': challenge.targetUserId,
         'duelMessage': challenge.duelMessage,
@@ -419,6 +424,13 @@ class FirestoreChallengeRepository implements ChallengeRepository {
         }
       case 'inControllo':
         throw MissioneInControllo(propostaId);
+      case 'daPagareInRevisione':
+        final gara = risposta['challengeId'];
+
+        throw MissioneDaPagareInRevisione(
+          propostaId,
+          gara is String && gara.isNotEmpty ? gara : propostaId,
+        );
       case 'daPagare':
         throw MissioneDaPagare(propostaId);
       case 'bloccata':
@@ -1253,11 +1265,23 @@ class FirestoreChallengeRepository implements ChallengeRepository {
 /// **La missione non e' uscita: la guarda una persona.**
 ///
 /// Non e' un errore, e chi chiama non lo deve mostrare come tale: chi l'ha scritta
-/// non ha sbagliato niente, sta aspettando. E non ha pagato niente.
+/// non ha sbagliato niente, sta aspettando.
 class MissioneInControllo implements Exception {
   const MissioneInControllo(this.propostaId);
 
   final String propostaId;
+}
+
+/// **La deve guardare una persona, e c'e' un premio: si paga adesso, poi si aspetta.**
+///
+/// La gara e' scritta ma ferma: la si paga come tutte le altre, e resta in pausa finche'
+/// una persona del team non decide. Se non viene accettata, o se entro 48 ore non
+/// risponde nessuno, tornano i soldi, tranne le commissioni di Stripe.
+class MissioneDaPagareInRevisione implements Exception {
+  const MissioneDaPagareInRevisione(this.propostaId, this.challengeId);
+
+  final String propostaId;
+  final String challengeId;
 }
 
 /// **Una persona l'aveva gia' approvata**, e manca solo il pagamento: si manda chi

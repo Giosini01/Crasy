@@ -235,7 +235,11 @@ void main() {
     test('in controllo non e\' un guasto, anche se arrivasse fin qui', () {
       expect(
         ErrorMessageMapper.map(const MissioneInControllo('p')),
-        contains('Non paghi niente'),
+        contains('Ti avvisiamo'),
+      );
+      expect(
+        ErrorMessageMapper.map(const MissioneDaPagareInRevisione('p', 'g')),
+        contains('resta in pausa'),
       );
       expect(
         ErrorMessageMapper.map(const MissioneDaPagare('p')),

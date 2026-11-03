@@ -22,8 +22,8 @@ class RiepilogoPremio extends ConsumerWidget {
 
   final int cents;
 
-  /// **Nel modulo non si paga ancora.** Prima c'e' il controllo, e se la missione deve
-  /// guardarla una persona non parte nessun pagamento: "Paghi ora" sarebbe falso.
+  /// **Nel modulo non si paga ancora.** Prima c'e' il controllo, e il pagamento si apre
+  /// dopo: "Paghi ora" sarebbe falso.
   final String primaRiga;
 
   /// **Detto prima di pagare, non dopo.**
@@ -35,9 +35,10 @@ class RiepilogoPremio extends ConsumerWidget {
   /// ed e' la stessa cosa vista da due momenti diversi.
   static const avvertenza =
       'Il premio lo trattiene CRASY fino alla fine della challenge, poi lo gira '
-      'a chi vince. Se non partecipa nessuno ti torna indietro intero. Se invece '
-      'la cancelli tu, ti torna il premio ma non le spese di pagamento — e la '
-      'banca ci mette 5-10 giorni a rimettertelo sulla carta.';
+      'a chi vince. Se non partecipa nessuno, o se deve guardarla una persona e '
+      'non viene accettata, ti tornano i soldi tranne le commissioni di Stripe. Se '
+      'la cancelli tu, ti torna il premio ma non le spese di pagamento. La banca ci '
+      'mette 5-10 giorni a rimetterli sulla carta.';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

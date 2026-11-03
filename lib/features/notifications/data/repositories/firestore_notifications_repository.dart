@@ -305,6 +305,8 @@ class FirestoreNotificationsRepository {
       revisione: data['revisione'] as String? ?? '',
       propostaId: data['propostaId'] as String? ?? '',
       premioCents: (data['premioCents'] as num?)?.toInt() ?? 0,
+      rimborsoCents: (data['rimborsoCents'] as num?)?.toInt() ?? 0,
+      rimborsoDove: data['rimborsoDove'] as String? ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }

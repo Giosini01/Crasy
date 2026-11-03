@@ -979,6 +979,669 @@ test('tutte le spese: stripe, google, ai e quelle scritte a mano', async () => {
   assert.ok(registro.righe.some((riga) => riga.azione === 'togliSpesaFissa'));
 });
 
+// ---------------------------------------------------------------------------
+// Si paga subito, poi la guarda una persona
+// ---------------------------------------------------------------------------
+
+/** Stripe come lo vede un rimborso: 234 pagati, 29 di commissioni. */
+function stripeDelRimborso(altro = {}) {
+  const rimborsi = [];
+
+  stripeFinto = {
+    paymentIntents: {
+      retrieve: async () => ({
+        amount: 234,
+        latest_charge: { amount: 234, balance_transaction: { fee: 29 } },
+      }),
+    },
+    refunds: {
+      create: async (dati) => {
+        rimborsi.push(dati);
+
+        return { amount: dati.amount };
+      },
+    },
+    ...altro,
+  };
+
+  return rimborsi;
+}
+
+async function lanciaPagandoPrima(punteggio = 60, dati = {}, uid = CHI) {
+  prossimoVoto = voto(punteggio);
+
+  return proponi(richiesta({ pagaPrima: true, prizeCents: 200, ...dati }), uid);
+}
+
+async function foglioDellaProposta(id) {
+  return db.collection('missioniProposte').doc(id).get();
+}
+
+async function laGara(id) {
+  return db.collection('challenges').doc(id).get();
+}
+
+/** Passano le 48 ore, ma solo per questa: le altre prove hanno le loro missioni in coda. */
+async function falloScadere(id) {
+  await db
+    .collection('missioniProposte')
+    .doc(id)
+    .update({ scadeIl: admin.firestore.Timestamp.fromMillis(Date.now() - 1000) });
+}
+
+async function notifica(id, tipo, uid = CHI) {
+  return db.collection('users').doc(uid).collection('notifications').doc(`${tipo}_${id}`).get();
+}
+
+test('sotto la soglia con un premio: si paga, e finche non si paga non la guarda nessuno', async () => {
+  const esito = await lanciaPagandoPrima(60);
+
+  assert.equal(esito.stato, 'daPagareInRevisione');
+  assert.equal(esito.challengeId, esito.propostaId);
+
+  const proposta = await foglioDellaProposta(esito.propostaId);
+  const gara = await laGara(esito.challengeId);
+
+  assert.equal(proposta.get('stato'), 'daPagare');
+  assert.equal(proposta.get('stradaDopoIlPagamento'), 'daControllare');
+  assert.equal(proposta.get('scadeIl'), undefined);
+
+  assert.equal(gara.get('prizeStatus'), 'unpaid');
+  assert.equal(gara.get('inRevisione'), true);
+  assert.deepEqual(gara.get('audience'), []);
+  assert.equal(gara.get('minutiDiGara'), 60);
+  // La fine scritta e' lontana: lo spazzino delle gare scadute non la tocca.
+  assert.ok(gara.get('endsAt').toMillis() > Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+  // In coda non c'e'.
+  const coda = await pannelloCome('proposte', { stato: 'daControllare' });
+
+  assert.ok(!coda.proposte.some((p) => p.id === esito.propostaId));
+
+  // Riprovando si riprende quella: non ne nasce un'altra.
+  const dinuovo = await proponi(
+    richiesta({
+      pagaPrima: true,
+      prizeCents: 200,
+      title: gara.get('title'),
+      brief: gara.get('brief'),
+    })
+  );
+
+  assert.equal(dinuovo.stato, 'daPagareInRevisione');
+  assert.equal(dinuovo.propostaId, esito.propostaId);
+});
+
+test('arrivati i soldi resta in pausa, entra in coda e corrono le 48 ore', async () => {
+  const { challengeId: id } = await lanciaPagandoPrima(85);
+  const prima = Date.now();
+
+  await payments.accendiLaGara(id, 'pi_rev', 234);
+
+  const gara = await laGara(id);
+  const proposta = await foglioDellaProposta(id);
+
+  assert.equal(gara.get('prizeStatus'), 'inRevisione');
+  assert.equal(gara.get('stripePaymentIntentId'), 'pi_rev');
+  assert.deepEqual(gara.get('audience'), []);
+
+  assert.equal(proposta.get('stato'), 'daConfermare');
+  assert.equal(proposta.get('pagatoCents'), 234);
+
+  const scade = proposta.get('scadeIl').toMillis() - prima;
+
+  assert.ok(scade > 47.9 * 60 * 60 * 1000 && scade < 48.1 * 60 * 60 * 1000);
+
+  // Il registro dice quanto ha pagato la carta, e che e' in revisione.
+  const registro = await db
+    .collection('users')
+    .doc(CHI)
+    .collection('ledger')
+    .doc(`pagamento_${id}`)
+    .get();
+
+  assert.equal(registro.get('pagatoCents'), 234);
+  assert.match(registro.get('note'), /in revisione/);
+
+  // Lo stesso evento due volte non cambia niente.
+  await payments.accendiLaGara(id, 'pi_altro', 999);
+  assert.equal((await laGara(id)).get('stripePaymentIntentId'), 'pi_rev');
+  assert.equal((await foglioDellaProposta(id)).get('pagatoCents'), 234);
+
+  // Dal telefono non si cancella, con i soldi dentro.
+  await assert.rejects(
+    chiama(payments.cancelChallenge, { challengeId: id }),
+    /in revisione/
+  );
+
+  // E dal pannello si vede cosa c'e' in ballo.
+  const coda = await pannelloCome('proposte', { stato: 'daConfermare' });
+  const carta = coda.proposte.find((p) => p.id === id);
+
+  assert.equal(carta.pagatoCents, 234);
+  assert.ok(carta.scadeIl);
+
+  // Non e' in gara, e non si toglie da quella porta.
+  const inGara = await pannelloCome('gare', { filtro: 'inGara' });
+
+  assert.ok(!inGara.gare.some((g) => g.id === id));
+  await assert.rejects(pannelloCome('togliGara', { id, motivo: 'prova' }), /in revisione/);
+});
+
+test('approvata: esce, parte il tempo, e chi la puo vedere si decide adesso', async () => {
+  const { challengeId: id } = await lanciaPagandoPrima(60, { minutes: 90 });
+
+  await payments.accendiLaGara(id, 'pi_ok', 234);
+
+  const contatoriPrima = (await db.collection('users').doc(CHI).get()).get('totalStakedCents') || 0;
+  const prima = Date.now();
+  const esito = await pannelloCome('decidiProposta', { id, decisione: 'approva' });
+
+  assert.equal(esito.stato, 'approvata');
+
+  const gara = await laGara(id);
+  const proposta = await foglioDellaProposta(id);
+
+  assert.equal(gara.get('prizeStatus'), 'held');
+  assert.equal(gara.get('inRevisione'), false);
+  assert.deepEqual(gara.get('audience'), ['*']);
+
+  const durata = gara.get('endsAt').toMillis() - gara.get('startsAt').toMillis();
+
+  assert.equal(durata, 90 * 60 * 1000);
+  assert.ok(gara.get('startsAt').toMillis() >= prima - 2000);
+
+  assert.equal(proposta.get('stato'), 'approvata');
+  assert.equal(proposta.get('scadeIl'), undefined);
+
+  const avviso = await notifica(id, 'missionApproved');
+
+  assert.equal(avviso.get('challengeId'), id);
+
+  const contatoriDopo = (await db.collection('users').doc(CHI).get()).get('totalStakedCents') || 0;
+
+  assert.equal(contatoriDopo - contatoriPrima, 200);
+
+  // Una decisione arrivata tardi non tocca una gara gia' uscita.
+  const rimborsi = stripeDelRimborso();
+  const tardi = await pannelloCome('decidiProposta', { id, decisione: 'rifiuta', motivo: 'no' });
+
+  assert.equal(rimborsi.length, 0);
+  assert.equal(tardi.esiti[0].saltata, 'già in gara');
+  assert.equal((await laGara(id)).get('prizeStatus'), 'held');
+  await db.collection('giudizi').doc((await foglioDellaProposta(id)).get('impronta')).delete();
+});
+
+test('rifiutata: tornano i soldi tranne le commissioni di Stripe, e lo si dice', async () => {
+  const rimborsi = stripeDelRimborso();
+  const { challengeId: id } = await lanciaPagandoPrima(40);
+
+  await payments.accendiLaGara(id, 'pi_no', 234);
+
+  const contatoriPrima = (await db.collection('users').doc(CHI).get()).get('totalStakedCents') || 0;
+  const esito = await pannelloCome('decidiProposta', {
+    id,
+    decisione: 'rifiuta',
+    motivo: 'Mette in pericolo chi la fa',
+  });
+
+  assert.equal(rimborsi.length, 1);
+  assert.equal(rimborsi[0].amount, 205);
+  assert.equal(rimborsi[0].payment_intent, 'pi_no');
+  assert.deepEqual(esito.esiti[0].rimborso, { restituitoCents: 205, dove: 'carta' });
+
+  // Non c'e' piu', e la classifica non si e' mossa: non era mai entrata.
+  assert.equal((await laGara(id)).exists, false);
+
+  const contatoriDopo = (await db.collection('users').doc(CHI).get()).get('totalStakedCents') || 0;
+
+  assert.equal(contatoriDopo, contatoriPrima);
+
+  const proposta = await foglioDellaProposta(id);
+
+  assert.equal(proposta.get('stato'), 'rifiutata');
+  assert.equal(proposta.get('rimborso'), 'fatto');
+  assert.equal(proposta.get('rimborsatiCents'), 205);
+
+  const avviso = await notifica(id, 'missionRejected');
+
+  assert.equal(avviso.get('rimborsoCents'), 205);
+  assert.equal(avviso.get('rimborsoDove'), 'carta');
+  assert.equal(avviso.get('motivo'), 'Mette in pericolo chi la fa');
+
+  const ricevuta = await db.collection('users').doc(CHI).collection('refunds').doc(id).get();
+
+  assert.equal(ricevuta.get('refundedCents'), 205);
+  assert.equal(ricevuta.get('motivo'), 'non-accettata');
+
+  const registro = await db
+    .collection('users')
+    .doc(CHI)
+    .collection('ledger')
+    .doc(`rimborso_${id}`)
+    .get();
+
+  assert.equal(registro.get('amountCents'), 205);
+  assert.match(registro.get('note'), /senza le commissioni di Stripe/);
+
+  await db.collection('giudizi').doc(proposta.get('impronta')).delete();
+});
+
+test('48 ore senza risposta: non viene caricata, e i soldi tornano da soli', async () => {
+  const rimborsi = stripeDelRimborso();
+  const { challengeId: id } = await lanciaPagandoPrima(60);
+
+  await payments.accendiLaGara(id, 'pi_tardi', 234);
+
+  // Non ancora: la coda resta com'e'. (L'orologio e' quello di adesso: le altre missioni in
+  // coda nelle altre prove non sono scadute.)
+  let giro = await missioni.chiudiLeScadute();
+
+  assert.equal(giro.chiuse, 0);
+  assert.equal(rimborsi.length, 0);
+
+  await falloScadere(id);
+  giro = await missioni.chiudiLeScadute();
+
+  assert.equal(giro.chiuse, 1);
+  assert.equal(rimborsi[0].amount, 205);
+  assert.equal((await laGara(id)).exists, false);
+
+  const proposta = await foglioDellaProposta(id);
+
+  assert.equal(proposta.get('stato'), 'scaduta');
+  assert.equal(proposta.get('fonte'), 'tempo');
+
+  const avviso = await notifica(id, 'missionExpired');
+
+  assert.equal(avviso.get('rimborsoCents'), 205);
+
+  const ricevuta = await db.collection('users').doc(CHI).collection('refunds').doc(id).get();
+
+  assert.equal(ricevuta.get('motivo'), 'non-caricata');
+
+  // Non l'ha decisa nessuno: sul testo non resta scritto niente, e si puo' rilanciare.
+  assert.equal(
+    (await db.collection('giudizi').doc(proposta.get('impronta')).get()).get('decisione'),
+    undefined
+  );
+
+  // Il giro dopo non la rifa'.
+  giro = await missioni.chiudiLeScadute();
+  assert.equal(giro.chiuse, 0);
+  assert.equal(rimborsi.length, 1);
+});
+
+test('una gratis dopo 48 ore si chiude con l avviso, senza rimborsi', async () => {
+  const rimborsi = stripeDelRimborso();
+
+  prossimoVoto = voto(50);
+
+  const esito = await proponi(
+    richiesta({ pagaPrima: true, prizeCents: 0, scope: 'friends' })
+  );
+
+  assert.equal(esito.stato, 'inControllo');
+
+  await falloScadere(esito.propostaId);
+  await missioni.chiudiLeScadute();
+
+  assert.equal((await foglioDellaProposta(esito.propostaId)).get('stato'), 'scaduta');
+  assert.equal((await notifica(esito.propostaId, 'missionExpired')).get('rimborsoCents'), 0);
+  assert.equal(rimborsi.length, 0);
+});
+
+test('un rimborso che Stripe non accetta non si perde: riprova da solo, e avvisa una volta', async () => {
+  let giu = true;
+  const rimborsi = [];
+
+  stripeDelRimborso({
+    refunds: {
+      create: async (dati) => {
+        if (giu) {
+          throw new Error('Stripe giu');
+        }
+
+        rimborsi.push(dati);
+
+        return { amount: dati.amount };
+      },
+    },
+  });
+
+  const { challengeId: id } = await lanciaPagandoPrima(40);
+
+  await payments.accendiLaGara(id, 'pi_giu', 234);
+
+  const esito = await pannelloCome('decidiProposta', { id, decisione: 'rifiuta', motivo: 'no' });
+
+  assert.equal(esito.esiti[0].rimborso.daRifare, true);
+  assert.equal((await foglioDellaProposta(id)).get('rimborso'), 'daRifare');
+  // La missione resta, con i soldi: non e' sparita niente.
+  assert.equal((await laGara(id)).get('prizeStatus'), 'inRevisione');
+  assert.equal((await notifica(id, 'missionRejected')).exists, false);
+
+  giu = false;
+
+  const giro = await missioni.chiudiLeScadute();
+
+  assert.ok(giro.riprovati >= 1);
+  assert.equal(rimborsi[0].amount, 205);
+  assert.equal((await foglioDellaProposta(id)).get('rimborso'), 'fatto');
+  assert.equal((await laGara(id)).exists, false);
+  assert.equal((await notifica(id, 'missionRejected')).get('rimborsoCents'), 205);
+
+  await db
+    .collection('giudizi')
+    .doc((await foglioDellaProposta(id)).get('impronta'))
+    .delete();
+});
+
+test('un rimborso rimasto a meta perche il server si e fermato riparte da solo', async () => {
+  const rimborsi = stripeDelRimborso();
+  const { challengeId: id } = await lanciaPagandoPrima(40);
+
+  await payments.accendiLaGara(id, 'pi_appeso', 234);
+
+  // Chiusa, e il server si ferma prima di rimborsare.
+  await db
+    .collection('missioniProposte')
+    .doc(id)
+    .update({
+      stato: 'scaduta',
+      rimborso: 'daFare',
+      rimborsoTipo: 'missionExpired',
+      decisaIl: admin.firestore.Timestamp.now(),
+      scadeIl: admin.firestore.FieldValue.delete(),
+    });
+
+  // Appena chiusa potrebbe essere ancora al lavoro: non ci si mette in mezzo.
+  let giro = await missioni.chiudiLeScadute();
+
+  assert.equal(giro.riprovati, 0);
+  assert.equal(rimborsi.length, 0);
+
+  giro = await missioni.chiudiLeScadute(Date.now() + 6 * 60 * 1000);
+
+  assert.equal(giro.riprovati, 1);
+  assert.equal(rimborsi[0].amount, 205);
+  assert.equal((await foglioDellaProposta(id)).get('rimborso'), 'fatto');
+  assert.equal((await notifica(id, 'missionExpired')).get('rimborsoCents'), 205);
+});
+
+test('nei guadagni una rifiutata lascia CRASY a zero, e una in revisione puo tornare', async () => {
+  const gara = db.collection('challenges').doc('guadagni-rev');
+
+  await gara.set({ title: 'In revisione', prizeCents: 200, prizeStatus: 'inRevisione' });
+
+  stripeFinto = {
+    balanceTransactions: {
+      list: async function* () {
+        // Rifiutata: pagati 234, tornati 205, Stripe ne ha tenuti 29.
+        yield {
+          type: 'charge',
+          amount: 234,
+          fee: 29,
+          created: 200,
+          source: {
+            amount_refunded: 205,
+            metadata: { challengeId: 'non-ce-piu', prizeCents: '200' },
+          },
+        };
+        // In revisione: pagata e ancora ferma.
+        yield {
+          type: 'charge',
+          amount: 234,
+          fee: 29,
+          created: 100,
+          source: { metadata: { challengeId: 'guadagni-rev', prizeCents: '200' } },
+        };
+      },
+    },
+  };
+
+  const { totali, righe } = await funzioni.adminGuadagni.run({
+    auth: { uid: CHI_MODERA, token: { admin: true } },
+    data: { giorni: 30 },
+  });
+  const [rifiutata, inRevisione] = righe;
+
+  assert.equal(rifiutata.stato, 'rimborsata, senza le commissioni di Stripe');
+  assert.equal(rifiutata.tuo, 0);
+  assert.equal(rifiutata.reso, 205);
+  assert.equal(rifiutata.alVincitore, 0);
+
+  assert.equal(inRevisione.stato, 'pagata, in revisione');
+  assert.equal(totali.guadagnoInAttesa, inRevisione.tuo);
+  assert.equal(totali.guadagno, inRevisione.tuo);
+
+  await gara.delete();
+});
+
+test('pagata col portafoglio: resta in pausa, e se non esce torna tutta nel portafoglio', async () => {
+  const utente = db.collection('users').doc(CHI);
+  const saldoPrima = (await utente.get()).get('walletCents') || 0;
+
+  await utente.set({ walletCents: saldoPrima + 300 }, { merge: true });
+
+  const { challengeId: id } = await lanciaPagandoPrima(60);
+  const pagata = await chiama(payments.payChallengeFromWallet, { challengeId: id });
+
+  assert.equal(pagata.ok, true);
+  assert.equal((await utente.get()).get('walletCents'), saldoPrima + 100);
+  assert.equal((await laGara(id)).get('prizeStatus'), 'inRevisione');
+  assert.equal((await laGara(id)).get('paidFromWallet'), true);
+
+  const proposta = await foglioDellaProposta(id);
+
+  assert.equal(proposta.get('stato'), 'daControllare');
+  assert.equal(proposta.get('pagatoCents'), 200);
+
+  // Il secondo tocco non paga di nuovo.
+  const secondo = await chiama(payments.payChallengeFromWallet, { challengeId: id });
+
+  assert.equal(secondo.giaPagata, true);
+  assert.equal((await utente.get()).get('walletCents'), saldoPrima + 100);
+
+  stripeFinto = { accounts: {}, balance: {}, balanceTransactions: {} };
+
+  const esito = await pannelloCome('decidiProposta', { id, decisione: 'rifiuta', motivo: 'no' });
+
+  assert.deepEqual(esito.esiti[0].rimborso, { restituitoCents: 200, dove: 'portafoglio' });
+  assert.equal((await utente.get()).get('walletCents'), saldoPrima + 300);
+
+  await utente.set({ walletCents: saldoPrima }, { merge: true });
+  await db
+    .collection('giudizi')
+    .doc((await foglioDellaProposta(id)).get('impronta'))
+    .delete();
+});
+
+test('non partecipa nessuno: tornano i soldi tranne le commissioni di Stripe', async () => {
+  const rimborsi = stripeDelRimborso();
+
+  prossimoVoto = voto(99);
+
+  const { challengeId: id } = await proponi(richiesta({ prizeCents: 200 }));
+
+  await payments.accendiLaGara(id, 'pi_vuota', 234);
+
+  const contatoriPrima = (await db.collection('users').doc(CHI).get()).get('totalStakedCents') || 0;
+  const esito = await payments.refundChallenge(id);
+
+  assert.deepEqual(esito, { restituito: 205, dove: 'carta' });
+  assert.equal(rimborsi[0].amount, 205);
+  assert.equal((await laGara(id)).get('prizeStatus'), 'refunded');
+
+  const registro = await db
+    .collection('users')
+    .doc(CHI)
+    .collection('ledger')
+    .doc(`rimborso_${id}`)
+    .get();
+
+  assert.equal(registro.get('amountCents'), 205);
+  assert.match(registro.get('note'), /senza le commissioni di Stripe: non ha partecipato nessuno/);
+
+  const ricevuta = await db.collection('users').doc(CHI).collection('refunds').doc(id).get();
+
+  assert.equal(ricevuta.get('motivo'), 'nessun-partecipante');
+
+  // Era uscita: dal conteggio di chi fa giocare esce.
+  const contatoriDopo = (await db.collection('users').doc(CHI).get()).get('totalStakedCents') || 0;
+
+  assert.equal(contatoriDopo, contatoriPrima - 200);
+
+  await db.collection('challenges').doc(id).delete();
+});
+
+test('se non si riesce a leggere la commissione il rimborso parte lo stesso', async () => {
+  const rimborsi = stripeDelRimborso({
+    paymentIntents: {
+      retrieve: async () => {
+        throw new Error('Stripe giu');
+      },
+    },
+  });
+
+  prossimoVoto = voto(99);
+
+  const { challengeId: id } = await proponi(richiesta({ prizeCents: 200 }));
+
+  await payments.accendiLaGara(id, 'pi_cieca', 234);
+  await payments.refundChallenge(id);
+
+  // Il premio e il servizio: quello che resta togliendo la commissione attesa.
+  assert.equal(rimborsi[0].amount, 205);
+  await db.collection('challenges').doc(id).delete();
+});
+
+test('chi cancella riceve solo il premio, e una gara in corso non torna come in revisione', async () => {
+  const rimborsi = stripeDelRimborso();
+
+  prossimoVoto = voto(99);
+
+  const { challengeId: id } = await proponi(richiesta({ prizeCents: 200 }));
+
+  await payments.accendiLaGara(id, 'pi_mia', 234);
+
+  // Una decisione arrivata tardi non tocca una gara gia' uscita.
+  assert.equal(await payments.refundChallenge(id, { inRevisione: true }), undefined);
+  assert.equal(rimborsi.length, 0);
+
+  await payments.refundChallenge(id, { soloIlPremio: true });
+  assert.equal(rimborsi[0].amount, 200);
+  await db.collection('challenges').doc(id).delete();
+});
+
+test('le versioni vecchie dell app restano sul giro di prima', async () => {
+  prossimoVoto = voto(60);
+
+  const esito = await proponi(richiesta({ prizeCents: 200 }));
+
+  assert.equal(esito.stato, 'inControllo');
+  assert.equal(esito.challengeId, undefined);
+
+  const proposta = await foglioDellaProposta(esito.propostaId);
+
+  assert.equal(proposta.get('stato'), 'daControllare');
+  assert.ok(proposta.get('scadeIl'));
+
+  await pannelloCome('decidiProposta', { id: esito.propostaId, decisione: 'approva' });
+  assert.equal((await notifica(esito.propostaId, 'missionApproved')).get('challengeId'), '');
+  await db.collection('giudizi').doc(proposta.get('impronta')).delete();
+});
+
+test('da 90 in su non cambia niente: esce e si paga', async () => {
+  const esito = await lanciaPagandoPrima(99);
+
+  assert.equal(esito.stato, 'inGara');
+  assert.equal((await laGara(esito.challengeId)).get('inRevisione'), undefined);
+  await payments.accendiLaGara(esito.challengeId, 'pi_alto', 234);
+  assert.equal((await laGara(esito.challengeId)).get('prizeStatus'), 'held');
+});
+
+test('chi l ha lanciata la modifica finche non partecipa nessuno', async () => {
+  prossimoVoto = voto(99);
+
+  const { challengeId: id } = await proponi(
+    richiesta({ prizeCents: 200, source: 'instant', maxParticipants: 15, minutes: 60 })
+  );
+
+  await payments.accendiLaGara(id, 'pi_mod', 234);
+
+  const modifica = (dati, uid) =>
+    chiama(missioni.modificaMissione, { challengeId: id, ...dati }, uid);
+
+  await modifica({ source: 'archive', maxParticipants: 10, mediaKind: 'video', minutes: 120 });
+
+  let gara = await laGara(id);
+
+  assert.equal(gara.get('source'), 'archive');
+  assert.equal(gara.get('maxParticipants'), 10);
+  assert.equal(gara.get('mediaKind'), 'video');
+  assert.equal(
+    gara.get('endsAt').toMillis() - gara.get('startsAt').toMillis(),
+    120 * 60 * 1000
+  );
+  // Il premio e il testo non si toccano.
+  assert.equal(gara.get('prizeCents'), 200);
+
+  await assert.rejects(modifica({ maxParticipants: 5, title: 'Altro' }, AMICO), /non è tua/);
+  await assert.rejects(modifica({ source: 'boh' }), /non è valido/);
+  await assert.rejects(modifica({ maxParticipants: 0 }), /posti/);
+  await assert.rejects(modifica({ minutes: 100000 }), /24 ore/);
+  await assert.rejects(modifica({}), /Non hai cambiato/);
+
+  // Una foto dentro, e non si tocca piu'.
+  await db.collection('challenges').doc(id).collection('entries').doc('e1').set({ votes: 0 });
+  await assert.rejects(modifica({ maxParticipants: 5 }), /già partecipato/);
+  await db.collection('challenges').doc(id).collection('entries').doc('e1').delete();
+
+  await db.collection('challenges').doc(id).update({ participantsCount: 1 });
+  await assert.rejects(modifica({ maxParticipants: 5 }), /già partecipato/);
+  await db.collection('challenges').doc(id).update({ participantsCount: 0 });
+
+  // Il titolo mandato insieme non passa: resta quello controllato.
+  const titolo = gara.get('title');
+
+  await modifica({ maxParticipants: 7, title: 'Scritto dopo il controllo' });
+  gara = await laGara(id);
+  assert.equal(gara.get('title'), titolo);
+  assert.equal(gara.get('maxParticipants'), 7);
+
+  // Finita non si modifica.
+  await db
+    .collection('challenges')
+    .doc(id)
+    .update({ endsAt: admin.firestore.Timestamp.fromMillis(Date.now() - 1000) });
+  await assert.rejects(modifica({ maxParticipants: 5 }), /non è in gara/);
+  await db.collection('challenges').doc(id).delete();
+});
+
+test('una sfida a una persona non si modifica, e una non pagata nemmeno', async () => {
+  prossimoVoto = voto(99);
+
+  const sfida = await proponi(
+    richiesta({ targetUserId: AMICO, scope: 'friends', prizeCents: 0, duelMessage: '' })
+  );
+
+  await assert.rejects(
+    chiama(missioni.modificaMissione, { challengeId: sfida.challengeId, minutes: 120 }),
+    /sfida/
+  );
+
+  const nonPagata = await proponi(richiesta({ prizeCents: 200 }));
+
+  await assert.rejects(
+    chiama(missioni.modificaMissione, { challengeId: nonPagata.challengeId, minutes: 120 }),
+    /non è in gara/
+  );
+
+  await db.collection('challenges').doc(sfida.challengeId).delete();
+  await db.collection('challenges').doc(nonPagata.challengeId).delete();
+});
+
 test('il pannello si apre solo agli amministratori', async () => {
   await assert.rejects(pannelloCome('panoramica', {}, CHI, {}), /Non sei un amministratore/);
   await assert.rejects(

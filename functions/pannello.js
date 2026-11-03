@@ -353,6 +353,12 @@ function propostaPerIlPannello(doc, tentativi, nomi) {
     giudizio: d.giudizio || null,
     filtro: d.filtro || { rossa: null, gialle: [] },
     challengeId: d.challengeId || null,
+    pagataIl: ms(d.pagataIl),
+    pagatoCents: d.pagatoCents || 0,
+    scadeIl: ms(d.scadeIl),
+    rimborso: d.rimborso || '',
+    rimborsatiCents: d.rimborsatiCents || 0,
+    rimborsatiDove: d.rimborsatiDove || '',
     motivoDecisione: d.motivoDecisione || '',
     decisaDa: nomi ? nomi.get(d.decisaDa) || d.decisaDa || '' : d.decisaDa || '',
     decisaIl: ms(d.decisaIl),
@@ -363,7 +369,7 @@ function propostaPerIlPannello(doc, tentativi, nomi) {
 
 /** Le proposte di uno stato, con quante volte quella persona si e' gia' fatta fermare. */
 async function proposte({ stato, limite }) {
-  const stati = ['daControllare', 'daConfermare', 'bloccata', 'approvata', 'rifiutata'];
+  const stati = ['daControllare', 'daConfermare', 'bloccata', 'approvata', 'rifiutata', 'scaduta'];
 
   if (!stati.includes(stato)) {
     throw new HttpsError('invalid-argument', 'Stato non valido.');
@@ -496,7 +502,14 @@ async function gare({ filtro }) {
     query = tutte.where('endsAt', '>', adesso).orderBy('endsAt');
   }
 
-  const fogli = await query.limit(120).get();
+  const lette = await query.limit(120).get();
+  // Quelle in revisione non sono in gara: si decidono dalla loro coda, con i soldi dentro.
+  const fogli = {
+    docs: lette.docs.filter((doc) => doc.get('prizeStatus') !== 'inRevisione'),
+    get empty() {
+      return this.docs.length === 0;
+    },
+  };
   const proposteDi = fogli.empty
     ? []
     : await db.getAll(...fogli.docs.map((doc) => db.collection(missioni.PROPOSTE).doc(doc.id)));
@@ -603,6 +616,10 @@ async function togliGara({ id, motivo, sospendiGiorni }, chi) {
     throw new HttpsError('not-found', 'Questa missione non c\'è più.');
   }
 
+  if (doc.get('prizeStatus') === 'inRevisione') {
+    throw new HttpsError('failed-precondition', 'È in revisione: decidila dalle Missioni.');
+  }
+
   const autore = await autoreDi(doc);
   const titolo = doc.get('title') || '';
 
@@ -638,6 +655,10 @@ async function chiudiGara({ id }, chi) {
 
   if (!doc.exists) {
     throw new HttpsError('not-found', 'Questa missione non c\'è più.');
+  }
+
+  if (doc.get('prizeStatus') === 'inRevisione') {
+    throw new HttpsError('failed-precondition', 'È in revisione: decidila dalle Missioni.');
   }
 
   const fine = doc.get('endsAt');

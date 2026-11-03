@@ -21,6 +21,7 @@ import 'package:crasy/features/challenges/presentation/controllers/create_challe
 import 'package:crasy/features/challenges/presentation/providers/missioni_pronte_providers.dart';
 import 'package:crasy/features/challenges/presentation/widgets/anonimo_switch.dart';
 import 'package:crasy/features/challenges/presentation/widgets/esito_missione.dart';
+import 'package:crasy/features/challenges/presentation/widgets/modifica_missione.dart';
 import 'package:crasy/features/legal/presentation/widgets/legal_sheet.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 import 'package:crasy/features/payments/domain/prize_ledger.dart';
@@ -79,14 +80,7 @@ class CreateChallengePage extends ConsumerStatefulWidget {
 ///
 /// Erano uno strumento di sviluppo lasciato in mano alla gente, ed e' il tipo di
 /// cosa che non si nota finche' qualcuno non la tocca.
-const _durations = <(int, String)>[
-  (60, '1 ORA'),
-  (120, '2 ORE'),
-  (180, '3 ORE'),
-  (300, '5 ORE'),
-  (600, '10 ORE'),
-  (1440, '24 ORE'),
-];
+const _durations = durateDellaMissione;
 
 class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
   final _formKey = GlobalKey<FormState>();
@@ -516,8 +510,8 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                     AvvisoPrimaDelLancio(conPremio: _daPagareOra),
                     const SizedBox(height: AppSpacing.md),
                     // **Il tasto non dice "paga".** Premendolo non si paga: si fa
-                    // controllare la missione, e il pagamento si apre solo se passa.
-                    // Se e' gia' passata e il pagamento non e' andato, si riprova.
+                    // controllare la missione, e poi si apre il pagamento. Se e' gia'
+                    // stata controllata e il pagamento non e' andato, si riprova.
                     CrasyButton(
                       label: _daPagare == null
                           ? 'Lancia la challenge'
@@ -629,6 +623,24 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
   /// lo tiene acceso per la carta.
   bool _dalPortafoglio = false;
 
+  /// La deve guardare una persona: si paga adesso, e resta in pausa.
+  bool _inRevisione = false;
+
+  /// **Pagata: la missione non si apre, perche' non e' ancora uscita.** Si dice cosa
+  /// succede adesso, e il modulo se ne va.
+  Future<void> _finisciInRevisione() async {
+    setState(() {
+      _passo = null;
+      _dalPortafoglio = false;
+    });
+
+    await mostraMissioneInRevisione(context);
+
+    if (mounted) {
+      context.pop();
+    }
+  }
+
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
@@ -649,7 +661,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
         : AppMoney.centsFrom(_prize.text) ?? 0;
 
     // Si riprova a pagare **quella di prima**, non se ne scrive un'altra.
-    final challengeId =
+    final scritta =
         _daPagare ??
         await ref
             .read(createChallengeControllerProvider.notifier)
@@ -674,12 +686,15 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
       return;
     }
 
-    if (challengeId == null) {
+    final String challengeId;
+
+    if (scritta != null) {
+      challengeId = scritta;
+    } else {
       final error = ref.read(createChallengeControllerProvider).error;
 
-      // **Non e' un errore: la guarda una persona.** La missione non e' ancora una
-      // gara e nessuno ha pagato niente: si dice, e il modulo se ne va. Riscriverla
-      // da qui non servirebbe, la risposta arriva in campanella.
+      // **Non e' un errore: la guarda una persona.** Si dice, e il modulo se ne va.
+      // Riscriverla da qui non servirebbe, la risposta arriva in campanella.
       if (error is MissioneInControllo) {
         await mostraMissioneInControllo(context);
 
@@ -699,13 +714,20 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
         return;
       }
 
-      setState(() {
-        _error = error == null
-            ? 'Non siamo riusciti a lanciarla. Riprova.'
-            : ErrorMessageMapper.map(error);
-      });
+      // **La deve guardare una persona, e c'e' un premio: si paga adesso.** Da qui si
+      // va avanti come per ogni altro pagamento, con in piu' quello che succede dopo.
+      if (error is! MissioneDaPagareInRevisione) {
+        setState(() {
+          _error = error == null
+              ? 'Non siamo riusciti a lanciarla. Riprova.'
+              : ErrorMessageMapper.map(error);
+        });
 
-      return;
+        return;
+      }
+
+      _inRevisione = true;
+      challengeId = error.challengeId;
     }
 
     // Da qui in poi la missione esiste. Se il pagamento non riesce, e' questa
@@ -722,7 +744,28 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     // fra amici e' visibile da subito, e mandarla a Stripe con zero euro
     // voleva dire un rifiuto del server e una gara bloccata a meta'.
     if (paymentsEnabled && prizeCents > 0) {
-      if (primoLancio) {
+      // **Tutto quello che succede ai soldi, prima di pagarli.** Ogni volta, anche
+      // riprovando: si sta pagando una missione che potrebbe non uscire.
+      if (_inRevisione) {
+        final avanti = await chiediConfermaRevisione(
+          context,
+          premioCents: prizeCents,
+        );
+
+        if (!mounted) {
+          return;
+        }
+
+        if (!avanti) {
+          setState(() {
+            _error =
+                'Non è ancora partita: finché non la paghi non la guarda nessuno. '
+                'È salvata, puoi pagarla da qui.';
+          });
+
+          return;
+        }
+      } else if (primoLancio) {
         avvisaApprovata(context);
       }
 
@@ -805,6 +848,12 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
             return;
           }
 
+          if (_inRevisione) {
+            await _finisciInRevisione();
+
+            return;
+          }
+
           // **Qui si atterra sulla gara, al contrario che con la carta.**
           //
           // Con Stripe si torna indietro, perche' la gara non e' visibile
@@ -838,7 +887,9 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               // aperto il modulo: la scheda delle challenge, o l'attivita'
               // degli amici per le missioni di party. Sono le sole due porte
               // da cui si entra qui.
-              returnRoute: widget.forFriends
+              returnRoute: _inRevisione
+                  ? AppRoutes.missioneInRevisione
+                  : widget.forFriends
                   ? AppRoutes.friendsActivity
                   : AppRoutes.challenges,
               // **Si scrive a schermo a che punto e'.**
@@ -895,6 +946,12 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               'Non siamo riusciti ad aprire il pagamento. La challenge è '
               'salvata: riprova fra poco.';
         });
+
+        return;
+      }
+
+      if (_inRevisione) {
+        await _finisciInRevisione();
 
         return;
       }

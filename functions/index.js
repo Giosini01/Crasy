@@ -4,6 +4,7 @@ const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const {
   onDocumentCreated,
+  onDocumentUpdated,
   onDocumentDeleted,
   onDocumentWritten,
 } = require('firebase-functions/v2/firestore');
@@ -343,6 +344,8 @@ exports.proponiMissione = missioni.proponiMissione;
 exports.leggiLaMiaProposta = missioni.leggiLaMiaProposta;
 exports.lanciaMissioneApprovata = missioni.lanciaMissioneApprovata;
 exports.pulisciLeProposte = missioni.pulisciLeProposte;
+exports.scadonoLeRevisioni = missioni.scadonoLeRevisioni;
+exports.modificaMissione = missioni.modificaMissione;
 
 // **Il pannello: tutto quello che la pagina di amministrazione vede e fa.**
 exports.adminPannello = require('./pannello').adminPannello;
@@ -1437,10 +1440,9 @@ async function scriviIlVincitoreDelDuello(challenge, verdetto) {
 
 /**
  * **I soldi di una sfida mirata chiusa.** C'e' un vincitore: gli va il
- * premio. Non c'e': tornano a chi li aveva messi — tutto, commissioni
- * comprese, tranne quando a bocciare la foto e' stato proprio lui. In quel
- * caso torna il premio e restano le spese: bocciare per riavere i soldi
- * gratis sarebbe troppo comodo.
+ * premio. Non c'e': tornano a chi li aveva messi, tranne le commissioni di
+ * Stripe. Se a bocciare la foto e' stato proprio lui torna solo il premio:
+ * bocciare per riavere i soldi gratis sarebbe troppo comodo.
  *
  * Ripetibile senza danni: `payWinner` e `refundChallenge` non fanno niente
  * se il premio non e' piu' `held`.
@@ -2579,10 +2581,19 @@ exports.sendPushOnNotification = onDocumentCreated(
       // **La risposta sulla missione che si era proposta.** Sono loro stessi la
       // notizia, e il motivo di un no sta in campanella, non su uno schermo bloccato
       // che leggono anche gli altri.
-      missionApproved: dati.premioCents > 0
+      missionApproved: dati.premioCents > 0 && !dati.challengeId
         ? 'La tua missione è approvata: paga il premio e parte'
         : 'La tua missione è approvata: è in gara',
-      missionRejected: 'La tua missione non può uscire. Apri per sapere perché',
+      missionRejected: dati.rimborsoCents > 0
+        ? `La tua missione non è stata accettata: ti tornano €${(dati.rimborsoCents / 100)
+            .toFixed(2)
+            .replace('.', ',')}. Apri per sapere perché`
+        : 'La tua missione non può uscire. Apri per sapere perché',
+      missionExpired: dati.rimborsoCents > 0
+        ? `La tua missione non è stata caricata: ti tornano €${(dati.rimborsoCents / 100)
+            .toFixed(2)
+            .replace('.', ',')}`
+        : 'La tua missione non è stata caricata',
       partyMission: gara
         ? `${tag} ha lanciato una missione: ${gara}`
         : `${tag} ha lanciato una missione per il party`,
@@ -4295,55 +4306,77 @@ exports.avvisaDellaProposta = onDocumentCreated(
     secrets: [posta.SMTP_PASSWORD, posta.RESEND_API_KEY],
   },
   async (event) => {
-    const dati = event.data?.data();
+    await avvisaChiModera(event.data?.data());
+  }
+);
 
-    if (!dati || !['daControllare', 'daConfermare'].includes(dati.stato)) {
-      return;
-    }
-
-    const voto = Number.isInteger(dati.voto) ? `${dati.voto}/100` : 'senza voto';
-    const conferma = dati.stato === 'daConfermare';
-    const frase = `${conferma ? 'Da confermare' : 'Da controllare'} (${voto}): ${dati.title}`;
-
-    const chi = await db.collection('impostazioni').doc('amministratori').get();
-    const amministratori = (chi.exists && chi.get('uids')) || [];
-
-    await Promise.all(
-      amministratori.map((uid) =>
-        mandaAUnaPersona(uid, frase, {
-          kind: 'moderazione',
-          challengeId: '',
-        }).catch((errore) => {
-          logger.warn('avviso a chi modera non partito', { uid, errore });
-        })
-      )
-    );
-
-    const motivo = dati.giudizio?.motivo
-      ? dati.giudizio.motivo
-      : dati.giudizio?.perche ? `L'AI non ha risposto: ${dati.giudizio.perche}` : '';
-    const parole = (dati.filtro?.gialle || []).map((g) => g.termine).join(', ');
-
-    try {
-      await posta.spedisci({
-        from: '"CRASY" <' + posta.CASELLA + '>',
-        to: 'info@crasyapp.com',
-        subject: `Missione ${conferma ? 'da confermare' : 'da controllare'}: ${dati.title}`,
-        text: [
-          `${dati.title}`,
-          `${dati.brief}`,
-          dati.duelMessage ? `Messaggio: ${dati.duelMessage}` : '',
-          `Voto: ${voto}`,
-          motivo ? `Perché: ${motivo}` : '',
-          parole ? `Parole: ${parole}` : '',
-          `Di: @${dati.username}`,
-          'https://crasyapp.com/admin/#/missioni',
-        ]
-          .filter(Boolean)
-          .join('\n\n'),
-      });
-    } catch (errore) {
-      logger.error('email a chi modera non partita', errore);
+/**
+ * **Una missione pagata entra in coda solo adesso.** Prima del pagamento non c'e' niente da
+ * guardare: chi chiude il foglio di Stripe non deve far squillare il telefono di nessuno.
+ */
+exports.avvisaDellaPropostaPagata = onDocumentUpdated(
+  {
+    document: 'missioniProposte/{propostaId}',
+    secrets: [posta.SMTP_PASSWORD, posta.RESEND_API_KEY],
+  },
+  async (event) => {
+    if (event.data?.before.get('stato') === 'daPagare') {
+      await avvisaChiModera(event.data.after.data());
     }
   }
 );
+
+async function avvisaChiModera(dati) {
+  if (!dati || !['daControllare', 'daConfermare'].includes(dati.stato)) {
+    return;
+  }
+
+  const voto = Number.isInteger(dati.voto) ? `${dati.voto}/100` : 'senza voto';
+  const conferma = dati.stato === 'daConfermare';
+  const pagata = dati.pagataIl
+    ? `Ha già pagato: se non decidi entro ${payments.ORE_DI_REVISIONE} ore gli tornano i soldi in automatico.`
+    : '';
+  const frase = `${conferma ? 'Da confermare' : 'Da controllare'} (${voto}): ${dati.title}`;
+
+  const chi = await db.collection('impostazioni').doc('amministratori').get();
+  const amministratori = (chi.exists && chi.get('uids')) || [];
+
+  await Promise.all(
+    amministratori.map((uid) =>
+      mandaAUnaPersona(uid, frase, {
+        kind: 'moderazione',
+        challengeId: '',
+      }).catch((errore) => {
+        logger.warn('avviso a chi modera non partito', { uid, errore });
+      })
+    )
+  );
+
+  const motivo = dati.giudizio?.motivo
+    ? dati.giudizio.motivo
+    : dati.giudizio?.perche ? `L'AI non ha risposto: ${dati.giudizio.perche}` : '';
+  const parole = (dati.filtro?.gialle || []).map((g) => g.termine).join(', ');
+
+  try {
+    await posta.spedisci({
+      from: '"CRASY" <' + posta.CASELLA + '>',
+      to: 'info@crasyapp.com',
+      subject: `Missione ${conferma ? 'da confermare' : 'da controllare'}: ${dati.title}`,
+      text: [
+        `${dati.title}`,
+        `${dati.brief}`,
+        dati.duelMessage ? `Messaggio: ${dati.duelMessage}` : '',
+        `Voto: ${voto}`,
+        motivo ? `Perché: ${motivo}` : '',
+        parole ? `Parole: ${parole}` : '',
+        pagata,
+        `Di: @${dati.username}`,
+        'https://crasyapp.com/admin/#/missioni',
+      ]
+        .filter(Boolean)
+        .join('\n\n'),
+    });
+  } catch (errore) {
+    logger.error('email a chi modera non partita', errore);
+  }
+}

@@ -906,7 +906,8 @@ exports.adminGuadagni = onCall(
 
       // Il vincitore riceve il premio meno il dieci per cento. **Se c'e' stato
       // un rimborso non c'e' nessun vincitore**: la missione e' stata annullata
-      // (torna il premio) o e' finita senza nessuno (torna tutto). Quello che
+      // (torna il premio) o e' finita senza nessuno (torna tutto tranne le
+      // commissioni di Stripe). Quello che
       // resta sono le spese di incasso trattenute, e sono di CRASY — prima qui
       // finivano "al vincitore", e una missione annullata risultava in perdita.
       const perIlVincitore = premio - Math.floor(premio / 10);
@@ -920,12 +921,16 @@ exports.adminGuadagni = onCall(
       const statoPremio = doc.exists ? String(doc.get('prizeStatus') || '') : 'cancellata';
       const stato = reso >= movimento.amount
         ? 'rimborsata'
-        : reso > 0
+        : reso > 0 && reso === premio
         ? 'annullata, premio reso'
+        : reso > 0
+        ? 'rimborsata, senza le commissioni di Stripe'
         : statoPremio === 'paidOut'
         ? 'pagata al vincitore'
         : statoPremio === 'held'
         ? 'in gara / da pagare'
+        : statoPremio === 'inRevisione'
+        ? 'pagata, in revisione'
         : statoPremio || 'cancellata';
 
       totali.aiVincitori += alVincitore;
@@ -933,7 +938,7 @@ exports.adminGuadagni = onCall(
 
       // **In attesa** finche' i soldi del vincitore non sono usciti: la gara
       // puo' ancora chiudersi senza nessuno e tornare tutta indietro.
-      if (statoPremio === 'held' && reso === 0) {
+      if ((statoPremio === 'held' || statoPremio === 'inRevisione') && reso === 0) {
         totali.guadagnoInAttesa += tuo;
       }
 
@@ -984,6 +989,16 @@ async function rimuoviLaMissione(challengeId, chi) {
     // CRASY, e' di chi l'ha versato (Termini, punti 4 e 7).
     await require('./payments')
       .refundChallenge(challengeId, { soloIlPremio: true })
+      .catch((errore) => logger.error('Premio non reso.', errore));
+  }
+
+  // Pagata e mai uscita: tornano i soldi come quando la si rifiuta.
+  if (gara.get('prizeStatus') === 'inRevisione') {
+    await require('./payments')
+      .refundChallenge(challengeId, {
+        inRevisione: true,
+        motivoDelRimborso: 'non-accettata',
+      })
       .catch((errore) => logger.error('Premio non reso.', errore));
   }
 
