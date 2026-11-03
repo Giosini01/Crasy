@@ -18,6 +18,7 @@ import { mostraPersona, mostraPersone } from './persone.js';
 import { mostraFoto } from './foto.js';
 import { mostraSegnalazioni } from './segnalazioni.js';
 import { mostraSoldi } from './soldi.js';
+import { mostraSpese } from './spese.js';
 import { mostraAutomatiche } from './automatiche.js';
 import { mostraRegole } from './regole.js';
 import { mostraRegistro } from './registro.js';
@@ -32,6 +33,7 @@ const VOCI = [
   { id: 'foto', nome: 'Foto', mostra: mostraFoto },
   { id: 'segnalazioni', nome: 'Segnalazioni', mostra: mostraSegnalazioni },
   { id: 'soldi', nome: 'Soldi', mostra: mostraSoldi },
+  { id: 'spese', nome: 'Spese', mostra: mostraSpese },
   { id: 'automatiche', nome: 'Automatiche', mostra: mostraAutomatiche },
   { id: 'regole', nome: 'Regole', mostra: mostraRegole },
   { id: 'registro', nome: 'Registro', mostra: mostraRegistro },

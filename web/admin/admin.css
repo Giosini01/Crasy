@@ -516,3 +516,7 @@ td b { font-weight: 800; }
 .carico { color: var(--fioco); padding: 26px 0; }
 .indietro { display: inline-block; margin-bottom: 18px; font-size: 13px; font-weight: 800; color: var(--tenue); text-decoration: none; }
 .indietro:hover { color: var(--inchiostro); }
+
+/* Il dettaglio che non deve riempire la pagina, ma deve poterci stare. */
+.dettagli { margin-top: 14px; }
+.dettagli > summary { cursor: pointer; font-weight: 700; padding: 6px 0 10px; }

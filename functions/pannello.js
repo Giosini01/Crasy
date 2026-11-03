@@ -39,6 +39,7 @@ const sospensioni = require('./sospensioni');
 const { autoreDi } = require('./autori');
 const { togliLaFoto, rimuoviLaMissione } = require('./admin');
 const { PROVE } = require('./prove_missioni');
+const speseDiCrasy = require('./spese');
 
 const db = admin.firestore();
 
@@ -790,6 +791,107 @@ async function contiStripe({ giorni }) {
 }
 
 // ---------------------------------------------------------------------------
+// Tutte le spese
+// ---------------------------------------------------------------------------
+
+/** Le spese scritte a mano: un foglio solo, che non legge nessuno fuori dal pannello. */
+const SPESE_FISSE = 'speseFisse';
+
+/**
+ * **Tutte le spese, voce per voce.** Vedi `spese.js`. Ogni pezzo per conto suo: se Google non
+ * risponde, Stripe si deve vedere lo stesso, e il pannello dice cosa manca dal totale.
+ */
+async function tutteLeSpese({ giorni }) {
+  const quanti = Math.min(Math.max(Number(giorni) || 30, 1), 365);
+  const [stripe, consumi, vero, foglioFisse, fogliAI] = await Promise.all([
+    senzaFermarsi(
+      (async () => speseDiCrasy.speseStripe({ giorni: quanti }, payments.stripeClient()))(),
+      null,
+      'spese di Stripe'
+    ),
+    senzaFermarsi(speseDiCrasy.consumiGoogle({ giorni: quanti }), null, 'consumi di Google'),
+    senzaFermarsi(speseDiCrasy.contoVero({ giorni: quanti }), null, 'fattura di Google'),
+    db.collection(missioni.IMPOSTAZIONI).doc(SPESE_FISSE).get(),
+    db.collection(missioni.SPESE).where('giorno', '>=', giornoFa(quanti - 1)).get(),
+  ]);
+  const ai = sommaLeSpese(fogliAI.docs);
+  const fisse = speseDiCrasy.fissePerIlPeriodo(foglioFisse.get('voci'), quanti);
+  const googleVero = Boolean(vero && vero.attivo && vero.righe.length);
+  const consumiInCents = consumi ? Math.round(consumi.costo * 100) : null;
+  const parti = {
+    stripe: stripe ? stripe.totale : null,
+    ai: Math.round(ai.dollari * speseDiCrasy.DOLLARO_IN_EURO * 100),
+    google: googleVero ? Math.round(vero.netto * 100) : consumiInCents,
+    fisse: fisse.totale,
+  };
+
+  return {
+    giorni: quanti,
+    stripe,
+    consumi,
+    vero,
+    googleVero,
+    ai,
+    cambio: speseDiCrasy.DOLLARO_IN_EURO,
+    fisse,
+    parti,
+    totale: Object.values(parti).reduce((somma, parte) => somma + (parte || 0), 0),
+  };
+}
+
+async function aggiungiSpesaFissa(dati, chi) {
+  let voce;
+
+  try {
+    voce = speseDiCrasy.nuovaSpesaFissa(dati);
+  } catch (errore) {
+    throw new HttpsError('invalid-argument', errore.message);
+  }
+
+  const ref = db.collection(missioni.IMPOSTAZIONI).doc(SPESE_FISSE);
+
+  await db.runTransaction(async (transazione) => {
+    const foglio = await transazione.get(ref);
+    const voci = foglio.get('voci') || [];
+
+    if (voci.length >= 100) {
+      throw new HttpsError('failed-precondition', 'Ce ne sono già cento: toglierne una prima.');
+    }
+
+    transazione.set(ref, { voci: [...voci, voce] }, { merge: true });
+  });
+
+  await registra(chi, 'spesaFissa', { nome: voce.nome, cents: voce.cents, ogni: voce.ogni });
+
+  return { voce };
+}
+
+async function togliSpesaFissa({ id }, chi) {
+  const quale = testoObbligatorio(id, 'la spesa');
+  const ref = db.collection(missioni.IMPOSTAZIONI).doc(SPESE_FISSE);
+  let tolta = null;
+
+  await db.runTransaction(async (transazione) => {
+    const foglio = await transazione.get(ref);
+    const voci = foglio.get('voci') || [];
+
+    tolta = voci.find((voce) => voce.id === quale) || null;
+
+    if (tolta) {
+      transazione.set(ref, { voci: voci.filter((voce) => voce.id !== quale) }, { merge: true });
+    }
+  });
+
+  if (!tolta) {
+    throw new HttpsError('not-found', 'Questa spesa non c\'è più.');
+  }
+
+  await registra(chi, 'togliSpesaFissa', { nome: tolta.nome });
+
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
 // Le foto
 // ---------------------------------------------------------------------------
 
@@ -1380,6 +1482,7 @@ const LETTURE = {
   valutaGara,
   speseAI,
   contiStripe,
+  spese: tutteLeSpese,
   gare,
   gara,
   foto,
@@ -1392,6 +1495,8 @@ const LETTURE = {
 
 /** Quello che scrive: riceve anche chi lo sta facendo. */
 const SCRITTURE = {
+  aggiungiSpesaFissa,
+  togliSpesaFissa,
   decidiProposta,
   togliGara,
   chiudiGara,

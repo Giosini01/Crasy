@@ -4,9 +4,6 @@
  * Su Stripe arriva tutto insieme: premi di altri, spese e la parte di CRASY. Qui si
  * divide, incasso per incasso, con le spese vere lette da Stripe. L'AI si paga in dollari
  * e a parte, quindi non si sottrae: sommare due valute farebbe un numero che non e' vero.
- *
- * Di Stripe si mostra solo quello che prende in piu'. La commissione sugli incassi non ha
- * una cifra sua, ma resta dentro "Ti resta" e "Tuo": senza, quei numeri sarebbero falsi.
  */
 import {
   caricaIn,
@@ -39,6 +36,7 @@ async function caricaGuadagni(dove, giorni) {
       pannello('contiStripe', { giorni }),
     ]);
     const tiResta = t.guadagno - conti.altreSpese;
+    const costaStripe = t.speseStripe + conti.altreSpese;
 
     metti(
       dove,
@@ -60,9 +58,9 @@ async function caricaGuadagni(dove, giorni) {
         <div class="occhiello occhiello--rosso" style="margin:22px 0 10px">Quanto spendi</div>
         <div class="numeri">
           <div class="numero">
-            <div class="occhiello">Extra Stripe</div>
-            <div class="numero__cifra">${euro(conti.altreSpese)}</div>
-            <div class="numero__nota">quello che prende oltre alla commissione sugli incassi</div>
+            <div class="occhiello">Stripe</div>
+            <div class="numero__cifra">${euro(costaStripe)}</div>
+            <div class="numero__nota">${euro(t.speseStripe)} sugli incassi, ${euro(conti.altreSpese)} a parte</div>
           </div>
           <div class="numero">
             <div class="occhiello">Rimborsi fatti</div>
@@ -75,13 +73,13 @@ async function caricaGuadagni(dove, giorni) {
             <div class="numero__nota">${numero(conti.ai.giudizi)} giudizi pagati, ${numero(conti.ai.riusati)} riusati gratis</div>
           </div>
         </div>
-        <p class="sotto-riga" style="margin:10px 0 18px">L'AI è in dollari e non è sottratta da “Ti resta”. La bolletta di Firebase e gli abbonamenti Apple e Google non sono qui: stanno sui loro siti.</p>
+        <p class="sotto-riga" style="margin:10px 0 18px">L'AI è in dollari e non è sottratta da “Ti resta”. Firebase, database e abbonamenti stanno in <a href="#/spese">Spese</a>, con tutto il resto voce per voce.</p>
 
         ${righe.length
           ? html`<div class="tabella-giro" style="margin-top:14px"><table>
               <thead><tr>
                 <th>Quando</th><th>Cosa</th><th class="num">Pagato</th><th class="num">Reso</th>
-                <th class="num">Al vincitore</th><th class="num">Tuo</th><th>Stato</th>
+                <th class="num">Stripe</th><th class="num">Al vincitore</th><th class="num">Tuo</th><th>Stato</th>
               </tr></thead>
               <tbody>
                 ${righe.map(
@@ -90,6 +88,7 @@ async function caricaGuadagni(dove, giorni) {
                     <td>${r.cosa}${r.titolo ? html`<div class="sotto-riga">${r.titolo}</div>` : ''}</td>
                     <td class="num">${euro(r.pagato)}</td>
                     <td class="num">${r.reso ? euro(r.reso) : '—'}</td>
+                    <td class="num">${euro(r.stripe)}</td>
                     <td class="num">${r.alVincitore ? euro(r.alVincitore) : '—'}</td>
                     <td class="num"><b class="${r.tuo < 0 ? 'rosso' : ''}">${euro(r.tuo)}</b></td>
                     <td class="sotto-riga">${r.stato}</td>
@@ -133,7 +132,7 @@ async function caricaPrelievi(dove) {
   });
 }
 
-async function caricaSpeseAI(dove) {
+export async function caricaSpeseAI(dove) {
   await caricaIn(dove, async () => {
     const a = await pannello('speseAI');
     const perMille = a.allaMissione === null ? null : a.allaMissione * 1000;
@@ -225,11 +224,6 @@ export async function mostraSoldi(contenuto) {
       </div>
 
       <div class="sezione">
-        <h2>Quanto costa l'AI</h2>
-        <div id="speseAI"></div>
-      </div>
-
-      <div class="sezione">
         <h2>Mance</h2>
         <div id="mance"></div>
       </div>
@@ -287,6 +281,5 @@ export async function mostraSoldi(contenuto) {
   // ferma la lista dei bonifici.
   caricaPrelievi(prelievi);
   caricaGuadagni(guadagni, giorni);
-  caricaSpeseAI(contenuto.querySelector('#speseAI'));
   caricaMance(contenuto.querySelector('#mance'));
 }

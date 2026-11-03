@@ -104,8 +104,8 @@ export async function mostraPanoramica(contenuto, _parametri, ancoraQui) {
             <div class="numero__cifra rosso" id="guadagno30">…</div>
             <div class="numero__nota" id="guadagno30nota">Lo chiedo a Stripe</div>
           </a>
-          <a class="numero" href="#/soldi">
-            <div class="occhiello">Extra Stripe, 30 giorni</div>
+          <a class="numero" href="#/spese">
+            <div class="occhiello">Stripe costa, 30 giorni</div>
             <div class="numero__cifra" id="stripe30">…</div>
             <div class="numero__nota" id="stripe30nota">Lo chiedo a Stripe</div>
           </a>
@@ -148,8 +148,8 @@ export async function mostraPanoramica(contenuto, _parametri, ancoraQui) {
       $('guadagno30nota').textContent = guadagni.totali.guadagnoInAttesa
         ? `di cui ${euro(guadagni.totali.guadagnoInAttesa)} ancora in gara`
         : `su ${euro(guadagni.totali.incassato)} incassati`;
-      $('stripe30').textContent = euro(conti.altreSpese);
-      $('stripe30nota').textContent = 'oltre alla commissione sugli incassi';
+      $('stripe30').textContent = euro(guadagni.totali.speseStripe + conti.altreSpese);
+      $('stripe30nota').textContent = 'commissioni e spese';
     })
     .catch(() => {
       if (!ancoraQui()) {

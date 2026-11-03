@@ -14,6 +14,8 @@ const AZIONI = {
     `Ha sospeso una persona ${d.giorni ? `per ${d.giorni} giorni` : 'per sempre'}: ${d.motivo}`,
   insegna: (d) => `Ha insegnato al modello: “${d.title}” vale ${d.voto}, ${d.motivo}`,
   dimentica: () => 'Ha fatto dimenticare un esempio al modello',
+  spesaFissa: (d) => `Ha aggiunto la spesa “${d.nome}”`,
+  togliSpesaFissa: (d) => `Ha tolto la spesa “${d.nome}”`,
   impostazioni: (d) =>
     `Ha cambiato le regole: uscita da ${d.sogliaAuto}, conferma da ${d.sogliaConferma}${d.soloAMano ? ', solo a mano' : ''}`,
 };

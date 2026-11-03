@@ -933,6 +933,52 @@ test('la riga di un pagamento con la carta dice quanto ha pagato davvero', async
   await db.collection('users').doc('conto2').delete();
 });
 
+test('tutte le spese: stripe, google, ai e quelle scritte a mano', async () => {
+  const spese = require('../spese');
+
+  spese.servizi.token = async () => 'finto';
+  spese.servizi.fetch = async (url) => {
+    if (String(url).includes('bigquery')) {
+      return { ok: false, status: 404, text: async () => '{}' };
+    }
+
+    return { ok: true, status: 200, text: async () => '{}' };
+  };
+
+  const prima = await pannelloCome('spese', { giorni: 30 });
+
+  // Dal registro finto di Stripe: 50 sull'incasso, 200 di extra, 25 sul bonifico.
+  assert.equal(prima.stripe.totale, 275);
+  assert.equal(prima.parti.stripe, 275);
+  assert.equal(prima.parti.google, 0);
+  assert.equal(prima.googleVero, false);
+  assert.equal(prima.vero.perche, 'manca-il-dataset');
+  assert.equal(prima.fisse.totale, 0);
+
+  await assert.rejects(
+    pannelloCome('aggiungiSpesaFissa', { nome: 'Apple', euro: 'tanto', ogni: 'anno' }),
+    /quanto costa/
+  );
+
+  const { voce } = await pannelloCome('aggiungiSpesaFissa', { nome: 'Email', euro: 30, ogni: 'mese' });
+  const dopo = await pannelloCome('spese', { giorni: 30 });
+
+  assert.equal(dopo.parti.fisse, 3000);
+  assert.equal(dopo.totale, 275 + dopo.parti.ai + 3000);
+
+  // Si legge solo dal pannello: un telefono non ci arriva nemmeno.
+  await assert.rejects(pannelloCome('spese', {}, CHI, {}));
+
+  await pannelloCome('togliSpesaFissa', { id: voce.id });
+  assert.equal((await pannelloCome('spese', { giorni: 30 })).parti.fisse, 0);
+  await assert.rejects(pannelloCome('togliSpesaFissa', { id: voce.id }), /non c'è più/);
+
+  const registro = await pannelloCome('registro');
+
+  assert.ok(registro.righe.some((riga) => riga.azione === 'spesaFissa'));
+  assert.ok(registro.righe.some((riga) => riga.azione === 'togliSpesaFissa'));
+});
+
 test('il pannello si apre solo agli amministratori', async () => {
   await assert.rejects(pannelloCome('panoramica', {}, CHI, {}), /Non sei un amministratore/);
   await assert.rejects(
