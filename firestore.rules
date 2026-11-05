@@ -12,6 +12,27 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
     }
 
+    // **Fra queste due persone c'e' un blocco, in un senso o nell'altro.**
+    //
+    // Il blocco vale qui e non solo nell'app: un'app modificata, o una versione
+    // vecchia, non deve poter commentare, dare fiamme, seguire o sfidare chi
+    // l'ha bloccata. L'elenco dei blocchi lo legge solo chi l'ha scritto: queste
+    // due letture le fanno le regole, e a chi e' stato bloccato non dicono niente
+    // se non che quell'azione non si puo' fare.
+    function bloccoFra(a, b) {
+      return exists(/databases/$(database)/documents/users/$(a)/blocked/$(b))
+             || exists(/databases/$(database)/documents/users/$(b)/blocked/$(a));
+    }
+
+    // **Chi pubblica qualcosa ha accettato i documenti.** La schermata li chiede
+    // prima di entrare, ma una schermata la salta chi scrive sul database da se'.
+    // La versione precisa la guarda l'app: le regole non sanno confrontare `1.10`
+    // con `1.9`, e qui serve solo che una firma ci sia.
+    function haAccettatoIDocumenti() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+               .get('legalVersion', '') != '';
+    }
+
     // Le partecipazioni lette **attraverso tutte le challenge insieme**.
     //
     // Serve una regola a se', e non e' un doppione di quella annidata piu'
@@ -30,19 +51,59 @@ service cloud.firestore {
     // **Le segnalazioni: si scrivono e basta.**
     //
     // Chi ha fatto l'accesso puo' segnalare, e puo' segnalare **solo a nome
-    // proprio**. Nessuno le puo' rileggere, nemmeno chi le ha scritte: una
-    // segnalazione contiene il nome di chi ha segnalato, e in un'app dove le
-    // persone si conoscono fra loro, poter scoprire chi ti ha segnalato
-    // trasformerebbe la moderazione in una resa dei conti. Le leggiamo noi con
-    // l'SDK di amministrazione, che da qui non passa.
+    // proprio**. Nessuno puo' leggere quelle degli altri: una segnalazione
+    // contiene il nome di chi ha segnalato, e in un'app dove le persone si
+    // conoscono fra loro, poter scoprire chi ti ha segnalato trasformerebbe la
+    // moderazione in una resa dei conti. Le leggiamo noi con l'SDK di
+    // amministrazione, che da qui non passa.
     //
     // L'identificativo del documento mette insieme chi segnala e cosa: la
     // stessa persona non puo' far salire il conto da sola segnalando dieci
-    // volte, perche' riscriverebbe sempre lo stesso documento.
+    // volte, perche' non puo' nascere una seconda segnalazione con lo stesso nome.
     match /reports/{reportId} {
-      allow read: if false;
+      allow list: if false;
+
+      // **La propria si puo' chiedere per nome**, ed e' tutto: serve a dire "l'avevi
+      // gia' segnalata" invece di un errore che sembra un guasto. Il nome comincia
+      // con chi l'ha scritta, quindi non si arriva a quelle degli altri.
+      allow get: if signedIn() && reportId.matches('^' + request.auth.uid + '__.*');
+
       allow create: if signedIn()
                     && request.resource.data.reporterId == request.auth.uid
+                    // **Dentro c'e' solo quello che serve, e di una misura
+                    // ragionevole.** I documenti li scrive un telefono: senza,
+                    // chiunque potrebbe riempirli di quello che vuole a spese
+                    // nostre, e aprirli nel pannello. Le voci sono quelle di
+                    // `ReportReason` e `ReportTargetKind` nell'app.
+                    && request.resource.data.keys().hasOnly([
+                         'kind', 'reporterId', 'reportedUserId', 'reason',
+                         'challengeId', 'entryId', 'commentId', 'note',
+                         'reportedUsername', 'mediaUrl', 'challengeTitle',
+                         'commentText', 'createdAt', 'status'
+                       ])
+                    && request.resource.data.kind
+                       in ['entry', 'comment', 'user', 'challenge']
+                    && request.resource.data.reason
+                       in ['danger', 'sexual', 'violence', 'hate', 'illegal',
+                           'spam', 'minor', 'other']
+                    && request.resource.data.get('note', '') is string
+                    && request.resource.data.get('note', '').size() <= 500
+                    && request.resource.data.get('commentText', '') is string
+                    && request.resource.data.get('commentText', '').size() <= 300
+                    && request.resource.data.get('reportedUsername', '').size() <= 100
+                    && request.resource.data.get('challengeTitle', '').size() <= 200
+                    && request.resource.data.get('mediaUrl', '').size() <= 2048
+                    // **L'ora la mette il server**: la scadenza delle 24 ore si
+                    // conta da qui, e non deve deciderla chi segnala.
+                    && request.resource.data.createdAt == request.time
+                    // **Una foto si chiama come chi l'ha mandata.** Senza,
+                    // bastava segnalare la foto di uno scrivendo il nome di un
+                    // altro: la sospensione finiva sulla persona sbagliata.
+                    && (
+                         request.resource.data.kind != 'entry'
+                         || request.resource.data.reportedUserId
+                            == request.resource.data.entryId
+                       )
                     // **CRASY non si segnala.**
                     //
                     // Una segnalazione su CRASY arriverebbe a CRASY: la
@@ -262,11 +323,23 @@ service cloud.firestore {
                     && !('verificato' in request.resource.data)
                     && !('verificatoDa' in request.resource.data);
 
+      // **La data in cui si sono accettati i documenti la mette il server.** Una
+      // firma con la data scelta da chi firma non dimostra niente.
+      //
+      // Toglierla non e' un problema: senza firma l'app richiede i documenti. Ed e'
+      // cio' che succede a chi rifa l'onboarding, che riscrive il profilo da capo.
+      function firmaNonRetrodatata() {
+        return !('legalAcceptedAt' in request.resource.data)
+               || !('legalAcceptedAt' in request.resource.data.diff(resource.data).affectedKeys())
+               || request.resource.data.legalAcceptedAt == request.time;
+      }
+
       allow update: if signedIn()
                     && request.auth.uid == userId
                     && isAdultProfile()
                     && noPhoneInPublicProfile()
-                    && doesNotTouchTheWallet();
+                    && doesNotTouchTheWallet()
+                    && firmaNonRetrodatata();
       allow read: if signedIn();
 
       // **Il proprio profilo si cancella, ma non con dei soldi dentro.**
@@ -301,8 +374,25 @@ service cloud.firestore {
       //
       // La legge solo chi la riguarda: sono le sue scelte, non un dato
       // pubblico come il nome utente.
+      //
+      // **La firma dei documenti porta la versione e l'ora del server**, sempre:
+      // e' la riga che dimostra chi ha accettato cosa e quando, e Apple chiede che
+      // sia verificabile. Nasce anche prima del profilo: chi si registra accetta i
+      // Termini prima di avere un account.
       match /consents/{consentId} {
-        allow read, create: if signedIn() && request.auth.uid == userId;
+        allow read: if signedIn() && request.auth.uid == userId;
+
+        allow create: if signedIn()
+                      && request.auth.uid == userId
+                      && request.resource.data.get('at', request.time) == request.time
+                      && (
+                           request.resource.data.get('kind', '') != 'legale'
+                           || (
+                                request.resource.data.version is string
+                                && request.resource.data.version.size() > 0
+                                && request.resource.data.at == request.time
+                              )
+                         );
 
         // **Il permesso di pagare le missioni col saldo Stripe si revoca.**
         // E' l'unica riga che cambia: dice com'e' il permesso adesso, e solo
@@ -380,6 +470,9 @@ service cloud.firestore {
                       && request.resource.data.entryId is string
                       && request.resource.data.entryId != ''
                       && request.resource.data.entryId != userId
+                      // La foto si chiama come chi l'ha mandata: fra chi si e'
+                      // bloccato niente fiamme.
+                      && !bloccoFra(request.auth.uid, request.resource.data.entryId)
                       && siPuoAncoraVotare(request.resource.data.challengeId)
                       && voteId == request.resource.data.challengeId + '__' + request.resource.data.entryId;
 
@@ -462,6 +555,8 @@ service cloud.firestore {
         allow create: if signedIn()
                       && request.resource.data.actorId == request.auth.uid
                       && request.auth.uid != userId
+                      // Chi ti ha bloccato non ti sente, e tu non senti lui.
+                      && !bloccoFra(request.auth.uid, userId)
                       // **Il nome dev'essere il proprio.** Si legge sul
                       // profilo: senza, chiunque scrivendo sul database poteva
                       // firmare un avviso come "@crasy" e farlo comparire sullo
@@ -521,6 +616,7 @@ service cloud.firestore {
         allow create: if signedIn()
                       && request.auth.uid == userId
                       && otherId != userId
+                      && !bloccoFra(userId, otherId)
                       && request.resource.data.username is string;
 
         allow delete: if signedIn()
@@ -538,6 +634,7 @@ service cloud.firestore {
         allow create: if signedIn()
                       && request.auth.uid == fromUserId
                       && fromUserId != userId
+                      && !bloccoFra(fromUserId, userId)
                       && request.resource.data.fromUsername is string;
 
         // La cancella chi l'ha mandata (ci ha ripensato) e chi l'ha ricevuta
@@ -579,8 +676,22 @@ service cloud.firestore {
       // Nessun altro, e in particolare **non chi e' stato bloccato**: sapere
       // di essere stati bloccati e' l'informazione che trasforma un blocco in
       // una lite. Chi blocca deve poter sparire in silenzio.
+      //
+      // Dentro c'e' solo da dove e' partito il blocco, che finisce nell'evento per
+      // il team (vedi `bloccoArrivato`). **Non si blocca se stessi, e non si blocca
+      // CRASY**: l'account ufficiale non ha niente da togliere dalla vista di
+      // nessuno, e la sfida del giorno la lancia lui.
       match /blocked/{otherId} {
-        allow read, write: if signedIn() && request.auth.uid == userId;
+        allow read, delete: if signedIn() && request.auth.uid == userId;
+
+        allow create, update: if signedIn()
+                      && request.auth.uid == userId
+                      && otherId != userId
+                      && otherId != 'crasy'
+                      && request.resource.data.keys().hasOnly([
+                           'createdAt', 'origine', 'challengeId', 'entryId',
+                           'commentId'
+                         ]);
       }
 
       // **Le proclamazioni che ho gia' guardato.**
@@ -611,6 +722,7 @@ service cloud.firestore {
         allow read: if signedIn();
 
         allow create: if signedIn()
+                      && !bloccoFra(userId, friendId)
                       && ((request.auth.uid == userId
                            && pendingRequest(userId, friendId))
                           || (request.auth.uid == friendId
@@ -958,6 +1070,18 @@ service cloud.firestore {
 
         allow create: if isAuthor()
                       && request.resource.data.userId == request.auth.uid
+                      && haAccettatoIDocumenti()
+                      // **Non si entra nella gara di chi ti ha bloccato**, ne' di
+                      // chi hai bloccato: chi l'ha lanciata potrebbe doverla
+                      // giudicare, e quella foto non la vedrebbe nemmeno. Le
+                      // anonime non hanno un autore qui: restano aperte.
+                      && (
+                           challenge().get('createdByUserId', '') == ''
+                           || !bloccoFra(
+                                request.auth.uid,
+                                challenge().get('createdByUserId', '')
+                              )
+                         )
                       // **I posti sono finiti: non si entra piu'.**
                       //
                       // Il tetto lo sceglie chi lancia la gara, e serve a
@@ -1052,14 +1176,13 @@ service cloud.firestore {
                       && !exists(
                            /databases/$(database)/documents/challenges/$(challengeId)/withdrawn/$(request.auth.uid)
                          )
-                      // Lo stato del controllo lo puo' scrivere solo cosi': in
-                      // attesa, o ammessa quando il controllo automatico non e'
-                      // acceso. **Rifiutata non la si puo' scrivere da qui**, e
-                      // soprattutto non si puo' scavalcare il controllo — a
-                      // spostare una foto oltre "in attesa" e' il server, che
-                      // con l'SDK di amministrazione non passa da queste regole.
-                      && request.resource.data.get('moderation', 'approved')
-                         in ['pending', 'approved']
+                      // **Nasce in attesa, e basta.** C'era anche "ammessa", per
+                      // quando il controllo automatico era spento: adesso e' acceso
+                      // in tutte le build, e quella parola permetteva a un telefono
+                      // modificato di far vedere una foto a tutti prima che il
+                      // controllo la guardasse. A spostarla oltre "in attesa" e' il
+                      // server, che con l'SDK di amministrazione non passa da qui.
+                      && request.resource.data.get('moderation', '') == 'pending'
                       // La vittoria non si porta da casa: la scrive il server.
                       && !('isWinner' in request.resource.data)
                       // La didascalia: facoltativa, corta, e scritta una volta
@@ -1231,6 +1354,10 @@ service cloud.firestore {
 
           allow create: if signedIn()
                         && request.resource.data.userId == request.auth.uid
+                        // La foto si chiama come chi l'ha mandata: fra chi si e'
+                        // bloccato niente commenti.
+                        && !bloccoFra(request.auth.uid, entryId)
+                        && haAccettatoIDocumenti()
                         && request.resource.data.text is string
                         && request.resource.data.text.size() > 0
                         && request.resource.data.text.size() <= 300
@@ -1316,6 +1443,18 @@ service cloud.firestore {
     }
 
     match /registroAdmin/{riga} {
+      allow read, write: if false;
+    }
+
+    // **Chi ha bloccato chi, visto dal team, e quante segnalazioni di una persona
+    // sono state respinte.** Li scrive il server: vedi `functions/moderazione.js`.
+    // Nessun telefono li apre: sapere di essere stati bloccati, o da chi, e'
+    // proprio cio' che un blocco deve evitare.
+    match /blocchi/{evento} {
+      allow read, write: if false;
+    }
+
+    match /segnalanti/{persona} {
       allow read, write: if false;
     }
 

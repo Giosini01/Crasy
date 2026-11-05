@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:crasy/core/services/firebase/firebase_providers.dart';
+import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/moderation/data/moderation_repository.dart';
 import 'package:crasy/features/moderation/domain/report_reason.dart';
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Il repository delle segnalazioni.
@@ -43,63 +47,157 @@ final blockedNowProvider = Provider<Set<String>>(
   (ref) => ref.watch(blockedIdsProvider).valueOrNull ?? const <String>{},
 );
 
+/// **I commenti segnalati in questa sessione**, che chi li ha segnalati non vede
+/// piu'. Sono in memoria e non su Firestore: un commento non si modifica, e
+/// scrivere sul documento chi l'ha segnalato lo farebbe leggere a tutti.
+final commentiSegnalatiProvider = StateProvider<Set<String>>(
+  (ref) => const <String>{},
+);
+
+/// **Toglie dalla lista quello che viene da chi ho bloccato, senza riaprire la
+/// lettura.**
+///
+/// Serve dove la lista e' un ascolto su Firestore che dura tutta la sessione,
+/// come la home: mettendo l'elenco dei bloccati fra le dipendenze, ogni blocco —
+/// e ogni avvio, appena quell'elenco arriva — chiuderebbe e riaprirebbe
+/// l'ascolto, con la schermata che lampeggia e le letture pagate due volte. Qui
+/// l'ascolto resta quello, e la lista si rifiltra da sola: **chi blocca vede
+/// sparire i contenuti nell'istante in cui conferma**.
+Stream<List<T>> senzaBloccati<T>(
+  Ref ref,
+  Stream<List<T>> sorgente,
+  bool Function(T elemento, Set<String> bloccati) daTogliere,
+) {
+  final uscita = StreamController<List<T>>();
+  List<T>? ultima;
+
+  void manda() {
+    final lista = ultima;
+
+    if (lista == null || uscita.isClosed) {
+      return;
+    }
+
+    final bloccati = ref.read(blockedNowProvider);
+
+    uscita.add(
+      bloccati.isEmpty
+          ? lista
+          : [
+              for (final elemento in lista)
+                if (!daTogliere(elemento, bloccati)) elemento,
+            ],
+    );
+  }
+
+  final ascolto = sorgente.listen(
+    (lista) {
+      ultima = lista;
+      manda();
+    },
+    onError: uscita.addError,
+    onDone: uscita.close,
+  );
+
+  ref.listen<Set<String>>(blockedNowProvider, (prima, adesso) {
+    if (!setEquals(prima, adesso)) {
+      manda();
+    }
+  });
+
+  ref.onDispose(() {
+    ascolto.cancel();
+    uscita.close();
+  });
+
+  return uscita.stream;
+}
+
+/// Se una gara va nascosta a chi ha bloccato [bloccati].
+///
+/// Lanciata da chi ho bloccato, o vinta da chi ho bloccato: nella home, fra le
+/// gare finite e nelle facce dei vincitori. **Non le mie**, anche se ha vinto
+/// una persona che ho bloccato: restano la mia missione e i miei soldi. Le
+/// anonime non si possono filtrare, ed e' giusto: da fuori non si sa di chi sono.
+bool garaDaNascondere(Challenge gara, Set<String> bloccati, String? io) {
+  if (gara.createdByUserId == io && gara.createdByUserId.isNotEmpty) {
+    return false;
+  }
+
+  return bloccati.contains(gara.createdByUserId) ||
+      bloccati.contains(gara.winnerUserId);
+}
+
 /// Segnalare e bloccare.
 class ModerationActions {
   ModerationActions(this._ref);
 
   final Ref _ref;
 
-  /// Manda una segnalazione. Torna `false` se non e' partita.
-  Future<bool> report({
-    required ReportTargetKind kind,
-    required String reportedUserId,
+  /// Manda una segnalazione.
+  Future<ReportOutcome> report(
+    ReportTarget target, {
     required ReportReason reason,
-    String challengeId = '',
-    String entryId = '',
-    String commentId = '',
     String note = '',
-    String reportedUsername = '',
-    String mediaUrl = '',
-    String challengeTitle = '',
   }) async {
     final userId = _ref.read(currentUserIdProvider);
     final repository = _ref.read(moderationRepositoryProvider);
 
     if (userId == null || repository == null) {
-      return false;
+      return ReportOutcome.failed;
     }
 
     try {
-      await repository.report(
-        kind: kind,
+      final esito = await repository.report(
+        kind: target.kind,
         reporterId: userId,
-        reportedUserId: reportedUserId,
+        reportedUserId: target.reportedUserId,
         reason: reason,
-        challengeId: challengeId,
-        entryId: entryId,
-        commentId: commentId,
-        note: note,
-        reportedUsername: reportedUsername,
-        mediaUrl: mediaUrl,
-        challengeTitle: challengeTitle,
+        challengeId: target.challengeId,
+        entryId: target.entryId,
+        commentId: target.commentId,
+        note: note.trim(),
+        reportedUsername: target.reportedUsername,
+        mediaUrl: target.mediaUrl,
+        challengeTitle: target.challengeTitle,
+        commentText: target.commentText,
       );
 
-      return true;
+      if (target.kind == ReportTargetKind.comment) {
+        final segnalati = _ref.read(commentiSegnalatiProvider.notifier);
+
+        segnalati.state = {...segnalati.state, target.commentId};
+      }
+
+      return esito;
     } catch (_) {
-      return false;
+      return ReportOutcome.failed;
     }
   }
 
-  Future<bool> block(String otherId) async {
+  /// Blocca chi ha pubblicato [target]. Il contenuto da cui si parte finisce
+  /// nell'evento che arriva al team: dice cosa ha fatto scattare il blocco.
+  Future<bool> block(ReportTarget target) async {
     final userId = _ref.read(currentUserIdProvider);
     final repository = _ref.read(moderationRepositoryProvider);
+    final otherId = target.reportedUserId;
 
-    if (userId == null || repository == null || userId == otherId) {
+    if (userId == null ||
+        repository == null ||
+        otherId.isEmpty ||
+        userId == otherId) {
       return false;
     }
 
     try {
-      await repository.block(userId: userId, otherId: otherId);
+      await repository.block(
+        userId: userId,
+        otherId: otherId,
+        origine: target.kind.name,
+        challengeId: target.challengeId,
+        entryId: target.entryId,
+        commentId: target.commentId,
+      );
 
       return true;
     } catch (_) {

@@ -17,6 +17,7 @@ import { mostraProve } from './prove.js';
 import { mostraPersona, mostraPersone } from './persone.js';
 import { mostraFoto } from './foto.js';
 import { mostraSegnalazioni } from './segnalazioni.js';
+import { mostraBlocchi } from './blocchi.js';
 import { mostraSoldi } from './soldi.js';
 import { mostraSpese } from './spese.js';
 import { mostraAutomatiche } from './automatiche.js';
@@ -32,6 +33,7 @@ const VOCI = [
   { id: 'persone', nome: 'Persone', mostra: mostraPersone },
   { id: 'foto', nome: 'Foto', mostra: mostraFoto },
   { id: 'segnalazioni', nome: 'Segnalazioni', mostra: mostraSegnalazioni },
+  { id: 'blocchi', nome: 'Blocchi', mostra: mostraBlocchi },
   { id: 'soldi', nome: 'Soldi', mostra: mostraSoldi },
   { id: 'spese', nome: 'Spese', mostra: mostraSpese },
   { id: 'automatiche', nome: 'Automatiche', mostra: mostraAutomatiche },
@@ -99,6 +101,7 @@ async function aggiornaIBolli() {
     bolli = {
       missioni: (n.missioni.daControllare || 0) + (n.missioni.daConfermare || 0),
       segnalazioni: (n.lavoro.segnalazioni || 0) + (n.lavoro.revisioni || 0),
+      blocchi: n.lavoro.blocchi || 0,
       soldi: n.lavoro.prelievi || 0,
     };
     disegnaLeVoci((INTERNE[strada().nome] || {}).sotto || strada().nome);

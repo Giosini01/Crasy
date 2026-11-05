@@ -136,6 +136,7 @@ test.before(async () => {
 
   await db.collection('users').doc(CHI).set({
     username: 'mario',
+    legalVersion: '1.6',
     walletCents: 500,
     stripeCents: 1200,
     totalWonCents: 3000,
@@ -147,6 +148,7 @@ test.before(async () => {
   });
   await db.collection('users').doc(AMICO).set({
     username: 'luigi',
+    legalVersion: '1.6',
     walletCents: 0,
     lastSeenAt: admin.firestore.Timestamp.now(),
     createdAt: admin.firestore.Timestamp.now(),
@@ -826,11 +828,15 @@ test('i consigli su cui il modello ha un dubbio passano da una persona', async (
   // Approvato una volta, e il prossimo che lo sceglie non aspetta.
   prossimoVoto = voto(10);
   chiamate = 0;
+  await db.collection('users').doc('qualcun-altro').set({ username: 'altro', legalVersion: '1.6' });
 
   const dopo = await proponi(
     richiesta({ title: consiglio.titolo, brief: consiglio.consegna }),
     'qualcun-altro'
   );
+
+  // Le altre prove contano le persone: questa non resta in giro.
+  await db.collection('users').doc('qualcun-altro').delete();
 
   assert.equal(dopo.stato, 'inGara');
   assert.equal(chiamate, 0);

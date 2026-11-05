@@ -15,10 +15,11 @@
  *
  * ## Cosa resta fuori, apposta
  *
- * **Chi ha fatto una segnalazione non si vede neanche da qui.** Le segnalazioni sono
- * anonime per costruzione: un amministratore che sa chi e' stato e' un amministratore
- * che puo' dirlo. **L'IBAN e il codice fiscale** si vedono solo dentro una richiesta
- * di prelievo, che e' l'unico momento in cui servono.
+ * **L'IBAN e il codice fiscale** si vedono solo dentro una richiesta di prelievo, che e'
+ * l'unico momento in cui servono.
+ *
+ * **Chi ha fatto una segnalazione si vede solo da chi modera**, per giudicarla e per
+ * riconoscere chi abusa delle segnalazioni. A chi e' stato segnalato non arriva mai.
  *
  * **Chi ha lanciato una missione anonima invece si vede**: su un'app che paga la gente
  * per fare cose, chi modera deve sapere chi sta chiedendo cosa.
@@ -40,6 +41,9 @@ const { autoreDi } = require('./autori');
 const { togliLaFoto, rimuoviLaMissione } = require('./admin');
 const { PROVE } = require('./prove_missioni');
 const speseDiCrasy = require('./spese');
+const { registra } = require('./registro');
+const moderazione = require('./moderazione');
+const magazzini = require('./magazzino');
 
 const db = admin.firestore();
 
@@ -97,16 +101,6 @@ async function senzaFermarsi(promessa, ripiego, nome) {
   }
 }
 
-/** Resta scritto chi ha fatto cosa: nel pannello entra piu' di una persona. */
-async function registra(chi, azione, dettagli) {
-  await db.collection('registroAdmin').add({
-    chi,
-    azione,
-    dettagli,
-    il: FieldValue.serverTimestamp(),
-  });
-}
-
 function testoObbligatorio(valore, cosa) {
   const testo = typeof valore === 'string' ? valore.trim() : '';
 
@@ -161,15 +155,25 @@ async function bolli(_dati, request) {
 
   const proposte = db.collection(missioni.PROPOSTE);
   const numero = (query, nome) => senzaFermarsi(conta(query), null, nome);
-  const [daControllare, daConfermare, segnalazioni, revisioni, prelievi, impostazioni] =
-    await Promise.all([
-      numero(proposte.where('stato', '==', 'daControllare'), 'daControllare'),
-      numero(proposte.where('stato', '==', 'daConfermare'), 'daConfermare'),
-      numero(db.collection('reports').where('status', 'in', ['new', 'open']), 'segnalazioni'),
-      numero(db.collection('revisioni').where('stato', '==', 'aperta'), 'revisioni'),
-      numero(db.collection('payoutRequests').where('status', '==', 'pending'), 'prelievi'),
-      missioni.leggiImpostazioni(),
-    ]);
+  const [
+    daControllare,
+    daConfermare,
+    segnalazioni,
+    scadute,
+    blocchiNuovi,
+    revisioni,
+    prelievi,
+    impostazioni,
+  ] = await Promise.all([
+    numero(proposte.where('stato', '==', 'daControllare'), 'daControllare'),
+    numero(proposte.where('stato', '==', 'daConfermare'), 'daConfermare'),
+    numero(db.collection('reports').where('status', 'in', ['new', 'open']), 'segnalazioni'),
+    numero(segnalazioniScadute(), 'scadute'),
+    numero(db.collection(moderazione.BLOCCHI).where('stato', '==', 'nuovo'), 'blocchi'),
+    numero(db.collection('revisioni').where('stato', '==', 'aperta'), 'revisioni'),
+    numero(db.collection('payoutRequests').where('status', '==', 'pending'), 'prelievi'),
+    missioni.leggiImpostazioni(),
+  ]);
 
   return {
     missioni: {
@@ -178,8 +182,16 @@ async function bolli(_dati, request) {
       sogliaAuto: impostazioni.sogliaAuto,
       sogliaConferma: impostazioni.sogliaConferma,
     },
-    lavoro: { segnalazioni, revisioni, prelievi },
+    lavoro: { segnalazioni, scadute, blocchi: blocchiNuovi, revisioni, prelievi },
   };
+}
+
+/** Le segnalazioni ancora aperte da piu' delle ore concesse. */
+function segnalazioniScadute() {
+  return db
+    .collection('reports')
+    .where('status', 'in', moderazione.STATI_APERTI)
+    .where('createdAt', '<', indietro(moderazione.ORE_PER_DECIDERE * ORA));
 }
 
 /** I numeri di testa, e quanto lavoro c'e' da fare. */
@@ -204,6 +216,8 @@ async function panoramica(request) {
     daConfermare,
     bloccate,
     segnalazioni,
+    scadute,
+    blocchiNuovi,
     revisioni,
     fotoOggi,
     richieste,
@@ -234,6 +248,8 @@ async function panoramica(request) {
       'bloccate'
     ),
     numero(db.collection('reports').where('status', 'in', ['new', 'open']), 'segnalazioni'),
+    numero(segnalazioniScadute(), 'scadute'),
+    numero(db.collection(moderazione.BLOCCHI).where('stato', '==', 'nuovo'), 'blocchi'),
     numero(db.collection('revisioni').where('stato', '==', 'aperta'), 'revisioni'),
     numero(
       db.collectionGroup('entries').where('createdAt', '>', indietro(GIORNO)),
@@ -307,6 +323,8 @@ async function panoramica(request) {
     },
     lavoro: {
       segnalazioni,
+      scadute,
+      blocchi: blocchiNuovi,
       revisioni,
       prelievi: richieste ? richieste.size : null,
     },
@@ -936,7 +954,9 @@ async function foto({ ordine }) {
 async function togliFoto({ challengeId, entryId, motivo }, chi) {
   const gara = testoObbligatorio(challengeId, 'la missione');
   const foto = testoObbligatorio(entryId, 'la foto');
-  const voce = ['pericolo', 'sessuale', 'violenza', 'odio', 'minore'].includes(motivo)
+  const voce = ['pericolo', 'sessuale', 'violenza', 'odio', 'minore', 'illegale', 'spam'].includes(
+    motivo
+  )
     ? motivo
     : 'altro';
 
@@ -1285,6 +1305,8 @@ async function persona({ uid }) {
     segnalazioniContro,
     fiammeDate,
     sospensione,
+    bloccataDa,
+    firme,
   ] = await Promise.all([
     senzaFermarsi(ref.collection('wallet').orderBy('createdAt', 'desc').limit(40).get(), null, 'mov'),
     senzaFermarsi(ref.collection('ledger').orderBy('at', 'desc').limit(40).get(), null, 'registro'),
@@ -1308,6 +1330,16 @@ async function persona({ uid }) {
     senzaFermarsi(conta(db.collection('reports').where('reportedUserId', '==', id)), 0, 'segn'),
     senzaFermarsi(conta(ref.collection('votes')), 0, 'date'),
     sospensioni.statoDi(id),
+    senzaFermarsi(
+      conta(db.collection(moderazione.BLOCCHI).where('bloccatoId', '==', id)),
+      0,
+      'bloccataDa'
+    ),
+    senzaFermarsi(
+      ref.collection('consents').where('kind', '==', 'legale').limit(50).get(),
+      null,
+      'firme'
+    ),
   ]);
 
   // Il conto Stripe si chiede per ultimo, e se non risponde non ferma niente.
@@ -1360,6 +1392,15 @@ async function persona({ uid }) {
       birthDate: ms(doc.get('birthDate')),
       emailVerificata: conto ? conto.emailVerified === true : null,
       telefono: conto ? conto.phoneNumber || '' : '',
+      // **Cosa ha accettato, e quando.** Le righe vere del registro, che nessuno puo'
+      // modificare: la prova, se qualcuno la chiede.
+      firme: (firme ? firme.docs : [])
+        .map((riga) => ({
+          version: String(riga.get('version') || ''),
+          origine: String(riga.get('origine') || ''),
+          at: ms(riga.get('at')),
+        }))
+        .sort((a, b) => (b.at || 0) - (a.at || 0)),
       ultimoAccesso: conto ? Date.parse(conto.metadata.lastSignInTime) || null : null,
       admin: conto ? (conto.customClaims || {}).admin === true : false,
     },
@@ -1367,6 +1408,7 @@ async function persona({ uid }) {
       amici,
       fiammeDate,
       segnalazioniContro,
+      bloccataDa,
       fiammeRicevute: foto.reduce((totale, f) => totale + f.votes, 0),
     },
     stripe,
@@ -1391,6 +1433,241 @@ async function sospendi({ uid, giorni, motivo }, chi) {
   await registra(chi, 'sospendi', { uid: id, giorni: Number(giorni), motivo: perche });
 
   return { fino: ms(fino) };
+}
+
+/**
+ * **Espellere qualcuno: l'account si elimina per davvero.**
+ *
+ * Non si puo' tornare indietro, e per questo chiede di riscrivere il nome. Chi vuole
+ * tenere fuori una persona **di solito vuole "sospendi per sempre"**: l'account resta
+ * spento e il numero di telefono occupato, mentre qui email e numero tornano liberi e
+ * ci si puo' reiscrivere.
+ *
+ * **Con dei soldi dentro non si fa.** Il premio di qualcuno non si cancella con un
+ * clic: si sospende, e si chiude quando il saldo e' a zero. E' la stessa regola che
+ * vale per chi cancella il proprio account da solo.
+ *
+ * Toglie quello che toglierebbe la persona stessa, piu' le sue foto ancora in gara e i
+ * suoi commenti. **Resta il registro dei consensi e quello dei movimenti**: sono le
+ * prove che la legge chiede di conservare.
+ */
+async function eliminaAccount({ uid, motivo, conferma }, chi) {
+  const id = testoObbligatorio(uid, 'la persona');
+  const perche = testoObbligatorio(motivo, 'il motivo');
+
+  if (id === 'crasy') {
+    throw new HttpsError('failed-precondition', 'L\'account ufficiale non si elimina.');
+  }
+
+  const ref = db.collection('users').doc(id);
+  const doc = await ref.get();
+  const nome = String(doc.get('username') || id);
+
+  if (String(conferma || '').trim().replace(/^@/, '').toLowerCase() !== nome.toLowerCase()) {
+    throw new HttpsError('invalid-argument', `Per confermare scrivi il nome: ${nome}.`);
+  }
+
+  const conto = await senzaFermarsi(admin.auth().getUser(id), null, 'conto');
+
+  if (conto && conto.customClaims && conto.customClaims.admin === true) {
+    throw new HttpsError('failed-precondition', 'È un amministratore: non si elimina da qui.');
+  }
+
+  const soldi = ['walletCents', 'withdrawingCents', 'stripeCents', 'spostandoCents'].reduce(
+    (totale, campo) => totale + (doc.get(campo) || 0),
+    0
+  );
+
+  if (soldi > 0) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Ha ancora dei soldi su CRASY: sospendila, e chiudi l\'account quando il saldo è a zero.'
+    );
+  }
+
+  const prelievi = await conta(
+    db
+      .collection('payoutRequests')
+      .where('userId', '==', id)
+      .where('status', '==', 'pending')
+  );
+
+  if (prelievi > 0) {
+    throw new HttpsError('failed-precondition', 'Ha un prelievo in corso: prima va chiuso.');
+  }
+
+  // Le foto ancora in gara escono come se le togliesse una persona: fuori dal conto
+  // dei partecipanti, e le fiamme tornano a chi le aveva date. Una foto che ha vinto
+  // resta: li' c'e' un premio gia' assegnato.
+  const foto = await senzaFermarsi(
+    db.collectionGroup('entries').where('userId', '==', id).limit(200).get(),
+    null,
+    'foto'
+  );
+
+  for (const partecipazione of foto ? foto.docs : []) {
+    if (partecipazione.get('isWinner') === true) {
+      continue;
+    }
+
+    await togliLaFoto(partecipazione.ref, { chi, autore: id, motivo: 'altro' }).catch((errore) => {
+      logger.warn('foto non tolta', { uid: id, errore: String(errore).slice(0, 200) });
+    });
+  }
+
+  const commenti = await senzaFermarsi(
+    db.collectionGroup('comments').where('userId', '==', id).limit(400).get(),
+    null,
+    'commenti'
+  );
+
+  await Promise.all((commenti ? commenti.docs : []).map((c) => c.ref.delete().catch(() => {})));
+
+  const amici = await ref.collection('friends').get();
+
+  await Promise.all(
+    amici.docs.map((amico) =>
+      db.collection('users').doc(amico.id).collection('friends').doc(id).delete().catch(() => {})
+    )
+  );
+
+  for (const raccolta of [
+    'friends',
+    'notifications',
+    'votes',
+    'friendRequests',
+    'following',
+    'private',
+    'devices',
+    'blocked',
+    'pushFiamme',
+    'revealsSeen',
+  ]) {
+    const righe = await ref.collection(raccolta).limit(500).get();
+
+    await Promise.all(righe.docs.map((riga) => riga.ref.delete().catch(() => {})));
+  }
+
+  for (const magazzino of magazzini.tuttiIMagazzini()) {
+    await magazzino.deleteFiles({ prefix: `profiles/${id}/` }).catch((errore) => {
+      logger.warn('foto profilo non cancellata', { uid: id, errore: String(errore).slice(0, 200) });
+    });
+  }
+
+  await ref.delete();
+
+  // Chi non puo' piu' entrare deve sapere perche', e come contestarlo.
+  if (conto && conto.email) {
+    await posta
+      .spedisci({
+        from: '"CRASY" <' + posta.CASELLA + '>',
+        to: conto.email,
+        subject: 'Il tuo account CRASY è stato eliminato',
+        text:
+          `${perche} Per questo il tuo account è stato eliminato, come previsto dai Termini. ` +
+          'Se pensi che sia un errore, scrivi a info@crasyapp.com.',
+      })
+      .catch((errore) => {
+        logger.error('email di eliminazione non partita', errore);
+      });
+  }
+
+  await db.collection('sospensioni').doc(id).set({
+    attiva: false,
+    eliminato: true,
+    username: nome,
+    motivo: perche,
+    da: chi,
+    il: FieldValue.serverTimestamp(),
+  });
+
+  if (conto) {
+    await admin.auth().deleteUser(id);
+  }
+
+  await registra(chi, 'eliminaAccount', { uid: id, username: nome, motivo: perche });
+
+  return { eliminato: true };
+}
+
+// ---------------------------------------------------------------------------
+// I blocchi
+// ---------------------------------------------------------------------------
+
+/**
+ * **Chi ha bloccato chi.** Non sono segnalazioni e non c'e' niente da decidere: e' il
+ * modo in cui il team viene a sapere che fra due persone qualcosa non va, come chiede
+ * Apple. Dalla scheda della persona, se serve, si interviene.
+ */
+async function blocchi({ stato }) {
+  const eventi = db.collection(moderazione.BLOCCHI);
+  const query =
+    stato === 'nuovo' || stato === 'visto' ? eventi.where('stato', '==', stato) : eventi;
+
+  // Stesso discorso delle segnalazioni: l'indice si costruisce con calma, e la pagina
+  // deve funzionare anche nei minuti dopo il rilascio.
+  const fogli = await query
+    .orderBy('createdAt', 'desc')
+    .limit(100)
+    .get()
+    .catch(() => query.limit(100).get());
+  const conti = new Map();
+
+  await Promise.all(
+    [...new Set(fogli.docs.map((d) => String(d.get('bloccatoId') || '')))].filter(Boolean).map(
+      async (uid) => {
+        conti.set(
+          uid,
+          await senzaFermarsi(conta(eventi.where('bloccatoId', '==', uid)), 0, 'contro')
+        );
+      }
+    )
+  );
+
+  return {
+    blocchi: fogli.docs
+      .map((d) => ({
+        id: d.id,
+        bloccaId: String(d.get('bloccaId') || ''),
+        bloccaNome: String(d.get('bloccaNome') || ''),
+        bloccatoId: String(d.get('bloccatoId') || ''),
+        bloccatoNome: String(d.get('bloccatoNome') || ''),
+        origine: String(d.get('origine') || ''),
+        challengeId: String(d.get('challengeId') || ''),
+        entryId: String(d.get('entryId') || ''),
+        commentId: String(d.get('commentId') || ''),
+        stato: String(d.get('stato') || 'nuovo'),
+        createdAt: ms(d.get('createdAt')),
+        sbloccatoIl: ms(d.get('sbloccatoIl')),
+        contro: conti.get(String(d.get('bloccatoId') || '')) || 1,
+      }))
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)),
+  };
+}
+
+/** "L'ho visto": toglie il blocco dal lavoro da fare, e resta scritto chi l'ha guardato. */
+async function segnaBlocco({ id }, chi) {
+  const riferimento = db.collection(moderazione.BLOCCHI).doc(testoObbligatorio(id, 'il blocco'));
+  const foglio = await riferimento.get();
+
+  if (!foglio.exists) {
+    throw new HttpsError('not-found', 'Questo blocco non c\'è più.');
+  }
+
+  // Due clic: il secondo non riscrive e non lascia una seconda riga.
+  if (foglio.get('stato') === 'visto') {
+    return { stato: 'visto' };
+  }
+
+  await riferimento.update({ stato: 'visto', vistoDa: chi, vistoIl: FieldValue.serverTimestamp() });
+  await registra(chi, 'segnaBlocco', {
+    id: foglio.id,
+    uid: String(foglio.get('bloccatoId') || ''),
+    bloccaNome: String(foglio.get('bloccaNome') || ''),
+    bloccatoNome: String(foglio.get('bloccatoNome') || ''),
+  });
+
+  return { stato: 'visto' };
 }
 
 // ---------------------------------------------------------------------------
@@ -1509,6 +1786,7 @@ const LETTURE = {
   foto,
   persone,
   persona,
+  blocchi,
   saldiConti,
   impostazioni: leggiImpostazioni,
   registro,
@@ -1523,6 +1801,8 @@ const SCRITTURE = {
   chiudiGara,
   togliFoto,
   sospendi,
+  eliminaAccount,
+  segnaBlocco,
   scriviImpostazioni,
   insegna,
   dimentica,

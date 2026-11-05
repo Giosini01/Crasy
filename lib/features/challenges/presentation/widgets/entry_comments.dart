@@ -9,6 +9,9 @@ import 'package:crasy/features/challenges/presentation/controllers/comment_contr
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
+import 'package:crasy/features/moderation/domain/report_reason.dart';
+import 'package:crasy/features/moderation/presentation/providers/moderation_providers.dart';
+import 'package:crasy/features/moderation/presentation/widgets/report_sheet.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -34,7 +37,14 @@ final _tagSuggestionsProvider = FutureProvider.autoDispose
         return const [];
       }
 
-      return repository.searchProfiles(prefisso, limit: 6);
+      final bloccati = ref.watch(blockedNowProvider);
+      final trovati = await repository.searchProfiles(prefisso, limit: 6);
+
+      // Chi hai bloccato non si nomina: non gli arriverebbe niente comunque.
+      return [
+        for (final profilo in trovati)
+          if (!bloccati.contains(profilo.id)) profilo,
+      ];
     });
 
 /// Apre i commenti sotto una foto.
@@ -441,16 +451,18 @@ void _apriProfilo(BuildContext context, String userId) {
   router.push(AppRoutes.userProfileOf(userId));
 }
 
-class _CommentRow extends StatelessWidget {
+class _CommentRow extends ConsumerWidget {
   const _CommentRow({required this.comment});
 
   final EntryComment comment;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
     final texts = context.texts;
     final quando = comment.createdAt;
+    // **Anche un commento si segnala.** Il proprio no: si cancella.
+    final altrui = comment.userId != ref.watch(currentUserIdProvider);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -475,6 +487,22 @@ class _CommentRow extends StatelessWidget {
                   AppDateUtils.shortTimeAgo(quando),
                   style: texts.labelSmall?.copyWith(color: palette.textFaint),
                 ),
+              if (altrui) ...[
+                const Spacer(),
+                ContentMenuButton(
+                  target: ReportTarget(
+                    kind: ReportTargetKind.comment,
+                    reportedUserId: comment.userId,
+                    reportedUsername: comment.authorName,
+                    challengeId: comment.challengeId,
+                    entryId: comment.entryId,
+                    commentId: comment.id,
+                    commentText: comment.text,
+                  ),
+                  color: palette.textFaint,
+                  size: 18,
+                ),
+              ],
             ],
           ),
           const SizedBox(height: AppSpacing.xxs),

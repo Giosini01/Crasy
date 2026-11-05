@@ -26,6 +26,12 @@ class FakeAuthRepository implements AuthRepository {
     _controller.close();
   }
 
+  /// **Qualcuno ha fatto l'accesso**, comunque ci sia arrivato.
+  void entra(AppUser user) {
+    currentUser = user;
+    _controller.add(user);
+  }
+
   @override
   Future<AppUser> signIn({required String email, required String password}) {
     throw UnimplementedError();

@@ -162,7 +162,7 @@ async function pulisci() {
   // Segnalazioni su foto cancellate, richieste di prelievo di saldi azzerati,
   // guasti registrati mesi fa: non servono a nessuno e restano a sporcare
   // ogni conteggio.
-  const altre = ['payoutRequests', 'reports', 'crashes', 'recuperi'];
+  const altre = ['payoutRequests', 'reports', 'crashes', 'recuperi', 'blocchi', 'segnalanti'];
   let sparse = 0;
 
   for (const nome of altre) {

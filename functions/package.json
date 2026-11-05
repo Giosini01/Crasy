@@ -11,7 +11,7 @@
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
     "test": "node --test \"test/*.test.js\"",
-    "test:server": "firebase emulators:exec --only firestore,auth --project demo-crasy \"node --test test/integrazione.emu.js\""
+    "test:server": "firebase emulators:exec --only firestore,auth --project demo-crasy \"node --test --test-concurrency=1 test/integrazione.emu.js test/moderazione.emu.js test/regole.emu.js\""
   },
   "dependencies": {
     "@google-cloud/video-intelligence": "^5.0.0",

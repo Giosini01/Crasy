@@ -79,7 +79,7 @@ const NOME = 'appreview';
 /** La versione dei documenti che l'app pretende. Deve stare in pari con
  *  `LegalTexts.version` dentro l'app: se divergono, l'account si ritrova
  *  davanti la schermata dei consensi a ogni avvio. */
-const VERSIONE_LEGALE = '1.5';
+const VERSIONE_LEGALE = '1.6';
 
 const db = admin.firestore();
 
@@ -153,7 +153,6 @@ async function prepara() {
     legalVersion: VERSIONE_LEGALE,
     legalAcceptedAt: admin.firestore.FieldValue.serverTimestamp(),
     marketingConsent: false,
-    profilingConsent: false,
     tutorialSeen: true,
     permissionsSeen: true,
     contactsPromptSeen: true,

@@ -1,4 +1,5 @@
 import 'package:crasy/core/errors/error_message_mapper.dart';
+import 'package:crasy/core/legal/legal_documents.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
@@ -7,6 +8,7 @@ import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/auth/presentation/controllers/auth_action_controller.dart';
 import 'package:crasy/features/auth/presentation/utils/auth_validators.dart';
+import 'package:crasy/features/legal/presentation/widgets/legal_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -200,6 +202,42 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                     _signingUp = !_signingUp;
                     _resetSent = null;
                   }),
+                ),
+                // **Quello che si e' appena accettato si rilegge da qui.** Lo si
+                // e' accettato una schermata fa, e chi si registra deve poterci
+                // tornare senza dover uscire.
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  _signingUp
+                      ? 'Registrandoti confermi di aver accettato:'
+                      : 'Entrando confermi di aver accettato:',
+                  textAlign: TextAlign.center,
+                  style: texts.bodySmall?.copyWith(color: palette.textFaint),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      onPressed: () =>
+                          showLegalDocument(context, LegalTexts.terms),
+                      child: Text(
+                        'TERMINI',
+                        style: texts.labelSmall?.copyWith(
+                          color: palette.accent,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () =>
+                          showLegalDocument(context, LegalTexts.privacy),
+                      child: Text(
+                        'PRIVACY',
+                        style: texts.labelSmall?.copyWith(
+                          color: palette.accent,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

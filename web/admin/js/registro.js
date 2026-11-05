@@ -4,7 +4,44 @@
  */
 import { fa, html, metti, pannello, quando, testata } from './base.js';
 
+const DECISIONI = {
+  removed: 'Ha tolto il contenuto segnalato',
+  fake: 'Ha respinto una segnalazione',
+  reviewing: 'Ha preso in mano una segnalazione',
+};
+
+const MOTIVI = {
+  danger: 'mette in pericolo qualcuno',
+  sexual: 'contenuto sessualmente esplicito',
+  violence: 'violenza',
+  hate: 'molestie o bullismo',
+  illegal: 'contenuto illegale',
+  spam: 'spam o frode',
+  minor: 'c’è un minore',
+  other: 'altro',
+};
+
+const COSE = {
+  entry: 'foto',
+  comment: 'commento',
+  challenge: 'missione',
+  user: 'persona',
+};
+
 const AZIONI = {
+  decidiSegnalazione: (d) =>
+    `${DECISIONI[d.decisione] || d.decisione} (${COSE[d.kind] || d.kind}, ${MOTIVI[d.reason] || d.reason})` +
+    `${d.insieme > 1 ? `, insieme a altre ${d.insieme - 1}` : ''}` +
+    `${d.sospeso ? ` e ha sospeso l'autore ${d.sospeso.giorni ? `per ${d.sospeso.giorni} giorni` : 'per sempre'}` : ''}`,
+  riattiva: () => 'Ha riattivato un account sospeso',
+  eliminaAccount: (d) => `Ha eliminato l'account di @${d.username}: ${d.motivo}`,
+  rimettiFoto: () => 'Ha rimesso in gara una foto',
+  respingiRevisione: () => 'Ha respinto una richiesta di revisione',
+  verificato: (d) => (d.verificato ? 'Ha fatto sostenitore una persona' : 'Ha tolto il segno di sostenitore'),
+  segnaBlocco: (d) => `Ha guardato il blocco di @${d.bloccaNome} su @${d.bloccatoNome}`,
+  togliCommento: (d) => `Ha tolto un commento: “${d.testo}”`,
+  togliTesto: (d) => `Ha tolto un testo (${d.cosa}): “${d.testo}”`,
+  togliFotoProfilo: () => 'Ha tolto una foto profilo',
   decidiProposta: (d) =>
     `${d.decisione === 'approva' ? 'Ha approvato' : 'Ha rifiutato'} una missione${d.motivo ? `: ${d.motivo}` : ''}`,
   togliGara: (d) => `Ha tolto la missione “${d.titolo}”: ${d.motivo}`,

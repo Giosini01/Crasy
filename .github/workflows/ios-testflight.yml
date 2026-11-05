@@ -255,6 +255,37 @@ jobs:
 
           xcode-project build-ipa --project "ios/Runner.xcodeproj" --scheme "Runner"
 
+      - name: Nessun tracciamento nel binario
+        # **Quello che si dichiara ad Apple, controllato su quello che le si manda.**
+        # CRASY dichiara di non tracciare (`conformita_apple.md`), e questa e' l'unica
+        # prova fatta sul file vero, con dentro tutte le librerie. Non ferma la build:
+        # scrive nel riepilogo cosa ha trovato, e se trova qualcosa va guardato prima
+        # di mandare la build in revisione.
+        continue-on-error: true
+        run: |
+          APP="build/ios/iphoneos/Runner.app"
+          TROVATO=0
+
+          for file in "$APP/Runner" "$APP"/Frameworks/*.framework/*; do
+            [ -f "$file" ] && file "$file" | grep -q "Mach-O" || continue
+
+            if otool -L "$file" | grep -E "AdSupport|AppTrackingTransparency"; then
+              echo "::warning::$file usa AdSupport o AppTrackingTransparency"
+              TROVATO=1
+            fi
+
+            if strings "$file" | grep -E "ASIdentifierManager|advertisingIdentifier|GoogleAppMeasurement|FIRAnalytics"; then
+              echo "::warning::$file nomina un identificativo pubblicitario o Analytics"
+              TROVATO=1
+            fi
+          done
+
+          if [ "$TROVATO" = 0 ]; then
+            echo "Nessuna traccia di AdSupport, ATT, IDFA o Analytics nel binario." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "**Attenzione:** nel binario c'e' qualcosa che somiglia a un tracciamento: guarda gli avvisi di questo passo." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Su TestFlight
         # Si carica e basta: niente --testflight. Mandare in revisione a ogni
         # build significa prendersi un 422 "Another build is in review" e

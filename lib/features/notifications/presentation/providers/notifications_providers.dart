@@ -4,6 +4,7 @@ import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/services/firebase/firebase_providers.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
+import 'package:crasy/features/moderation/presentation/providers/moderation_providers.dart';
 import 'package:crasy/features/notifications/data/icon_badge.dart';
 import 'package:crasy/features/notifications/data/push_registry.dart';
 import 'package:crasy/features/notifications/data/repositories/firestore_notifications_repository.dart';
@@ -82,6 +83,7 @@ final notificationsProvider = Provider<List<AppNotification>>((ref) {
   final myEntries = ref.watch(myEntriesProvider).valueOrNull ?? const [];
   final ended = ref.watch(endedChallengesProvider).valueOrNull ?? const [];
   final viste = ref.watch(revealsSeenProvider).valueOrNull ?? const <String>{};
+  final bloccati = ref.watch(blockedNowProvider);
 
   // Le gare finite che non hanno ancora un vincitore proclamato: dura un
   // istante, perche' la chiude il primo che le apre.
@@ -92,7 +94,10 @@ final notificationsProvider = Provider<List<AppNotification>>((ref) {
   final partecipate = {for (final entry in myEntries) entry.challengeId};
 
   final all = <AppNotification>[
-    ...stored,
+    // **Quello che ha fatto chi hai bloccato non resta in campanella**, nemmeno
+    // se era arrivato prima del blocco.
+    for (final notifica in stored)
+      if (!bloccati.contains(notifica.actorId)) notifica,
     // **Chi ha iniziato a seguirti, nella sezione RICHIESTE.**
     //
     // Si ricava dall'elenco di chi ti segue senza che tu ricambi, come prima di

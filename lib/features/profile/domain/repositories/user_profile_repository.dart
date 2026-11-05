@@ -78,11 +78,33 @@ abstract class UserProfileRepository {
   /// che le regole le negano.
   Stream<ContactSettings> watchContactSettings(String userId);
 
+  ///
+  /// [origine] dice da dove arriva la firma: `prima-dell-accesso` o
+  /// `dentro-l-app`. Una scelta sulle comunicazioni commerciali gia' data non si
+  /// spegne da qui: riaccettare i documenti non e' revocare un consenso, e
+  /// quello si toglie da [saveMarketingChoice].
   Future<void> saveConsent({
     required String userId,
     required String version,
     required bool marketing,
-    required bool profiling,
+    String origine = 'dentro-l-app',
+  });
+
+  /// Cambia la sola scelta sulle comunicazioni commerciali, lasciando una riga
+  /// nel registro. Non tocca la data di accettazione dei documenti.
+  Future<void> saveMarketingChoice({
+    required String userId,
+    required bool marketing,
+  });
+
+  /// La firma di [version] nel registro, se c'e'.
+  ///
+  /// Serve a chi si e' registrato: ha accettato prima di avere un account, cioe'
+  /// prima di avere un profilo su cui scriverlo. L'onboarding la ricopia nel
+  /// profilo quando il profilo nasce.
+  Future<({bool marketing})?> findLegalAcceptance({
+    required String userId,
+    required String version,
   });
 
   /// Cancella tutto quello che di [userId] si puo' cancellare da qui.

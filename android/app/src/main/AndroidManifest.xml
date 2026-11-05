@@ -1,4 +1,10 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- **L'identificativo pubblicitario non serve a niente, e qui si dice.** CRASY
+         non mostra pubblicita' e non traccia nessuno: se un domani una libreria
+         chiedesse questo permesso per conto suo, questa riga lo toglie. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
+
     <!-- Alle challenge si partecipa scattando sul momento oppure scegliendo
          una foto gia' fatta: servono tutte e due le strade. -->
     <uses-permission android:name="android.permission.CAMERA" />

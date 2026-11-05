@@ -17,7 +17,6 @@ abstract final class UserProfileMapper {
       legalVersion: data['legalVersion'] as String? ?? '',
       legalAcceptedAt: (data['legalAcceptedAt'] as Timestamp?)?.toDate(),
       marketingConsent: data['marketingConsent'] as bool? ?? false,
-      profilingConsent: data['profilingConsent'] as bool? ?? false,
       tutorialSeen: data['tutorialSeen'] as bool? ?? false,
       streak: (data['streak'] as num?)?.toInt() ?? 0,
       bestStreak: (data['bestStreak'] as num?)?.toInt() ?? 0,
@@ -41,6 +40,16 @@ abstract final class UserProfileMapper {
   static Map<String, dynamic> toCreateMap(UserProfile profile) {
     return {
       ..._commonMap(profile),
+      // **La firma data prima di avere un account.** Il profilo nasce qui, e
+      // nasce sapendo cosa ha accettato chi si e' appena registrato: vedi
+      // `OnboardingController`. L'ora la mette il server, come chiedono le
+      // regole: quella precisa, e la prova, stanno nella riga del registro. Negli
+      // aggiornamenti non c'e' apposta: quella firma la cambia solo `saveConsent`.
+      if (profile.legalVersion.isNotEmpty) ...{
+        'legalVersion': profile.legalVersion,
+        'legalAcceptedAt': FieldValue.serverTimestamp(),
+        'marketingConsent': profile.marketingConsent,
+      },
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };

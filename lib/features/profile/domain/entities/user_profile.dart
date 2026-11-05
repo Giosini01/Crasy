@@ -23,7 +23,6 @@ class UserProfile {
     this.legalVersion = '',
     this.legalAcceptedAt,
     this.marketingConsent = false,
-    this.profilingConsent = false,
     this.tutorialSeen = false,
     this.phoneVerified = false,
     this.streak = 0,
@@ -108,10 +107,9 @@ class UserProfile {
   final String legalVersion;
   final DateTime? legalAcceptedAt;
 
-  /// I due consensi facoltativi. Nascono **spenti**, sempre: una casella gia'
+  /// Il consenso facoltativo. Nasce **spento**, sempre: una casella gia'
   /// spuntata non e' un consenso, e' una distrazione sfruttata.
   final bool marketingConsent;
-  final bool profilingConsent;
 
   /// Se ha gia' visto le quattro regole del gioco.
   ///
@@ -247,7 +245,6 @@ class UserProfile {
     String? legalVersion,
     DateTime? legalAcceptedAt,
     bool? marketingConsent,
-    bool? profilingConsent,
     bool? tutorialSeen,
     bool? phoneVerified,
     int? streak,
@@ -270,7 +267,6 @@ class UserProfile {
       legalVersion: legalVersion ?? this.legalVersion,
       legalAcceptedAt: legalAcceptedAt ?? this.legalAcceptedAt,
       marketingConsent: marketingConsent ?? this.marketingConsent,
-      profilingConsent: profilingConsent ?? this.profilingConsent,
       tutorialSeen: tutorialSeen ?? this.tutorialSeen,
       phoneVerified: phoneVerified ?? this.phoneVerified,
       streak: streak ?? this.streak,

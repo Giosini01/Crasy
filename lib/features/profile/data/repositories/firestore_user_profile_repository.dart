@@ -185,33 +185,88 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
     required String userId,
     required String version,
     required bool marketing,
-    required bool profiling,
-  }) {
+    String origine = 'dentro-l-app',
+  }) async {
     final user = _users.doc(userId);
+    final letto = await user.get();
+    final dati = letto.data();
+    final scelta = marketing || (dati?['marketingConsent'] as bool? ?? false);
+
+    // Documento nuovo a ogni volta, mai lo stesso riscritto: revocare un
+    // consenso **non cancella** quello dato prima. Il registro deve poter
+    // rispondere anche a "cosa aveva accettato in quel momento", non solo a
+    // "cosa accetta adesso". L'ora la mette il server, e le regole non
+    // accettano nient'altro: una firma con una data scelta da chi firma non
+    // dimostra niente.
+    final batch = _firestore.batch()
+      ..set(user.collection('consents').doc(), {
+        'kind': 'legale',
+        'version': version,
+        'marketing': scelta,
+        'origine': origine,
+        'at': FieldValue.serverTimestamp(),
+      });
 
     // Le due scritture partono insieme: o si registrano tutte e due, o
     // nessuna. Un profilo che dice "accettato" senza la riga corrispondente nel
     // registro e' peggio di nessuna delle due — sembra a posto e non lo e'.
-    final batch = _firestore.batch()
-      ..update(user, {
+    //
+    // **Chi si e' appena registrato un profilo non ce l'ha ancora**, e chi non
+    // ha finito l'onboarding non passerebbe dalle regole: per loro c'e' solo la
+    // riga, e la ricopia l'onboarding. Vedi [findLegalAcceptance].
+    if (letto.exists && dati?['birthDate'] != null) {
+      batch.update(user, {
         'legalVersion': version,
         'legalAcceptedAt': FieldValue.serverTimestamp(),
-        'marketingConsent': marketing,
-        'profilingConsent': profiling,
+        'marketingConsent': scelta,
+        // Il consenso alla profilazione non esiste piu', e nemmeno quello che
+        // ne restava. Le righe vecchie del registro restano dove sono.
+        'profilingConsent': FieldValue.delete(),
         'updatedAt': FieldValue.serverTimestamp(),
-      })
-      // Documento nuovo a ogni volta, mai lo stesso riscritto: revocare un
-      // consenso **non cancella** quello dato prima. Il registro deve poter
-      // rispondere anche a "cosa aveva accettato in quel momento", non solo a
-      // "cosa accetta adesso".
-      ..set(user.collection('consents').doc(), {
-        'version': version,
-        'marketing': marketing,
-        'profiling': profiling,
-        'at': FieldValue.serverTimestamp(),
       });
+    }
 
-    return batch.commit();
+    await batch.commit();
+  }
+
+  @override
+  Future<void> saveMarketingChoice({
+    required String userId,
+    required bool marketing,
+  }) {
+    final user = _users.doc(userId);
+
+    return (_firestore.batch()
+          ..update(user, {
+            'marketingConsent': marketing,
+            'updatedAt': FieldValue.serverTimestamp(),
+          })
+          ..set(user.collection('consents').doc(), {
+            'kind': 'marketing',
+            'marketing': marketing,
+            'at': FieldValue.serverTimestamp(),
+          }))
+        .commit();
+  }
+
+  @override
+  Future<({bool marketing})?> findLegalAcceptance({
+    required String userId,
+    required String version,
+  }) async {
+    final righe = await _users
+        .doc(userId)
+        .collection('consents')
+        .where('kind', isEqualTo: 'legale')
+        .where('version', isEqualTo: version)
+        .limit(1)
+        .get();
+
+    if (righe.docs.isEmpty) {
+      return null;
+    }
+
+    return (marketing: righe.docs.first.data()['marketing'] as bool? ?? false);
   }
 
   @override
@@ -237,6 +292,9 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
       'following',
       'private',
       'devices',
+      // **E chi aveva bloccato.** Il segno del blocco non serve piu' a nessuno
+      // quando chi l'ha messo se ne va.
+      'blocked',
     ]) {
       await _eraseCollection(user.collection(collezione));
     }

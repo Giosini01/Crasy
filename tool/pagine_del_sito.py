@@ -294,10 +294,11 @@ def supporto():
   del guasto.</p>
 
   <h2>Segnalare una foto o una persona</h2>
-  <p>Dentro l'app, sotto ogni foto e su ogni profilo c'e' il comando per
-  segnalare. Le segnalazioni le leggiamo una per una. Puoi anche bloccare una
-  persona: da quel momento non vedrai piu' niente di suo, e lei niente di
-  tuo.</p>
+  <p>Dentro l'app, nel menu accanto a ogni foto, commento e missione e su ogni
+  profilo, c'e' il comando per segnalare. Le segnalazioni le guarda una persona
+  del team entro 24 ore. Puoi anche bloccare una persona: da quel momento non
+  vedi piu' i suoi contenuti, e fra voi non sono piu' possibili commenti, fiamme
+  e sfide.</p>
 
   <h2>Cancellare l'account</h2>
   <p>Dal tuo profilo, in fondo alle impostazioni. Si chiude subito e i dati

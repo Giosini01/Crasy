@@ -151,6 +151,13 @@ enum NotificationKind {
   /// una gara con dei soldi, e i minuti che restano servono a prendere fiamme.
   restored,
 
+  /// **Un altro tuo contenuto e' stato tolto**: un commento, una didascalia, la
+  /// foto profilo, la descrizione, il nome. [AppNotification.cosa] dice quale.
+  ///
+  /// Non ha un interruttore per la stessa ragione di [removed]: chi si vede
+  /// togliere qualcosa deve saperlo e deve sapere perche'.
+  contentRemoved,
+
   /// **La missione che avevi proposto e' approvata.**
   ///
   /// Una missione che il controllo automatico non se la sente di far uscire da
@@ -237,6 +244,7 @@ class AppNotification {
     this.motivo = '',
     this.automatico = false,
     this.revisione = '',
+    this.cosa = '',
     this.propostaId = '',
     this.premioCents = 0,
     this.rimborsoCents = 0,
@@ -281,6 +289,10 @@ class AppNotification {
   /// va, e al suo posto arriva [NotificationKind.restored].
   final String revisione;
 
+  /// Per [NotificationKind.contentRemoved]: `commento`, `didascalia`,
+  /// `fotoProfilo`, `descrizione` o `nome`.
+  final String cosa;
+
   /// La missione proposta di cui si parla, per [NotificationKind.missionApproved]
   /// e [NotificationKind.missionRejected]: finche' non e' pagata, la gara non c'e'.
   final String propostaId;
@@ -308,6 +320,8 @@ class AppNotification {
       'pericolo' => 'un contenuto che mette in pericolo qualcuno',
       'odio' => 'un contenuto che offende o prende di mira qualcuno',
       'minore' => 'un contenuto con un minorenne',
+      'illegale' => 'un contenuto illegale',
+      'spam' => 'spam o una frode',
       _ => '',
     };
 
@@ -380,6 +394,19 @@ class AppNotification {
     NotificationKind.ended => 'La missione è finita: guarda chi ha vinto',
     NotificationKind.removed => 'La tua foto è stata tolta dalla gara',
     NotificationKind.restored => 'La tua foto è tornata in gara',
+    NotificationKind.contentRemoved => switch (cosa) {
+      'commento' => 'Un tuo commento è stato tolto: violava le regole di CRASY',
+      'didascalia' =>
+        'La didascalia di una tua foto è stata tolta: violava le regole di '
+            'CRASY',
+      'fotoProfilo' =>
+        'La tua foto profilo è stata tolta: violava le regole di CRASY',
+      'descrizione' =>
+        'La tua descrizione è stata tolta: violava le regole di CRASY',
+      'nome' =>
+        'Il tuo nome utente è stato cambiato: violava le regole di CRASY',
+      _ => 'Un tuo contenuto è stato tolto: violava le regole di CRASY',
+    },
     NotificationKind.comment => '$actorTag ha commentato la tua foto',
     // Con la gara in mano e' gia' uscita; senza, manca il pagamento.
     NotificationKind.missionApproved =>
@@ -434,6 +461,7 @@ class AppNotification {
     // sarebbe la cosa piu' stonata della campanella.
     NotificationKind.removed => NotificationGroup.participations,
     NotificationKind.restored => NotificationGroup.participations,
+    NotificationKind.contentRemoved => NotificationGroup.participations,
     // **Con le partecipazioni, dove si guardano le proprie missioni.** Non sono
     // sfide — una gara pubblica non e' una sfida a nessuno — e non sono vittorie.
     NotificationKind.missionApproved ||

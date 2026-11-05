@@ -26,7 +26,9 @@ class ModerationRepository {
   /// quella che leggiamo noi — e un segno sul contenuto segnalato, che serve
   /// all'app per farlo sparire senza dover interrogare le segnalazioni di
   /// nessun altro.
-  Future<void> report({
+  ///
+  /// Torna [ReportOutcome.alreadySent] se questa persona l'aveva gia' segnalata.
+  Future<ReportOutcome> report({
     required ReportTargetKind kind,
     required String reporterId,
     required String reportedUserId,
@@ -38,14 +40,12 @@ class ModerationRepository {
     String reportedUsername = '',
     String mediaUrl = '',
     String challengeTitle = '',
+    String commentText = '',
   }) async {
-    final batch = _firestore.batch();
-
     // L'identificativo mette insieme chi segnala e cosa: **la stessa persona
-    // non puo' segnalare due volte la stessa cosa**, e non perche' glielo
-    // impedisca un controllo, ma perche' la seconda segnalazione riscrive la
-    // prima. Senza, tre tocchi nervosi dello stesso dito farebbero sparire una
-    // foto a tutti.
+    // non puo' segnalare due volte la stessa cosa**. Tre tocchi nervosi dello
+    // stesso dito fanno una segnalazione sola, e le regole non accettano che ne
+    // nasca una seconda con lo stesso nome.
     final target = [
       kind.name,
       if (challengeId.isNotEmpty) challengeId,
@@ -54,7 +54,18 @@ class ModerationRepository {
       if (entryId.isEmpty && commentId.isEmpty) reportedUserId,
     ].join('__');
 
-    batch.set(_reports.doc('${reporterId}__$target'), {
+    final riferimento = _reports.doc('${reporterId}__$target');
+
+    // **Si chiede prima, cosi' si puo' dire la cosa giusta.** Le regole la
+    // rifiuterebbero comunque, ma con un rifiuto che somiglia a un guasto: chi
+    // aveva gia' segnalato leggerebbe "non riuscita, riprova" e riproverebbe.
+    if ((await riferimento.get()).exists) {
+      return ReportOutcome.alreadySent;
+    }
+
+    final batch = _firestore.batch();
+
+    batch.set(riferimento, {
       'kind': kind.name,
       'reporterId': reporterId,
       'reportedUserId': reportedUserId,
@@ -79,6 +90,7 @@ class ModerationRepository {
       'reportedUsername': reportedUsername,
       'mediaUrl': mediaUrl,
       'challengeTitle': challengeTitle,
+      'commentText': commentText,
       'createdAt': FieldValue.serverTimestamp(),
       // **Nasce nuova, e non la muove nessun telefono.** A cambiare questo
       // campo e' solo `adminResolveReport`, che scrive con l'SDK di
@@ -93,20 +105,25 @@ class ModerationRepository {
     // l'app le partecipazioni le legge gia' tutte: contare le segnalazioni
     // altrove vorrebbe dire una lettura in piu' per ogni foto di ogni
     // schermata.
+    //
+    // **Solo se la partecipazione c'e' ancora.** Quella di una gara finita da
+    // due giorni e' stata cancellata, e la sua foto resta come trofeo: si deve
+    // poter segnalare lo stesso, e un segno scritto su un documento che non
+    // esiste farebbe fallire tutta la segnalazione.
     if (kind == ReportTargetKind.entry &&
         challengeId.isNotEmpty &&
         entryId.isNotEmpty) {
-      batch.set(
-        _firestore
-            .collection('challenges')
-            .doc(challengeId)
-            .collection('entries')
-            .doc(entryId),
-        {
+      final partecipazione = _firestore
+          .collection('challenges')
+          .doc(challengeId)
+          .collection('entries')
+          .doc(entryId);
+
+      if ((await partecipazione.get()).exists) {
+        batch.update(partecipazione, {
           'reporters': FieldValue.arrayUnion([reporterId]),
-        },
-        SetOptions(merge: true),
-      );
+        });
+      }
     }
 
     await batch.commit();
@@ -122,13 +139,31 @@ class ModerationRepository {
         entryId: entryId,
       );
     }
+
+    return ReportOutcome.sent;
   }
 
   /// Non voglio piu' vedere questa persona.
-  Future<void> block({required String userId, required String otherId}) async {
-    await _blocked(
-      userId,
-    ).doc(otherId).set({'createdAt': FieldValue.serverTimestamp()});
+  ///
+  /// **Il blocco non e' una segnalazione**: non chiede a nessuno di giudicare
+  /// niente. Ma Apple chiede che lo sviluppatore lo sappia (linea guida 1.2), e
+  /// per questo si scrive anche da dove e' partito: `bloccoArrivato`, sul
+  /// server, ne fa un evento per il pannello e toglie i legami fra i due.
+  Future<void> block({
+    required String userId,
+    required String otherId,
+    String origine = '',
+    String challengeId = '',
+    String entryId = '',
+    String commentId = '',
+  }) async {
+    await _blocked(userId).doc(otherId).set({
+      'createdAt': FieldValue.serverTimestamp(),
+      'origine': origine,
+      'challengeId': challengeId,
+      'entryId': entryId,
+      'commentId': commentId,
+    });
 
     // **E le fiamme date alle sue foto tornano a chi blocca.** Da adesso
     // quelle foto non le vede piu': restando contate fra le sue tre, erano

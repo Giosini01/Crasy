@@ -52,6 +52,9 @@ const { magazzinoDi } = require('./magazzino');
 const { autoreDi } = require('./autori');
 const posta = require('./posta');
 const sospensioni = require('./sospensioni');
+const { registra } = require('./registro');
+const { avvisaDelContenutoTolto } = require('./avvisi');
+const { ORE_PER_DECIDERE, SEGNALANTI, scadenzaDi } = require('./moderazione');
 
 const db = admin.firestore();
 
@@ -107,12 +110,18 @@ function soloAdmin(request) {
   return request.auth.uid;
 }
 
-/** Il riferimento alla partecipazione segnalata, o `null` se non ce n'e' una. */
+/**
+ * Il riferimento alla partecipazione segnalata, o `null` se non ce n'e' una.
+ *
+ * **Solo per le segnalazioni su una foto.** Un commento segnalato porta anche lui la
+ * gara e la foto a cui sta sotto, per dire dov'e': decidere su quello non deve
+ * toccare la foto di nessuno.
+ */
 function fotoDi(dati) {
   const challengeId = String(dati.challengeId || '');
   const entryId = String(dati.entryId || '');
 
-  if (!challengeId || !entryId) {
+  if (dati.kind !== 'entry' || !challengeId || !entryId) {
     return null;
   }
 
@@ -153,40 +162,86 @@ exports.adminWhoAmI = onCall(async (request) => {
  * un ripiego per quando la partecipazione e' stata cancellata dalla pulizia
  * delle quarantotto ore — arriva da un telefono, quindi va bene per far vedere
  * qualcosa, non per fondarci una decisione.
+ *
+ * ## I filtri e la scadenza
+ *
+ * Per stato, tipo di contenuto, motivo e data. **Le aperte arrivano dalla piu'
+ * vecchia**: e' quella che scade prima, e il tetto delle 24 ore si rispetta
+ * guardando prima lei. Le chiuse dalla piu' recente.
+ *
+ * Quelle mandate da chi ne ha mandate troppe (`sospetta`) stanno in fondo alle
+ * aperte: vedi `moderazione.js`.
  */
 exports.adminListReports = onCall(async (request) => {
   soloAdmin(request);
 
-  const stato = request.data && request.data.status;
-  const limite = Math.min(Number((request.data && request.data.limit) || PAGINA), PAGINA);
+  const filtri = request.data || {};
+  const stato = filtri.status;
+  const limite = Math.min(Number(filtri.limit || PAGINA), PAGINA);
+  const tipo = String(filtri.kind || '');
+  const motivo = String(filtri.reason || '');
+  const dal = Number(filtri.dal) || 0;
+  const al = Number(filtri.al) || 0;
 
-  // L'ordinamento e' in memoria e non nella query, per la stessa trappola di
-  // sempre: un `orderBy` su un campo salta i documenti che quel campo non ce
-  // l'hanno, e una segnalazione scritta un istante prima che il server le desse
-  // l'ora sparirebbe dall'elenco invece di comparire in cima.
-  const tutte = await db.collection('reports').limit(500).get();
-
+  const documenti = await leggiLeSegnalazioni(stato, { dal, al });
   const righe = [];
 
-  for (const doc of tutte.docs) {
+  for (const doc of documenti) {
     const dati = doc.data() || {};
     const suo = statoDi(dati.status);
+    const quando = dati.createdAt ? dati.createdAt.toMillis() : 0;
 
-    if (stato && stato !== 'all' && suo !== stato) {
+    if (
+      (stato && stato !== 'all' && suo !== stato) ||
+      (tipo && dati.kind !== tipo) ||
+      (motivo && dati.reason !== motivo) ||
+      (dal && quando < dal) ||
+      (al && quando > al)
+    ) {
       continue;
     }
 
-    righe.push({ doc, dati, stato: suo });
+    righe.push({ doc, dati, stato: suo, quando });
   }
 
-  righe.sort((a, b) => {
-    const at = a.dati.createdAt ? a.dati.createdAt.toMillis() : 0;
-    const bt = b.dati.createdAt ? b.dati.createdAt.toMillis() : 0;
+  const aperta = (riga) => riga.stato === 'new' || riga.stato === 'reviewing';
 
-    return bt - at;
+  righe.sort((a, b) => {
+    // Prima quelle da decidere, e fra queste la piu' vecchia: e' la piu' vicina
+    // alla scadenza. Le sospette in fondo alle aperte.
+    if (aperta(a) !== aperta(b)) {
+      return aperta(a) ? -1 : 1;
+    }
+
+    if (!aperta(a)) {
+      return b.quando - a.quando;
+    }
+
+    const sospette = Number(a.dati.sospetta === true) - Number(b.dati.sospetta === true);
+
+    return sospette || a.quando - b.quando;
   });
 
   const scelte = righe.slice(0, limite);
+
+  // **Chi ha segnalato, e quante delle sue sono state respinte.** Il team lo deve
+  // poter vedere: serve a giudicare e a riconoscere chi usa le segnalazioni come
+  // arma. Non esce mai da qui: a chi e' stato segnalato non arriva, in nessuna
+  // schermata e in nessun avviso.
+  const chiSegnala = [...new Set(scelte.map((r) => String(r.dati.reporterId || '')).filter(Boolean))];
+  // E chi ha deciso: un nome, non un identificativo.
+  const chiNominare = [
+    ...new Set([...chiSegnala, ...scelte.map((r) => String(r.dati.resolvedBy || '')).filter(Boolean)]),
+  ];
+  const [nomi, reputazioni] = chiSegnala.length
+    ? await Promise.all([
+        db.getAll(...chiNominare.map((uid) => db.collection('users').doc(uid))),
+        db.getAll(...chiSegnala.map((uid) => db.collection(SEGNALANTI).doc(uid))),
+      ])
+    : [[], []];
+  const nomeDi = new Map(nomi.map((d) => [d.id, String(d.get('username') || '')]));
+  const respinteDi = new Map(reputazioni.map((d) => [d.id, Number(d.get('respinte') || 0)]));
+  const adesso = Date.now();
 
   // Le partecipazioni si leggono una volta per foto, non una per segnalazione:
   // dieci segnalazioni sulla stessa foto sono dieci righe e **una** lettura.
@@ -216,6 +271,9 @@ exports.adminListReports = onCall(async (request) => {
     const { doc, dati } = riga;
     const foto = await partecipazione(dati);
     const chiHaSegnalato = foto ? foto.get('reporters') : null;
+    const vero = dati.verificato || {};
+    const reporterId = String(dati.reporterId || '');
+    const scadeIl = riga.quando ? scadenzaDi(riga.quando) : null;
 
     reports.push({
       id: doc.id,
@@ -225,21 +283,31 @@ exports.adminListReports = onCall(async (request) => {
       note: String(dati.note || ''),
       challengeId: String(dati.challengeId || ''),
       challengeTitle: String(
-        (foto && foto.get('challengeTitle')) || dati.challengeTitle || ''
+        (foto && foto.get('challengeTitle')) || vero.titolo || dati.challengeTitle || ''
       ),
       entryId: String(dati.entryId || ''),
       commentId: String(dati.commentId || ''),
       reportedUserId: String(dati.reportedUserId || ''),
       reportedUsername: String(
-        (foto && foto.get('authorName')) || dati.reportedUsername || ''
+        (foto && foto.get('authorName')) || vero.autoreNome || dati.reportedUsername || ''
       ),
-      // **Chi ha segnalato non esce da qui, mai.** Le segnalazioni sono
-      // anonime per costruzione, e un amministratore che sa chi e' stato e'
-      // un amministratore che puo' dirlo. Il conto si', il nome no.
-      mediaUrl: String((foto && foto.get('mediaUrl')) || dati.mediaUrl || ''),
-      mediaKind: String((foto && foto.get('mediaKind')) || 'photo'),
+      // Quello che il server ha letto arrivando la segnalazione: il commento o la
+      // consegna possono non esserci piu', e chi decide li deve poter leggere.
+      testo: String(vero.testo || dati.commentText || ''),
+      reporterId,
+      reporterUsername: nomeDi.get(reporterId) || '',
+      reporterRespinte: respinteDi.get(reporterId) || 0,
+      sospetta: dati.sospetta === true,
+      mediaUrl: String((foto && foto.get('mediaUrl')) || vero.mediaUrl || dati.mediaUrl || ''),
+      mediaKind: String((foto && foto.get('mediaKind')) || vero.mediaKind || 'photo'),
       createdAt: dati.createdAt ? dati.createdAt.toMillis() : null,
       resolvedAt: dati.resolvedAt ? dati.resolvedAt.toMillis() : null,
+      resolvedBy: String(dati.resolvedBy || ''),
+      resolvedByUsername: nomeDi.get(String(dati.resolvedBy || '')) || '',
+      // **Il tetto delle 24 ore, per chi guarda.** Vale per quelle ancora da
+      // decidere: una chiusa non scade.
+      scadeIl: aperta(riga) ? scadeIl : null,
+      scaduta: aperta(riga) && scadeIl !== null && scadeIl < adesso,
       // Quante persone **diverse** hanno segnalato questa stessa foto. Non
       // decide niente — non c'e' nessuna soglia — ma davanti a venti
       // segnalazioni si guarda prima.
@@ -251,8 +319,122 @@ exports.adminListReports = onCall(async (request) => {
     });
   }
 
-  return { reports, total: righe.length };
+  return { reports, total: righe.length, orePerDecidere: ORE_PER_DECIDERE };
 });
+
+/**
+ * **Le segnalazioni giuste, gia' in ordine, dal database.**
+ *
+ * Prima si prendevano cinquecento documenti qualunque e si filtrava dopo: passate
+ * le cinquecento, le piu' recenti potevano restare fuori — cioe' proprio quelle da
+ * guardare entro 24 ore, senza che nessuno se ne accorgesse.
+ *
+ * **Se l'indice non e' ancora pronto si ripiega sul vecchio modo.** Si pubblica
+ * insieme al resto, ma si costruisce con calma: per qualche minuto dopo il rilascio
+ * la lista deve funzionare lo stesso.
+ */
+async function leggiLeSegnalazioni(stato, { dal, al }) {
+  const stati = stato === 'new' ? ['new', 'open'] : STATI.includes(stato) ? [stato] : null;
+
+  try {
+    let query = db.collection('reports');
+
+    if (stati) {
+      query = query.where('status', 'in', stati);
+    }
+
+    if (dal) {
+      query = query.where('createdAt', '>=', admin.firestore.Timestamp.fromMillis(dal));
+    }
+
+    if (al) {
+      query = query.where('createdAt', '<=', admin.firestore.Timestamp.fromMillis(al));
+    }
+
+    const crescente = stato === 'new' || stato === 'reviewing';
+
+    return (await query.orderBy('createdAt', crescente ? 'asc' : 'desc').limit(500).get()).docs;
+  } catch (errore) {
+    logger.warn('segnalazioni lette senza indice', {
+      messaggio: String((errore && errore.message) || errore).slice(0, 200),
+    });
+
+    return (await db.collection('reports').limit(500).get()).docs;
+  }
+}
+
+/**
+ * **Toglie un commento segnalato.** Si cancella davvero: non ha un file e non ha
+ * un'attesa da rispettare, e il testo resta scritto nella segnalazione e nel
+ * registro. Torna quello che c'era scritto, o `null` se non c'era piu'.
+ */
+async function togliIlCommento(dati, motivo) {
+  const riferimento = db
+    .collection('challenges')
+    .doc(String(dati.challengeId || ''))
+    .collection('entries')
+    .doc(String(dati.entryId || ''))
+    .collection('comments')
+    .doc(String(dati.commentId || ''));
+  const commento = await riferimento.get();
+
+  if (!commento.exists) {
+    return null;
+  }
+
+  await riferimento.delete();
+  await avvisaDelContenutoTolto(String(commento.get('userId') || ''), {
+    cosa: 'commento',
+    id: riferimento.id,
+    motivo,
+    automatico: false,
+  });
+
+  return String(commento.get('text') || '');
+}
+
+/**
+ * Se due segnalazioni parlano della stessa cosa: si chiudono insieme.
+ *
+ * **Il tipo conta.** Un commento segnalato sta sotto la stessa foto e sta nella
+ * stessa gara di quella foto: decidere sul commento non chiude le segnalazioni sulla
+ * foto, e viceversa.
+ */
+function stessoBersaglio(a, b) {
+  return (
+    a.kind === b.kind &&
+    String(a.challengeId || '') === String(b.challengeId || '') &&
+    String(a.entryId || '') === String(b.entryId || '') &&
+    String(a.commentId || '') === String(b.commentId || '') &&
+    (a.kind !== 'user' || String(a.reportedUserId || '') === String(b.reportedUserId || ''))
+  );
+}
+
+/** Le altre segnalazioni che parlano della stessa cosa. */
+async function segnalazioniSorelle(dati) {
+  const reports = db.collection('reports');
+  let query = null;
+
+  // Due uguaglianze non vogliono un indice composto: Firestore le incrocia da solo
+  // sugli indici dei singoli campi.
+  if (dati.kind === 'user' && dati.reportedUserId) {
+    query = reports.where('reportedUserId', '==', String(dati.reportedUserId));
+  } else if (dati.challengeId && dati.kind === 'challenge') {
+    query = reports.where('challengeId', '==', String(dati.challengeId));
+  } else if (dati.challengeId && dati.entryId) {
+    query = reports
+      .where('challengeId', '==', String(dati.challengeId))
+      .where('entryId', '==', String(dati.entryId));
+  }
+
+  if (!query) {
+    return [];
+  }
+
+  const trovate = await query.limit(200).get();
+
+  return trovate.docs.filter((doc) => stessoBersaglio(doc.data() || {}, dati));
+}
 
 /**
  * **Toglie una foto dalla gara.** Da un punto solo, che serva a una segnalazione o
@@ -374,6 +556,14 @@ exports.adminResolveReport = onCall(
   const dati = segnalazione.data() || {};
   const nuovo = decisione === 'remove' ? 'removed' : decisione;
   const foto = fotoDi(dati);
+  // **Due clic, o due amministratori insieme.** La stessa decisione due volte non
+  // deve togliere due volte, avvisare due volte o contare due volte. Resta da fare
+  // solo una sospensione scelta dopo: "togli" prima, e "sospendi" ripensandoci.
+  const giaDecisa = statoDi(dati.status) === nuovo;
+
+  if (giaDecisa && (decisione !== 'remove' || giorni === null)) {
+    return { status: nuovo, insieme: 0, sospeso: null, giaDecisa: true };
+  }
 
   // **Una missione segnalata si toglie tutta, non foto per foto.**
   //
@@ -407,29 +597,45 @@ exports.adminResolveReport = onCall(
         `La tua missione "${gara.get('title') || titolo}" è stata rimossa ` +
         'perché violava le regole di CRASY.';
     } else {
-      daSospendere = String(dati.reportedUserId || '');
+      // **Chi ha pubblicato lo dice il contenuto, non la segnalazione.** Il campo
+      // lo scrive il telefono di chi segnala: fidandosene, bastava scrivere il
+      // nome di un altro per far sospendere chi non c'entrava niente.
+      const foglio = foto ? await foto.get() : null;
+
+      daSospendere = String(
+        (foglio && foglio.exists && foglio.get('userId')) ||
+          (dati.verificato && dati.verificato.autoreId) ||
+          dati.reportedUserId ||
+          ''
+      );
       // Una persona segnalata non ha mandato nessuna foto: l'email deve dire la cosa
       // vera, e' quella che legge chi deve capire perche' non puo' piu' entrare.
       perche = foto
         ? `La tua foto nella missione "${titolo}" è stata rimossa perché ` +
           'violava le regole di CRASY.'
+        : dati.kind === 'comment'
+        ? 'Un tuo commento è stato rimosso perché violava le regole di CRASY.'
         : 'Il tuo profilo è stato segnalato, e una persona del team ha ' +
           'verificato che violava le regole di CRASY.';
     }
   }
 
-  if (!foto && dati.kind === 'challenge' && decisione === 'remove') {
+  if (!giaDecisa && dati.kind === 'comment' && decisione === 'remove') {
+    await togliIlCommento(dati, motivoDallaSegnalazione(dati.reason));
+  }
+
+  if (!giaDecisa && !foto && dati.kind === 'challenge' && decisione === 'remove') {
     await rimuoviLaMissione(String(dati.challengeId || ''), chi);
   }
 
-  if (foto) {
+  if (foto && !giaDecisa) {
     const adesso = await foto.get();
 
     if (adesso.exists) {
       if (decisione === 'remove') {
         await togliLaFoto(foto, {
           chi,
-          autore: String(dati.reportedUserId || adesso.get('userId') || ''),
+          autore: String(adesso.get('userId') || dati.reportedUserId || ''),
           titolo: String(adesso.get('challengeTitle') || dati.challengeTitle || ''),
           // L'ha decisa una persona, per la voce scelta da chi ha segnalato.
           motivo: motivoDallaSegnalazione(dati.reason),
@@ -468,7 +674,7 @@ exports.adminResolveReport = onCall(
           });
 
           await togliLAvvisoDiRimozione(
-            String(dati.reportedUserId || adesso.get('userId') || ''),
+            String(adesso.get('userId') || dati.reportedUserId || ''),
             String(dati.challengeId || '')
           );
         }
@@ -490,42 +696,65 @@ exports.adminResolveReport = onCall(
   // scatto archiviava in silenzio anche la segnalazione grave arrivata su un
   // altro. E' successo davvero, su tre segnalazioni di prova.
   //
-  // Due uguaglianze non vogliono un indice composto: Firestore le incrocia da
-  // solo sugli indici dei singoli campi.
-  const sorelle =
-    dati.entryId && dati.challengeId
-      ? await db
-          .collection('reports')
-          .where('challengeId', '==', String(dati.challengeId))
-          .where('entryId', '==', String(dati.entryId))
-          .limit(200)
-          .get()
-      : null;
-
+  const sorelle = await segnalazioniSorelle(dati);
   const scrittura = db.batch();
-  const chiusura = {
-    status: nuovo,
-    resolvedBy: chi,
-    resolvedAt: admin.firestore.FieldValue.serverTimestamp(),
-  };
+  // **"La guardo io" non e' una decisione.** Dice chi l'ha presa in mano, e la
+  // segnalazione resta aperta: scrivendo che era risolta, sembrava chiusa a chi la
+  // cercava.
+  const chiusura =
+    decisione === 'reviewing'
+      ? {
+          status: nuovo,
+          presaDa: chi,
+          presaIl: admin.firestore.FieldValue.serverTimestamp(),
+        }
+      : {
+          status: nuovo,
+          resolvedBy: chi,
+          resolvedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
 
   scrittura.update(riferimento, chiusura);
 
-  if (sorelle) {
-    for (const doc of sorelle.docs) {
-      if (doc.id !== reportId) {
-        scrittura.update(doc.ref, chiusura);
-      }
+  // "La guardo io" prende in mano solo quello che e' ancora da guardare: una sorella
+  // gia' decisa resta decisa.
+  const altre = sorelle.filter(
+    (doc) =>
+      doc.id !== reportId &&
+      (decisione !== 'reviewing' || statoDi(doc.get('status')) === 'new')
+  );
+
+  for (const doc of altre) {
+    scrittura.update(doc.ref, chiusura);
+  }
+
+  // **Quante segnalazioni di ciascuno sono state respinte.** Non blocca nessuno e
+  // non decide niente: lo vede chi modera, accanto al nome, per capire se ha davanti
+  // qualcuno che segnala per dare fastidio.
+  if (decisione === 'fake') {
+    const chiHaSegnalato = [dati, ...altre.map((doc) => doc.data() || {})]
+      .filter((d) => statoDi(d.status) !== 'fake')
+      .map((d) => String(d.reporterId || ''))
+      .filter(Boolean);
+
+    for (const uid of new Set(chiHaSegnalato)) {
+      scrittura.set(
+        db.collection(SEGNALANTI).doc(uid),
+        { respinte: admin.firestore.FieldValue.increment(1) },
+        { merge: true }
+      );
     }
   }
 
-  await scrittura.commit();
+  if (!giaDecisa) {
+    await scrittura.commit();
+  }
 
   logger.info('segnalazione decisa', {
     reportId,
     decisione,
     admin: chi,
-    insieme: sorelle ? sorelle.size : 1,
+    insieme: altre.length + 1,
   });
 
   // **La sospensione, per ultima.** La rimozione e' gia' fatta: se qui
@@ -542,7 +771,19 @@ exports.adminResolveReport = onCall(
     sospeso = { userId: daSospendere, fino: fino ? fino.toMillis() : null };
   }
 
-  return { status: nuovo, insieme: sorelle ? sorelle.size : 1, sospeso };
+  // **Resta scritto chi ha deciso cosa.** Per ultimo: e' il racconto di quello che
+  // e' successo, e deve dire anche la sospensione.
+  await registra(chi, 'decidiSegnalazione', {
+    id: reportId,
+    decisione: nuovo,
+    kind: String(dati.kind || ''),
+    reason: String(dati.reason || ''),
+    uid: daSospendere || String(dati.reportedUserId || ''),
+    insieme: altre.length + 1,
+    sospeso: sospeso ? { giorni } : null,
+  });
+
+  return { status: nuovo, insieme: altre.length + 1, sospeso };
   }
 );
 
@@ -710,6 +951,10 @@ exports.adminRimettiFoto = onCall(async (request) => {
 
   logger.info('foto rimessa in gara', { challengeId, entryId, admin: chi, esito });
 
+  if (esito === 'rimessa') {
+    await registra(chi, 'rimettiFoto', { challengeId, entryId, uid: entryId });
+  }
+
   return { esito };
 });
 
@@ -734,6 +979,7 @@ exports.adminRespingiRevisione = onCall(async (request) => {
   const esito = await chiudiLaRevisione(challengeId, userId, 'respinta', chi);
 
   logger.info('revisione respinta', { challengeId, userId, admin: chi, esito });
+  await registra(chi, 'respingiRevisione', { challengeId, uid: userId });
 
   return { esito };
 });
@@ -1145,6 +1391,7 @@ exports.adminImpostaVerificato = onCall(async (request) => {
   );
 
   logger.info('verificato cambiato', { userId, verificato, da: chi });
+  await registra(chi, 'verificato', { uid: userId, verificato });
 
   return { ok: true, verificato };
 });

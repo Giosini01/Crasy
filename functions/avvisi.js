@@ -72,6 +72,8 @@ function motivoDallaSegnalazione(voce) {
       violence: 'violenza',
       hate: 'odio',
       minor: 'minore',
+      illegal: 'illegale',
+      spam: 'spam',
     }[String(voce || '')] || 'altro'
   );
 }
@@ -180,8 +182,42 @@ async function avvisaCheETornata(autore, challengeId, titolo) {
   }
 }
 
+/**
+ * **Gli altri contenuti tolti: un commento, una didascalia, la foto profilo, la
+ * descrizione, il nome.** Stesse tre cose che chiede il Digital Services Act a chi
+ * toglie un contenuto: cosa, perche', e se l'ha deciso una macchina.
+ *
+ * Il nome del documento porta dentro cosa e' stato tolto: lo stesso commento non
+ * fa due avvisi. La push parte da `sendPushOnNotification`.
+ */
+async function avvisaDelContenutoTolto(
+  autore,
+  { cosa, id, motivo = 'altro', automatico = false }
+) {
+  if (!autore) {
+    return;
+  }
+
+  try {
+    await avvisiDi(autore)
+      .doc(`tolto_${cosa}_${id}`)
+      .set({
+        kind: 'contentRemoved',
+        actorId: '',
+        actorUsername: '',
+        cosa,
+        motivo,
+        automatico: automatico === true,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+  } catch (error) {
+    logger.error('avviso di contenuto tolto non partito', { autore, cosa, error });
+  }
+}
+
 module.exports = {
   avvisaChiLHaMandata,
+  avvisaDelContenutoTolto,
   togliLAvvisoDiRimozione,
   avvisaCheETornata,
   motivoDaiControlli,

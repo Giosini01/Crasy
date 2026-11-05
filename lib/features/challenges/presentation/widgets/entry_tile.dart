@@ -10,6 +10,8 @@ import 'package:crasy/features/challenges/presentation/providers/challenge_provi
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
+import 'package:crasy/features/moderation/domain/report_reason.dart';
+import 'package:crasy/features/moderation/presentation/widgets/report_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -147,6 +149,14 @@ class EntryTile extends ConsumerWidget {
               const SizedBox(width: AppSpacing.sm),
               VoteButton(entry: entry),
             ],
+            // **Il menu sta su ogni foto, anche senza aprirla.** Chi vede una
+            // cosa che non dovrebbe esserci non deve prima ingrandirla per
+            // poterla segnalare. Non sulla propria.
+            if (entry.userId != ref.watch(currentUserIdProvider))
+              ContentMenuButton(
+                target: ReportTarget.diFoto(entry),
+                color: palette.textFaint,
+              ),
           ],
         ),
       ],

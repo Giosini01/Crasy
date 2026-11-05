@@ -38,7 +38,9 @@ export async function mostraPanoramica(contenuto, _parametri, ancoraQui) {
   const righe = [
     riga(missioni.daControllare, 'missione da controllare', 'missioni da controllare', '#/missioni/daControllare'),
     riga(missioni.daConfermare, 'missione da confermare', 'missioni da confermare', '#/missioni/daConfermare'),
+    riga(lavoro.scadute, 'segnalazione oltre le 24 ore', 'segnalazioni oltre le 24 ore', '#/segnalazioni'),
     riga(lavoro.segnalazioni, 'segnalazione nuova', 'segnalazioni nuove', '#/segnalazioni'),
+    riga(lavoro.blocchi, 'blocco da guardare', 'blocchi da guardare', '#/blocchi'),
     riga(lavoro.revisioni, 'revisione chiesta', 'revisioni chieste', '#/foto/scartate'),
     riga(lavoro.prelievi, 'prelievo da pagare', 'prelievi da pagare', '#/soldi'),
   ].filter(Boolean);

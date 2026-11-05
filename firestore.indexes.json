@@ -1,6 +1,51 @@
 {
   "indexes": [
     {
+      "comment": "Le segnalazioni nel pannello: per stato, dalla piu' vecchia, che e' la piu' vicina alla scadenza delle 24 ore. Ed e' lo stesso indice con cui si contano quelle gia' scadute.",
+      "collectionGroup": "reports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "comment": "Le stesse, dalla piu' recente: quelle gia' decise.",
+      "collectionGroup": "reports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "comment": "I blocchi nel pannello: per stato, dal piu' recente.",
+      "collectionGroup": "blocchi",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "stato",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "comment": "La funzione che chiude le challenge cerca quelle gia' scadute e non ancora proclamate: due campi diversi nella stessa query, quindi indice composto.",
       "collectionGroup": "challenges",
       "queryScope": "COLLECTION",
@@ -235,6 +280,29 @@
     }
   ],
   "fieldOverrides": [
+    {
+      "comment": "Chi elimina un account dal pannello toglie anche i suoi commenti, in tutte le gare: e' una query sul gruppo di collezioni, e per quelle Firestore l'indice a campo singolo NON lo crea da se'. Le voci con scope COLLECTION sono quelle automatiche, ripetute qui perche' un fieldOverride sostituisce l'automatismo invece di aggiungersi.",
+      "collectionGroup": "comments",
+      "fieldPath": "userId",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "arrayConfig": "CONTAINS",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
     {
       "comment": "Le partecipazioni di un gruppo di amici si chiedono con un 'whereIn' su userId, senza ordinamento: e' una query sul gruppo di collezioni, e per quelle Firestore l'indice a campo singolo NON lo crea da se'. Senza questa riga la query non fallisce a schermo, torna un errore che l'app ingoia — e la sezione degli amici resta vuota mentre le stesse foto, dentro la loro challenge, si vedono benissimo. Le tre voci con scope COLLECTION sono quelle che Firestore creerebbe da solo: vanno ripetute qui, perche' un fieldOverride sostituisce l'automatismo invece di aggiungersi.",
       "collectionGroup": "entries",

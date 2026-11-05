@@ -16,6 +16,7 @@ import 'package:crasy/features/challenges/domain/entities/entry_comment.dart';
 import 'package:crasy/features/challenges/domain/repositories/challenge_repository.dart';
 import 'package:crasy/features/moderation/presentation/providers/moderation_providers.dart';
 import 'package:crasy/services/firebase/firebase_bootstrap_result.dart';
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final sampleChallengeRepositoryProvider = Provider<SampleChallengeRepository>((
@@ -51,11 +52,26 @@ final challengeRepositoryProvider = Provider<ChallengeRepository>((ref) {
 });
 
 final liveChallengesProvider = StreamProvider<List<Challenge>>((ref) {
-  return ref.watch(challengeRepositoryProvider).watchLiveChallenges();
+  final io = ref.watch(currentUserIdProvider);
+
+  // **Chi hai bloccato sparisce anche da qui**, non solo dalle foto: una sua
+  // missione in cima alla home e' un suo contenuto, ed e' la prima cosa che si
+  // vedrebbe riaprendo l'app.
+  return senzaBloccati(
+    ref,
+    ref.watch(challengeRepositoryProvider).watchLiveChallenges(),
+    (gara, bloccati) => garaDaNascondere(gara, bloccati, io),
+  );
 });
 
 final endedChallengesProvider = StreamProvider<List<Challenge>>((ref) {
-  return ref.watch(challengeRepositoryProvider).watchEndedChallenges();
+  final io = ref.watch(currentUserIdProvider);
+
+  return senzaBloccati(
+    ref,
+    ref.watch(challengeRepositoryProvider).watchEndedChallenges(),
+    (gara, bloccati) => garaDaNascondere(gara, bloccati, io),
+  );
 });
 
 /// Una challenge sola.
@@ -83,8 +99,21 @@ final challengeProvider = StreamProvider.autoDispose.family<Challenge?, String>(
     );
     final me = ref.watch(currentUserIdProvider);
 
+    // **La gara di chi hai bloccato non si apre**, nemmeno da un link o da una
+    // vecchia notifica: e' la stessa pagina di una gara che non c'e' piu'.
+    ref.listen<Set<String>>(blockedNowProvider, (prima, adesso) {
+      if (!setEquals(prima, adesso)) {
+        ref.invalidateSelf();
+      }
+    });
+
+    Challenge? visibile(Challenge? gara) =>
+        gara != null && garaDaNascondere(gara, ref.read(blockedNowProvider), me)
+        ? null
+        : gara;
+
     if (!mia || me == null || me.isEmpty) {
-      return flusso;
+      return flusso.map(visibile);
     }
 
     return flusso.map(
@@ -425,6 +454,7 @@ final entryCommentsProvider = StreamProvider.autoDispose
       cacheFor(ref);
 
       final bloccati = ref.watch(blockedNowProvider);
+      final segnalati = ref.watch(commentiSegnalatiProvider);
 
       return ref
           .watch(challengeRepositoryProvider)
@@ -435,11 +465,14 @@ final entryCommentsProvider = StreamProvider.autoDispose
           // **Chi hai bloccato non parla piu'.** Il commento resta nel
           // database — cancellare le parole di qualcuno perche' una persona
           // sola non le vuole leggere sarebbe un'altra cosa — ma tu non lo
-          // vedi, ne' qui ne' nel conteggio.
+          // vedi, ne' qui ne' nel conteggio. Lo stesso per quello che hai
+          // appena segnalato, finche' resti nell'app.
           .map(
             (comments) => [
               for (final comment in comments)
-                if (!bloccati.contains(comment.userId)) comment,
+                if (!bloccati.contains(comment.userId) &&
+                    !segnalati.contains(comment.id))
+                  comment,
             ],
           );
     });
@@ -611,9 +644,14 @@ final commissionsOfProvider = StreamProvider.family<List<Challenge>, String>((
       .watch(challengeRepositoryProvider)
       .watchCommissionedBy(userId, viewerId: me);
 
-  // Sul profilo di un altro le anonime non ci sono, e non ci devono essere.
+  // Sul profilo di un altro le anonime non ci sono, e non ci devono essere. E la
+  // figurina con la foto di chi hai bloccato nemmeno.
   if (userId != me) {
-    return commissionate;
+    return senzaBloccati(
+      ref,
+      commissionate,
+      (gara, bloccati) => garaDaNascondere(gara, bloccati, me),
+    );
   }
 
   return conLeMieAnonime(
@@ -739,13 +777,17 @@ final reservedChallengesProvider = StreamProvider<List<Challenge>>((ref) {
   // Con le mie anonime riservate ancora aperte: io non sto fra chi le vede.
   final now = DateTime.now();
 
-  return conLeMieAnonime(
+  return senzaBloccati(
     ref,
-    ref.watch(challengeRepositoryProvider).watchChallengesFor(userId),
-    (gara) =>
-        gara.scope == ChallengeScope.friends &&
-        gara.endsAt.isAfter(now) &&
-        !gara.isUpcomingAt(now),
+    conLeMieAnonime(
+      ref,
+      ref.watch(challengeRepositoryProvider).watchChallengesFor(userId),
+      (gara) =>
+          gara.scope == ChallengeScope.friends &&
+          gara.endsAt.isAfter(now) &&
+          !gara.isUpcomingAt(now),
+    ),
+    (gara, bloccati) => garaDaNascondere(gara, bloccati, userId),
   );
 });
 

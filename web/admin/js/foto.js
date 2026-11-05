@@ -29,9 +29,11 @@ const SCHEDE = [
 
 const MOTIVI_FOTO = [
   ['pericolo', 'Mette in pericolo qualcuno'],
-  ['sessuale', 'Contenuto sessuale'],
+  ['sessuale', 'Contenuto sessualmente esplicito'],
   ['violenza', 'Violenza'],
-  ['odio', 'Odio o insulti'],
+  ['odio', 'Molestie o bullismo'],
+  ['illegale', 'Contenuto illegale'],
+  ['spam', 'Spam o frode'],
   ['minore', 'C’è un minore'],
 ];
 

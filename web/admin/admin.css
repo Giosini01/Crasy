@@ -127,7 +127,7 @@ h3 { font-size: 16px; margin: 0; }
 
 label { display: block; font-size: 12px; font-weight: 700; color: var(--tenue); margin: 0 0 4px; }
 
-input[type=email], input[type=password], input[type=text], input[type=search], input[type=number], textarea, select {
+input[type=email], input[type=password], input[type=text], input[type=search], input[type=number], input[type=date], textarea, select {
   width: 100%;
   font: inherit;
   padding: 11px 14px;
@@ -372,6 +372,12 @@ a.numero:hover { border-color: var(--inchiostro); }
 
 .pastiglia--rossa { border-color: var(--rosso); color: var(--rosso); }
 .pastiglia--piena { background: var(--inchiostro); border-color: var(--inchiostro); color: #FFF; }
+.pastiglia--piena-rossa { background: var(--rosso); border-color: var(--rosso); color: #FFF; }
+
+/* I filtri delle segnalazioni: per tipo, motivo e data. */
+.filtri { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; margin-bottom: 14px; }
+.filtri > div { min-width: 150px; }
+.filtri input[type=date] { width: 100%; }
 
 .fatti { font-size: 12px; color: var(--tenue); margin: 12px 0 0; display: flex; flex-wrap: wrap; gap: 2px 10px; }
 .fatti a { font-weight: 700; color: var(--inchiostro); }

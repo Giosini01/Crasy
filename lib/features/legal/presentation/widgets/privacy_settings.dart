@@ -8,6 +8,7 @@ import 'package:crasy/features/legal/presentation/widgets/legal_sheet.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Privacy e consensi, dal proprio profilo.
 ///
@@ -16,8 +17,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// darlo: se per darlo basta una spunta e per toglierlo bisogna scrivere una
 /// email e aspettare, quel consenso non e' mai stato libero.
 ///
-/// Qui i due facoltativi si spengono con lo stesso gesto con cui si erano
-/// accesi, e i tre documenti si rileggono senza uscire dall'app.
+/// Qui il facoltativo si spegne con lo stesso gesto con cui si era acceso, e i
+/// documenti si rileggono senza uscire dall'app.
 Future<void> showPrivacySettings(BuildContext context) {
   return ModalSheet.show<void>(
     context: context,
@@ -68,15 +69,6 @@ class _PrivacySettings extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    Future<void> cambia({bool? marketing, bool? profiling}) {
-      return ref
-          .read(consentControllerProvider.notifier)
-          .accept(
-            marketing: marketing ?? profile.marketingConsent,
-            profiling: profiling ?? profile.profilingConsent,
-          );
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -106,13 +98,9 @@ class _PrivacySettings extends ConsumerWidget {
           consent: LegalConsent.marketing,
           value: profile.marketingConsent,
           enabled: !saving,
-          onChanged: (value) => cambia(marketing: value),
-        ),
-        _Switch(
-          consent: LegalConsent.profiling,
-          value: profile.profilingConsent,
-          enabled: !saving,
-          onChanged: (value) => cambia(profiling: value),
+          onChanged: (value) => ref
+              .read(consentControllerProvider.notifier)
+              .setMarketing(marketing: value),
         ),
         // **Farsi trovare dai contatti e' una scelta, e sta fra le altre
         // scelte.** Non e' un consenso obbligatorio — l'app funziona uguale —
@@ -153,9 +141,24 @@ class _PrivacySettings extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'Per accedere ai tuoi dati, correggerli o cancellarli scrivi al '
-          'contatto indicato nell\'informativa.',
+          'Per accedere ai tuoi dati, correggerli o cancellarli, o per qualunque '
+          'problema con un contenuto o una persona, scrivici.',
           style: texts.bodySmall?.copyWith(color: palette.textFaint),
+        ),
+        // **Un indirizzo che si tocca, e non solo un indirizzo scritto.** Apple
+        // chiede che chi usa l'app possa raggiungerci facilmente (linea guida
+        // 1.2): dire "scrivi al contatto indicato nell'informativa" vuol dire
+        // mandare a cercarlo in fondo a un documento.
+        GestureDetector(
+          onTap: () => launchUrl(Uri.parse('mailto:info@crasyapp.com')),
+          behavior: HitTestBehavior.opaque,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            child: Text(
+              'info@crasyapp.com',
+              style: texts.bodyMedium?.copyWith(color: palette.accent),
+            ),
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
       ],

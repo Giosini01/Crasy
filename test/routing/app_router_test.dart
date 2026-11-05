@@ -2,6 +2,7 @@ import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/legal/legal_documents.dart';
 import 'package:crasy/features/auth/domain/entities/app_user.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
+import 'package:crasy/features/legal/presentation/controllers/consent_controller.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:crasy/routing/app_router.dart';
@@ -36,9 +37,20 @@ void main() {
     return container;
   }
 
-  test('chi non ha fatto l\'accesso resta sulla registrazione', () async {
+  test('chi non ha fatto l\'accesso resta sui Termini', () async {
+    // Apple chiede che si accettino **prima** di registrarsi o di entrare.
     final container = containerWith(FakeAuthRepository());
 
+    await container.pump();
+
+    expect(container.read(sessionLandingRouteProvider), AppRoutes.consents);
+  });
+
+  test('accettati i Termini si arriva all\'accesso', () async {
+    final container = containerWith(FakeAuthRepository());
+
+    container.read(pendingConsentProvider.notifier).state =
+        const PendingConsent(version: LegalTexts.version, marketing: false);
     await container.pump();
 
     expect(container.read(sessionLandingRouteProvider), AppRoutes.auth);
@@ -195,6 +207,7 @@ void main() {
     // girano soldi, si vota chi li vince, e si entra da maggiorenni. Nessuna
     // delle tre regge se chi guarda non ha un nome e un indirizzo confermato.
     expect(AppRoutes.openToEveryone, contains(AppRoutes.auth));
+    expect(AppRoutes.openToEveryone, contains(AppRoutes.consents));
     expect(AppRoutes.openToEveryone, isNot(contains(AppRoutes.challenges)));
     expect(AppRoutes.openToEveryone, isNot(contains(AppRoutes.winners)));
     expect(AppRoutes.openToEveryone, isNot(contains(AppRoutes.profile)));
@@ -264,40 +277,43 @@ void main() {
     expect(container.read(sessionLandingRouteProvider), AppRoutes.consents);
   });
 
-  test('chi ha accettato una versione piu nuova di questa app non si ferma', () async {
-    // Il sito si aggiorna prima dei telefoni: chi ha accettato li' i testi nuovi
-    // non deve riaccettare quelli vecchi aprendo l'app, e nemmeno riscriverli
-    // sopra, altrimenti il sito glieli richiede alla volta dopo.
-    final container = containerWith(
-      FakeAuthRepository(currentUser: user),
-      overrides: [
-        currentUserProfileProvider.overrideWith(
-          (ref) => Stream.value(
-            UserProfile(
-              id: 'user-1',
-              username: 'martina',
-              birthDate: DateTime(2000, 1, 1),
-              createdAt: null,
-              updatedAt: null,
-              onboardingCompleted: true,
-              legalVersion: '99.0',
-              legalAcceptedAt: DateTime(2026),
-              phoneVerified: true,
-              contactsPromptSeen: true,
+  test(
+    'chi ha accettato una versione piu nuova di questa app non si ferma',
+    () async {
+      // Il sito si aggiorna prima dei telefoni: chi ha accettato li' i testi nuovi
+      // non deve riaccettare quelli vecchi aprendo l'app, e nemmeno riscriverli
+      // sopra, altrimenti il sito glieli richiede alla volta dopo.
+      final container = containerWith(
+        FakeAuthRepository(currentUser: user),
+        overrides: [
+          currentUserProfileProvider.overrideWith(
+            (ref) => Stream.value(
+              UserProfile(
+                id: 'user-1',
+                username: 'martina',
+                birthDate: DateTime(2000, 1, 1),
+                createdAt: null,
+                updatedAt: null,
+                onboardingCompleted: true,
+                legalVersion: '99.0',
+                legalAcceptedAt: DateTime(2026),
+                phoneVerified: true,
+                contactsPromptSeen: true,
+              ),
             ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
 
-    await container.read(currentUserProfileProvider.future);
-    await container.pump();
+      await container.read(currentUserProfileProvider.future);
+      await container.pump();
 
-    expect(
-      container.read(sessionLandingRouteProvider),
-      isNot(AppRoutes.consents),
-    );
-  });
+      expect(
+        container.read(sessionLandingRouteProvider),
+        isNot(AppRoutes.consents),
+      );
+    },
+  );
 
   test('il giro di presentazione si fa prima di entrare', () async {
     // **Le quattro regole prima dell'elenco delle gare.** Senza, la prima
@@ -332,80 +348,89 @@ void main() {
     expect(container.read(sessionLandingRouteProvider), AppRoutes.tutorial);
   });
 
-  test('i permessi si spiegano una volta, dopo il giro di presentazione', () async {
-    // **Sta dopo il tutorial e prima delle gare**, ed e' l'unico punto in cui
-    // ha senso: uno ha appena finito di iscriversi, ha letto le regole, e la
-    // schermata successiva sarebbe un elenco di sfide fra sconosciuti.
-    //
-    // Il muro cade da solo appena la schermata e' stata vista — che si sia
-    // detto di si' o che si sia saltata. Se questo test sparisse, il modo in
-    // cui ce ne accorgeremmo sarebbe qualcuno bloccato su quella schermata a
-    // ogni avvio.
-    final container = containerWith(
-      FakeAuthRepository(currentUser: user),
-      overrides: [
-        currentUserProfileProvider.overrideWith(
-          (ref) => Stream.value(
-            UserProfile(
-              id: 'user-1',
-              username: 'martina',
-              birthDate: DateTime(2000, 1, 1),
-              createdAt: DateTime.utc(2026, 10, 1),
-              updatedAt: null,
-              onboardingCompleted: true,
-              legalVersion: LegalTexts.version,
-              legalAcceptedAt: DateTime(2026),
-              phoneVerified: true,
-              tutorialSeen: true,
+  test(
+    'i permessi si spiegano una volta, dopo il giro di presentazione',
+    () async {
+      // **Sta dopo il tutorial e prima delle gare**, ed e' l'unico punto in cui
+      // ha senso: uno ha appena finito di iscriversi, ha letto le regole, e la
+      // schermata successiva sarebbe un elenco di sfide fra sconosciuti.
+      //
+      // Il muro cade da solo appena la schermata e' stata vista — che si sia
+      // detto di si' o che si sia saltata. Se questo test sparisse, il modo in
+      // cui ce ne accorgeremmo sarebbe qualcuno bloccato su quella schermata a
+      // ogni avvio.
+      final container = containerWith(
+        FakeAuthRepository(currentUser: user),
+        overrides: [
+          currentUserProfileProvider.overrideWith(
+            (ref) => Stream.value(
+              UserProfile(
+                id: 'user-1',
+                username: 'martina',
+                birthDate: DateTime(2000, 1, 1),
+                createdAt: DateTime.utc(2026, 10, 1),
+                updatedAt: null,
+                onboardingCompleted: true,
+                legalVersion: LegalTexts.version,
+                legalAcceptedAt: DateTime(2026),
+                phoneVerified: true,
+                tutorialSeen: true,
+              ),
             ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
 
-    await container.read(currentUserProfileProvider.future);
-    await container.pump();
+      await container.read(currentUserProfileProvider.future);
+      await container.pump();
 
-    expect(container.read(sessionLandingRouteProvider), AppRoutes.permissions);
-  });
+      expect(
+        container.read(sessionLandingRouteProvider),
+        AppRoutes.permissions,
+      );
+    },
+  );
 
-  test('chi conosci qui si vede una volta, dopo il giro di presentazione', () async {
-    // **Sta dopo il tutorial e prima delle gare**, ed e' l'unico punto in cui
-    // ha senso: uno ha appena finito di iscriversi, ha letto le regole, e la
-    // schermata successiva sarebbe un elenco di sfide fra sconosciuti.
-    //
-    // Il muro cade da solo appena la schermata e' stata vista — che si sia
-    // detto di si' o che si sia saltata. Se questo test sparisse, il modo in
-    // cui ce ne accorgeremmo sarebbe qualcuno bloccato su quella schermata a
-    // ogni avvio.
-    final container = containerWith(
-      FakeAuthRepository(currentUser: user),
-      overrides: [
-        currentUserProfileProvider.overrideWith(
-          (ref) => Stream.value(
-            UserProfile(
-              id: 'user-1',
-              username: 'martina',
-              birthDate: DateTime(2000, 1, 1),
-              createdAt: DateTime.utc(2026, 10, 1),
-              updatedAt: null,
-              onboardingCompleted: true,
-              legalVersion: LegalTexts.version,
-              legalAcceptedAt: DateTime(2026),
-              phoneVerified: true,
-              tutorialSeen: true,
-              permissionsSeen: true,
+  test(
+    'chi conosci qui si vede una volta, dopo il giro di presentazione',
+    () async {
+      // **Sta dopo il tutorial e prima delle gare**, ed e' l'unico punto in cui
+      // ha senso: uno ha appena finito di iscriversi, ha letto le regole, e la
+      // schermata successiva sarebbe un elenco di sfide fra sconosciuti.
+      //
+      // Il muro cade da solo appena la schermata e' stata vista — che si sia
+      // detto di si' o che si sia saltata. Se questo test sparisse, il modo in
+      // cui ce ne accorgeremmo sarebbe qualcuno bloccato su quella schermata a
+      // ogni avvio.
+      final container = containerWith(
+        FakeAuthRepository(currentUser: user),
+        overrides: [
+          currentUserProfileProvider.overrideWith(
+            (ref) => Stream.value(
+              UserProfile(
+                id: 'user-1',
+                username: 'martina',
+                birthDate: DateTime(2000, 1, 1),
+                createdAt: DateTime.utc(2026, 10, 1),
+                updatedAt: null,
+                onboardingCompleted: true,
+                legalVersion: LegalTexts.version,
+                legalAcceptedAt: DateTime(2026),
+                phoneVerified: true,
+                tutorialSeen: true,
+                permissionsSeen: true,
+              ),
             ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
 
-    await container.read(currentUserProfileProvider.future);
-    await container.pump();
+      await container.read(currentUserProfileProvider.future);
+      await container.pump();
 
-    expect(container.read(sessionLandingRouteProvider), AppRoutes.whoYouKnow);
-  });
+      expect(container.read(sessionLandingRouteProvider), AppRoutes.whoYouKnow);
+    },
+  );
 
   test('chi era gia dentro non se la vede comparire un mattino', () async {
     // **La schermata e' un pezzo dell'iscrizione, non un annuncio.**

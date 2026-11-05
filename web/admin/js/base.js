@@ -262,6 +262,7 @@ export function chiedi({
   pericolo = false,
   motivo = null,
   sospensione = false,
+  conferma = null,
 }) {
   const finestra = document.getElementById('domanda');
 
@@ -291,6 +292,12 @@ export function chiedi({
             </select>
           </div>`
         : ''}
+      ${conferma
+        ? html`<div>
+            <label for="domandaConferma">${conferma.etichetta}</label>
+            <input id="domandaConferma" type="text" autocomplete="off">
+          </div>`
+        : ''}
       <div class="comandi">
         <button type="button" class="tasto" value="no" data-chiudi>Annulla</button>
         <button type="submit" class="tasto ${pericolo ? 'tasto--rosso' : 'tasto--nero'}" value="si">${tasto}</button>
@@ -302,6 +309,7 @@ export function chiedi({
     const modulo = finestra.querySelector('form');
     const campoMotivo = finestra.querySelector('#domandaMotivo');
     const campoSospensione = finestra.querySelector('#domandaSospensione');
+    const campoConferma = finestra.querySelector('#domandaConferma');
     let esito = null;
 
     finestra.querySelectorAll('[data-riempi]').forEach((scelta) => {
@@ -321,11 +329,21 @@ export function chiedi({
         return;
       }
 
+      // **Una cosa da cui non si torna indietro si conferma scrivendo**, non premendo un
+      // tasto: un tasto si preme anche senza leggere.
+      if (campoConferma && campoConferma.value.trim().toLowerCase() !== conferma.atteso.toLowerCase()) {
+        evento.preventDefault();
+        campoConferma.focus();
+
+        return;
+      }
+
       const scelta = campoSospensione ? campoSospensione.value : '';
 
       esito = {
         motivo: campoMotivo ? campoMotivo.value.trim() : '',
         sospendiGiorni: scelta === '' ? null : Number(scelta),
+        conferma: campoConferma ? campoConferma.value.trim() : '',
       };
     });
 

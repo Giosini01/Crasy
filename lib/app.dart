@@ -5,6 +5,7 @@ import 'package:crasy/core/theme/app_theme.dart';
 import 'package:crasy/core/widgets/keyboard_closer.dart';
 import 'package:crasy/core/widgets/opening_curtain.dart';
 import 'package:crasy/features/challenges/presentation/controllers/coda_invio_controller.dart';
+import 'package:crasy/features/legal/presentation/controllers/consent_controller.dart';
 import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:crasy/routing/app_router.dart';
 import 'package:flutter/material.dart';
@@ -125,6 +126,10 @@ class _CrasyAppState extends ConsumerState<CrasyApp> {
     // telefono, chi esce lo toglie — e nessuna schermata resta aperta per tutta
     // la sessione. Guardato da qui, vive quanto l'app.
     ref.watch(pushRegistrationProvider);
+
+    // **La firma dei Termini data prima dell'accesso va scritta appena esiste
+    // un account**, qualunque schermata ci sia in quel momento.
+    ref.watch(consentSyncProvider);
 
     // **E il numero rosso sull'icona non resta mai acceso a sproposito.** Vale
     // per le notifiche che arrivano ad app aperta: il ritorno in primo piano lo

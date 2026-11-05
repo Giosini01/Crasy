@@ -91,23 +91,19 @@ class ChallengeDetailPage extends ConsumerWidget {
               when (gara.createdByUserId.isNotEmpty || gara.anonimo) &&
                   gara.createdByUserId != ref.watch(currentUserIdProvider) &&
                   !gara.isDaily)
-            IconButton(
-              onPressed: () => showReportSheet(
-                context,
-                ref,
+            ContentMenuButton(
+              target: ReportTarget(
                 kind: ReportTargetKind.challenge,
                 reportedUserId: gara.createdByUserId,
-                // **Anche un anonimo si segnala e si blocca**: la maschera
-                // nasconde il nome a chi riceve, non a chi modera. Qui pero'
-                // il nome non c'e', e non va cercato.
+                // **Anche un anonimo si segnala**: la maschera nasconde il nome
+                // a chi riceve, non a chi modera. Qui pero' il nome non c'e', e
+                // non va cercato: e chi non si sa chi e' non si puo' bloccare.
                 reportedUsername: gara.anonimo
                     ? 'anonimo'
                     : gara.createdByUsername,
                 challengeId: gara.id,
                 challengeTitle: gara.title,
               ),
-              icon: const Icon(Icons.flag_outlined, size: 20),
-              tooltip: 'Segnala la missione',
             ),
         ],
       ),

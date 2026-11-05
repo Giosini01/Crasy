@@ -27,6 +27,7 @@ const { onSchedule } = require('firebase-functions/v2/scheduler');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
 const posta = require('./posta');
+const { registra } = require('./registro');
 
 const db = admin.firestore();
 
@@ -172,6 +173,7 @@ const adminRiattiva = onCall(async (request) => {
   }
 
   await riattiva(uid, chi);
+  await registra(chi, 'riattiva', { uid });
 
   return { riattivato: true };
 });

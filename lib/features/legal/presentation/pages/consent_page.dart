@@ -6,12 +6,19 @@ import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/brand_mark.dart';
 import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
+import 'package:crasy/features/auth/presentation/controllers/auth_action_controller.dart';
+import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/legal/presentation/controllers/consent_controller.dart';
 import 'package:crasy/features/legal/presentation/widgets/legal_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// L'ultima porta prima di entrare: cosa accetti, una cosa alla volta.
+/// La prima porta: cosa accetti, una cosa alla volta, **prima di registrarti o
+/// di entrare**.
+///
+/// E' la stessa schermata per chi non ha ancora un account e per chi e' gia'
+/// dentro e deve riaccettare documenti cambiati: e' [ConsentController] a
+/// sapere se la firma va tenuta da parte o scritta subito.
 ///
 /// ## Perche' non c'e' un solo "Accetto tutto"
 ///
@@ -28,8 +35,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// senza perdere niente** — se rifiutare la pubblicita' chiudesse la porta,
 /// quel consenso non sarebbe libero, quindi non varrebbe.
 ///
-/// Qui infatti si entra spuntando solo le quattro obbligatorie, e le altre due
-/// si possono lasciare dove sono per sempre.
+/// Qui infatti si entra spuntando solo le quattro obbligatorie, e l'altra si
+/// puo' lasciare dov'e' per sempre.
 class ConsentPage extends ConsumerStatefulWidget {
   const ConsentPage({super.key});
 
@@ -54,6 +61,7 @@ class _ConsentPageState extends ConsumerState<ConsentPage> {
     final palette = context.palette;
     final texts = context.texts;
     final saving = ref.watch(consentControllerProvider);
+    final dentro = ref.watch(authStateProvider) is AuthenticatedAuthState;
 
     return Scaffold(
       body: AppBackground(
@@ -71,8 +79,12 @@ class _ConsentPageState extends ConsumerState<ConsentPage> {
               const DisplayTitle('Prima di iniziare'),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Qui girano soldi veri, quindi ci sono delle regole. '
-                'Leggile: sono corte.',
+                dentro
+                    ? 'I documenti sono cambiati: per continuare a usare CRASY '
+                          'devi accettarli di nuovo.'
+                    : 'Per registrarti o per entrare devi accettare queste '
+                          'regole. Qui girano soldi veri e foto di persone '
+                          'vere: leggile.',
                 style: texts.bodyMedium?.copyWith(color: palette.textSecondary),
               ),
               const SizedBox(height: AppSpacing.xl),
@@ -108,7 +120,7 @@ class _ConsentPageState extends ConsumerState<ConsentPage> {
               // facoltativo che non si capisce essere facoltativo viene spuntato
               // per prudenza, e un consenso dato per prudenza non e' libero.
               Text(
-                'Queste due puoi lasciarle stare: entri lo stesso, e l\'app '
+                'Questa puoi lasciarla stare: entri lo stesso, e l\'app '
                 'funziona uguale.',
                 style: texts.bodySmall?.copyWith(color: palette.textFaint),
               ),
@@ -126,7 +138,7 @@ class _ConsentPageState extends ConsumerState<ConsentPage> {
                 const SizedBox(height: AppSpacing.md),
                 const InlineBanner(
                   message:
-                      'Per entrare servono le prime quattro. Le altre due no.',
+                      'Per entrare servono le prime quattro. L\'ultima no.',
                 ),
               ],
               if (saving.hasError) ...[
@@ -140,10 +152,21 @@ class _ConsentPageState extends ConsumerState<ConsentPage> {
 
               const SizedBox(height: AppSpacing.xl),
               CrasyButton(
-                label: 'Continua',
+                label: 'Accetto e continuo',
                 loading: saving.isLoading,
                 onPressed: _submit,
               ),
+              // **Chi e' gia' dentro e non vuole accettare deve poter uscire.**
+              // Senza, questa schermata sarebbe una stanza senza porte: l'unico
+              // modo di dire di no sarebbe chiudere l'app.
+              if (dentro) ...[
+                const SizedBox(height: AppSpacing.sm),
+                SecondaryButton(
+                  label: 'Non accetto: esci',
+                  onPressed: () =>
+                      ref.read(authActionControllerProvider.notifier).signOut(),
+                ),
+              ],
               const SizedBox(height: AppSpacing.md),
               Text(
                 'Versione dei documenti: ${LegalTexts.version}',
@@ -178,10 +201,7 @@ class _ConsentPageState extends ConsumerState<ConsentPage> {
     // adesso e porta avanti: qui non c'e' nessuna navigazione da fare a mano.
     await ref
         .read(consentControllerProvider.notifier)
-        .accept(
-          marketing: _checked.contains(LegalConsent.marketing),
-          profiling: _checked.contains(LegalConsent.profiling),
-        );
+        .accept(marketing: _checked.contains(LegalConsent.marketing));
   }
 }
 
@@ -239,19 +259,26 @@ class _ConsentRow extends StatelessWidget {
                       color: palette.textSecondary,
                     ),
                   ),
-                  if (document != null) ...[
-                    const SizedBox(height: AppSpacing.xxs),
+                  if (document != null)
+                    // **Si legge senza dover mirare.** La riga intera e' larga
+                    // quanto lo schermo e il testo si alza con un tocco: chi
+                    // vuole leggere i Termini prima di accettarli non deve
+                    // cercare una scritta da pochi punti.
                     GestureDetector(
                       onTap: () => showLegalDocument(context, document),
                       behavior: HitTestBehavior.opaque,
-                      child: Text(
-                        'LEGGI IL TESTO',
-                        style: texts.labelSmall?.copyWith(
-                          color: palette.accent,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.xs,
+                        ),
+                        child: Text(
+                          'LEGGI: ${document.title.toUpperCase()}',
+                          style: texts.labelSmall?.copyWith(
+                            color: palette.accent,
+                          ),
                         ),
                       ),
                     ),
-                  ],
                 ],
               ),
             ),

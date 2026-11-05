@@ -234,6 +234,7 @@ export async function mostraPersona(contenuto, parametri, ancoraQui) {
           ? html`<button class="tasto tasto--nero" data-fai="riattiva">Riattiva</button>`
           : html`<button class="tasto tasto--bordo-rosso" data-fai="sospendi">Sospendi</button>`}
         <button class="tasto" data-fai="sostenitore">${p.verificato ? 'Togli sostenitore' : 'Fai sostenitore'}</button>
+        ${profilo.admin ? '' : html`<button class="tasto tasto--rosso" data-fai="elimina">Elimina account</button>`}
       </div>
 
       <div class="sezione">
@@ -274,6 +275,7 @@ export async function mostraPersona(contenuto, parametri, ancoraQui) {
           <div class="numero"><div class="occhiello">Fiamme date</div><div class="numero__cifra">${numero(numeri.fiammeDate)}</div></div>
           <div class="numero"><div class="occhiello">Follower</div><div class="numero__cifra">${numero(p.followersCount)}</div><div class="numero__nota">segue ${numero(p.followingCount)}</div></div>
           <div class="numero"><div class="occhiello">Amici</div><div class="numero__cifra">${numero(numeri.amici)}</div></div>
+          <div class="numero ${numeri.bloccataDa ? 'numero--allarme' : ''}"><div class="occhiello">Bloccata da</div><div class="numero__cifra">${numero(numeri.bloccataDa)}</div><div class="numero__nota">persone</div></div>
           <div class="numero ${numeri.segnalazioniContro ? 'numero--allarme' : ''}"><div class="occhiello">Segnalata</div><div class="numero__cifra">${numero(numeri.segnalazioniContro)}</div><div class="numero__nota">volte</div></div>
         </div>
       </div>
@@ -288,6 +290,11 @@ export async function mostraPersona(contenuto, parametri, ancoraQui) {
           <dt>Città</dt><dd>${p.city || '—'}</dd>
           <dt>Bio</dt><dd>${scheda.profilo.bio || '—'}</dd>
           <dt>Iscritta</dt><dd>${giorno(p.createdAt)}</dd>
+          <dt>Termini accettati</dt><dd>${
+            profilo.firme && profilo.firme.length
+              ? `versione ${profilo.firme[0].version}, ${quando(profilo.firme[0].at)} (${numero(profilo.firme.length)} in tutto)`
+              : 'nessuna riga nel registro'
+          }</dd>
           <dt>Ultima volta</dt><dd>${fa(p.lastSeenAt)}</dd>
           <dt>Identificativo</dt><dd><code>${p.uid}</code></dd>
         </dl>
@@ -372,6 +379,27 @@ export async function mostraPersona(contenuto, parametri, ancoraQui) {
       await pannello('sospendi', { uid, giorni: risposta.sospendiGiorni, motivo: risposta.motivo });
       dillo('Sospesa.');
       await ridisegna();
+    },
+    elimina: async () => {
+      const risposta = await chiedi({
+        titolo: `Eliminare l'account di @${p.username}?`,
+        testo:
+          'Non si torna indietro: spariscono profilo, commenti e foto ancora in gara. Le arriva un\'email con il motivo. ' +
+          'Email e telefono tornano liberi, quindi si può reiscrivere: per tenerla fuori di solito serve “Sospendi per sempre”. ' +
+          'Con dei soldi sul conto non si può. Le missioni che ha lanciato restano: se vanno tolte, toglile prima.',
+        tasto: 'Elimina per sempre',
+        pericolo: true,
+        motivo: { etichetta: 'Motivo, lo legge nell\'email', obbligatorio: true },
+        conferma: { etichetta: `Per confermare scrivi il nome: ${p.username || uid}`, atteso: p.username || uid },
+      });
+
+      if (!risposta) {
+        return;
+      }
+
+      await pannello('eliminaAccount', { uid, motivo: risposta.motivo, conferma: risposta.conferma });
+      dillo('Account eliminato.');
+      location.hash = '#/persone';
     },
     riattiva: async () => {
       const risposta = await chiedi({

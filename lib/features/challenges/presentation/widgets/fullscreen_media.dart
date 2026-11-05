@@ -669,18 +669,22 @@ class _Actions extends ConsumerWidget {
       // niente.
       if (entry.userId != ref.watch(currentUserIdProvider))
         _Action(
-          onTap: () => showReportSheet(
-            context,
-            ref,
-            kind: ReportTargetKind.entry,
-            reportedUserId: entry.userId,
-            reportedUsername: entry.authorName,
-            challengeId: entry.challengeId,
-            entryId: entry.id,
-            mediaUrl: entry.mediaUrl,
-            challengeTitle: entry.challengeTitle,
-          ),
-          icon: Icons.flag_outlined,
+          onTap: () async {
+            final navigator = Navigator.of(context);
+            final fatto = await showContentMenu(
+              context,
+              ref,
+              ReportTarget.diFoto(entry),
+            );
+
+            // **La foto che hai appena segnalato o bloccato non resta qui
+            // davanti.** Questa schermata si tiene l'elenco di quando si e'
+            // aperta: a chiuderla si torna a un feed gia' senza quella foto.
+            if (fatto != null) {
+              navigator.maybePop();
+            }
+          },
+          icon: Icons.more_horiz_rounded,
           color: AppColors.paper,
           label: '',
           tooltip: 'Segnala o blocca',

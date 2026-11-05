@@ -21,6 +21,7 @@ import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:crasy/features/friends/presentation/widgets/unfollow_dialog.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
 import 'package:crasy/features/moderation/domain/report_reason.dart';
+import 'package:crasy/features/moderation/presentation/providers/moderation_providers.dart';
 import 'package:crasy/features/moderation/presentation/widgets/report_sheet.dart';
 import 'package:crasy/features/payments/presentation/widgets/wallet_card.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
@@ -74,16 +75,12 @@ class PublicProfilePage extends ConsumerWidget {
           if (profileState.valueOrNull case final chi?
               when chi.id != ref.watch(currentUserIdProvider) &&
                   !chi.isOfficial)
-            IconButton(
-              onPressed: () => showReportSheet(
-                context,
-                ref,
+            ContentMenuButton(
+              target: ReportTarget(
                 kind: ReportTargetKind.user,
                 reportedUserId: chi.id,
                 reportedUsername: chi.username,
               ),
-              icon: const Icon(Icons.flag_outlined, size: 20),
-              tooltip: 'Segnala o blocca',
             ),
         ],
       ),
@@ -110,9 +107,36 @@ class PublicProfilePage extends ConsumerWidget {
               );
             }
 
+            // **Chi hai bloccato non si guarda.** Ci si puo' arrivare comunque —
+            // da un link, da una vecchia notifica — e qui deve esserci scritto
+            // cosa e' successo e come si torna indietro, non le sue foto.
+            if (ref.watch(blockedNowProvider).contains(profile.id)) {
+              return _Bloccato(profile: profile);
+            }
+
             return _Body(profile: profile);
           },
         ),
+      ),
+    );
+  }
+}
+
+/// Il profilo di chi hai bloccato: il nome, e il modo di tornare indietro.
+class _Bloccato extends StatelessWidget {
+  const _Bloccato({required this.profile});
+
+  final UserProfile profile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+      child: EmptyState(
+        title: 'Hai bloccato @${profile.username}',
+        message:
+            'Non vedi i suoi contenuti e non potete interagire. Puoi sbloccarlo '
+            'dal menu qui in alto.',
       ),
     );
   }

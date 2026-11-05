@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:crasy/core/legal/legal_documents.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/domain/repositories/user_profile_repository.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
@@ -31,17 +32,24 @@ class OnboardingController extends AsyncNotifier<void> {
   }) async {
     state = const AsyncLoading<void>();
 
-    final profile = UserProfile(
-      id: userId,
-      username: username.trim().toLowerCase(),
-      birthDate: birthDate,
-      bio: bio.trim(),
-      createdAt: null,
-      updatedAt: null,
-      onboardingCompleted: true,
-    );
-
     state = await AsyncValue.guard(() async {
+      // **I Termini si accettano prima di registrarsi**, quando un profilo non
+      // c'e' ancora: la firma sta nel registro, e qui si ricopia. Se non si
+      // trova, il profilo nasce senza, e la schermata dei consensi la richiede.
+      final firma = await _firmaDeiDocumenti(userId);
+
+      final profile = UserProfile(
+        id: userId,
+        username: username.trim().toLowerCase(),
+        birthDate: birthDate,
+        bio: bio.trim(),
+        createdAt: null,
+        updatedAt: null,
+        onboardingCompleted: true,
+        legalVersion: firma == null ? '' : LegalTexts.version,
+        marketingConsent: firma?.marketing ?? false,
+      );
+
       await _userProfileRepository.createUserProfile(profile);
 
       if (photo == null) {
@@ -61,5 +69,18 @@ class OnboardingController extends AsyncNotifier<void> {
         contentType: photoContentType,
       );
     });
+  }
+
+  /// Un registro che non si legge non ferma l'iscrizione: al massimo si
+  /// riaccetta alla fine, con la schermata dei consensi.
+  Future<({bool marketing})?> _firmaDeiDocumenti(String userId) async {
+    try {
+      return await _userProfileRepository.findLegalAcceptance(
+        userId: userId,
+        version: LegalTexts.version,
+      );
+    } on Object catch (_) {
+      return null;
+    }
   }
 }

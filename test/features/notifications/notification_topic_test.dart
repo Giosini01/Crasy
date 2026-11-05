@@ -18,6 +18,7 @@ void main() {
       expect(senzaInterruttore, [
         NotificationKind.removed,
         NotificationKind.restored,
+        NotificationKind.contentRemoved,
         NotificationKind.missionApproved,
         NotificationKind.missionRejected,
         NotificationKind.missionExpired,

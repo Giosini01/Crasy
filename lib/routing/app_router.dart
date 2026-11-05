@@ -19,6 +19,7 @@ import 'package:crasy/features/friends/presentation/pages/launch_duel_page.dart'
 import 'package:crasy/features/friends/presentation/pages/who_you_know_page.dart';
 import 'package:crasy/features/home/presentation/pages/home_page.dart';
 import 'package:crasy/features/home/presentation/pages/splash_page.dart';
+import 'package:crasy/features/legal/presentation/controllers/consent_controller.dart';
 import 'package:crasy/features/legal/presentation/pages/consent_page.dart';
 import 'package:crasy/features/notifications/domain/entities/app_notification.dart';
 import 'package:crasy/features/notifications/presentation/pages/notifications_page.dart';
@@ -39,27 +40,33 @@ import 'package:go_router/go_router.dart';
 
 /// Dove deve stare la sessione in questo momento.
 ///
-/// Sono cinque porte in fila, e si passano in quest'ordine: **accesso**, poi
-/// **email confermata**, poi **profilo con data di nascita**, poi **i
-/// consensi**, poi l'app. Ognuna esiste per un motivo che ha a che fare con i
-/// soldi in palio: senza un account non si sa chi vince, senza un indirizzo
+/// Sono sei porte in fila, e si passano in quest'ordine: **i Termini**, poi
+/// **accesso**, poi **email confermata**, poi **profilo con data di nascita**,
+/// poi **telefono**, poi l'app. Ognuna esiste per un motivo che ha a che fare con
+/// i soldi in palio: senza un account non si sa chi vince, senza un indirizzo
 /// vero non si sa dove mandarlo, e senza sapere quanti anni ha non si dovrebbe
 /// chiedere a nessuno di uscire a fare qualcosa per vincerlo.
 ///
-/// **L'ultima e' una porta che si riapre.** Le altre quattro si passano una
-/// volta sola; questa torna a chiudersi ogni volta che i testi legali cambiano
-/// versione, perche' un'informativa nuova che nessuno ha mai visto non vale
-/// niente. E' il meccanismo che rende vera la frase "ti verra' chiesto di
-/// prenderne visione" invece che una promessa scritta in un documento.
+/// **I Termini vengono prima dell'accesso, e valgono per quell'accesso.** E' cio'
+/// che chiede Apple (linea guida 1.2): nessuno si registra e nessuno rientra
+/// senza averli accettati, nemmeno chi li aveva gia' accettati l'ultima volta.
+/// Vedi [pendingConsentProvider].
+///
+/// **E i consensi sono una porta che si riapre.** Tornano a chiudersi per chi e'
+/// gia' dentro ogni volta che i testi legali cambiano versione, perche'
+/// un'informativa nuova che nessuno ha mai visto non vale niente. E' il
+/// meccanismo che rende vera la frase "ti verra' chiesto di prenderne visione"
+/// invece che una promessa scritta in un documento.
 final sessionLandingRouteProvider = Provider<String>((ref) {
   final authState = ref.watch(authStateProvider);
+  final firmaInSospeso = ref.watch(pendingConsentProvider);
 
   if (authState is LoadingAuthState) {
     return AppRoutes.splash;
   }
 
   if (authState is! AuthenticatedAuthState) {
-    return AppRoutes.auth;
+    return firmaInSospeso == null ? AppRoutes.consents : AppRoutes.auth;
   }
 
   if (!authState.user.emailVerified) {
@@ -100,7 +107,10 @@ final sessionLandingRouteProvider = Provider<String>((ref) {
       // Chi non ha mai accettato, e chi aveva accettato una versione che nel
       // frattempo e' stata sostituita.
       if (!profile.acceptedLegalVersion(LegalTexts.version)) {
-        return AppRoutes.consents;
+        // La firma data prima dell'accesso sta arrivando al server, e fra un
+        // istante il profilo lo dira': mostrare i consensi adesso vorrebbe dire
+        // farli comparire e sparire a chi li ha appena accettati.
+        return firmaInSospeso == null ? AppRoutes.consents : AppRoutes.splash;
       }
 
       // **Le quattro regole, una volta sola.** Senza, la prima schermata e' un

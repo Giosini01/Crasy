@@ -643,9 +643,15 @@ async function proponi(uid, richiesta) {
       throw rifiuta('not-found', 'Questa persona non c’è più.');
     }
 
-    const bloccato = await sfidato.ref.collection('blocked').doc(uid).get();
+    // **Nei due sensi.** Chi ha bloccato qualcuno non puo' nemmeno sfidarlo: il
+    // blocco toglie ogni contatto, e altrimenti sarebbe un modo di farsi vivi
+    // restando al riparo.
+    const [bloccato, hoBloccato] = await Promise.all([
+      sfidato.ref.collection('blocked').doc(uid).get(),
+      db.collection('users').doc(uid).collection('blocked').doc(richiesta.targetUserId).get(),
+    ]);
 
-    if (bloccato.exists) {
+    if (bloccato.exists || hoBloccato.exists) {
       throw rifiuta('permission-denied', 'Non puoi sfidare questa persona.');
     }
 
@@ -655,6 +661,12 @@ async function proponi(uid, richiesta) {
   const profilo = await db.collection('users').doc(uid).get();
   const username = String(profilo.get('username') || '');
   const impronta = improntaDi(richiesta);
+
+  // **Chi lancia una missione ha accettato i documenti.** Lo chiede gia' l'app
+  // prima di entrare: una schermata la salta chi chiama questa funzione da se'.
+  if (!String(profilo.get('legalVersion') || '')) {
+    throw rifiuta('failed-precondition', 'Prima devi accettare i Termini.');
+  }
 
   const base = {
     ...richiesta,

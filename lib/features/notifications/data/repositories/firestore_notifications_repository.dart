@@ -301,6 +301,7 @@ class FirestoreNotificationsRepository {
       entryId: data['entryId'] as String? ?? '',
       anonimo: data['anonimo'] as bool? ?? false,
       motivo: data['motivo'] as String? ?? '',
+      cosa: data['cosa'] as String? ?? '',
       automatico: data['automatico'] as bool? ?? false,
       revisione: data['revisione'] as String? ?? '',
       propostaId: data['propostaId'] as String? ?? '',

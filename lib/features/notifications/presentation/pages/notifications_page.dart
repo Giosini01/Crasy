@@ -951,7 +951,8 @@ class _Face extends StatelessWidget {
     if (notification.actorId.isEmpty) {
       final segno = switch (kind) {
         NotificationKind.ended => Icons.flag_rounded,
-        NotificationKind.removed => Icons.visibility_off_rounded,
+        NotificationKind.removed ||
+        NotificationKind.contentRemoved => Icons.visibility_off_rounded,
         NotificationKind.restored => Icons.visibility_rounded,
         NotificationKind.duelNoVerdict => Icons.hourglass_disabled_rounded,
         NotificationKind.pickWinner => Icons.gavel_rounded,
@@ -992,7 +993,7 @@ class _Face extends StatelessWidget {
       NotificationKind.win => (Icons.emoji_events, palette.accent),
       // L'occhio sbarrato: la foto c'e' ancora, ma non la vede piu'
       // nessuno. E' lo stesso segno che si usa sulle foto in attesa.
-      NotificationKind.removed => (
+      NotificationKind.removed || NotificationKind.contentRemoved => (
         Icons.visibility_off_rounded,
         palette.textPrimary,
       ),

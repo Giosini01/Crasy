@@ -10,6 +10,7 @@ import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_scope.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/legal/presentation/controllers/consent_controller.dart';
 import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
@@ -85,7 +86,20 @@ void main() {
   testWidgets('senza accesso non si vede niente, solo la registrazione', (
     tester,
   ) async {
-    await pumpApp(tester, authRepository: FakeAuthRepository());
+    await pumpApp(
+      tester,
+      authRepository: FakeAuthRepository(),
+      // I Termini accettati un istante fa: quelli hanno le loro prove, vedi
+      // `termini_prima_dell_accesso_test.dart`.
+      overrides: [
+        pendingConsentProvider.overrideWith(
+          (ref) => const PendingConsent(
+            version: LegalTexts.version,
+            marketing: false,
+          ),
+        ),
+      ],
+    );
 
     // Non e' una scelta di gusto: qui girano soldi, si vota chi li vince, e si
     // entra da maggiorenni. Le foto che la gente manda sono di persone vere che

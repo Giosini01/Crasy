@@ -331,6 +331,19 @@ exports.adminRespingiRevisione = amministrazione.adminRespingiRevisione;
 exports.adminRiattiva = require('./sospensioni').adminRiattiva;
 exports.riattivaISospesi = require('./sospensioni').riattivaISospesi;
 
+// **Segnalazioni, blocchi, le 24 ore e il filtro sui testi.** Vedi
+// `moderazione.js`. Sotto `setGlobalOptions`, per la stessa ragione delle altre.
+const moderazione = require('./moderazione');
+
+moderazione.collega({ mandaAUnaPersona, reasonsFromSafeSearch });
+
+exports.segnalazioneArrivata = moderazione.segnalazioneArrivata;
+exports.sollecitaLeSegnalazioni = moderazione.sollecitaLeSegnalazioni;
+exports.bloccoArrivato = moderazione.bloccoArrivato;
+exports.bloccoTolto = moderazione.bloccoTolto;
+exports.filtraIlCommento = moderazione.filtraIlCommento;
+exports.controllaIlProfilo = moderazione.controllaIlProfilo;
+
 // **Chi si vede togliere una foto puo' chiedere che la riguardi una persona.**
 // Vedi `revisioni.js`.
 exports.chiediRevisione = require('./revisioni').chiediRevisione;
@@ -592,6 +605,35 @@ const PARTECIPAZIONI_AL_GIORNO = 5;
 /** Il motivo scritto su una partecipazione oltre il limite. Vedi `avvisi.js`. */
 const MOTIVO_LIMITE = 'limite di partecipazioni del giorno';
 
+/** Il motivo scritto quando l'indirizzo non e' quello del file controllato. */
+const MOTIVO_FILE_DIVERSO = 'file diverso da quello dichiarato';
+
+/**
+ * Se quello che si vede e' davvero il file che si controlla: l'indirizzo della foto
+ * deve portare a `storagePath`, e quello della miniatura alla sua miniatura.
+ *
+ * Gli indirizzi li da' Firebase (`.../v0/b/{magazzino}/o/{percorso}?...`), e l'app
+ * sale le due con lo stesso nome: vedi `caricaFile` nell'app e `miniaturaDi`.
+ */
+function indirizziCoerenti(partecipazione) {
+  const percorso = String(partecipazione.get('storagePath') || '');
+  const foto = moderazione.fileDellIndirizzo(partecipazione.get('mediaUrl'));
+
+  if (!foto || foto.percorso !== percorso) {
+    return false;
+  }
+
+  const indirizzoMiniatura = String(partecipazione.get('thumbUrl') || '');
+
+  if (!indirizzoMiniatura) {
+    return true;
+  }
+
+  const miniatura = moderazione.fileDellIndirizzo(indirizzoMiniatura);
+
+  return Boolean(miniatura) && miniatura.percorso === miniaturaDi(percorso);
+}
+
 /** La mezzanotte italiana del giorno in cui cade [data]. */
 function inizioDelGiornoInItalia(data) {
   const giorno = new Intl.DateTimeFormat('en-CA', {
@@ -699,12 +741,18 @@ async function controllaPartecipazione(snapshot, challengeId) {
   // Nel magazzino dove sta davvero: vedi `magazzinoDi`.
   const bucket = magazzinoDi(snapshot).name;
   const mediaKind = snapshot.get('mediaKind') || 'photo';
+  const miniatura = moderazione.fileDellIndirizzo(snapshot.get('thumbUrl'));
   let reasons;
 
   try {
     const uri = `gs://${bucket}/${storagePath}`;
 
-    if (await oltreIlLimiteDelGiorno(snapshot)) {
+    if (!indirizziCoerenti(snapshot)) {
+      // **Il controllo guarda il file, ma lo schermo mostra l'indirizzo.** Sono due
+      // campi scritti dal telefono: con un telefono modificato bastava dichiarare un
+      // file innocuo e un indirizzo qualunque, e la foto vera non la guardava nessuno.
+      reasons = [MOTIVO_FILE_DIVERSO];
+    } else if (await oltreIlLimiteDelGiorno(snapshot)) {
       // La sesta del giorno non si guarda nemmeno: e' fuori per il conto,
       // non per quello che mostra.
       reasons = [MOTIVO_LIMITE];
@@ -714,6 +762,15 @@ async function controllaPartecipazione(snapshot, challengeId) {
       const client = new vision.ImageAnnotatorClient();
       const [result] = await client.safeSearchDetection(uri);
       reasons = reasonsFromSafeSearch(result.safeSearchAnnotation);
+
+      // **E la miniatura e' un'altra foto.** E' quella che si vede negli elenchi, e
+      // l'app la sale per conto suo: si guarda anche lei.
+      if (reasons.length === 0 && miniatura) {
+        const [copia] = await client.safeSearchDetection(
+          `gs://${miniatura.magazzino}/${miniatura.percorso}`
+        );
+        reasons = reasonsFromSafeSearch(copia.safeSearchAnnotation);
+      }
     }
   } catch (error) {
     // Se il controllo non riesce, la foto **resta in attesa**. Non si approva
@@ -737,6 +794,11 @@ async function controllaPartecipazione(snapshot, challengeId) {
     moderationReasons: reasons,
     moderatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
+
+  // La foto va bene, ma il testo che ci sta sopra lo scrive chi la manda.
+  if (!rejected) {
+    await moderazione.controllaLaDidascalia(snapshot);
+  }
 
   // Una foto rifiutata non deve contare fra i partecipanti: quel numero dice
   // quante persone sono in gara, e chi e' stato escluso in gara non c'e'.
@@ -2348,12 +2410,15 @@ exports.purgeUnverifiedAccounts = onSchedule('every 60 minutes', async () => {
   } while (pagina);
 
   // Chi si e' fermato al telefono ha gia' un profilo con dentro il nome utente:
-  // va buttato anche quello, o il nome resta prenotato da nessuno.
-  for (const userId of senzaTelefono) {
+  // va buttato anche quello, o il nome resta prenotato da nessuno. **E chi si e'
+  // fermato all'email un profilo non ce l'ha, ma ha gia' accettato i Termini**: la
+  // riga del registro nasce prima dell'account confermato, e senza questo resterebbe
+  // sotto un account che non esiste piu'.
+  const daButtare = senzaEmail.concat(senzaTelefono);
+
+  for (const userId of daButtare) {
     await buttaIlProfilo(userId);
   }
-
-  const daButtare = senzaEmail.concat(senzaTelefono);
 
   if (daButtare.length === 0) {
     return;
@@ -2549,6 +2614,7 @@ exports.sendPushOnNotification = onDocumentCreated(
       // altri questa e' comunque una notizia spiacevole: la riga resta secca,
       // e il resto sta in campanella.
       removed: 'La tua foto è stata tolta dalla gara',
+      contentRemoved: 'Un tuo contenuto è stato tolto: violava le regole di CRASY',
       // La risposta buona a una revisione, o una foto rimessa dal team.
       restored: gara
         ? `La tua foto è tornata in gara: ${gara}`

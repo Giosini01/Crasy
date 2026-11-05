@@ -23,15 +23,26 @@ library;
 /// Le prime quattro sono obbligatorie e non sono tutte "consenso" in senso
 /// tecnico: termini ed eta' sono condizioni del contratto, l'informativa
 /// privacy si **prende visione** (non si consente), e l'uso dei contenuti e' la
-/// licenza che serve a far funzionare il servizio. Le ultime due sono consenso
-/// vero, quindi facoltative e revocabili in qualunque momento.
+/// licenza che serve a far funzionare il servizio. L'ultima e' consenso vero,
+/// quindi facoltativa e revocabile in qualunque momento.
+///
+/// **Non c'e' piu' "Contenuti su misura", e non deve tornare.** Prometteva di
+/// analizzare il comportamento per mostrare missioni e pubblicita' "piu' vicine
+/// ai gusti": CRASY non ha pubblicita', non profila nessuno, e nessuna riga di
+/// codice usava quella scelta. Era una frase falsa, e leggendola Apple ha
+/// concluso che l'app traccia le persone senza chiedere il permesso di iOS
+/// (linea guida 5.1.2(i), novembre 2026). Se un giorno arrivasse davvero un SDK
+/// che traccia, prima servira' App Tracking Transparency: vedi
+/// `conformita_apple.md`.
 enum LegalConsent {
   terms(
     label: 'Termini e Condizioni',
     required: true,
     explanation:
-        'Regolano l\'uso dell\'app, la partecipazione alle missioni, la '
-        'pubblicazione dei contenuti e i rapporti fra te e CRASY.',
+        'Regolano l\'uso dell\'app. Tolleranza zero per contenuti offensivi, '
+        'illegali, sessualmente espliciti o violenti, e per molestie, minacce '
+        'e abusi: chi li pubblica viene rimosso. Puoi segnalare i contenuti e '
+        'bloccare le persone.',
   ),
 
   privacy(
@@ -44,11 +55,13 @@ enum LegalConsent {
   ),
 
   content(
-    label: 'Uso di foto e video',
+    label: 'Uso di foto, video e testi',
     required: true,
     explanation:
         'Autorizzi CRASY a ospitare e mostrare dentro l\'app i contenuti che '
-        'carichi, solo per far funzionare le missioni. Restano tuoi.',
+        'carichi. Restano tuoi. Per il controllo automatico, foto e video '
+        'passano dai sistemi di Google, e il testo delle missioni dal sistema '
+        'di intelligenza artificiale di OpenAI.',
   ),
 
   age(
@@ -65,19 +78,8 @@ enum LegalConsent {
     label: 'Comunicazioni commerciali',
     required: false,
     explanation:
-        'Ricevere da CRASY novita\', offerte e contenuti promozionali. Puoi '
-        'toglierlo quando vuoi dal tuo profilo.',
-  ),
-
-  /// **Facoltativo.** L'analisi del comportamento per personalizzare contenuti
-  /// e pubblicita' e' profilazione, e per il Garante richiede una scelta
-  /// separata e specifica.
-  profiling(
-    label: 'Contenuti su misura',
-    required: false,
-    explanation:
-        'Analizzare come usi CRASY per mostrarti missioni e pubblicita\' piu\' '
-        'vicine ai tuoi gusti. Puoi toglierlo quando vuoi.',
+        'Ricevere da CRASY novita\' e offerte su CRASY. I tuoi dati non vanno '
+        'ad altre aziende. Puoi toglierlo quando vuoi dal tuo profilo.',
   );
 
   const LegalConsent({
@@ -155,7 +157,16 @@ abstract final class LegalTexts {
   /// guarda una persona. Se non viene accettata, o se entro 48 ore non risponde nessuno,
   /// tornano i soldi tranne le commissioni di pagamento. E le commissioni non tornano
   /// nemmeno quando non partecipa nessuno.
-  static const String version = '1.5';
+  ///
+  /// **1.6: tolleranza zero, e quello che CRASY non fa.** In testa ai Termini le
+  /// regole della comunita'; al punto 9 come si segnala e si blocca, e l'impegno
+  /// a guardare le segnalazioni entro 24 ore. Tolto il consenso sulla
+  /// profilazione, che prometteva una cosa che non esiste. L'informativa dice che
+  /// non si traccia nessuno, e nomina i dati che prima non nominava: telefono,
+  /// rubrica, posizione, recapito delle notifiche, dati per i premi, segnalazioni
+  /// e blocchi. **Da questa versione i Termini si accettano prima di registrarsi o
+  /// di entrare**: vedi `sessionLandingRouteProvider`.
+  static const String version = '1.6';
 
   /// Chi risponde di questi dati. **Solo la partita IVA, senza ragione
   /// sociale**: e' cosi' che CRASY si firma ovunque, app e sito. Il contatto e'
@@ -167,6 +178,26 @@ abstract final class LegalTexts {
   static const terms = LegalDocument(
     title: 'Termini e Condizioni',
     body: '''
+REGOLE DELLA COMUNITA': TOLLERANZA ZERO
+Su CRASY non c'e' nessuna tolleranza per i contenuti offensivi, illegali,
+sessualmente espliciti o violenti, ne' per chi molesta o abusa degli altri.
+Accettando queste condizioni ti impegni a non pubblicare, in foto, video,
+missioni, commenti, didascalie, nomi utente o descrizioni del profilo:
+- contenuti offensivi, diffamatori, discriminatori o che incitano all'odio;
+- contenuti illegali, o che mostrano o chiedono di commettere un reato;
+- nudita' e contenuti sessualmente espliciti;
+- violenza, crudelta' su persone o animali, autolesionismo;
+- qualunque contenuto sessuale o di sfruttamento che riguardi dei minori.
+E' vietato molestare, minacciare, discriminare, perseguitare, ricattare o
+bullizzare gli altri utenti, e qualunque altro comportamento abusivo.
+E' vietato l'uso improprio della piattaforma: spam, frodi e truffe, account falsi
+o multipli, voti falsati o comprati, segnalazioni false o fatte in massa,
+tentativi di aggirare i controlli o di accedere ai dati degli altri.
+Chi viola queste regole si vede rimuovere i contenuti, anche subito e senza
+preavviso, e il suo account puo' essere sospeso o eliminato, anche per sempre.
+Ogni utente puo' segnalare i contenuti e bloccare le altre persone (punto 9), e le
+segnalazioni le guarda una persona del team entro 24 ore.
+
 1. COS'E' CRASY
 CRASY e' un'applicazione in cui una persona lancia una missione mettendo in
 palio del denaro e altre persone vi partecipano con una foto o un video. Alla
@@ -299,6 +330,16 @@ il limite giornaliero vengono escluse in automatico. Chi si vede togliere una
 foto riceve un avviso con il motivo e con l'indicazione se la decisione e'
 automatica, e dall'avviso puo' chiedere che la riguardi una persona del team.
 Si puo' contestare qualunque rimozione anche scrivendo a info@crasyapp.com.
+Ogni foto, video, commento, missione e profilo si puo' segnalare dal menu accanto
+al contenuto, scegliendo un motivo. Le segnalazioni le guarda una persona del
+team entro 24 ore: se il contenuto viola queste regole viene rimosso, e chi l'ha
+pubblicato viene sospeso o espulso. Chi viene segnalato non sa mai chi lo ha
+segnalato: il nome lo vedono solo le persone del team che moderano.
+Ogni persona si puo' bloccare dal suo profilo o dal menu accanto ai suoi
+contenuti. Da quel momento i suoi contenuti spariscono dalla vista di chi blocca,
+e fra i due non sono piu' possibili commenti, fiamme, richieste di amicizia,
+sfide e notifiche. Il blocco viene comunicato al team di CRASY, non alla persona
+bloccata, e si toglie dalle impostazioni del profilo.
 Il testo di ogni missione viene controllato prima di uscire, in automatico e
 anche con un sistema di intelligenza artificiale. Una missione che contiene
 parole vietate viene fermata subito, in automatico, e si puo' riscrivere. Se il
@@ -371,17 +412,28 @@ TITOLARE DEL TRATTAMENTO
 $controller
 
 QUALI DATI TRATTIAMO
-- Dati di account: indirizzo email, password (custodita in forma cifrata da
-  Firebase Authentication), nome utente, data di nascita.
+- Dati di account: indirizzo email, numero di telefono verificato, password
+  (custodita in forma cifrata da Firebase Authentication), nome utente, data di
+  nascita.
 - Dati di profilo, se li inserisci: una riga di descrizione, la citta', la foto
   profilo.
-- Contenuti che carichi: foto e video mandati alle missioni, con la loro data.
+- Contenuti che carichi: foto e video mandati alle missioni, con la loro data,
+  commenti, didascalie e testi delle missioni.
 - Attivita' nell'app: missioni lanciate o proposte, con l'esito del loro
   controllo, partecipazioni, fiamme date, amicizie, notifiche.
+- Segnalazioni e blocchi: chi ha segnalato o bloccato chi, e per quale motivo.
+- Posizione, solo se ci dai il permesso: una zona approssimata per proporti le
+  missioni vicine, mai la posizione esatta e mai uno storico degli spostamenti.
+- Rubrica, solo se ci dai il permesso: i numeri dei tuoi contatti arrivano al
+  server solo per il tempo di cercare chi e' gia' iscritto, e non vengono
+  conservati. Dei nomi non leggiamo niente.
 - Dati di pagamento: gestiti dal fornitore del servizio di pagamento. CRASY non
   conserva i numeri delle carte.
-- Dati tecnici: registri di accesso e di errore necessari a far funzionare e
-  proteggere il servizio.
+- Dati per ricevere i premi, solo se li inserisci: nome, data di nascita, codice
+  fiscale, IBAN.
+- Dati tecnici: il recapito del dispositivo per mandarti le notifiche, i registri
+  di accesso e di errore necessari a far funzionare e proteggere il servizio.
+- Accettazione dei documenti: quale versione hai accettato, e quando.
 
 Non chiediamo e non vogliamo categorie particolari di dati (articolo 9 GDPR):
 salute, convinzioni religiose, opinioni politiche, orientamento sessuale, dati
@@ -395,14 +447,26 @@ PERCHE' LI TRATTIAMO, E CON QUALE BASE GIURIDICA
 - Sicurezza, prevenzione di frodi e di account multipli, moderazione dei
   contenuti: legittimo interesse a un servizio onesto (art. 6.1.f).
 - Obblighi fiscali e contabili sui pagamenti: obbligo di legge (art. 6.1.c).
-- Comunicazioni commerciali e contenuti personalizzati: consenso (art.
-  6.1.a), facoltativo e revocabile in qualunque momento senza perdere l'accesso
-  al servizio.
+- Comunicazioni commerciali di CRASY su CRASY: consenso (art. 6.1.a),
+  facoltativo e revocabile in qualunque momento senza perdere l'accesso al
+  servizio.
+
+NESSUN TRACCIAMENTO E NESSUNA PUBBLICITA'
+CRASY non mostra pubblicita', non contiene strumenti di pubblicita' o di
+statistica di altre aziende e non legge l'identificativo pubblicitario del tuo
+telefono. Non colleghiamo i tuoi dati a quelli di altre app o siti per mostrarti
+pubblicita' o misurarla, e non li condividiamo con intermediari di dati (data
+broker). Non costruiamo profili su di te. Stripe, per i pagamenti, usa alcuni dati
+del dispositivo per prevenire le frodi e migliorare il proprio servizio, e dichiara
+di non usarli per la pubblicita'.
 
 CHI PUO' VEDERE COSA
 Il tuo nome utente, la foto profilo, i contenuti che mandi alle missioni e i
 premi che vinci sono visibili agli altri iscritti. L'indirizzo email e la data
 di nascita non sono mai visibili ad altri utenti.
+Chi segnala o blocca una persona non viene indicato a quella persona: lo sanno
+solo le persone del team che moderano, che lo vedono per giudicare la segnalazione
+e per riconoscere chi abusa delle segnalazioni.
 
 A CHI COMUNICHIAMO I DATI
 A fornitori che trattano i dati per nostro conto, nominati responsabili ai sensi
@@ -411,7 +475,8 @@ file, hosting; Cloud Vision e Video Intelligence per il controllo automatico di
 foto e video), Stripe, il fornitore dei pagamenti, e OpenAI (Stati Uniti), il
 fornitore del sistema di intelligenza artificiale che valuta il testo delle
 missioni prima che escano: riceve solo il testo della missione, senza il nome,
-l'email o altri identificativi di chi l'ha scritta. Alcuni di questi possono trattare
+l'email o altri identificativi di chi l'ha scritta. Per le email di servizio ci
+serviamo di un fornitore di posta elettronica. Alcuni di questi possono trattare
 dati fuori dallo Spazio economico europeo: in quel caso il trasferimento avviene
 sulla base delle clausole contrattuali tipo approvate dalla Commissione europea.
 Non vendiamo i tuoi dati a nessuno.
@@ -422,6 +487,9 @@ PER QUANTO TEMPO LI TENIAMO
   cancellate poco dopo la chiusura della missione. La foto vincitrice resta come
   trofeo nel profilo di chi ha vinto e di chi ha commissionato la missione.
 - Missioni proposte e l'esito del loro controllo: sei mesi.
+- Segnalazioni, blocchi e provvedimenti: per il tempo necessario a gestire le
+  contestazioni e a riconoscere gli abusi ripetuti.
+- Registro delle accettazioni dei documenti: per il tempo necessario a dimostrarle.
 - Dati di pagamento e documenti contabili: per il tempo imposto dalla legge
   fiscale.
 - Registri tecnici di sicurezza: per il tempo necessario a individuare abusi.
@@ -443,9 +511,11 @@ Il vincitore di una missione e' determinato dal conteggio delle preferenze
 espresse dagli altri utenti, non da un programma che valuta i tuoi dati
 personali. Non analizziamo il tuo comportamento per decidere l'esito di una
 missione.
-Le foto e i video che mandi possono essere controllati in automatico per
-trovare contenuti vietati. Se una tua foto viene tolta cosi', l'avviso te lo
-dice, e puoi chiedere che la riguardi una persona del team.
+Le foto e i video che mandi, e la tua foto profilo, possono essere controllati in
+automatico per trovare contenuti vietati. Se una tua foto viene tolta cosi',
+l'avviso te lo dice, e puoi chiedere che la riguardi una persona del team. Anche
+commenti, didascalie, nomi utente e descrizioni passano da un elenco di parole
+vietate.
 Il testo delle missioni viene controllato prima di uscire: da un elenco di parole
 vietate e da un sistema di intelligenza artificiale, che gli assegna un voto di
 sicurezza. Se il voto e' alto la missione esce da sola. Se non lo e' la guarda una
@@ -456,10 +526,10 @@ riscriverla, o chiedere che la riguardi una persona scrivendo a info@crasyapp.co
   );
 
   static const contentLicense = LegalDocument(
-    title: 'Uso di foto e video',
+    title: 'Uso di foto, video e testi',
     body: '''
 I CONTENUTI RESTANO TUOI
-Le foto e i video che carichi restano tuoi. Non ne acquistiamo la proprieta' e
+Le foto, i video e i testi che carichi restano tuoi. Non ne acquistiamo la proprieta' e
 non li vendiamo.
 
 COSA CI AUTORIZZI A FARE
@@ -473,6 +543,13 @@ Se la tua opera vince, resta visibile anche nel profilo di chi ha lanciato la
 missione, indicata come opera commissionata da lui e realizzata da te. E' la
 sostanza di quello che e' successo: qualcuno ha chiesto un'opera, tu l'hai fatta
 e sei stato pagato.
+
+IL CONTROLLO AUTOMATICO
+Per fermare i contenuti vietati, foto e video passano dai sistemi di Google (Cloud
+Vision e Video Intelligence), e il testo delle missioni dal sistema di intelligenza
+artificiale di OpenAI, che riceve solo quel testo, senza il tuo nome o altri
+identificativi. Accettando ci autorizzi a mandarglieli per questo scopo e per
+nessun altro. Trovi i dettagli nell'informativa privacy.
 
 FUORI DA CRASY
 Non usiamo i tuoi contenuti in pubblicita' o su altri canali senza chiedertelo
@@ -558,8 +635,9 @@ punto 7.
 
 7. MODERAZIONE
 Le foto possono essere controllate in automatico e segnalate dagli altri
-utenti. Chi si vede togliere una foto riceve un avviso con il motivo e puo'
-chiedere che la riguardi una persona del team.
+utenti: le segnalazioni le guarda una persona del team entro 24 ore. Chi si vede
+togliere una foto riceve un avviso con il motivo e puo' chiedere che la riguardi
+una persona del team.
 Il testo di ogni missione viene controllato prima di uscire, in automatico e con
 un sistema di intelligenza artificiale. Se non basta la guarda una persona del
 team: finche' non ha deciso la missione resta in pausa, per un massimo di 48 ore.

@@ -1,6 +1,8 @@
 import 'package:crasy/app.dart';
+import 'package:crasy/core/legal/legal_documents.dart';
 import 'package:crasy/core/widgets/opening_curtain.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
+import 'package:crasy/features/legal/presentation/controllers/consent_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,6 +24,13 @@ void main() {
         // Il sipario dell'apertura non si alza nelle prove: coprirebbe
         // lo schermo per due secondi e i tocchi finirebbero su di lui.
         openingCurtainProvider.overrideWithValue(false),
+        // La schermata di accesso si raggiunge dopo aver accettato i Termini.
+        pendingConsentProvider.overrideWith(
+          (ref) => const PendingConsent(
+            version: LegalTexts.version,
+            marketing: false,
+          ),
+        ),
       ],
     );
 

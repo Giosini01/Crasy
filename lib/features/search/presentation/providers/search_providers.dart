@@ -1,6 +1,7 @@
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
+import 'package:crasy/features/moderation/presentation/providers/moderation_providers.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -157,8 +158,10 @@ final peopleResultsProvider = FutureProvider.autoDispose<List<UserProfile>>((
   final ordinati = [...results]
     ..sort((a, b) => (b.isOfficial ? 1 : 0) - (a.isOfficial ? 1 : 0));
 
+  final bloccati = ref.watch(blockedNowProvider);
+
   return [
     for (final profile in ordinati)
-      if (profile.id != me) profile,
+      if (profile.id != me && !bloccati.contains(profile.id)) profile,
   ];
 });

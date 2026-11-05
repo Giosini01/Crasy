@@ -55,7 +55,11 @@ final friendsOfProvider = StreamProvider.autoDispose
         return Stream.value(const <Friend>[]);
       }
 
-      return repository.watchFriends(userId);
+      return senzaBloccati(
+        ref,
+        repository.watchFriends(userId),
+        (amico, bloccati) => bloccati.contains(amico.userId),
+      );
     });
 
 /// I miei amici.
@@ -73,7 +77,13 @@ final myFriendsProvider = StreamProvider<List<Friend>>((ref) {
     return Stream.value(const <Friend>[]);
   }
 
-  return repository.watchFriends(userId);
+  // **I legami con chi hai bloccato li toglie il server**, e ci mette qualche
+  // secondo: da qui spariscono subito.
+  return senzaBloccati(
+    ref,
+    repository.watchFriends(userId),
+    (amico, bloccati) => bloccati.contains(amico.userId),
+  );
 });
 
 /// Chi seguo io (senza gli amici di prima dei follower: per quelli vedi
@@ -86,7 +96,11 @@ final myFollowingProvider = StreamProvider<List<Friend>>((ref) {
     return Stream.value(const <Friend>[]);
   }
 
-  return repository.watchFollowing(userId);
+  return senzaBloccati(
+    ref,
+    repository.watchFollowing(userId),
+    (seguito, bloccati) => bloccati.contains(seguito.userId),
+  );
 });
 
 /// Il mio documento, per la parte che riguarda chi seguo e chi mi segue.
@@ -196,7 +210,11 @@ final incomingRequestsProvider = StreamProvider<List<FriendRequest>>((ref) {
     return Stream.value(const <FriendRequest>[]);
   }
 
-  return repository.watchIncomingRequests(userId);
+  return senzaBloccati(
+    ref,
+    repository.watchIncomingRequests(userId),
+    (richiesta, bloccati) => bloccati.contains(richiesta.fromUserId),
+  );
 });
 
 /// Che rapporto ho con questa persona.
@@ -225,7 +243,11 @@ final topWinnersProvider = StreamProvider<List<LeaderRow>>((ref) {
     return Stream.value(const <LeaderRow>[]);
   }
 
-  return repository.watchTopBy('totalWonCents');
+  return senzaBloccati(
+    ref,
+    repository.watchTopBy('totalWonCents'),
+    (riga, bloccati) => bloccati.contains(riga.userId),
+  );
 });
 
 /// Chi ha messo piu' soldi in palio, da sempre.
@@ -242,7 +264,11 @@ final topStakersProvider = StreamProvider<List<LeaderRow>>((ref) {
     return Stream.value(const <LeaderRow>[]);
   }
 
-  return repository.watchTopBy('totalStakedCents');
+  return senzaBloccati(
+    ref,
+    repository.watchTopBy('totalStakedCents'),
+    (riga, bloccati) => bloccati.contains(riga.userId),
+  );
 });
 
 /// Le partecipazioni di una persona, per il suo profilo pubblico.
@@ -646,13 +672,17 @@ final recentlyClosedProvider = StreamProvider<List<Challenge>>((ref) {
   final now = DateTime.now();
   final ieri = now.subtract(const Duration(hours: 48));
 
-  return conLeMieAnonime(
+  return senzaBloccati(
     ref,
-    ref.watch(challengeRepositoryProvider).watchRecentlyClosedFor(userId),
-    (gara) =>
-        gara.scope == ChallengeScope.friends &&
-        !gara.endsAt.isAfter(now) &&
-        gara.endsAt.isAfter(ieri),
+    conLeMieAnonime(
+      ref,
+      ref.watch(challengeRepositoryProvider).watchRecentlyClosedFor(userId),
+      (gara) =>
+          gara.scope == ChallengeScope.friends &&
+          !gara.endsAt.isAfter(now) &&
+          gara.endsAt.isAfter(ieri),
+    ),
+    (gara, bloccati) => garaDaNascondere(gara, bloccati, userId),
   );
 });
 
@@ -859,6 +889,18 @@ class SuggestedFriendsNotifier extends AsyncNotifier<RubricaTrovata?> {
     }
 
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(repository.suggeriti);
+    state = await AsyncValue.guard(() async {
+      final trovati = await repository.suggeriti();
+      final bloccati = ref.read(blockedNowProvider);
+
+      // Chi hai bloccato non si suggerisce, anche se sta in rubrica.
+      return RubricaTrovata(
+        suCrasy: [
+          for (final amico in trovati.suCrasy)
+            if (!bloccati.contains(amico.userId)) amico,
+        ],
+        daInvitare: trovati.daInvitare,
+      );
+    });
   }
 }

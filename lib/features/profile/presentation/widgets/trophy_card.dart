@@ -11,8 +11,12 @@ import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/duel_status.dart';
+import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/moderation/domain/report_reason.dart';
+import 'package:crasy/features/moderation/presentation/widgets/report_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 /// Da che parte del tavolo si guarda un trofeo.
@@ -795,16 +799,24 @@ Future<void> showTrophy(
   );
 }
 
-class _TrophyDetails extends StatelessWidget {
+class _TrophyDetails extends ConsumerWidget {
   const _TrophyDetails({required this.challenge, required this.kind});
 
   final Challenge challenge;
   final TrophyKind kind;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
     final texts = context.texts;
+    final vincitore = challenge.winnerUserId;
+    // **La foto del vincitore resta in bacheca anche quando la gara non c'e'
+    // piu', e deve potersi segnalare come tutte le altre.** La propria no.
+    final segnalabile =
+        kind == TrophyKind.won &&
+        vincitore.isNotEmpty &&
+        vincitore != ref.watch(currentUserIdProvider) &&
+        MediaFrame.hasMedia(challenge.winnerMediaUrl);
 
     return ConstrainedBox(
       constraints: BoxConstraints(
@@ -890,6 +902,23 @@ class _TrophyDetails extends StatelessWidget {
               label: 'Finita',
               value: AppDateUtils.formatItalianDate(challenge.endsAt),
             ),
+            if (segnalabile)
+              Align(
+                alignment: Alignment.centerRight,
+                child: ContentMenuButton(
+                  // La partecipazione si chiama come chi l'ha mandata.
+                  target: ReportTarget(
+                    kind: ReportTargetKind.entry,
+                    reportedUserId: vincitore,
+                    reportedUsername: challenge.winnerUsername,
+                    challengeId: challenge.id,
+                    entryId: vincitore,
+                    mediaUrl: challenge.winnerMediaUrl,
+                    challengeTitle: challenge.title,
+                  ),
+                  color: palette.textFaint,
+                ),
+              ),
             const SizedBox(height: AppSpacing.sm),
           ],
         ),
