@@ -439,7 +439,7 @@ test('la firma dei documenti porta la versione e l\'ora del server', async () =>
     kind: 'legale',
     version: '1.6',
     marketing: false,
-    origine: 'prima-dell-accesso',
+    origine: 'prima-della-registrazione',
     at: ORA_DEL_SERVER,
     ...altro,
   });

@@ -79,7 +79,7 @@ abstract class UserProfileRepository {
   Stream<ContactSettings> watchContactSettings(String userId);
 
   ///
-  /// [origine] dice da dove arriva la firma: `prima-dell-accesso` o
+  /// [origine] dice da dove arriva la firma: `prima-della-registrazione` o
   /// `dentro-l-app`. Una scelta sulle comunicazioni commerciali gia' data non si
   /// spegne da qui: riaccettare i documenti non e' revocare un consenso, e
   /// quello si toglie da [saveMarketingChoice].

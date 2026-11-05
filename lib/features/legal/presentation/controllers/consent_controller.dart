@@ -3,16 +3,16 @@ import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// **Cosa e' stato accettato da chi non ha ancora fatto l'accesso.**
+/// **Cosa ha accettato chi si sta registrando.**
 ///
-/// I Termini si accettano prima di registrarsi o di entrare, e in quel momento
-/// non c'e' nessun account a cui intestare la firma. Resta qui, in memoria, per
-/// il tempo che passa fra la spunta e l'accesso.
+/// I Termini si accettano una volta sola, prima di creare l'account, e in quel
+/// momento non c'e' ancora nessun account a cui intestare la firma. Resta qui, in
+/// memoria, per il tempo che passa fra la spunta e la registrazione.
 ///
 /// **Sta in memoria e non sul telefono, di proposito.** Salvata sul telefono, la
-/// spunta di una persona varrebbe anche per la prossima che entra da li', e
-/// un'accettazione fatta da qualcun altro non dimostra niente. Si consuma al
-/// primo accesso: chi esce e rientra la ridà, e chi chiude l'app a meta' anche.
+/// spunta di una persona varrebbe anche per la prossima che si registra da li'. Da
+/// quando l'account esiste la firma vale per lui, su qualunque telefono: vedi
+/// `UserProfile.acceptedLegalVersion`.
 class PendingConsent {
   const PendingConsent({required this.version, required this.marketing});
 
@@ -41,9 +41,8 @@ class ConsentController extends AsyncNotifier<void> {
   Future<void> accept({required bool marketing}) async {
     final authState = ref.read(authStateProvider);
 
-    // **Prima dell'accesso la firma si tiene da parte.** La scrive
-    // `consentSyncProvider` nell'istante in cui esiste un account; fino ad
-    // allora il router lascia passare soltanto verso la schermata di accesso.
+    // **Prima della registrazione la firma si tiene da parte.** La scrive
+    // `consentSyncProvider` nell'istante in cui esiste un account.
     if (authState is! AuthenticatedAuthState) {
       ref.read(pendingConsentProvider.notifier).state = PendingConsent(
         version: LegalTexts.version,
@@ -89,7 +88,7 @@ class ConsentController extends AsyncNotifier<void> {
 final consentControllerProvider =
     AsyncNotifierProvider<ConsentController, void>(ConsentController.new);
 
-/// **La firma data prima dell'accesso, scritta appena c'e' a chi intestarla.**
+/// **La firma data prima di registrarsi, scritta appena c'e' a chi intestarla.**
 ///
 /// Sta qui e non nel controller dell'accesso per non toccarlo: accesso e
 /// registrazione funzionano come sempre, e da questo punto si vede soltanto che
@@ -111,7 +110,7 @@ final consentSyncProvider = Provider<void>((ref) {
             userId: userId,
             version: firma.version,
             marketing: firma.marketing,
-            origine: 'prima-dell-accesso',
+            origine: 'prima-della-registrazione',
           );
     } on Object catch (_) {
       // Ci pensa la schermata dei consensi: vedi qui sopra.

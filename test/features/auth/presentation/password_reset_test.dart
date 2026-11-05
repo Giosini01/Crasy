@@ -24,7 +24,8 @@ void main() {
         // Il sipario dell'apertura non si alza nelle prove: coprirebbe
         // lo schermo per due secondi e i tocchi finirebbero su di lui.
         openingCurtainProvider.overrideWithValue(false),
-        // La schermata di accesso si raggiunge dopo aver accettato i Termini.
+        // Registrarsi chiede i Termini: qui sono gia' accettati, e queste prove
+        // parlano d'altro.
         pendingConsentProvider.overrideWith(
           (ref) => const PendingConsent(
             version: LegalTexts.version,

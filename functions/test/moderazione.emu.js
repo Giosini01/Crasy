@@ -688,14 +688,14 @@ test('eliminare un account: chiede il nome, non si fa con dei soldi, e lascia le
   await db.collection('users').doc('conFirma').collection('consents').doc('f').set({
     kind: 'legale',
     version: '1.6',
-    origine: 'prima-dell-accesso',
+    origine: 'prima-della-registrazione',
     at: Timestamp.now(),
   });
 
   const scheda = await pannelloCome('persona', { uid: 'conFirma' });
 
   assert.equal(scheda.profilo.firme[0].version, '1.6');
-  assert.equal(scheda.profilo.firme[0].origine, 'prima-dell-accesso');
+  assert.equal(scheda.profilo.firme[0].origine, 'prima-della-registrazione');
 
   const riga = await ultimaRiga('eliminaAccount');
 

@@ -164,8 +164,9 @@ abstract final class LegalTexts {
   /// profilazione, che prometteva una cosa che non esiste. L'informativa dice che
   /// non si traccia nessuno, e nomina i dati che prima non nominava: telefono,
   /// rubrica, posizione, recapito delle notifiche, dati per i premi, segnalazioni
-  /// e blocchi. **Da questa versione i Termini si accettano prima di registrarsi o
-  /// di entrare**: vedi `sessionLandingRouteProvider`.
+  /// e blocchi. **Da questa versione i Termini si accettano prima di creare
+  /// l'account**, e chi ha gia' un account non entra senza: vedi `AuthPage` e
+  /// `sessionLandingRouteProvider`.
   static const String version = '1.6';
 
   /// Chi risponde di questi dati. **Solo la partita IVA, senza ragione

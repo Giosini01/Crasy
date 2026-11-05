@@ -127,8 +127,8 @@ class _CrasyAppState extends ConsumerState<CrasyApp> {
     // la sessione. Guardato da qui, vive quanto l'app.
     ref.watch(pushRegistrationProvider);
 
-    // **La firma dei Termini data prima dell'accesso va scritta appena esiste
-    // un account**, qualunque schermata ci sia in quel momento.
+    // **La firma dei Termini data per registrarsi va scritta appena esiste
+    // l'account**, qualunque schermata ci sia in quel momento.
     ref.watch(consentSyncProvider);
 
     // **E il numero rosso sull'icona non resta mai acceso a sproposito.** Vale

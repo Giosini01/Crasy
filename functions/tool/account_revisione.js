@@ -17,13 +17,17 @@
  * Fra l'accesso e la prima schermata ci sono sei controlli, e ognuno di loro
  * rimanda indietro chi non lo soddisfa. Un account creato a meta' non
  * fallisce: gira in tondo su una schermata di iscrizione, e il revisore scrive
- * "non riesco ad accedere". Quindi qui si valorizzano tutti e sei:
+ * "non riesco ad accedere". Quindi qui se ne valorizzano cinque, e il sesto si
+ * lascia aperto apposta:
  *
  * 1. **email confermata** — altrimenti si resta sulla schermata della conferma;
  * 2. **profilo creato e onboarding fatto**;
  * 3. **data di nascita**, maggiorenne: su CRASY girano soldi veri;
  * 4. **telefono verificato** — vedi sotto, ed e' il punto delicato;
- * 5. **documenti accettati**, nella versione corrente;
+ * 5. **documenti da accettare, apposta**: Apple vuole vedere che senza accettarli
+ *    non si entra (linea guida 1.2), e un account gia' a posto non glieli mostrerebbe
+ *    mai. Li accetta il revisore, dopo l'accesso, e ogni pubblicazione del server
+ *    rimette l'account in questo stato;
  * 6. **giro di presentazione, permessi e rubrica** gia' visti, cosi' si
  *    atterra direttamente sulle gare.
  *
@@ -75,11 +79,6 @@ admin.initializeApp({ credential: admin.credential.cert(require(chiave)) });
 const EMAIL = 'appreview@crasy.it';
 const PASSWORD = 'CrasyReview2026!';
 const NOME = 'appreview';
-
-/** La versione dei documenti che l'app pretende. Deve stare in pari con
- *  `LegalTexts.version` dentro l'app: se divergono, l'account si ritrova
- *  davanti la schermata dei consensi a ogni avvio. */
-const VERSIONE_LEGALE = '1.6';
 
 const db = admin.firestore();
 
@@ -150,8 +149,9 @@ async function prepara() {
     // Fuori dall'indice della rubrica, e scritto a chiare lettere invece che
     // lasciato al ripiego — che e' "si'".
     findableByPhone: false,
-    legalVersion: VERSIONE_LEGALE,
-    legalAcceptedAt: admin.firestore.FieldValue.serverTimestamp(),
+    // Vedi il punto 5, qui in cima: i documenti li accetta il revisore.
+    legalVersion: admin.firestore.FieldValue.delete(),
+    legalAcceptedAt: admin.firestore.FieldValue.delete(),
     marketingConsent: false,
     tutorialSeen: true,
     permissionsSeen: true,
@@ -182,7 +182,7 @@ async function prepara() {
     ['onboarding fatto', riletto.get('onboardingCompleted') === true],
     ['data di nascita', riletto.get('birthDate') != null],
     ['telefono verificato', riletto.get('phoneVerified') === true],
-    ['documenti accettati', riletto.get('legalVersion') === VERSIONE_LEGALE],
+    ['documenti da accettare', riletto.get('legalVersion') === undefined],
     ['presentazione vista', riletto.get('tutorialSeen') === true],
     ['permessi visti', riletto.get('permissionsSeen') === true],
     ['rubrica saltata', riletto.get('contactsPromptSeen') === true],
@@ -206,7 +206,7 @@ async function prepara() {
   console.log('');
   console.log(
     tutto
-      ? "  L'account entra e atterra sulle gare."
+      ? "  L'account entra, accetta i documenti e atterra sulle gare."
       : '  Qualcosa manca: le righe con NO qui sopra.',
   );
   console.log('');

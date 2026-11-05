@@ -2,7 +2,6 @@ import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/legal/legal_documents.dart';
 import 'package:crasy/features/auth/domain/entities/app_user.dart';
 import 'package:crasy/features/auth/presentation/providers/auth_providers.dart';
-import 'package:crasy/features/legal/presentation/controllers/consent_controller.dart';
 import 'package:crasy/features/profile/domain/entities/user_profile.dart';
 import 'package:crasy/features/profile/presentation/providers/user_profile_providers.dart';
 import 'package:crasy/routing/app_router.dart';
@@ -37,20 +36,9 @@ void main() {
     return container;
   }
 
-  test('chi non ha fatto l\'accesso resta sui Termini', () async {
-    // Apple chiede che si accettino **prima** di registrarsi o di entrare.
+  test('chi non ha fatto l\'accesso resta sulla registrazione', () async {
     final container = containerWith(FakeAuthRepository());
 
-    await container.pump();
-
-    expect(container.read(sessionLandingRouteProvider), AppRoutes.consents);
-  });
-
-  test('accettati i Termini si arriva all\'accesso', () async {
-    final container = containerWith(FakeAuthRepository());
-
-    container.read(pendingConsentProvider.notifier).state =
-        const PendingConsent(version: LegalTexts.version, marketing: false);
     await container.pump();
 
     expect(container.read(sessionLandingRouteProvider), AppRoutes.auth);
@@ -207,7 +195,6 @@ void main() {
     // girano soldi, si vota chi li vince, e si entra da maggiorenni. Nessuna
     // delle tre regge se chi guarda non ha un nome e un indirizzo confermato.
     expect(AppRoutes.openToEveryone, contains(AppRoutes.auth));
-    expect(AppRoutes.openToEveryone, contains(AppRoutes.consents));
     expect(AppRoutes.openToEveryone, isNot(contains(AppRoutes.challenges)));
     expect(AppRoutes.openToEveryone, isNot(contains(AppRoutes.winners)));
     expect(AppRoutes.openToEveryone, isNot(contains(AppRoutes.profile)));

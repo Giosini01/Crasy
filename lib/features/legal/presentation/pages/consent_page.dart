@@ -13,12 +13,12 @@ import 'package:crasy/features/legal/presentation/widgets/legal_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// La prima porta: cosa accetti, una cosa alla volta, **prima di registrarti o
-/// di entrare**.
+/// Cosa accetti, una cosa alla volta, **una volta sola**.
 ///
-/// E' la stessa schermata per chi non ha ancora un account e per chi e' gia'
-/// dentro e deve riaccettare documenti cambiati: e' [ConsentController] a
-/// sapere se la firma va tenuta da parte o scritta subito.
+/// E' la stessa schermata per chi si sta registrando, che la vede prima di creare
+/// l'account, e per chi ha gia' un account e non ha accettato questi documenti, che
+/// non entra senza: e' [ConsentController] a sapere se la firma va tenuta da parte
+/// o scritta subito.
 ///
 /// ## Perche' non c'e' un solo "Accetto tutto"
 ///
@@ -38,7 +38,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Qui infatti si entra spuntando solo le quattro obbligatorie, e l'altra si
 /// puo' lasciare dov'e' per sempre.
 class ConsentPage extends ConsumerStatefulWidget {
-  const ConsentPage({super.key});
+  const ConsentPage({this.perRegistrarsi = false, super.key});
+
+  /// Vero quando si apre dal tasto "Registrati", sopra la schermata di accesso:
+  /// accettando si torna li', con il modulo di registrazione. Torna `true`.
+  final bool perRegistrarsi;
 
   @override
   ConsumerState<ConsentPage> createState() => _ConsentPageState();
@@ -80,11 +84,10 @@ class _ConsentPageState extends ConsumerState<ConsentPage> {
               const SizedBox(height: AppSpacing.sm),
               Text(
                 dentro
-                    ? 'I documenti sono cambiati: per continuare a usare CRASY '
-                          'devi accettarli di nuovo.'
-                    : 'Per registrarti o per entrare devi accettare queste '
-                          'regole. Qui girano soldi veri e foto di persone '
-                          'vere: leggile.',
+                    ? 'Per entrare in CRASY devi accettare queste regole. Qui '
+                          'girano soldi veri e foto di persone vere: leggile.'
+                    : 'Per registrarti devi accettare queste regole. Qui girano '
+                          'soldi veri e foto di persone vere: leggile.',
                 style: texts.bodyMedium?.copyWith(color: palette.textSecondary),
               ),
               const SizedBox(height: AppSpacing.xl),
@@ -167,6 +170,13 @@ class _ConsentPageState extends ConsumerState<ConsentPage> {
                       ref.read(authActionControllerProvider.notifier).signOut(),
                 ),
               ],
+              if (widget.perRegistrarsi) ...[
+                const SizedBox(height: AppSpacing.sm),
+                SecondaryButton(
+                  label: 'Torna indietro',
+                  onPressed: () => Navigator.of(context).pop(false),
+                ),
+              ],
               const SizedBox(height: AppSpacing.md),
               Text(
                 'Versione dei documenti: ${LegalTexts.version}',
@@ -197,11 +207,16 @@ class _ConsentPageState extends ConsumerState<ConsentPage> {
       return;
     }
 
-    // Il router si accorge da solo che la versione accettata e' quella di
-    // adesso e porta avanti: qui non c'e' nessuna navigazione da fare a mano.
+    // Chi ha gia' un account lo porta avanti il router, che si accorge da solo
+    // che la versione accettata e' quella di adesso.
     await ref
         .read(consentControllerProvider.notifier)
         .accept(marketing: _checked.contains(LegalConsent.marketing));
+
+    // Chi si sta registrando torna al modulo da cui e' arrivato.
+    if (widget.perRegistrarsi && mounted) {
+      Navigator.of(context).pop(true);
+    }
   }
 }
 

@@ -31,10 +31,9 @@ abstract final class AppRoutes {
   /// file di associazione, non qui.
   static const sharedEntry = '/foto';
 
-  /// I consensi: cosa accetti **prima di registrarti o di entrare**.
-  ///
-  /// E' la prima schermata di chi non ha una sessione, e ci ripassa anche chi e'
-  /// gia' dentro quando i documenti cambiano versione.
+  /// I consensi di chi ha un account e non li ha ancora accettati, o ha accettato
+  /// una versione che nel frattempo e' cambiata: non si entra senza. Chi si
+  /// registra li vede prima di creare l'account, dal tasto "Registrati".
   static const consents = '/consensi';
 
   /// Le quattro regole del gioco, una volta sola.
@@ -185,5 +184,5 @@ abstract final class AppRoutes {
   ///
   /// Le foto che la gente manda sono di persone vere che si mettono in gioco:
   /// non stanno in una vetrina aperta a chiunque passi.
-  static const openToEveryone = <String>{splash, consents, auth};
+  static const openToEveryone = <String>{splash, auth};
 }

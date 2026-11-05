@@ -40,23 +40,22 @@ import 'package:go_router/go_router.dart';
 
 /// Dove deve stare la sessione in questo momento.
 ///
-/// Sono sei porte in fila, e si passano in quest'ordine: **i Termini**, poi
-/// **accesso**, poi **email confermata**, poi **profilo con data di nascita**,
-/// poi **telefono**, poi l'app. Ognuna esiste per un motivo che ha a che fare con
-/// i soldi in palio: senza un account non si sa chi vince, senza un indirizzo
+/// Sono cinque porte in fila, e si passano in quest'ordine: **accesso**, poi
+/// **email confermata**, poi **profilo con data di nascita**, poi **telefono**,
+/// poi **i consensi**, poi l'app. Ognuna esiste per un motivo che ha a che fare
+/// con i soldi in palio: senza un account non si sa chi vince, senza un indirizzo
 /// vero non si sa dove mandarlo, e senza sapere quanti anni ha non si dovrebbe
 /// chiedere a nessuno di uscire a fare qualcosa per vincerlo.
 ///
-/// **I Termini vengono prima dell'accesso, e valgono per quell'accesso.** E' cio'
-/// che chiede Apple (linea guida 1.2): nessuno si registra e nessuno rientra
-/// senza averli accettati, nemmeno chi li aveva gia' accettati l'ultima volta.
-/// Vedi [pendingConsentProvider].
+/// **I Termini si accettano una volta sola, quando ci si registra, prima di
+/// creare l'account** (Apple, linea guida 1.2): li chiede il tasto "Registrati"
+/// di `AuthPage`. La firma vale per l'account: chi esce e rientra, o entra da un
+/// altro telefono, non li rivede. Vedi [pendingConsentProvider].
 ///
-/// **E i consensi sono una porta che si riapre.** Tornano a chiudersi per chi e'
-/// gia' dentro ogni volta che i testi legali cambiano versione, perche'
-/// un'informativa nuova che nessuno ha mai visto non vale niente. E' il
-/// meccanismo che rende vera la frase "ti verra' chiesto di prenderne visione"
-/// invece che una promessa scritta in un documento.
+/// **La porta dei consensi vale per chi non ha firmato, e si riapre.** Un account
+/// senza firma si ferma qui prima di entrare: un accesso fatto in passato non vale
+/// come accettazione. E torna a chiudersi per tutti quando i testi legali cambiano
+/// versione, perche' un'informativa nuova che nessuno ha mai visto non vale niente.
 final sessionLandingRouteProvider = Provider<String>((ref) {
   final authState = ref.watch(authStateProvider);
   final firmaInSospeso = ref.watch(pendingConsentProvider);
@@ -66,7 +65,7 @@ final sessionLandingRouteProvider = Provider<String>((ref) {
   }
 
   if (authState is! AuthenticatedAuthState) {
-    return firmaInSospeso == null ? AppRoutes.consents : AppRoutes.auth;
+    return AppRoutes.auth;
   }
 
   if (!authState.user.emailVerified) {
@@ -107,7 +106,7 @@ final sessionLandingRouteProvider = Provider<String>((ref) {
       // Chi non ha mai accettato, e chi aveva accettato una versione che nel
       // frattempo e' stata sostituita.
       if (!profile.acceptedLegalVersion(LegalTexts.version)) {
-        // La firma data prima dell'accesso sta arrivando al server, e fra un
+        // La firma data per registrarsi sta arrivando al server, e fra un
         // istante il profilo lo dira': mostrare i consensi adesso vorrebbe dire
         // farli comparire e sparire a chi li ha appena accettati.
         return firmaInSospeso == null ? AppRoutes.consents : AppRoutes.splash;

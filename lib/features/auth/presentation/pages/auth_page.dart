@@ -8,6 +8,8 @@ import 'package:crasy/core/widgets/crasy_button.dart';
 import 'package:crasy/core/widgets/inline_banner.dart';
 import 'package:crasy/features/auth/presentation/controllers/auth_action_controller.dart';
 import 'package:crasy/features/auth/presentation/utils/auth_validators.dart';
+import 'package:crasy/features/legal/presentation/controllers/consent_controller.dart';
+import 'package:crasy/features/legal/presentation/pages/consent_page.dart';
 import 'package:crasy/features/legal/presentation/widgets/legal_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -198,19 +200,15 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                 SecondaryButton(
                   label: _signingUp ? 'Entra' : 'Registrati',
                   accent: true,
-                  onPressed: () => setState(() {
-                    _signingUp = !_signingUp;
-                    _resetSent = null;
-                  }),
+                  onPressed: _signingUp ? _tornaAllAccesso : _vaiARegistrarti,
                 ),
-                // **Quello che si e' appena accettato si rilegge da qui.** Lo si
-                // e' accettato una schermata fa, e chi si registra deve poterci
-                // tornare senza dover uscire.
+                // **I documenti si leggono da qui**, anche prima di decidere se
+                // registrarsi, e chi l'ha appena fatto ci torna senza uscire.
                 const SizedBox(height: AppSpacing.lg),
                 Text(
                   _signingUp
                       ? 'Registrandoti confermi di aver accettato:'
-                      : 'Entrando confermi di aver accettato:',
+                      : 'I documenti di CRASY:',
                   textAlign: TextAlign.center,
                   style: texts.bodySmall?.copyWith(color: palette.textFaint),
                 ),
@@ -245,6 +243,40 @@ class _AuthPageState extends ConsumerState<AuthPage> {
         ),
       ),
     );
+  }
+
+  /// **Chi si registra accetta i Termini prima di creare l'account, e una volta
+  /// sola.** E' cio' che chiede Apple (linea guida 1.2). Chi ha gia' un account non
+  /// passa di qui: la firma ce l'ha, e se non ce l'ha lo ferma il router dopo
+  /// l'accesso, prima di entrare.
+  ///
+  /// Torna se sono stati accettati.
+  Future<bool> _vaiARegistrarti() async {
+    final giaAccettati = ref.read(pendingConsentProvider) != null;
+    final accettati =
+        giaAccettati ||
+        await Navigator.of(context).push<bool>(
+              MaterialPageRoute(
+                builder: (_) => const ConsentPage(perRegistrarsi: true),
+              ),
+            ) ==
+            true;
+
+    if (mounted && accettati) {
+      setState(() {
+        _signingUp = true;
+        _resetSent = null;
+      });
+    }
+
+    return accettati;
+  }
+
+  void _tornaAllAccesso() {
+    setState(() {
+      _signingUp = false;
+      _resetSent = null;
+    });
   }
 
   /// Manda il messaggio per rifarsi la password.
@@ -286,6 +318,13 @@ class _AuthPageState extends ConsumerState<AuthPage> {
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    // Non si crea un account senza i Termini, per nessuna strada.
+    if (_signingUp &&
+        ref.read(pendingConsentProvider) == null &&
+        !await _vaiARegistrarti()) {
       return;
     }
 

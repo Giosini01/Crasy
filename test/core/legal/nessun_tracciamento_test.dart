@@ -139,11 +139,12 @@ void main() {
     }
   });
 
-  test('l\'account per la revisione di Apple sta in pari con i testi', () {
-    // Altrimenti il revisore si ritrova davanti i consensi a ogni avvio.
+  test('l\'account per la revisione di Apple deve vedere i Termini', () {
+    // Apple vuole vedere che senza accettarli non si entra: un account gia' a posto
+    // non glieli mostrerebbe mai. Vedi `functions/tool/account_revisione.js`.
     expect(
       leggi('functions/tool/account_revisione.js'),
-      contains("const VERSIONE_LEGALE = '${LegalTexts.version}';"),
+      contains('legalVersion: admin.firestore.FieldValue.delete()'),
     );
   });
 }
