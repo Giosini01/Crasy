@@ -110,7 +110,7 @@ risponde di cio' che dichiara**, e un avvocato deve ancora rivedere i testi lega
 
 | Requisito | Dove | Come si prova |
 |---|---|---|
-| Termini accettati una volta sola, prima di creare l'account; un account senza firma non entra | `ConsentPage`, `AuthPage`, `sessionLandingRouteProvider`, `pendingConsentProvider` | "Registrati": si vedono i Termini e non si passa senza le 4 spunte. L'account di revisione li vede subito dopo l'accesso |
+| Termini accettati una volta sola, prima di creare l'account; un account senza firma non entra | `ConsentPage`, `AuthPage`, `sessionLandingRouteProvider`, `pendingConsentProvider` | "Registrati": si vedono i Termini e non si passa senza le 4 spunte. L'account di revisione li vede subito dopo **ogni** accesso (`firmaAOgniAccesso`) |
 | Tolleranza zero scritta nei Termini | `lib/core/legal/legal_documents.dart`, versione 1.6 | "Leggi: Termini e Condizioni" |
 | Accettazione registrata sul server | `users/{uid}/consents`, riga `kind: legale` con versione e ora del server | Firestore |
 | Filtro su foto e video | SafeSearch e Video Intelligence, `moderateEntryPhoto` | `functions/index.js` |
@@ -177,9 +177,11 @@ risponde di cio' che dichiara**, e un avvocato deve ancora rivedere i testi lega
    generati dagli utenti e i concorsi.
 7. **Dare al revisore cosa guardare**: almeno una foto di un'altra persona in una gara aperta
    visibile all'account di revisione, o non avra' niente da segnalare o da bloccare. E
-   l'account di revisione non deve aver gia' accettato i Termini, o Apple non li vedra':
-   lo rimette a posto ogni pubblicazione del server (`functions/tool/account_revisione.js`).
-   Se l'hai usato tu per le prove, rilancia quel passo prima di mandare in revisione.
+   l'account di revisione deve mostrare i Termini, o Apple non li vedra'. Ci pensa l'app:
+   per quell'account (segno `firmaAOgniAccesso`, scritto da
+   `functions/tool/account_revisione.js` a ogni pubblicazione del server) i Termini si
+   richiedono **a ogni accesso nuovo**, anche se li ha gia' accettati qualcuno. Usarlo per le
+   prove non li nasconde piu' ad Apple: basta uscire dall'account alla fine.
 8. **Note per il revisore**: incollare il testo della sezione 4, scegliere la build nuova e
    rimandare in revisione, rispondendo anche al messaggio di Apple nel Resolution Center.
 9. **Dopo l'approvazione**: alzare `minBuild` in `config/app`, per far aggiornare chi ha
@@ -204,7 +206,7 @@ removed. Our App Privacy answers state that no data is used for tracking.
 - Terms: the user must accept the Terms of Use before creating an account (tap
   "Registrati"), and an account that has not accepted them cannot enter the app. The Terms
   state there is no tolerance for objectionable content or abusive users. The review account
-  has not accepted them yet, so they appear right after you log in.
+  is set to show them again at every login, so they appear right after you log in.
 - Filtering: photos, videos and profile pictures are checked automatically (Google Cloud
   Vision SafeSearch and Video Intelligence); text is filtered by a word list and missions
   also by AI, before being published or right after.
@@ -227,8 +229,10 @@ modo di arrivare al modulo senza le quattro spunte. "Leggi: Termini e Condizioni
 testo con la tolleranza zero. Accettare, registrarsi. In Firestore, `users/{uid}/consents` ha
 una riga `kind: legale`, `version: 1.6`, `origine: prima-della-registrazione`, con l'ora del
 server. Uscire e rientrare, anche da un altro telefono: i Termini **non** si richiedono. Con
-l'account di revisione, che non li ha accettati: compaiono subito dopo l'accesso, e senza
-accettarli non si entra.
+l'account di revisione compaiono subito dopo l'accesso, e senza accettarli non si entra. Le
+spunte restano anche nei primi secondi dopo l'accesso, e "Leggi" non si chiude da solo (era
+il difetto della 1.0: vedi `termini_dopo_l_accesso_test.dart`). Chiudere e riaprire l'app: non
+si richiedono. Uscire e rientrare con l'account di revisione: si richiedono di nuovo.
 
 **Test 2, Segnalazione.** Con un account, su una foto di un altro: menu `...`, "Segnala", un
 motivo, una nota, "Invia la segnalazione". La foto sparisce per chi ha segnalato. Nel

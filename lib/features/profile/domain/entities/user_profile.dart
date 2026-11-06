@@ -22,6 +22,7 @@ class UserProfile {
     this.photoStoragePath,
     this.legalVersion = '',
     this.legalAcceptedAt,
+    this.firmaAOgniAccesso = false,
     this.marketingConsent = false,
     this.tutorialSeen = false,
     this.phoneVerified = false,
@@ -106,6 +107,17 @@ class UserProfile {
   /// persone ripassano dalla schermata e accettano la versione di oggi.
   final String legalVersion;
   final DateTime? legalAcceptedAt;
+
+  /// **I Termini si firmano di nuovo a ogni accesso, non una volta sola.**
+  ///
+  /// Vale per un account solo, quello che Apple usa per la revisione: lo scrive
+  /// `functions/tool/account_revisione.js`. Apple boccia se non vede i Termini, e
+  /// con la firma che vale per sempre bastava una prova fatta da noi, o dal
+  /// revisore precedente, perche' il prossimo non li vedesse piu'.
+  ///
+  /// Per tutti gli altri e' falso, e i Termini restano una volta sola. Chi se lo
+  /// scrivesse da se' otterrebbe solo di vedersi chiedere i Termini piu' spesso.
+  final bool firmaAOgniAccesso;
 
   /// Il consenso facoltativo. Nasce **spento**, sempre: una casella gia'
   /// spuntata non e' un consenso, e' una distrazione sfruttata.
@@ -201,6 +213,30 @@ class UserProfile {
     return true;
   }
 
+  /// Se la firma vale per l'accesso fatto a [accesso].
+  ///
+  /// Per tutti vale sempre: i Termini si accettano una volta sola. Per chi ha
+  /// [firmaAOgniAccesso] vale solo se e' stata data **dopo** l'ultimo accesso, cosi'
+  /// a ogni accesso nuovo si rivedono, e riaprendo l'app no.
+  ///
+  /// Senza l'ora della firma non vale: e' anche il momento fra la spunta e la
+  /// risposta del server, e li' la schermata dei consensi resta dov'e'. Senza
+  /// l'ora dell'accesso vale: non si puo' sapere, e il server rimette comunque
+  /// l'account da firmare a ogni pubblicazione.
+  bool firmaValePerLAccesso(DateTime? accesso) {
+    if (!firmaAOgniAccesso) {
+      return true;
+    }
+
+    final firma = legalAcceptedAt;
+
+    if (firma == null) {
+      return false;
+    }
+
+    return accesso == null || !firma.isBefore(accesso);
+  }
+
   static List<int>? _numeriDellaVersione(String versione) {
     final numeri = versione.split('.').map(int.tryParse).toList();
 
@@ -244,6 +280,7 @@ class UserProfile {
     String? photoStoragePath,
     String? legalVersion,
     DateTime? legalAcceptedAt,
+    bool? firmaAOgniAccesso,
     bool? marketingConsent,
     bool? tutorialSeen,
     bool? phoneVerified,
@@ -266,6 +303,7 @@ class UserProfile {
       photoStoragePath: photoStoragePath ?? this.photoStoragePath,
       legalVersion: legalVersion ?? this.legalVersion,
       legalAcceptedAt: legalAcceptedAt ?? this.legalAcceptedAt,
+      firmaAOgniAccesso: firmaAOgniAccesso ?? this.firmaAOgniAccesso,
       marketingConsent: marketingConsent ?? this.marketingConsent,
       tutorialSeen: tutorialSeen ?? this.tutorialSeen,
       phoneVerified: phoneVerified ?? this.phoneVerified,
@@ -297,6 +335,14 @@ class UserProfile {
         other.createdAt == createdAt &&
         other.updatedAt == updatedAt &&
         other.onboardingCompleted == onboardingCompleted &&
+        // **La firma e' parte del profilo.** Senza queste righe un profilo appena
+        // firmato era "uguale" a quello di prima, e chi lo guarda non se ne
+        // accorgeva: si restava sui consensi dopo averli accettati. Lo salvava
+        // solo `updatedAt`, che cambia insieme alla firma.
+        other.legalVersion == legalVersion &&
+        other.legalAcceptedAt == legalAcceptedAt &&
+        other.firmaAOgniAccesso == firmaAOgniAccesso &&
+        other.tutorialSeen == tutorialSeen &&
         other.phoneVerified == phoneVerified &&
         other.streak == streak &&
         other.bestStreak == bestStreak &&
@@ -317,6 +363,10 @@ class UserProfile {
     createdAt,
     updatedAt,
     onboardingCompleted,
+    legalVersion,
+    legalAcceptedAt,
+    firmaAOgniAccesso,
+    tutorialSeen,
     phoneVerified,
     streak,
     bestStreak,

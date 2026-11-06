@@ -216,6 +216,7 @@ class FirebaseAuthRepository implements AuthRepository {
       email: user.email,
       emailVerified: user.emailVerified,
       createdAt: user.metadata.creationTime,
+      lastSignInAt: user.metadata.lastSignInTime,
     );
   }
 

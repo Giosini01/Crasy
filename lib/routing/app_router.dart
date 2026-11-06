@@ -56,6 +56,10 @@ import 'package:go_router/go_router.dart';
 /// senza firma si ferma qui prima di entrare: un accesso fatto in passato non vale
 /// come accettazione. E torna a chiudersi per tutti quando i testi legali cambiano
 /// versione, perche' un'informativa nuova che nessuno ha mai visto non vale niente.
+///
+/// **L'account della revisione di Apple la ripassa a ogni accesso**, e riaprendo
+/// l'app no: Apple deve vedere i Termini ogni volta che entra, anche se li aveva
+/// gia' accettati qualcun altro. Vedi `UserProfile.firmaAOgniAccesso`.
 final sessionLandingRouteProvider = Provider<String>((ref) {
   final authState = ref.watch(authStateProvider);
   final firmaInSospeso = ref.watch(pendingConsentProvider);
@@ -104,8 +108,10 @@ final sessionLandingRouteProvider = Provider<String>((ref) {
       }
 
       // Chi non ha mai accettato, e chi aveva accettato una versione che nel
-      // frattempo e' stata sostituita.
-      if (!profile.acceptedLegalVersion(LegalTexts.version)) {
+      // frattempo e' stata sostituita. E l'account della revisione di Apple, che
+      // li firma a ogni accesso: vedi `UserProfile.firmaAOgniAccesso`.
+      if (!profile.acceptedLegalVersion(LegalTexts.version) ||
+          !profile.firmaValePerLAccesso(authState.user.lastSignInAt)) {
         // La firma data per registrarsi sta arrivando al server, e fra un
         // istante il profilo lo dira': mostrare i consensi adesso vorrebbe dire
         // farli comparire e sparire a chi li ha appena accettati.

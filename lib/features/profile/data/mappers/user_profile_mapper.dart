@@ -16,6 +16,7 @@ abstract final class UserProfileMapper {
       onboardingCompleted: data['onboardingCompleted'] as bool? ?? false,
       legalVersion: data['legalVersion'] as String? ?? '',
       legalAcceptedAt: (data['legalAcceptedAt'] as Timestamp?)?.toDate(),
+      firmaAOgniAccesso: data['firmaAOgniAccesso'] as bool? ?? false,
       marketingConsent: data['marketingConsent'] as bool? ?? false,
       tutorialSeen: data['tutorialSeen'] as bool? ?? false,
       streak: (data['streak'] as num?)?.toInt() ?? 0,

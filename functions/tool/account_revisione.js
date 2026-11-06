@@ -24,10 +24,13 @@
  * 2. **profilo creato e onboarding fatto**;
  * 3. **data di nascita**, maggiorenne: su CRASY girano soldi veri;
  * 4. **telefono verificato** — vedi sotto, ed e' il punto delicato;
- * 5. **documenti da accettare, apposta**: Apple vuole vedere che senza accettarli
- *    non si entra (linea guida 1.2), e un account gia' a posto non glieli mostrerebbe
- *    mai. Li accetta il revisore, dopo l'accesso, e ogni pubblicazione del server
- *    rimette l'account in questo stato;
+ * 5. **documenti da accettare, apposta, e a ogni accesso**: Apple vuole vedere che
+ *    senza accettarli non si entra (linea guida 1.2), e un account gia' a posto non
+ *    glieli mostrerebbe mai. Li accetta il revisore, dopo l'accesso. Ogni
+ *    pubblicazione del server rimette l'account in questo stato, e il segno
+ *    `firmaAOgniAccesso` fa si' che l'app li richieda **a ogni accesso nuovo** (non
+ *    riaprendo l'app): una prova fatta da noi, o dal revisore di prima, non li
+ *    nasconde al prossimo;
  * 6. **giro di presentazione, permessi e rubrica** gia' visti, cosi' si
  *    atterra direttamente sulle gare.
  *
@@ -152,6 +155,7 @@ async function prepara() {
     // Vedi il punto 5, qui in cima: i documenti li accetta il revisore.
     legalVersion: admin.firestore.FieldValue.delete(),
     legalAcceptedAt: admin.firestore.FieldValue.delete(),
+    firmaAOgniAccesso: true,
     marketingConsent: false,
     tutorialSeen: true,
     permissionsSeen: true,
@@ -183,6 +187,7 @@ async function prepara() {
     ['data di nascita', riletto.get('birthDate') != null],
     ['telefono verificato', riletto.get('phoneVerified') === true],
     ['documenti da accettare', riletto.get('legalVersion') === undefined],
+    ['documenti a ogni accesso', riletto.get('firmaAOgniAccesso') === true],
     ['presentazione vista', riletto.get('tutorialSeen') === true],
     ['permessi visti', riletto.get('permissionsSeen') === true],
     ['rubrica saltata', riletto.get('contactsPromptSeen') === true],
