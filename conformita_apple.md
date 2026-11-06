@@ -180,8 +180,10 @@ risponde di cio' che dichiara**, e un avvocato deve ancora rivedere i testi lega
    l'account di revisione deve mostrare i Termini, o Apple non li vedra'. Ci pensa l'app:
    per quell'account (segno `firmaAOgniAccesso`, scritto da
    `functions/tool/account_revisione.js` a ogni pubblicazione del server) i Termini si
-   richiedono **a ogni accesso nuovo**, anche se li ha gia' accettati qualcuno. Usarlo per le
-   prove non li nasconde piu' ad Apple: basta uscire dall'account alla fine.
+   richiedono **a ogni accesso nuovo**, anche se li ha gia' accettati qualcuno. E vale anche
+   per le build gia' in revisione: ogni mezz'ora il server toglie la firma del revisore se ha
+   piu' di un'ora (`rimettiITerminiAlRevisore`, in `functions/revisore.js`). Usarlo per le
+   prove non li nasconde piu' ad Apple: al massimo un'ora e mezza dopo tornano da firmare.
 8. **Note per il revisore**: incollare il testo della sezione 4, scegliere la build nuova e
    rimandare in revisione, rispondendo anche al messaggio di Apple nel Resolution Center.
 9. **Dopo l'approvazione**: alzare `minBuild` in `config/app`, per far aggiornare chi ha

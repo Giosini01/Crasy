@@ -331,6 +331,10 @@ exports.adminRespingiRevisione = amministrazione.adminRespingiRevisione;
 exports.adminRiattiva = require('./sospensioni').adminRiattiva;
 exports.riattivaISospesi = require('./sospensioni').riattivaISospesi;
 
+// **L'account della revisione di Apple torna con i Termini da firmare**, ogni
+// mezz'ora, se la firma ha piu' di un'ora. Vedi `revisore.js`.
+exports.rimettiITerminiAlRevisore = require('./revisore').rimettiITerminiAlRevisore;
+
 // **Segnalazioni, blocchi, le 24 ore e il filtro sui testi.** Vedi
 // `moderazione.js`. Sotto `setGlobalOptions`, per la stessa ragione delle altre.
 const moderazione = require('./moderazione');
