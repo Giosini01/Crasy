@@ -63,7 +63,23 @@ enum Season {
   /// e' il modo piu' veloce di rendere inutile una prova.
   ///
   /// In produzione resta `null` e decide il calendario.
-  static Season? fissata;
+  ///
+  /// **E per guardarla prima che arrivi, su un link a parte**: una build fatta
+  /// con `--dart-define=CRASY_STAGIONE=natale` nasce gia' vestita da Natale. Le
+  /// build normali non passano niente, e il calendario resta l'unico a decidere.
+  static Season? fissata = _dallaCompilazione();
+
+  static Season? _dallaCompilazione() {
+    const scelta = String.fromEnvironment('CRASY_STAGIONE');
+
+    for (final stagione in Season.values) {
+      if (stagione.name == scelta) {
+        return stagione;
+      }
+    }
+
+    return null;
+  }
 
   /// **L'interruttore generale delle stagioni: acceso.**
   ///
