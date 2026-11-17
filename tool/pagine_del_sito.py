@@ -316,6 +316,97 @@ def supporto():
 """ % (POSTA, POSTA)
 
 
+def sicurezza_minori():
+    """Gli standard contro l'abuso e lo sfruttamento sessuale dei minori.
+
+    **Li chiede Google Play** a ogni app social: una pagina pubblica, non un
+    PDF, che dica che cosa e' vietato, come si segnala, che cosa fa CRASY e a
+    chi scrivere. C'e' anche la versione in inglese, perche' la legge chi rivede
+    l'app per Google.
+
+    Dice solo cose che l'app fa davvero: il divieto sta nei Termini, il motivo
+    "C'e' un minore" sta fra quelli di `report_reason.dart`, e il controllo
+    automatico delle foto e' quello descritto in `contenuti`.
+    """
+
+    return """
+  <p>CRASY non tollera in nessuna forma l'abuso e lo sfruttamento sessuale dei
+  minori (in inglese CSAE) ne' il materiale pedopornografico (CSAM). Questa
+  pagina spiega che cosa e' vietato, come si segnala e che cosa facciamo.</p>
+
+  <h2>Un'app per maggiorenni</h2>
+  <p>CRASY e' riservata a chi ha compiuto 18 anni: all'iscrizione si indica la
+  data di nascita, e per ricevere un premio si verifica l'identita' presso
+  Stripe.</p>
+
+  <h2>Che cosa e' vietato</h2>
+  <p>I <a href="/termini/">Termini</a> vietano qualunque contenuto sessuale o di
+  sfruttamento che riguardi dei minori, e il <a href="/regolamento/">Regolamento</a>
+  vieta di riprendere dei minori nelle missioni. Sono vietati anche
+  l'adescamento, la sessualizzazione di minori, la sextortion e ogni contatto
+  con un minore a scopo sessuale.</p>
+
+  <h2>Il controllo automatico</h2>
+  <p>Foto, video e immagini del profilo passano da un controllo automatico
+  (Google Cloud Vision e Video Intelligence) che ferma la nudita' e i contenuti
+  sessuali, a qualunque eta' si riferiscano.</p>
+
+  <h2>Come si segnala</h2>
+  <p>Dentro l'app, nel menu accanto a ogni foto, video, commento e missione e
+  su ogni profilo, c'e' il comando <strong>Segnala</strong>, con il motivo
+  <strong>"C'e' un minore"</strong>. Si puo' anche scrivere a
+  <a href="mailto:%(posta)s">%(posta)s</a>. In Italia si puo' segnalare
+  direttamente alla Polizia Postale su
+  <a href="https://www.commissariatodips.it">commissariatodips.it</a>.</p>
+
+  <h2>Che cosa facciamo</h2>
+  <ul>
+    <li>Una persona del team guarda ogni segnalazione entro 24 ore, e quelle
+    che riguardano un minore per prime.</li>
+    <li>Il contenuto viene tolto e l'account responsabile viene chiuso.</li>
+    <li>Il materiale pedopornografico e ogni caso di sfruttamento viene
+    segnalato alle autorita': in Italia alla Polizia Postale (Centro nazionale
+    per il contrasto della pedopornografia online), e al NCMEC o all'autorita'
+    competente del Paese quando la legge lo prevede. Conserviamo ci&ograve; che serve
+    alle indagini, come previsto dalla legge.</li>
+  </ul>
+
+  <h2>Contatto per la sicurezza dei minori</h2>
+  <p>Per tutto ci&ograve; che riguarda la sicurezza dei minori su CRASY, anche da
+  parte di autorita' e organizzazioni: <a href="mailto:%(posta)s">%(posta)s</a>.</p>
+
+  <h2>Child Safety Standards (English)</h2>
+  <p>CRASY has zero tolerance for child sexual abuse and exploitation (CSAE)
+  and child sexual abuse material (CSAM).</p>
+  <ul>
+    <li><strong>Adults only.</strong> CRASY is for users aged 18 and over; the
+    date of birth is required at sign-up, and prize winners verify their
+    identity with Stripe.</li>
+    <li><strong>Prohibited.</strong> Our Terms prohibit any sexual or
+    exploitative content involving minors, including grooming,
+    sexualisation of minors and sextortion, and our Rules prohibit filming
+    minors in challenges.</li>
+    <li><strong>Automated checks.</strong> Photos, videos and profile pictures
+    are checked automatically (Google Cloud Vision and Video Intelligence), and
+    nudity and sexual content are blocked.</li>
+    <li><strong>In-app reporting.</strong> Every photo, video, comment,
+    challenge and profile has a Report option, with a dedicated reason for
+    content involving a minor. Reports can also be sent to
+    <a href="mailto:%(posta)s">%(posta)s</a>.</li>
+    <li><strong>Action.</strong> Our team reviews reports within 24 hours,
+    giving priority to those involving minors, removes the content and closes
+    the responsible account.</li>
+    <li><strong>Reporting to authorities.</strong> CSAM and exploitation
+    cases are reported to the Italian Postal Police (National Centre for
+    Combating Online Child Pornography) and, where required by law, to NCMEC
+    or the competent national authority. We retain what investigators need, as
+    required by law.</li>
+    <li><strong>Child safety contact:</strong>
+    <a href="mailto:%(posta)s">%(posta)s</a>.</li>
+  </ul>
+""" % {'posta': POSTA}
+
+
 def main():
     documenti, v = dalDart()
     quando = 'Versione %s' % v
@@ -368,6 +459,16 @@ def main():
             supporto(),
             'Come contattare CRASY, segnalare un contenuto, cancellare '
             'l account.',
+        ),
+    )
+    scrivi(
+        'sicurezza-minori',
+        pagina(
+            'Sicurezza dei minori',
+            'Standard contro abuso e sfruttamento sessuale dei minori',
+            sicurezza_minori(),
+            'Gli standard di CRASY contro l abuso e lo sfruttamento sessuale '
+            'dei minori: divieti, segnalazioni, interventi e contatto.',
         ),
     )
     # La vetrina ha un vestito suo: vedi `tool/vetrina.py`. Un documento si
