@@ -6,6 +6,11 @@
 # workflow) compila l'APK firmato e lo carica su App Distribution. Da li', nella
 # console di Firebase, si scelgono i tester e parte l'email con il link.
 #
+# Compila anche l'app bundle (.aab) per Google Play, firmato con la stessa
+# chiave: lo si scarica dagli artefatti della corsa (crasy-android-aab-NUMERO).
+# Un avvio a mano da un ramo diverso da `main` compila tutti e due ma non
+# carica niente su App Distribution.
+#
 # Secret che servono:
 #
 #   ANDROID_KEYSTORE_B64       la chiave di firma (.p12 o .jks), in base64
@@ -110,10 +115,22 @@ jobs:
         run: |
           flutter build apk --release --build-number=$NUMERO --dart-define=CRASY_PAYMENTS=true
 
+      - name: App bundle per Google Play
+        # Lo stesso codice, la stessa chiave e lo stesso numero dell'APK, ma
+        # nel formato che chiede Play (.aab): da Play Console > Test e rilascio
+        # si carica a mano. Play da' a ogni telefono solo i pezzi che gli
+        # servono, e un .aab non si installa direttamente su un telefono.
+        run: |
+          flutter build appbundle --release --build-number=$NUMERO --dart-define=CRASY_PAYMENTS=true
+
       - name: Firebase CLI
+        # Solo da `main`: un avvio a mano da un altro ramo compila e basta, e
+        # i tester non ricevono una versione che su `main` non c'e'.
+        if: github.ref == 'refs/heads/main'
         run: npm install --global firebase-tools
 
       - name: Su App Distribution
+        if: github.ref == 'refs/heads/main'
         env:
           CHIAVE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           GRUPPI: ${{ vars.ANDROID_TESTER_GROUPS }}
@@ -145,6 +162,15 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Artefatto per Google Play
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crasy-android-aab-${{ env.NUMERO }}
+          path: build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Pulizia chiavi
         if: always()
