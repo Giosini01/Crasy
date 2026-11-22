@@ -1399,150 +1399,103 @@ exports.adminImpostaVerificato = onCall(async (request) => {
 /**
  * **Il fondo delle missioni automatiche, per la pagina di amministrazione.**
  *
- * Risponde alla domanda che non aveva risposta: *come faccio a capire che
- * stanno finendo i soldi?* Prima non c'era nessun posto che lo dicesse, e
- * l'unico modo di accorgersene sarebbe stato notare che le missioni avevano
- * smesso di uscire.
- *
- * Torna anche le ultime lanciate, perche' "restano dodici euro" da solo non
- * dice se il meccanismo sta funzionando: dodici euro possono voler dire che
- * va tutto bene o che e' fermo da tre giorni.
+ * Il fondo e' uno solo (`salvadanai/crasy`) e le regole stanno in
+ * `salvadanaio.js`: qui c'e' solo il permesso. Ogni tasto della pagina passa
+ * da `soloAdmin`, perche' questo e' un posto da cui escono soldi veri.
  */
 exports.adminFondo = onCall(async (request) => {
   soloAdmin(request);
 
-  const salvadanai = await db.collection('salvadanai').get();
-  const fondi = [];
+  return fondo.stato();
+});
 
-  for (const salvadanaio of salvadanai.docs) {
-    const dati = salvadanaio.data() || {};
-    const utente = await db.collection('users').doc(salvadanaio.id).get();
+/**
+ * **Ricarica il fondo con la carta**: torna l'indirizzo della pagina di
+ * Stripe. I soldi entrano nel fondo solo quando arriva il webhook, tolte le
+ * commissioni (`registraRicarica`).
+ */
+exports.adminRicaricaIlFondo = onCall(
+  { secrets: [STRIPE_SECRET_KEY] },
+  async (request) => {
+    const chi = soloAdmin(request);
+    const dati = request.data || {};
 
-    const lanciate = await salvadanaio.ref
-      .collection('lanciate')
-      .orderBy('quando', 'desc')
-      .limit(8)
-      .get();
+    await registra(chi, 'ricarica-fondo-aperta', { euro: String(dati.euro || '') });
 
-    fondi.push({
-      uid: salvadanaio.id,
-      username: utente.get('username') || salvadanaio.id,
-      acceso: dati.acceso === true,
-      spentoPerche: dati.spentoPerche || '',
-      fondoCents: dati.fondoCents || 0,
-      spesiCents: dati.spesiCents || 0,
-      premioCents: dati.premioCents || 0,
-      alGiorno: dati.alGiorno || 0,
-      maxPartecipanti: dati.maxPartecipanti || 0,
-      oreDiGara: dati.oreDiGara || 0,
-      fino: dati.fino || '',
-      fatte: dati.fatte || 0,
-      giorno: dati.giorno || '',
-      // Le prossime cinque, con l'orario: e' quello che permette di
-      // accorgersi **prima** che domani alle dieci esce una missione uguale
-      // alla sfida del giorno.
-      // **Tutte, non le prime cinque.** La domanda che uno si fa aprendo
-      // questa pagina non e' "cosa esce stasera" ma "cosa ho in programma":
-      // e' guardando il piano intero che ci si accorge che giovedi' esce una
-      // missione uguale alla sfida del giorno, o che le prime sei sono tutte
-      // dall'archivio di fila. Cinque righe non bastano per vedere niente di
-      // tutto questo.
-      //
-      // Quante ne stanno nel fondo, e non una in piu': oltre quelle non c'e'
-      // nessun programma, ci sono soldi che non esistono.
-      prossime: fondo.prossime(
-        salvadanaio,
-        dati.premioCents
-          ? Math.min(40, Math.floor((dati.fondoCents || 0) / dati.premioCents))
-          : 0
-      ),
-      ultime: lanciate.docs.map((riga) => ({
-        gara: riga.id,
-        titolo: riga.get('titolo') || '',
-        premioCents: riga.get('premioCents') || 0,
-        quando: riga.get('quando') ? riga.get('quando').toMillis() : null,
-      })),
+    return fondo.creaRicarica({
+      euro: dati.euro,
+      origine: String(dati.origine || ''),
+      chi,
+      email: request.auth.token.email || '',
     });
   }
+);
 
-  return { fondi };
+/** Le regole: quante al giorno, da quando, fino a quando, posti, ore, premio. */
+exports.adminImpostaIlFondo = onCall(async (request) => {
+  const chi = soloAdmin(request);
+  const esito = await fondo.imposta(request.data || {});
+
+  await registra(chi, 'regole-fondo', request.data || {});
+
+  return esito;
 });
 
-/**
- * Ferma o riaccende il fondo di una persona.
- *
- * **Fermare non tocca le gare gia' aperte**, e non e' una dimenticanza: quelle
- * hanno un premio pagato e delle persone dentro che hanno speso una delle loro
- * cinque di oggi. Si chiudono da sole come tutte le altre. Questo interruttore
- * dice "non lanciarne altre", non "annulla quello che c'e'".
- */
-exports.adminFermaIlFondo = onCall(async (request) => {
-  soloAdmin(request);
+/** Chi presta la faccia alle missioni, per nome. */
+exports.adminAutoriDelFondo = onCall(async (request) => {
+  const chi = soloAdmin(request);
+  const esito = await fondo.impostaAutori(request.data && request.data.nomi);
 
-  const uid = String((request.data && request.data.uid) || '');
-  const acceso = Boolean(request.data && request.data.acceso);
-
-  if (!uid) {
-    throw new HttpsError('invalid-argument', 'Manca di chi.');
+  if (esito.ok) {
+    await registra(chi, 'facce-fondo', { nomi: esito.autori.map((a) => a.username) });
   }
-
-  await db
-    .collection('salvadanai')
-    .doc(uid)
-    .update({ acceso, spentoPerche: acceso ? '' : 'a mano' });
-
-  return { ok: true, acceso };
-});
-
-/**
- * Lancia subito una missione dal fondo, senza aspettare l'orario.
- *
- * Serve a due cose diverse e tutte e due vere: provare che il meccanismo
- * funziona senza stare sveglio fino alle dieci, e avere un modo di riempire
- * la giornata quando serve — una sera in cui non c'e' niente di aperto.
- *
- * **Conta nel limite giornaliero**, come le altre. Un tasto che scavalca il
- * tetto e' un tetto che non c'e'.
- */
-exports.adminLanciaDalFondo = onCall(async (request) => {
-  soloAdmin(request);
-
-  const uid = String((request.data && request.data.uid) || '');
-
-  if (!uid) {
-    throw new HttpsError('invalid-argument', 'Manca di chi.');
-  }
-
-  const salvadanaio = await db.collection('salvadanai').doc(uid).get();
-
-  if (!salvadanaio.exists) {
-    throw new HttpsError('not-found', 'Nessun fondo per questa persona.');
-  }
-
-  const esito = await fondo.lanciaOra(salvadanaio);
 
   return esito;
 });
 
 /**
- * Salta la prossima missione in coda, rimandandola in fondo al giro.
+ * Ferma o riaccende il fondo. **Fermare non tocca le gare gia' aperte**: questo
+ * interruttore dice "non lanciarne altre", non "annulla quello che c'e'".
  */
+exports.adminFermaIlFondo = onCall(async (request) => {
+  const chi = soloAdmin(request);
+  const acceso = Boolean(request.data && request.data.acceso);
+  const esito = await fondo.accendi(acceso);
+
+  await registra(chi, acceso ? 'fondo-acceso' : 'fondo-fermato', {});
+
+  return esito;
+});
+
+/**
+ * Lancia subito una missione dal fondo, senza aspettare l'orario. **Conta nel
+ * limite giornaliero**, come le altre.
+ */
+exports.adminLanciaDalFondo = onCall(async (request) => {
+  const chi = soloAdmin(request);
+  const esito = await fondo.lanciaUna({ aMano: true });
+
+  await registra(chi, 'lancio-dal-fondo', { esito: esito.ok ? esito.gara : esito.reason });
+
+  return esito;
+});
+
+/** Salta la prossima missione in coda, rimandandola al giro dopo. */
 exports.adminSaltaLaProssima = onCall(async (request) => {
   soloAdmin(request);
 
+  return fondo.salta();
+});
+
+/** Porta nel fondo unico quello che resta in uno dei fondi per persona di prima. */
+exports.adminUnisciIlFondo = onCall(async (request) => {
+  const chi = soloAdmin(request);
   const uid = String((request.data && request.data.uid) || '');
+  const esito = await fondo.unisci(uid);
 
-  if (!uid) {
-    throw new HttpsError('invalid-argument', 'Manca di chi.');
-  }
+  await registra(chi, 'fondo-unito', { uid, spostati: esito.spostati });
 
-  const salvadanaio = await db.collection('salvadanai').doc(uid).get();
-
-  if (!salvadanaio.exists) {
-    throw new HttpsError('not-found', 'Nessun fondo per questa persona.');
-  }
-
-  return fondo.salta(salvadanaio);
+  return esito;
 });
 
 // Per il pannello: vedi `pannello.js`.

@@ -30,6 +30,9 @@ abstract final class ChallengeMapper {
       // Manca su tutte le gare nate prima che si potesse lanciare in anonimo:
       // erano tutte firmate.
       anonimo: data['anonimo'] as bool? ?? false,
+      // Lo scrive solo il server, sulle missioni del fondo: manca su tutte le
+      // altre, che il premio lo hanno pagato da sole.
+      paidByCrasy: data['pagataDalFondo'] as bool? ?? false,
       // Le date sono obbligatorie per il prodotto ma non per il documento: un
       // record scritto a mano male non deve far cadere l'intera schermata.
       // Senza inizio e fine la challenge risulta chiusa, che e' lo stato piu'

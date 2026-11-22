@@ -1148,6 +1148,13 @@ service cloud.firestore {
                                 'zialfmbJK7XawXbBUWcXKGff2xj2'
                               ]
                          )
+                      // **E nemmeno chi presta la faccia al fondo.** Le
+                      // missioni del fondo escono a nome di persone vere ma
+                      // il premio lo paga CRASY: chi sta dentro la casa non
+                      // corre per i soldi della casa. L'elenco lo scrive il
+                      // server sulla gara (`esclusi`, vedi
+                      // `functions/salvadanaio.js`), e non costa letture.
+                      && !(request.auth.uid in challenge().get('esclusi', []))
                       && request.resource.data.mediaUrl is string
                       && request.resource.data.mediaUrl.size() > 0
                       // Il vincolo si rispetta: a una challenge di video non si

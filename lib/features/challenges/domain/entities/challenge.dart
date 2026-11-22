@@ -29,6 +29,7 @@ class Challenge {
     this.createdByUsername = '',
     this.createdByUserId = '',
     this.anonimo = false,
+    this.paidByCrasy = false,
     this.participantsCount = 0,
     this.winnerEntryId,
     this.winnerUserId = '',
@@ -243,6 +244,15 @@ class Challenge {
 
   /// L'ha lanciata CRASY.
   bool get byCrasy => createdByUserId == crasyUserId;
+
+  /// **Il premio lo paga CRASY**, anche se a lanciarla e' una persona.
+  ///
+  /// Sono le missioni del fondo (`functions/salvadanaio.js`): escono a turno a
+  /// nome di chi presta la faccia — nome, foto, profilo — ma i soldi sono di
+  /// CRASY, e chi partecipa lo deve sapere prima di scegliere. Per questo
+  /// accanto al nome c'e' scritto "premio di CRASY", e chi l'ha firmata non la
+  /// puo' ne' modificare ne' annullare: si gestisce dal pannello.
+  final bool paidByCrasy;
 
   /// **Quante persone possono partecipare, al massimo.** Zero vuol dire senza
   /// limite.
@@ -621,6 +631,7 @@ class Challenge {
     String? createdByUsername,
     String? createdByUserId,
     bool? anonimo,
+    bool? paidByCrasy,
     DateTime? startsAt,
     DateTime? endsAt,
     int? participantsCount,
@@ -656,6 +667,7 @@ class Challenge {
       createdByUsername: createdByUsername ?? this.createdByUsername,
       createdByUserId: createdByUserId ?? this.createdByUserId,
       anonimo: anonimo ?? this.anonimo,
+      paidByCrasy: paidByCrasy ?? this.paidByCrasy,
       startsAt: startsAt ?? this.startsAt,
       endsAt: endsAt ?? this.endsAt,
       participantsCount: participantsCount ?? this.participantsCount,
@@ -699,6 +711,7 @@ class Challenge {
         other.createdByUsername == createdByUsername &&
         other.createdByUserId == createdByUserId &&
         other.anonimo == anonimo &&
+        other.paidByCrasy == paidByCrasy &&
         other.startsAt == startsAt &&
         other.endsAt == endsAt &&
         other.participantsCount == participantsCount &&

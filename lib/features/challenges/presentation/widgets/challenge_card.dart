@@ -169,7 +169,7 @@ class ChallengeCard extends ConsumerWidget {
         // uno decide se partecipare — non prima.
         const SizedBox(height: AppSpacing.md),
         if (miaEChiusaAMe)
-          const OwnChallengeNote()
+          OwnChallengeNote(daCrasy: challenge.paidByCrasy)
         else if (myEntry != null)
           const AlreadyJoinedNote()
         // **Al completo il bottone non c'e' piu'.** Lasciarlo e farlo rifiutare
@@ -485,6 +485,19 @@ class ChallengeAuthor extends StatelessWidget {
           const SizedBox(width: AppSpacing.xxs),
           const VerifiedBadge(size: 14),
         ],
+        // **Il premio di CRASY, detto accanto al nome.**
+        //
+        // Le missioni del fondo escono a nome di una persona vera — e' lei la
+        // faccia che si tocca per arrivare al profilo — ma i soldi li mette
+        // CRASY. Chi sceglie a quale gara dedicare una delle sue cinque di
+        // oggi ha diritto di saperlo prima, non di scoprirlo dopo. Fuori dal
+        // `Flexible`: se manca spazio si accorcia il nome, non questa.
+        if (challenge.paidByCrasy && !challenge.byCrasy && !official)
+          Text(
+            ' · premio di CRASY',
+            style: texts.labelMedium?.copyWith(color: palette.textFaint),
+            maxLines: 1,
+          ),
       ],
     );
   }
@@ -495,7 +508,10 @@ class ChallengeAuthor extends StatelessWidget {
 /// Chi mette il premio non corre per vincerlo. Detto qui invece che con un
 /// bottone che poi rifiuta: il limite si spiega prima, non dopo lo scatto.
 class OwnChallengeNote extends StatelessWidget {
-  const OwnChallengeNote({super.key});
+  const OwnChallengeNote({this.daCrasy = false, super.key});
+
+  /// Una missione del fondo, uscita a tuo nome: il premio non l'hai messo tu.
+  final bool daCrasy;
 
   @override
   Widget build(BuildContext context) {
@@ -511,7 +527,9 @@ class OwnChallengeNote extends StatelessWidget {
         const SizedBox(width: AppSpacing.xs),
         Flexible(
           child: Text(
-            'L\'hai lanciata tu — il premio lo metti tu',
+            daCrasy
+                ? 'Esce a tuo nome — il premio lo mette CRASY'
+                : 'L\'hai lanciata tu — il premio lo metti tu',
             style: context.texts.labelMedium,
             overflow: TextOverflow.ellipsis,
           ),

@@ -1,4 +1,13 @@
-"""Carica il fondo delle missioni automatiche, dopo che i soldi sono arrivati.
+"""NON SI USA PIU': il fondo adesso e' uno solo e si ricarica dal pannello.
+
+Pannello > Automatiche > "Ricarica con la carta" (vedi `functions/salvadanaio.js`).
+I fondi per persona che scrive questo strumento **non lanciano piu' niente**: il
+pannello li mostra come "fondi vecchi" e ne sposta i soldi nel fondo unico. Resta
+qui solo per `--guarda`, per leggere cosa c'era.
+
+---
+
+Carica il fondo delle missioni automatiche, dopo che i soldi sono arrivati.
 
 **Prima i soldi veri, poi questo strumento. Mai il contrario.**
 

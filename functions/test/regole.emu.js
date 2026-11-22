@@ -301,6 +301,31 @@ test('il blocco lo tocca solo chi lo scrive, e non vale su se stessi o su CRASY'
   );
 });
 
+test('chi presta la faccia al fondo non entra nelle sue missioni', async () => {
+  // Una missione del fondo: firmata da anna, pagata da CRASY. Bruno presta la
+  // faccia a un'altra missione del fondo e sta fra gli `esclusi`.
+  await prepara('challenges/fondo1', {
+    title: 'Del fondo',
+    createdByUserId: 'anna',
+    createdByUsername: 'anna',
+    startsAt: PRIMA,
+    endsAt: DOPO,
+    audience: ['*'],
+    prizeCents: 100,
+    prizeStatus: 'held',
+    pagataDalFondo: true,
+    esclusi: ['anna', 'bruno'],
+    mediaKind: 'photo',
+  });
+
+  const entra = (chi) =>
+    scrittura(`challenges/fondo1/entries/${chi}`, partecipazione(chi), { soloSeNuovo: true });
+
+  assert.equal(await scrive('bruno', entra('bruno')), false, 'una faccia del fondo resta fuori');
+  assert.equal(await scrive('anna', entra('anna')), false, 'chi la firma resta fuori');
+  assert.equal(await scrive('dino', entra('dino')), true, 'tutti gli altri entrano');
+});
+
 test('una foto nasce in attesa, e per pubblicare serve aver accettato', async () => {
   const gara3 = {
     title: 'Terza',

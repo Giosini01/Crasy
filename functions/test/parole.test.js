@@ -18,14 +18,9 @@ function gialle(testo) {
   return controlla([testo]).gialle.map((g) => g.termine);
 }
 
-/** `salvadanaio.js` si porta dietro Firebase: se ne legge solo l'elenco. */
+/** Le missioni del fondo stanno in un file di dati: vedi `salvadanaio.js`. */
 function caricaFondo() {
-  const sorgente = fs.readFileSync(path.join(__dirname, '../salvadanaio.js'), 'utf8');
-  const inizio = sorgente.indexOf('const MISSIONI = [');
-  const fine = sorgente.indexOf('\n];', inizio);
-  const elenco = sorgente.slice(inizio + 'const MISSIONI = '.length, fine + 2);
-
-  return { MISSIONI: new Function(`return ${elenco}`)() };
+  return { MISSIONI: require('../dati/missioni_automatiche.json') };
 }
 
 test('ammazzati si ferma in tutti i travestimenti', () => {

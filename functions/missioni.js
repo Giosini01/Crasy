@@ -1339,6 +1339,12 @@ const modificaMissione = onCall(async (request) => {
     throw rifiuta('permission-denied', 'Questa missione non è tua.');
   }
 
+  // Le missioni del fondo portano il nome di chi presta la faccia, ma le
+  // scrive e le paga CRASY: si cambiano dal pannello, non dal suo telefono.
+  if (prima.get('pagataDalFondo') === true) {
+    throw rifiuta('permission-denied', 'Il premio è di CRASY: questa missione si gestisce dal pannello.');
+  }
+
   await db.runTransaction(async (transazione) => {
     const gara = await transazione.get(ref);
     const foto = await transazione.get(ref.collection('entries').limit(1));

@@ -720,6 +720,12 @@ exports.stripeWebhook = onRequest(
             break;
           }
 
+          // La ricarica del fondo si conta dalla sessione, con le commissioni:
+          // vedi `onCheckoutCompleted`. Qui non c'e' nessuna gara da accendere.
+          if (event.data.object.metadata && event.data.object.metadata.kind === 'ricaricaFondo') {
+            break;
+          }
+
           await accendiLaGara(
             event.data.object.metadata &&
               event.data.object.metadata.challengeId,
@@ -775,6 +781,15 @@ exports.stripeWebhook = onRequest(
  * quella che ha scelto, e comincia quando la challenge diventa visibile.
  */
 async function onCheckoutCompleted(session) {
+  // **La ricarica del fondo delle missioni automatiche**, dalla pagina di
+  // amministrazione. Il modulo si chiede qui e non in cima al file perche'
+  // `salvadanaio.js` a sua volta chiede questo.
+  if (session.metadata && session.metadata.kind === 'ricaricaFondo') {
+    await require('./salvadanaio').registraRicarica(session);
+
+    return;
+  }
+
   if (session.metadata && session.metadata.kind === 'mancia') {
     await registraMancia(session.metadata, session.payment_intent);
 
@@ -931,8 +946,13 @@ async function accendiLaGara(challengeId, paymentIntentId, pagatoCents = null) {
 }
 
 /**
- * Di quale fondo e' una missione: quello che la tiene fra le sue `lanciate`.
- * I fondi sono pochissimi — uno per padrone — e si guardano tutti.
+ * **In quale fondo torna il premio di una missione del fondo.**
+ *
+ * Quello che la tiene fra le sue `lanciate`; se quel fondo e' stato unito a
+ * un altro (`unitoIn`), quello in cui e' confluito — un fondo vecchio spento
+ * non deve ritrovarsi soldi che nessuno vede. Se non la tiene nessuno, il
+ * fondo unico delle missioni automatiche: **mai** il nome di chi compare come
+ * autore, che presta la faccia e non ha un fondo suo.
  */
 async function fondoDi(challengeId) {
   const fondi = await db.collection('salvadanai').get();
@@ -941,11 +961,11 @@ async function fondoDi(challengeId) {
     const traccia = await fondo.ref.collection('lanciate').doc(challengeId).get();
 
     if (traccia.exists) {
-      return fondo.id;
+      return fondo.get('unitoIn') || fondo.id;
     }
   }
 
-  return null;
+  return 'crasy';
 }
 
 /** Dove arrivano gli avvisi per chi gestisce CRASY. */
@@ -2287,31 +2307,25 @@ async function refundChallenge(
   if (dalFondo) {
     const chi = snapshot.get('createdByUserId');
     const premio = snapshot.get('prizeCents') || 0;
-    // **Il fondo non e' per forza di chi compare come autore**: le missioni
-    // del fondo si lanciano a turno a nome dei padroni. Il fondo giusto e'
+    // **Il fondo non e' di chi compare come autore**: le missioni del fondo
+    // escono a turno a nome di chi presta la faccia. Il fondo giusto e'
     // quello che la ricorda fra le sue `lanciate`.
-    const padrone = (await fondoDi(challengeId)) || chi;
+    const padrone = await fondoDi(challengeId);
 
-    if (chi && premio > 0) {
+    // **La classifica di chi fa giocare non si tocca**: le missioni del fondo
+    // non ci entrano quando partono (vedi `salvadanaio.js`), e toglierle qui
+    // vorrebbe dire scendere sotto zero a chi ha prestato la faccia.
+    if (premio > 0) {
       await db
         .collection('salvadanai')
         .doc(padrone)
-        .update({
-          fondoCents: admin.firestore.FieldValue.increment(premio),
-          spesiCents: admin.firestore.FieldValue.increment(-premio),
-        });
-
-      // E la classifica di chi fa giocare: una gara annullata non ha fatto
-      // giocare nessuno. Quella anonima non c'era mai entrata.
-      if (snapshot.get('anonimo') !== true) {
-        await db
-          .collection('users')
-          .doc(chi)
-          .update({
-            totalStakedCents: admin.firestore.FieldValue.increment(-premio),
-            totalStakedCount: admin.firestore.FieldValue.increment(-1),
-          });
-      }
+        .set(
+          {
+            fondoCents: admin.firestore.FieldValue.increment(premio),
+            spesiCents: admin.firestore.FieldValue.increment(-premio),
+          },
+          { merge: true }
+        );
 
       await scriviNelRegistro(padrone, `rimborso_${challengeId}`, {
         kind: 'refund',
@@ -2570,6 +2584,13 @@ exports.cancelChallenge = onCall(
     // Anche in anonimo: chi l'ha lanciata sta nel foglio a parte (`autori.js`).
     if ((await autoreDi(snapshot)) !== userId) {
       throw new HttpsError('permission-denied', 'Non e\' tua.');
+    }
+
+    // **Una missione del fondo non la annulla chi presta la faccia.** Porta il
+    // suo nome, ma i soldi sono di CRASY: si ferma dal pannello, non dal
+    // telefono di chi la firma.
+    if (snapshot.get('pagataDalFondo') === true) {
+      throw new HttpsError('permission-denied', 'Il premio e\' di CRASY: questa si gestisce dal pannello.');
     }
 
     if ((snapshot.get('participantsCount') || 0) > 0) {

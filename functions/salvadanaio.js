@@ -1,7 +1,8 @@
 'use strict';
 
 /**
- * **Il salvadanaio: missioni che partono da sole finche' i soldi durano.**
+ * **Il fondo delle missioni automatiche: missioni vere, pagate da CRASY, che
+ * partono da sole finche' i soldi durano.**
  *
  * ## A cosa serve, e per quanto
  *
@@ -10,344 +11,127 @@
  * e per di piu' si paga. Un'app che il primo giorno e' vuota non da' a nessuno
  * il motivo per riempirla.
  *
- * Qui due persone mettono dei soldi da parte e il server lancia per loro,
- * qualche missione al giorno, finche' quei soldi non finiscono. Poi smette da
- * sola.
+ * Qui CRASY mette dei soldi da parte e il server lancia qualche missione al
+ * giorno, finche' quei soldi non finiscono. Poi smette da solo.
  *
  * **E' una spinta per far partire il motore, non una funzione dell'app.** Se
  * resta accesa per sempre, nessuno ha piu' motivo di lanciare: c'e' gia' tutto
- * da fare, gratis. Per questo il salvadanaio ha un fondo e non si ricarica da
- * solo: quando finisce, finisce, ed e' una decisione presa adesso invece che
- * rimandata.
+ * da fare, gratis. Per questo il fondo non si ricarica da solo: quando finisce,
+ * finisce, ed e' una decisione presa adesso invece che rimandata.
  *
- * ## Come fa a essere vera
+ * ## Un portafoglio solo
  *
- * Non c'e' niente di finto in queste gare: hanno un autore vero, un premio
- * vero pagato con soldi veri, e chi vince incassa come in tutte le altre.
- * L'unica cosa che cambia e' **chi preme il tasto**.
+ * Prima c'era un fondo per ogni persona che lo pagava, caricato a mano con
+ * uno strumento. Adesso il fondo e' **uno**, `salvadanai/crasy`, e si ricarica
+ * dalla pagina di amministrazione con la carta: la pagina di Stripe, la sua
+ * ricevuta, e il webhook che scrive nel fondo **quello che e' arrivato
+ * davvero**, cioe' tolte le commissioni (vedi `registraRicarica`).
  *
- * I soldi sono entrati per davvero, **tutti insieme e prima**: un pagamento
- * con la carta su Stripe, con la sua ricevuta. Da li' in poi ogni missione ne
- * consuma un pezzo. E' un prepagato che si scala, non un pagamento finto —
- * come la ricarica del telefono: paghi una volta e poi fai venti telefonate,
- * e nessuna e' gratis.
+ * Una missione andata a vuoto — nessuno ha partecipato, o nessuna foto valida
+ * — rimette il premio **qui**, non sulla carta: lo fa `refundChallenge` in
+ * `payments.js`, che riconosce le gare del fondo da `pagataDalFondo`.
  *
- * ## Perche' il fondo e non il portafoglio
+ * ## Facce vere, premio dichiarato
  *
- * Il primo tentativo metteva quei soldi nel portafoglio di chi lancia. Due
- * cose non andavano.
+ * Le missioni escono **a turno a nome di alcune persone** (`autori`): chi apre
+ * l'app vede facce, tocca il nome e arriva al profilo, come in tutte le altre
+ * gare. Ma **il premio lo paga CRASY, e la gara lo dice**: porta
+ * `pagataDalFondo`, e l'app scrive accanto al nome "premio di CRASY". Fino al
+ * 23 ottobre uscivano firmate @crasy proprio per non far passare un premio
+ * nostro per il premio di un utente: la faccia torna, la trasparenza resta.
  *
- * **La prima: li avrebbero visti tutti.** Il numero del portafoglio vive
- * dentro la scheda del profilo, e quella scheda la legge chiunque abbia fatto
- * l'accesso — serve per il nome e la foto. Firestore protegge i documenti,
- * non i campi dentro: venticinque euro li' dentro sono venticinque euro
- * scritti in pubblico.
+ * Per lo stesso motivo:
  *
- * **La seconda: non sono soldi suoi da spendere.** Sono messi da parte per i
- * premi. Nel portafoglio si sarebbero confusi con quelli vinti, che invece si
- * possono prelevare.
- *
- * Quindi il fondo sta in `salvadanai/{uid}`, una collezione che nessun
- * telefono puo' nemmeno aprire. La gara che ne esce funziona come una pagata
- * con la carta — stesso stato, stesso orologio, stessa riga nel registro — ma
- * **e' firmata da CRASY**: il premio lo paghiamo noi, e chi partecipa lo deve
- * sapere. Chi ha il fondo non puo' parteciparvi (vedi `firestore.rules`).
+ * - **non contano nella classifica di chi fa giocare**: quella e' per chi mette
+ *   soldi suoi, e questi non lo sono;
+ * - **chi presta la faccia non ci partecipa**, e nemmeno chi ha fondato CRASY:
+ *   vincere un premio pagato dalla casa, stando dentro la casa, non e' una
+ *   gara. Il server scrive l'elenco in `esclusi` sulla gara, e
+ *   `firestore.rules` non li fa entrare.
  *
  * ## Dove si accende
  *
- * In `salvadanai/{uid}`, un documento per persona:
+ * In `salvadanai/crasy`, che nessun telefono puo' nemmeno aprire:
  *
- * - `acceso` — false ferma tutto all'istante, senza pubblicare niente;
+ * - `acceso` — false ferma tutto all'istante;
  * - `fondoCents` — quanto resta da spendere. Scende a ogni missione;
- * - `alGiorno` — quante missioni al giorno, al massimo;
- * - `premioCents` — quanto mettere in palio ogni volta;
- * - `oreDiGara` — quanto dura ognuna;
- * - `maxPartecipanti` — quanti posti ha ogni gara;
- * - `fino` — la data dopo la quale si ferma comunque.
+ * - `alGiorno` — quante missioni al giorno, da una a cinque;
+ * - `premioCents` — il premio di una missione che non ne dice uno suo;
+ * - `oreDiGara`, `maxPartecipanti` — come sono fatte le gare;
+ * - `dal`, `fino` — il primo e l'ultimo giorno in cui si lancia;
+ * - `autori` — chi presta la faccia, a turno: `[{ uid, username }]`.
  *
- * Nessuno di questi lo puo' scrivere un telefono: le regole non lasciano
- * leggere ne' scrivere quella collezione. Si toccano da qui o dagli strumenti.
+ * Si toccano dalla pagina di amministrazione (`admin.js`), mai da un telefono.
  */
 
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { HttpsError } = require('firebase-functions/v2/https');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
 
 const pagamenti = require('./payments');
 const posta = require('./posta');
+const calendario = require('./calendario_del_fondo');
 
 const db = admin.firestore();
 
 /**
- * **Le missioni che il server lancia, in ordine.**
+ * **Le missioni, in ordine.** Stanno in `dati/missioni_automatiche.json`:
+ * `titolo`, `consegna`, `media` (`photo` o `video`), `fonte` (`instant` o
+ * `archive`) e `euro`, il premio. Si gira in tondo: finite tutte, si
+ * ricomincia dalla prima.
  *
- * ## Quasi tutte dall'archivio, ed e' la scelta che conta
- *
- * Una missione istantanea chiede di **alzarsi e fare una cosa**: trovare le
- * chiavi, aprire un cassetto, convincere qualcuno. Una dall'archivio chiede di
- * scorrere la galleria sul divano. La seconda la fanno tutti, la prima la
- * fanno in quattro — e queste missioni esistono per una ragione sola: far
- * giocare la gente nei primi giorni, quando l'app e' vuota e nessuno ha
- * ancora l'abitudine.
- *
- * E' una deroga a cosa CRASY e' — l'istantanea e' il suo cuore, e l'archivio
- * esiste per le gare che altrimenti non si potrebbero fare. Ma qui la deroga
- * dura otto giorni e ha uno scopo: **la sfida del giorno, ogni giorno, resta
- * istantanea.** L'identita' la tiene quella; queste fanno massa.
- *
- * Sette su venti restano istantanee, perche' un elenco di sole gallerie
- * diventa un'altra app.
- *
- * ## Non somigliare a quelle che ci sono gia'
- *
- * CRASY ha **una sfida del giorno scritta per ogni giorno** fino a fine mese:
- * la stanza, le mani, il caffe', il pigiama, il disegno peggiore, la copertina
- * di un disco, la foto piu' vecchia del telefono. Due missioni quasi uguali
- * nello stesso giorno sono peggio di una missione in meno: chi apre l'app
- * pensa a un errore, e chi ha gia' mandato la foto all'una non la rifa'
- * all'altra.
- *
- * Queste ci stanno lontano.
- *
- * ## Cosa rende buona una missione d'archivio
- *
- * Non "cerca una bella foto": quella e' una gara fra chi ha viaggiato di piu'.
- * Deve essere una **che ce l'hanno tutti e che nessuno cerca mai** — e
- * trovarla deve essere mezzo divertimento: si scorre indietro, si ritrova
- * roba, si ride da soli prima ancora di mandare.
- *
- * Si gira in tondo, e si alternano: una facilissima, una che mette in
- * imbarazzo, una da fare adesso.
+ * Fuori dal codice perche' e' la parte che cambia di piu', e chi la cambia
+ * deve poterla leggere come un elenco, non come un programma.
  */
-const MISSIONI = [
-  {
-    titolo: 'L’ULTIMA FOTO CHE HAI FATTO',
-    consegna:
-      'Apri la galleria e manda l’ultima, qualunque sia. Niente scelte, '
-      + 'niente ripensamenti: quella.',
-    source: 'archive',
-  },
-  {
-    titolo: 'TU DA PICCOLO',
-    consegna:
-      'Una foto di quando eri bambino. Più è brutta la stampa, più vale.',
-    source: 'archive',
-  },
-  {
-    titolo: 'UNA FOTO FATTA PER SBAGLIO',
-    consegna:
-      'Il dito sull’obiettivo, il soffitto, la tasca. Tutti ne hanno '
-      + 'cento e nessuno le guarda mai.',
-    source: 'archive',
-  },
-  {
-    titolo: 'DI’ UNA BUGIA GUARDANDO IN CAMERA',
-    consegna:
-      'Dieci secondi. Raccontaci una cosa falsa con la faccia più seria che '
-      + 'hai: vediamo chi ci casca.',
-    mediaKind: 'video',
-  },
-  {
-    titolo: 'TU E QUALCUNO CHE NON SENTI PIÙ',
-    consegna:
-      'Una foto vecchia con una persona sparita dalla tua vita. Nessuno ti '
-      + 'chiede perché.',
-    source: 'archive',
-  },
-  {
-    titolo: 'IL CASSETTO PIÙ DISORDINATO CHE HAI',
-    consegna: 'Aprilo e scatta. Senza sistemare, senza chiudere a metà.',
-  },
-  {
-    titolo: 'LA FOTO CHE USAVI COME PROFILO ANNI FA',
-    consegna:
-      'Quella che ti sembrava bellissima. Ritrovala e guardala bene prima di '
-      + 'mandarla.',
-    source: 'archive',
-  },
-  {
-    titolo: 'UNA FOTO DOVE STAI RIDENDO DAVVERO',
-    consegna:
-      'Non il sorriso da foto: quella in cui stavi ridendo e qualcuno ha '
-      + 'scattato nel momento peggiore.',
-    source: 'archive',
-  },
-  {
-    titolo: 'IL TUO ANIMALE MENTRE FA UNA COSA STUPIDA',
-    consegna:
-      'Adesso o dalla galleria, come viene meglio. Se non ne hai uno, va bene '
-      + 'quello di qualcun altro.',
-    source: 'archive',
-  },
-  {
-    titolo: 'LE TUE VACANZE PIÙ BRUTTE',
-    consegna:
-      'Una foto di quella volta che è andata male. Il posto, la stanza, la '
-      + 'faccia: una qualsiasi.',
-    source: 'archive',
-  },
-  {
-    titolo: 'CHI C’È CON TE IN QUESTO MOMENTO',
-    consegna:
-      'Fotografa chi hai vicino adesso. Se non c’è nessuno, fotografa il '
-      + 'posto vuoto: vale uguale.',
-  },
-  {
-    titolo: 'UN CAPODANNO, UNO QUALSIASI',
-    consegna:
-      'Cerca "31 dicembre" nella galleria e manda la prima che esce. Sono '
-      + 'tutte brutte, è il bello.',
-    source: 'archive',
-  },
-  {
-    titolo: 'IMITA QUALCUNO CHE CONOSCIAMO TUTTI',
-    consegna:
-      'Dieci secondi. Non dire chi è: o si capisce o non si capisce, e questo '
-      + 'è il bello.',
-    mediaKind: 'video',
-  },
-  {
-    titolo: 'LA FOTO CHE NON HAI MAI FATTO VEDERE A NESSUNO',
-    consegna:
-      'Non quella imbarazzante: quella che hai tenuto e basta, senza un '
-      + 'motivo preciso.',
-    source: 'archive',
-  },
-  {
-    titolo: 'FAI VEDERE LE TUE CHIAVI',
-    consegna:
-      'Tirale fuori e fotografale. Quante sono, i portachiavi, quella che non '
-      + 'sai più di cosa è.',
-  },
-  {
-    titolo: 'TU VESTITO BENE',
-    consegna:
-      'Una foto di una volta che ti eri messo in ordine. Matrimonio, cena, '
-      + 'quello che è.',
-    source: 'archive',
-  },
-  {
-    titolo: 'LA PRIMA FOTO DI QUEST’ANNO',
-    consegna:
-      'Scorri fino a gennaio e manda la prima che trovi. Nessuno si ricorda '
-      + 'cosa stava facendo.',
-    source: 'archive',
-  },
-  {
-    titolo: 'IL TUO ULTIMO MESSAGGIO MANDATO',
-    consegna:
-      'Apri l’ultima chat, screenshot dell’ultima cosa che hai '
-      + 'scritto tu. Senza sceglierla. Taglia via il nome di chi legge: '
-      + 'interessa cosa hai scritto, non a chi.',
-    source: 'archive',
-  },
-  {
-    titolo: 'LA CHAT PIÙ STRANA CHE HAI AVUTO',
-    consegna:
-      'Uno screenshot del pezzo migliore. Taglia via nome, numero e foto '
-      + 'dell’altra persona: quella non ha chiesto di finire in gara.',
-    source: 'archive',
-  },
-  {
-    titolo: 'L’ULTIMO CASO UMANO CHE TI HA SCRITTO',
-    consegna:
-      'Screenshot del messaggio più assurdo che hai ricevuto. Nome e numero '
-      + 'tagliati fuori: si ride di cosa ha scritto, non di chi è.',
-    source: 'archive',
-  },
-  {
-    titolo: 'TU CHE DORMI, FOTOGRAFATO DA QUALCUN ALTRO',
-    consegna:
-      'Ce l’hanno tutti e nessuno l’ha scelta. Cercala: bocca '
-      + 'aperta, posizione assurda, divano.',
-    source: 'archive',
-  },
-  {
-    titolo: 'UN MEME CHE TIENI IN GALLERIA DA ANNI',
-    consegna:
-      'Quello salvato chissà quando e mai cancellato. Si capisce molto di una '
-      + 'persona da quale manda.',
-    source: 'archive',
-  },
-  {
-    titolo: 'UNA FOTO DOVE VENGONO BENE TUTTI TRANNE TE',
-    consegna:
-      'Il gruppo perfetto e tu con gli occhi chiusi. Non tagliarti fuori: è '
-      + 'il motivo per cui vinci.',
-    source: 'archive',
-  },
-  {
-    titolo: 'IL TUO ULTIMO SELFIE, QUALUNQUE SIA',
-    consegna:
-      'L’ultimo in ordine di tempo, non il più bello. Senza cercare, '
-      + 'senza scegliere.',
-    source: 'archive',
-  },
-  {
-    titolo: 'UNA FOTO CON PIÙ DI DIECI PERSONE',
-    consegna:
-      'Una folla, una tavolata, una gita. Vince quella dove si capisce meno '
-      + 'cosa stava succedendo.',
-    source: 'archive',
-  },
-  {
-    titolo: 'L’ULTIMA VOLTA CHE SEI STATO AL MARE',
-    consegna:
-      'Una foto di quel giorno, anche se è di tre anni fa. Soprattutto se è '
-      + 'di tre anni fa.',
-    source: 'archive',
-  },
-  {
-    titolo: 'QUALCOSA CHE HAI CUCINATO TU',
-    consegna:
-      'Una foto di una cosa fatta da te. Riuscita o venuta malissimo, conta '
-      + 'uguale.',
-    source: 'archive',
-  },
-  {
-    titolo: 'FAI VEDERE COSA HAI NEL PORTAFOGLIO',
-    consegna:
-      'Aprilo e scatta. Scontrini di tre anni fa, tessere scadute, la foto '
-      + 'che non hai mai tolto. Copri i numeri delle carte.',
-  },
-  {
-    titolo: 'UNA FOTO CON TUA MADRE',
-    consegna: 'Una qualsiasi, vecchia o nuova. Vince la più tenera o la più assurda.',
-    source: 'archive',
-  },
-];
+const MISSIONI = require('./dati/missioni_automatiche.json');
+
+/** Il fondo, e anche il nome con cui scrive nel registro. */
+const CENTRALE = 'crasy';
 
 /**
- * Chi firma le missioni del fondo: CRASY, come la sfida del giorno. E' lo
- * stesso `Challenge.crasyUserId` dell'app, che le mostra con il segno rosso.
+ * **Chi ha fondato CRASY**: non partecipa alle missioni del fondo, chiunque
+ * le firmi. Gli stessi due identificativi stanno in `firestore.rules`, per le
+ * gare firmate @crasy di prima.
  */
-const CRASY_ID = 'crasy';
-
-/**
- * **Chi puo' avere un fondo.**
- *
- * Due persone, per nome e cognome. Non un permesso, non un campo da
- * accendere: un elenco chiuso dentro il codice.
- *
- * Sembra eccessivo visto che quella collezione nessun telefono la puo'
- * scrivere, e infatti non difende da un telefono: difende da **noi**. Un
- * documento scritto per sbaglio con l'identificativo sbagliato, una riga di
- * strumento lanciata con il nome di un altro, e il server comincerebbe a
- * lanciare missioni a nome di una persona che non ne sa niente. Non e' un
- * attacco, e' un errore di battitura — e gli errori di battitura capitano,
- * mentre questo elenco no.
- *
- * **Lo stesso elenco sta in `firestore.rules`**, dove impedisce a queste due
- * persone di partecipare alle missioni che pagano loro: si cambiano insieme.
- */
-const PADRONI = [
+const FONDATORI = [
   'vlwARzcTJUO71knlvXJEc5b711y1', // giosyni
   'zialfmbJK7XawXbBUWcXKGff2xj2', // franksy
 ];
 
-/** Il giorno di oggi in Italia, come lo scrivono le sfide: `2026-10-31`. */
-function oggiInItalia() {
-  return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Rome' });
+/** Dove arrivano gli avvisi del fondo: e' un fatto del team, non di una persona. */
+const CASELLA_DEL_TEAM = 'info@crasyapp.com';
+
+/** Come nasce il fondo la prima volta che ci entrano dei soldi: spento. */
+const INIZIALE = {
+  acceso: false,
+  spentoPerche: 'nuovo',
+  fondoCents: 0,
+  spesiCents: 0,
+  ricaricatiCents: 0,
+  alGiorno: 5,
+  premioCents: 100,
+  oreDiGara: 24,
+  maxPartecipanti: 10,
+  dal: '',
+  fino: '',
+  autori: [],
+};
+
+/** Una ricarica va da cinque a cinquecento euro. */
+const RICARICA_MINIMA = 500;
+const RICARICA_MASSIMA = 50000;
+
+/** Da dove si puo' aprire la pagina di pagamento, e dove si torna. */
+const SITI = [
+  'https://crasyapp.com',
+  'https://www.crasyapp.com',
+  'https://crasy.web.app',
+  'https://crasy.firebaseapp.com',
+];
+
+function fondoRef() {
+  return db.collection('salvadanai').doc(CENTRALE);
 }
 
 /**
@@ -361,42 +145,41 @@ function oggiInItalia() {
  * Nasce **non pagata**, come tutte: a renderla viva e' il pagamento, un
  * istante dopo. Se quello fallisce resta li' spenta e non la vede nessuno.
  */
-async function scriviLaGara(chi, missione, scelte) {
+async function scriviLaGara(autore, missione, fondo, premio) {
   const adesso = admin.firestore.Timestamp.now();
-  const ore = scelte.oreDiGara || 24;
+  const ore = fondo.oreDiGara || 24;
 
-  const gara = await db.collection('challenges').add({
+  return db.collection('challenges').add({
     title: missione.titolo,
     brief: missione.consegna,
-    prizeCents: scelte.premioCents,
+    prizeCents: premio,
     scope: 'global',
-    source: missione.source || 'instant',
-    // **L'asterisco, non la parola.** Chi la puo' vedere viaggia dentro la
-    // gara, e la home chiede `audience` che contiene `'*'` — vedi
-    // `Challenge.everyone` nell'app. Scrivendoci `'everyone'` la gara nasce
-    // giusta in tutto il resto e **non compare da nessuna parte**: nessun
-    // errore, nessun avviso, semplicemente non c'e'. E' successo.
+    source: missione.fonte === 'archive' ? 'archive' : 'instant',
+    // **L'asterisco, non la parola.** La home chiede `audience` che contiene
+    // `'*'` — vedi `Challenge.everyone` nell'app. Scrivendoci `'everyone'` la
+    // gara nasce giusta in tutto il resto e **non compare da nessuna parte**.
     audience: ['*'],
-    // **Dieci posti, salvo diverso.** Zero vorrebbe dire senza limite, ed e'
-    // il ripiego sbagliato per queste: con dieci foto si guardano tutte e il
-    // voto vale qualcosa, e un premio diviso per una possibilita' su dieci
-    // resta una scommessa vera. Senza tetto, chi arriva ultimo sa gia' di non
+    // **Dieci posti, salvo diverso.** Con dieci foto si guardano tutte e il
+    // voto vale qualcosa; senza tetto, chi arriva ultimo sa gia' di non
     // vincere e non manda niente.
-    maxParticipants: scelte.maxPartecipanti || 10,
+    maxParticipants: fondo.maxPartecipanti || 10,
     place: '',
     rules: [],
-    mediaKind: missione.mediaKind || 'photo',
-    createdByUsername: chi.username,
-    createdByUserId: chi.userId,
+    mediaKind: missione.media === 'video' ? 'video' : 'photo',
+    createdByUsername: autore.username,
+    createdByUserId: autore.uid,
+    // **Il segno che il premio e' nostro**, in chiaro sulla gara: l'app lo
+    // legge per scrivere "premio di CRASY" accanto al nome.
+    pagataDalFondo: true,
+    // Chi non puo' partecipare: tutte le facce del fondo e chi ha fondato
+    // CRASY. Lo controlla `firestore.rules` quando arriva una foto.
+    esclusi: [...new Set([...(fondo.autori || []).map((a) => a.uid), ...FONDATORI])],
     startsAt: adesso,
-    endsAt: admin.firestore.Timestamp.fromMillis(
-      adesso.toMillis() + ore * 60 * 60 * 1000
-    ),
+    endsAt: admin.firestore.Timestamp.fromMillis(adesso.toMillis() + ore * 3600000),
     participantsCount: 0,
     winnerEntryId: null,
     // **Esplicitamente non ripulita.** La pulizia cerca `purgedAt == null`, e
-    // un campo che non c'e' non corrisponde a nessun confronto: senza questa
-    // riga le gare del fondo non sarebbero mai state ripulite.
+    // un campo che non c'e' non corrisponde a nessun confronto.
     purgedAt: null,
     targetUserId: '',
     targetUsername: '',
@@ -406,233 +189,63 @@ async function scriviLaGara(chi, missione, scelte) {
     prizeStatus: 'unpaid',
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   });
-
-  return gara;
 }
 
 /**
- * Lancia le missioni di chi ha il salvadanaio acceso.
- *
- * **Tre volte al giorno e non tutte insieme.** Due gare che si aprono nello
- * stesso istante si fanno concorrenza fra loro: chi ha cinque vite al giorno
- * le spende sulla prima che vede, e la seconda resta mezza vuota.
- *
- * Le dieci, le due, le sette: mattina, pausa, rientro. Durando ventiquattro
- * ore, si chiudono alle stesse ore — tutte e tre in orari in cui il telefono
- * e' in mano, e nessuna si decide alle quattro di notte quando il risultato
- * non lo vede nessuno.
- *
- * Restano **tre gare aperte insieme** in ogni momento: abbastanza perche' chi
- * apre l'app trovi sempre qualcosa, poche perche' i dieci posti di ognuna si
- * riempiano davvero.
+ * **A chi tocca.** Si parte dal turno e si salta chi non c'e' piu': un account
+ * cancellato o sospeso non deve lanciare missioni, e nemmeno bloccare la fila.
+ * Torna anche di quanti passi si e' andati avanti, perche' il turno scorra
+ * oltre chi e' stato saltato.
  */
-exports.lanciaLeMissioni = onSchedule(
-  { schedule: '0 10,14,19,20 * * *', timeZone: 'Europe/Rome' },
-  async () => {
-    const oggi = oggiInItalia();
-    const salvadanai = await db
-      .collection('salvadanai')
-      .where('acceso', '==', true)
-      .get();
+async function chiLancia(fondo) {
+  const autori = fondo.autori || [];
 
-    if (salvadanai.empty) {
-      return;
+  for (let passo = 0; passo < autori.length; passo += 1) {
+    const candidato = calendario.autoreAl(fondo, passo);
+    const profilo = await db.collection('users').doc(candidato.uid).get();
+
+    if (!profilo.exists) {
+      logger.warn('faccia del fondo senza profilo, saltata', { uid: candidato.uid });
+      continue;
     }
 
-    for (const salvadanaio of salvadanai.docs) {
-      if (!PADRONI.includes(salvadanaio.id)) {
-        logger.error('salvadanaio di qualcuno che non e nell elenco', {
-          chi: salvadanaio.id,
-        });
+    try {
+      const account = await admin.auth().getUser(candidato.uid);
 
+      if (account.disabled) {
+        logger.warn('faccia del fondo sospesa, saltata', { uid: candidato.uid });
         continue;
       }
-
-      try {
-        await lanciaPerUno(salvadanaio, oggi);
-      } catch (errore) {
-        // Un salvadanaio rotto non deve fermare gli altri: sono persone
-        // diverse con soldi diversi.
-        logger.error('salvadanaio non riuscito', {
-          chi: salvadanaio.id,
-          errore: String(errore).slice(0, 300),
-        });
-      }
+    } catch (errore) {
+      logger.warn('faccia del fondo senza account, saltata', { uid: candidato.uid });
+      continue;
     }
-  }
-);
 
-async function lanciaPerUno(salvadanaio, oggi) {
-  const userId = salvadanaio.id;
-  const scelte = salvadanaio.data() || {};
-  const premio = scelte.premioCents || 100;
-
-  if (premio <= 0) {
-    logger.warn('salvadanaio senza premio, saltato', { userId });
-
-    return;
+    return {
+      uid: candidato.uid,
+      // Il nome di adesso, non quello di quando e' entrato in fila.
+      username: profilo.get('username') || candidato.username,
+      passi: passo + 1,
+    };
   }
 
-  // **La data di fine, decisa quando si accende.** Una spinta per far partire
-  // il motore deve avere una fine scritta da qualche parte, o diventa una
-  // funzione dell'app — e a quel punto nessuno ha piu' motivo di lanciare,
-  // perche' c'e' gia' tutto da fare gratis.
-  if (scelte.fino && oggi > scelte.fino) {
-    await salvadanaio.ref.update({ acceso: false, spentoPerche: 'scaduto' });
-    logger.info('salvadanaio scaduto', { userId, fino: scelte.fino });
-
-    return;
-  }
-
-  // Quante ne sono gia' uscite oggi. Il conteggio sta nel documento e non si
-  // ricava contando le gare: contarle vorrebbe dire una lettura di tutte le
-  // gare di oggi a ogni giro, e sbagliare per una gara cancellata a mano.
-  const fatteOggi = scelte.giorno === oggi ? scelte.fatte || 0 : 0;
-  const alGiorno = scelte.alGiorno || 1;
-
-  if (fatteOggi >= alGiorno) {
-    return { ok: false, reason: 'tetto-di-oggi' };
-  }
-
-  const utente = await db.collection('users').doc(userId).get();
-
-  if (!utente.exists) {
-    logger.warn('salvadanaio di un account che non c e piu', { userId });
-
-    return;
-  }
-
-  // **Il fondo sta qui dentro, non nel portafoglio.**
-  //
-  // Nel portafoglio no per una ragione precisa: quel numero vive dentro la
-  // scheda del profilo, e la scheda del profilo la legge chiunque abbia fatto
-  // l'accesso — serve per il nome e la foto. Firestore protegge i documenti,
-  // non i campi dentro: mettere li' venticinque euro vorrebbe dire dirlo a
-  // tutti.
-  //
-  // E poi non sono soldi di chi lancia, da spendere come vuole: sono soldi
-  // messi da parte per i premi, pagati una volta con la carta. Tenerli
-  // separati e' anche piu' onesto.
-  const fondo = scelte.fondoCents || 0;
-
-  // **Finiti i soldi, si spegne e si dice perche'.** Lasciarlo acceso vorrebbe
-  // dire provare e fallire tre volte al giorno per sempre, riempiendo i
-  // registri di errori che non sono errori.
-  if (fondo < premio) {
-    await salvadanaio.ref.update({ acceso: false, spentoPerche: 'finiti' });
-    await avvisaCheFinisce(utente, fondo, premio, true);
-    logger.info('fondo finito', { userId, fondo, premio });
-
-    return { ok: false, reason: 'fondo-finito' };
-  }
-
-  // Le saltate contano nell'indice: saltarne una vuol dire passare alla
-  // successiva, non rifare la stessa al giro dopo.
-  const quante = (scelte.lanciate || 0) + (scelte.saltate || 0);
-  const missione = MISSIONI[quante % MISSIONI.length];
-
-  // **La lancia CRASY, e lo dice.**
-  //
-  // Uscivano a turno a nome dei padroni, indistinguibili da quelle degli
-  // utenti. Ma il premio lo paga CRASY, e chi partecipa ha diritto di saperlo:
-  // una missione promossa da noi deve dirlo, non travestirsi da missione di
-  // un utente. Adesso escono come "Lanciata da @crasy", con il segno rosso
-  // delle missioni ufficiali, e non contano nella classifica di chi fa
-  // giocare — quella e' per chi mette soldi suoi.
-  const gara = await scriviLaGara(
-    { userId: CRASY_ID, username: CRASY_ID },
-    missione,
-    scelte
-  );
-
-  const esito = await pagaDalFondo(salvadanaio, userId, gara, premio, null);
-
-  if (!esito.ok) {
-    // **Non pagata vuol dire non nata.** Una gara con il premio a zero in
-    // mezzo alle altre e' peggio di una gara in meno: chi partecipa non puo'
-    // saperlo, e scopre di aver speso una delle sue cinque di oggi per
-    // niente.
-    await gara.delete();
-    logger.warn('gara del salvadanaio non pagata, tolta', {
-      userId,
-      motivo: esito.reason,
-    });
-
-    return;
-  }
-
-  // **La traccia sta qui dentro, non sulla gara.**
-  //
-  // All'inizio il segno era un campo sulla gara stessa, `dalSalvadanaio`. Era
-  // sbagliato: le gare **le legge chiunque abbia fatto l'accesso** — e' cosi'
-  // che si vedono nella home — quindi quel campo raccontava a tutti quali
-  // missioni erano partite da sole. Non lo mostrava nessuna schermata, ma il
-  // dato c'era, e un dato che c'e' prima o poi qualcuno lo legge.
-  //
-  // Qui invece sta dentro `salvadanai`, che nessun telefono puo' nemmeno
-  // aprire. Serve lo stesso scopo — sapere quali sono partite da sole quando
-  // i conti non tornano, o doverle fermare tutte insieme — senza dirlo a
-  // nessun altro.
-  await salvadanaio.ref
-      .collection('lanciate')
-      .doc(gara.id)
-      .set({
-        titolo: missione.titolo,
-        premioCents: premio,
-        quando: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-  logger.info('missione lanciata dal fondo', {
-    userId,
-    gara: gara.id,
-    titolo: missione.titolo,
-    premio,
-    restano: esito.restano,
-  });
-
-  // Tre missioni alla fine: il momento in cui serve saperlo per fare in tempo
-  // a decidere, non quando e' gia' spento.
-  if (esito.restano === premio * 3) {
-    await avvisaCheFinisce(utente, esito.restano, premio, false);
-  }
-
-  return { ok: true, gara: gara.id, titolo: missione.titolo, restano: esito.restano };
+  return null;
 }
 
-
 /**
- * **Scala il premio dal fondo e segna la gara come pagata.**
- *
- * Tutto dentro una transazione sola: o scende il fondo e la gara diventa viva,
- * o non succede niente. Senza, un errore a meta' lascerebbe una gara pubblica
- * con un premio che nessuno ha pagato — oppure il contrario, soldi scalati per
- * una gara che non parte.
- *
- * La gara che ne esce funziona come una pagata con la carta: stesso
- * `prizeStatus`, stesso orologio che riparte, stessa riga nel registro di chi
- * ha il fondo. Si distingue in due cose: la firma, che e' di CRASY (vedi
- * `CRASY_ID`), e `pagataDalFondo`, che non serve all'app ma a chi un
- * giorno dovra' far quadrare i conti e trovera' una gara pagata senza un
- * incasso Stripe suo. L'incasso c'e' — e' quello da venticinque euro di
- * settimane prima — ma copre venticinque gare, e senza questo segno non si
- * capirebbe.
+ * **Scala il premio dal fondo e accende la gara**, tutto in una transazione:
+ * o scende il fondo e la gara diventa viva, o non succede niente.
  */
-async function pagaDalFondo(
-  salvadanaio,
-  userId,
-  gara,
-  premio,
-  autoreId = userId
-) {
-  const oggi = oggiInItalia();
+async function pagaDalFondo(gara, premio, passi) {
+  const oggi = calendario.oggiInItalia();
 
   const esito = await db.runTransaction(async (transaction) => {
-    const fresco = await transaction.get(salvadanaio.ref);
+    const fresco = await transaction.get(fondoRef());
     const dati = fresco.data() || {};
     const fondo = dati.fondoCents || 0;
 
-    // Si rilegge dentro la transazione: fra il controllo di prima e adesso
-    // puo' essere passato un lancio a mano dalla pagina di amministrazione.
+    // Si rilegge qui dentro: fra il controllo di prima e adesso puo' essere
+    // passato un lancio a mano dalla pagina di amministrazione.
     if (fondo < premio) {
       return { ok: false, reason: 'fondo-finito' };
     }
@@ -644,37 +257,32 @@ async function pagaDalFondo(
       paidAt: adesso,
       pagataDalFondo: true,
       startsAt: adesso,
+      endsAt: admin.firestore.Timestamp.fromMillis(
+        adesso.toMillis() + (dati.oreDiGara || 24) * 3600000
+      ),
     });
 
-    transaction.update(salvadanaio.ref, {
+    transaction.update(fondoRef(), {
       fondoCents: admin.firestore.FieldValue.increment(-premio),
       spesiCents: admin.firestore.FieldValue.increment(premio),
       giorno: oggi,
       fatte: (dati.giorno === oggi ? dati.fatte || 0 : 0) + 1,
       lanciate: (dati.lanciate || 0) + 1,
+      turno: (dati.turno || 0) + passi,
       ultima: admin.firestore.FieldValue.serverTimestamp(),
     });
-
-    // La classifica di chi fa giocare va a chi compare come autore della
-    // gara. Le missioni di CRASY non ce l'hanno: non sono soldi di un utente.
-    if (autoreId && autoreId !== CRASY_ID) {
-      transaction.update(db.collection('users').doc(autoreId), {
-        totalStakedCents: admin.firestore.FieldValue.increment(premio),
-        totalStakedCount: admin.firestore.FieldValue.increment(1),
-      });
-    }
 
     return { ok: true, restano: fondo - premio };
   });
 
   if (esito.ok) {
-    await pagamenti.scriviNelRegistro(userId, `pagamento_${gara.id}`, {
+    await pagamenti.scriviNelRegistro(CENTRALE, `pagamento_${gara.id}`, {
       kind: 'challengePayment',
       amountCents: -premio,
       challengeId: gara.id,
       challengeTitle: (await gara.get()).get('title') || '',
-      source: 'card',
-      note: 'Premio messo in palio, pagato col fondo delle missioni',
+      source: 'fondo',
+      note: 'Premio messo in palio dal fondo delle missioni automatiche',
     });
   }
 
@@ -682,170 +290,551 @@ async function pagaDalFondo(
 }
 
 /**
- * Avvisa per email che il fondo sta per finire.
+ * **Avvisa il team che il fondo sta finendo**, o che e' finito.
  *
- * **Senza questo, "come faccio a capire che stanno finendo" resta una cosa da
- * ricordarsi di andare a guardare** — e non se la ricorda nessuno, perche'
- * finche' funziona non si va a controllare. Il giorno in cui smette, le
- * missioni semplicemente non escono piu' e non lo sa nessuno.
- *
- * Si manda a tre missioni dalla fine, non all'ultima: serve il tempo di
- * decidere se ricaricare, non un necrologio.
+ * A tre missioni dalla fine, non all'ultima: serve il tempo di decidere se
+ * ricaricare, non un necrologio. Una volta sola per ricarica (`avvisato`).
  */
-async function avvisaCheFinisce(utente, fondo, premio, finito) {
-  const email = utente.get('email');
-
-  if (!email) {
-    return;
-  }
-
-  const restano = Math.floor(fondo / premio);
-  const quanti = (fondo / 100).toFixed(2).replace('.', ',');
+async function avvisa(restano, finito) {
+  const quanti = (restano / 100).toFixed(2).replace('.', ',');
 
   try {
     await posta.spedisci({
       from: '"CRASY" <' + posta.CASELLA + '>',
-      to: email,
+      to: CASELLA_DEL_TEAM,
       subject: finito
         ? 'Il fondo delle missioni è finito — CRASY'
         : 'Il fondo delle missioni sta finendo — CRASY',
       text: finito
-        ? 'Il fondo e finito e le missioni automatiche si sono fermate. '
-          + 'Nessuna gara in corso e stata toccata.'
-        : 'Nel fondo restano ' + quanti + ' euro, cioe ' + restano
-          + ' missioni. Poi si ferma da solo.',
+        ? 'Il fondo e finito e le missioni automatiche si sono fermate. Le gare gia aperte restano aperte.'
+        : 'Nel fondo restano ' + quanti + ' euro. Si ricarica dalla pagina Automatiche del pannello.',
       html: posta.vestito({
         titolo: finito ? 'IL FONDO È FINITO' : 'IL FONDO STA FINENDO',
         testo: finito
-          ? 'Le missioni automatiche si sono fermate. Le gare già aperte '
-            + 'restano aperte e si chiuderanno da sole: nessuna è stata '
-            + 'toccata.'
-          : 'Restano ' + quanti + ' €, cioè ' + restano
-            + ' missioni. Quando finiscono si ferma da solo.',
-        tasto: 'APRI CRASY',
-        link: 'https://crasyapp.com/',
-        nota:
-          'Questa email la ricevi perché hai un fondo per le missioni '
-          + 'automatiche. La riceve solo chi ce l\'ha.',
-        a: email,
+          ? 'Le missioni automatiche si sono fermate. Le gare già aperte restano aperte e si chiudono da sole.'
+          : 'Nel fondo restano ' + quanti + ' €. Quando finiscono si ferma da solo.',
+        tasto: 'APRI IL PANNELLO',
+        link: 'https://crasyapp.com/admin/#/automatiche',
+        nota: 'Questa email arriva a chi gestisce CRASY.',
+        a: CASELLA_DEL_TEAM,
       }),
     });
   } catch (errore) {
-    // Un avviso che non parte non deve fermare le missioni: quelle sono la
-    // cosa importante, questa e' la cortesia.
-    logger.warn('avviso del fondo non partito', {
-      errore: String(errore).slice(0, 200),
-    });
+    // Un avviso che non parte non deve fermare le missioni.
+    logger.warn('avviso del fondo non partito', { errore: String(errore).slice(0, 200) });
   }
 }
 
 /**
- * Lancia una missione adesso, per il tasto della pagina di amministrazione.
+ * **Lancia una missione dal fondo.** La strada e' una sola, per la funzione a
+ * orario e per il tasto della pagina di amministrazione: un tasto che prende
+ * una scorciatoia prova una cosa diversa da quella che poi gira da sola.
  *
- * E' la stessa strada della funzione a orario — stesso tetto giornaliero,
- * stesso fondo, stessa sequenza di missioni — perche' un tasto che prende una
- * scorciatoia prova una cosa diversa da quella che poi gira da sola.
+ * A mano non conta `dal` — e' un "lancia adesso" detto apposta — ma conta il
+ * tetto di oggi: un tasto che scavalca il tetto e' un tetto che non c'e'.
  */
-async function lanciaOra(salvadanaio) {
-  if (!PADRONI.includes(salvadanaio.id)) {
-    return { ok: false, reason: 'non-in-elenco' };
+async function lanciaUna({ aMano = false } = {}) {
+  const istantanea = await fondoRef().get();
+
+  if (!istantanea.exists) {
+    return { ok: false, reason: 'nessun-fondo' };
   }
 
-  return lanciaPerUno(salvadanaio, oggiInItalia());
+  const fondo = istantanea.data() || {};
+  const oggi = calendario.oggiInItalia();
+
+  if (!aMano && fondo.dal && oggi < fondo.dal) {
+    return { ok: false, reason: 'non-ancora' };
+  }
+
+  if (fondo.fino && oggi > fondo.fino) {
+    await fondoRef().update({ acceso: false, spentoPerche: 'scaduto' });
+
+    return { ok: false, reason: 'scaduto' };
+  }
+
+  const fatteOggi = fondo.giorno === oggi ? fondo.fatte || 0 : 0;
+
+  if (fatteOggi >= (fondo.alGiorno || 1)) {
+    return { ok: false, reason: 'tetto-di-oggi' };
+  }
+
+  if (!MISSIONI.length) {
+    return { ok: false, reason: 'nessuna-missione' };
+  }
+
+  const indice = (fondo.lanciate || 0) + (fondo.saltate || 0);
+  const missione = calendario.missioneAl(MISSIONI, indice);
+  const premio = calendario.premioDi(missione, fondo);
+
+  // **Finiti i soldi, si spegne e si dice perche'.** Lasciarlo acceso vorrebbe
+  // dire provare e fallire cinque volte al giorno per sempre.
+  if ((fondo.fondoCents || 0) < premio) {
+    await fondoRef().update({ acceso: false, spentoPerche: 'finiti' });
+    await avvisa(fondo.fondoCents || 0, true);
+
+    return { ok: false, reason: 'fondo-finito' };
+  }
+
+  const autore = await chiLancia(fondo);
+
+  if (!autore) {
+    return { ok: false, reason: 'nessuna-faccia' };
+  }
+
+  const gara = await scriviLaGara(autore, missione, fondo, premio);
+  const esito = await pagaDalFondo(gara, premio, autore.passi);
+
+  if (!esito.ok) {
+    // **Non pagata vuol dire non nata.** Una gara senza premio in mezzo alle
+    // altre e' peggio di una gara in meno.
+    await gara.delete();
+    logger.warn('gara del fondo non pagata, tolta', { motivo: esito.reason });
+
+    return esito;
+  }
+
+  // **La traccia sta qui dentro**: e' da qui che `refundChallenge` sa dove
+  // rimettere il premio, e da qui la pagina di amministrazione legge le
+  // ultime uscite.
+  await fondoRef().collection('lanciate').doc(gara.id).set({
+    titolo: missione.titolo,
+    premioCents: premio,
+    autoreId: autore.uid,
+    autoreUsername: autore.username,
+    quando: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  logger.info('missione lanciata dal fondo', {
+    gara: gara.id,
+    titolo: missione.titolo,
+    autore: autore.username,
+    premio,
+    restano: esito.restano,
+    aMano,
+  });
+
+  if (!fondo.avvisato && esito.restano < premio * 3) {
+    await fondoRef().update({ avvisato: true });
+    await avvisa(esito.restano, false);
+  }
+
+  return { ok: true, gara: gara.id, titolo: missione.titolo, autore: autore.username, restano: esito.restano };
 }
 
-exports.lanciaOra = lanciaOra;
-
 /**
- * **Quali saranno le prossime, e a che ora.**
+ * Lancia le missioni del fondo, se e' acceso.
  *
- * Serve alla pagina di amministrazione, e serve a una cosa precisa: potersi
- * accorgere **prima** che la missione di domani alle dieci e' la stessa cosa
- * della sfida del giorno. E' gia' successo — "la tua faccia adesso" e "fai la
- * faccia del cattivo" lo stesso giorno — e dopo e' tardi: la gara e' pubblica,
- * qualcuno ha gia' mandato la foto, annullarla vuol dire togliergli una delle
- * sue cinque di oggi.
- *
- * Gli orari li calcola con le stesse ore della funzione a orario. Se quelle
- * cambiano, va cambiato anche qui: e' una copia, ed e' l'unica cosa di questo
- * file che puo' andare fuori sincrono senza che nessuno se ne accorga.
+ * **Le ore stanno anche in `calendario_del_fondo.js`** (`ORE_DI_LANCIO`), che
+ * le usa per l'anteprima: si cambiano insieme.
  */
-const ORE_DI_LANCIO = [10, 14, 19, 20];
+exports.lanciaLeMissioni = onSchedule(
+  { schedule: '0 10,13,16,19,21 * * *', timeZone: 'Europe/Rome' },
+  async () => {
+    const fondo = await fondoRef().get();
 
-function prossime(salvadanaio, quante) {
-  const dati = salvadanaio.data() || {};
-  const oggi = oggiInItalia();
-  const fatteOggi = dati.giorno === oggi ? dati.fatte || 0 : 0;
-  const alGiorno = dati.alGiorno || 1;
-  const saltate = dati.saltate || 0;
-
-  // Da che ora in poi si puo' ancora lanciare oggi.
-  const adesso = new Date(
-    new Date().toLocaleString('en-US', { timeZone: 'Europe/Rome' })
-  );
-
-  const elenco = [];
-  let indice = (dati.lanciate || 0) + saltate;
-  let rimaste = alGiorno - fatteOggi;
-  let giorno = 0;
-
-  while (elenco.length < quante && giorno < 30) {
-    for (const ora of ORE_DI_LANCIO) {
-      if (elenco.length >= quante) {
-        break;
-      }
-
-      if (giorno === 0 && (ora <= adesso.getHours() || rimaste <= 0)) {
-        continue;
-      }
-
-      if (giorno > 0 && elenco.filter((e) => e.giorno === giorno).length >= alGiorno) {
-        continue;
-      }
-
-      const quando = new Date(adesso);
-      quando.setDate(quando.getDate() + giorno);
-      quando.setHours(ora, 0, 0, 0);
-
-      const missione = MISSIONI[indice % MISSIONI.length];
-
-      elenco.push({
-        giorno,
-        quando: quando.getTime(),
-        titolo: missione.titolo,
-        consegna: missione.consegna,
-        mediaKind: missione.mediaKind || 'photo',
-        source: missione.source || 'instant',
-      });
-
-      indice += 1;
-      rimaste -= 1;
+    if (!fondo.exists || fondo.get('acceso') !== true) {
+      return;
     }
 
-    giorno += 1;
+    try {
+      await lanciaUna();
+    } catch (errore) {
+      logger.error('missione del fondo non riuscita', { errore: String(errore).slice(0, 300) });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Per la pagina di amministrazione: chi chiama ha gia' passato `soloAdmin`.
+// ---------------------------------------------------------------------------
+
+/** Una data `2026-12-02`, o vuota. Nient'altro. */
+function data(valore, nome) {
+  const testo = String(valore || '').trim();
+
+  if (testo && !/^\d{4}-\d{2}-\d{2}$/.test(testo)) {
+    throw new HttpsError('invalid-argument', `${nome}: scrivila come 2026-12-02.`);
   }
 
-  return elenco;
+  return testo;
+}
+
+function intero(valore, minimo, massimo, nome) {
+  const numero = Number(valore);
+
+  if (!Number.isInteger(numero) || numero < minimo || numero > massimo) {
+    throw new HttpsError('invalid-argument', `${nome}: da ${minimo} a ${massimo}.`);
+  }
+
+  return numero;
 }
 
 /**
- * Salta la prossima missione in coda.
- *
- * **Non la toglie dall'elenco: la rimanda in fondo al giro.** Una missione che
- * oggi assomiglia alla sfida del giorno fra due settimane non assomigliera' a
- * niente, e cancellarla per un'uguaglianza di un giorno vorrebbe dire perderla
- * per sempre.
+ * **Tutto quello che serve alla pagina**: il saldo, le regole, le facce, il
+ * calendario delle prossime, le ultime uscite, le ricariche, e i fondi vecchi
+ * che hanno ancora dei soldi dentro.
  */
-async function salta(salvadanaio) {
-  await salvadanaio.ref.update({
-    saltate: admin.firestore.FieldValue.increment(1),
-  });
+async function stato() {
+  const [istantanea, lanciate, ricariche, tutti] = await Promise.all([
+    fondoRef().get(),
+    fondoRef().collection('lanciate').orderBy('quando', 'desc').limit(15).get(),
+    fondoRef().collection('ricariche').orderBy('quando', 'desc').limit(10).get(),
+    db.collection('salvadanai').get(),
+  ]);
+  const fondo = { ...INIZIALE, ...(istantanea.exists ? istantanea.data() : {}) };
+  const oggi = calendario.oggiInItalia();
+
+  const vecchi = [];
+
+  for (const vecchio of tutti.docs) {
+    if (vecchio.id === CENTRALE || !(vecchio.get('fondoCents') > 0)) {
+      continue;
+    }
+
+    const persona = await db.collection('users').doc(vecchio.id).get();
+
+    vecchi.push({
+      uid: vecchio.id,
+      username: persona.get('username') || vecchio.id,
+      fondoCents: vecchio.get('fondoCents') || 0,
+      acceso: vecchio.get('acceso') === true,
+    });
+  }
+
+  const millis = (t) => (t && t.toMillis ? t.toMillis() : null);
+
+  return {
+    esiste: istantanea.exists,
+    acceso: fondo.acceso === true,
+    spentoPerche: fondo.spentoPerche || '',
+    fondoCents: fondo.fondoCents || 0,
+    spesiCents: fondo.spesiCents || 0,
+    ricaricatiCents: fondo.ricaricatiCents || 0,
+    alGiorno: fondo.alGiorno,
+    premioCents: fondo.premioCents,
+    oreDiGara: fondo.oreDiGara,
+    maxPartecipanti: fondo.maxPartecipanti,
+    dal: fondo.dal || '',
+    fino: fondo.fino || '',
+    fatteOggi: fondo.giorno === oggi ? fondo.fatte || 0 : 0,
+    autori: fondo.autori || [],
+    missioniInElenco: MISSIONI.length,
+    prossime: calendario.prossime(fondo, MISSIONI, new Date(), 60),
+    ultime: lanciate.docs.map((riga) => ({
+      gara: riga.id,
+      titolo: riga.get('titolo') || '',
+      premioCents: riga.get('premioCents') || 0,
+      autore: riga.get('autoreUsername') || '',
+      quando: millis(riga.get('quando')),
+    })),
+    ricariche: ricariche.docs.map((riga) => ({
+      id: riga.id,
+      tipo: riga.get('tipo') || 'stripe',
+      lordoCents: riga.get('lordoCents') || 0,
+      commissioneCents: riga.get('commissioneCents') || 0,
+      nettoCents: riga.get('nettoCents') || 0,
+      da: riga.get('da') || '',
+      quando: millis(riga.get('quando')),
+    })),
+    vecchi,
+  };
+}
+
+/** Le regole del fondo. Crea il fondo, spento, se non c'era. */
+async function imposta(valori) {
+  const scelte = {
+    alGiorno: intero(valori.alGiorno, 1, calendario.ORE_DI_LANCIO.length, 'Missioni al giorno'),
+    // Ventiquattro ore al massimo: e' il tetto di tutte le gare (vedi
+    // `payments.js`), e una gara del fondo non fa eccezione.
+    oreDiGara: intero(valori.oreDiGara, 1, 24, 'Ore di gara'),
+    maxPartecipanti: intero(valori.maxPartecipanti, 2, 50, 'Posti'),
+    premioCents: intero(valori.premioCents, 50, 10000, 'Premio di base'),
+    dal: data(valori.dal, 'Parte il'),
+    fino: data(valori.fino, 'Finisce il'),
+  };
+
+  if (scelte.dal && scelte.fino && scelte.fino < scelte.dal) {
+    throw new HttpsError('invalid-argument', 'Finisce prima di partire.');
+  }
+
+  const istantanea = await fondoRef().get();
+
+  await fondoRef().set(istantanea.exists ? scelte : { ...INIZIALE, ...scelte }, { merge: true });
 
   return { ok: true };
 }
 
-exports.prossime = prossime;
-exports.salta = salta;
+/**
+ * **Chi presta la faccia.** Si scrivono i nomi; il server li cerca e salva
+ * gli identificativi, che non cambiano quando uno cambia nome.
+ *
+ * O tutti o nessuno: con un nome sbagliato si torna indietro con l'elenco di
+ * quelli che non ha trovato, invece di salvare una fila con un buco che
+ * nessuno nota.
+ */
+async function impostaAutori(nomi) {
+  const puliti = [
+    ...new Set(
+      (Array.isArray(nomi) ? nomi : [])
+        .map((nome) => String(nome || '').trim().toLowerCase().replace(/^@/, ''))
+        .filter(Boolean)
+    ),
+  ];
 
+  if (!puliti.length || puliti.length > 30) {
+    throw new HttpsError('invalid-argument', 'Da uno a trenta nomi.');
+  }
+
+  const trovati = [];
+  const mancano = [];
+
+  for (const nome of puliti) {
+    const risposta = await db.collection('users').where('username', '==', nome).limit(1).get();
+
+    if (risposta.empty || risposta.docs[0].id === CENTRALE) {
+      mancano.push(nome);
+    } else {
+      trovati.push({ uid: risposta.docs[0].id, username: nome });
+    }
+  }
+
+  if (mancano.length) {
+    return { ok: false, mancano };
+  }
+
+  const istantanea = await fondoRef().get();
+
+  await fondoRef().set(
+    istantanea.exists ? { autori: trovati } : { ...INIZIALE, autori: trovati },
+    { merge: true }
+  );
+
+  return { ok: true, autori: trovati };
+}
+
+/**
+ * Accende o spegne. **Spegnere non tocca le gare gia' aperte**: hanno un premio
+ * pagato e delle persone dentro, si chiudono da sole come tutte le altre.
+ */
+async function accendi(acceso) {
+  const istantanea = await fondoRef().get();
+  const fondo = istantanea.data() || {};
+
+  if (!istantanea.exists && !acceso) {
+    return { ok: true, acceso: false };
+  }
+
+  if (acceso) {
+    if (!istantanea.exists || !(fondo.autori || []).length) {
+      throw new HttpsError('failed-precondition', 'Prima scegli chi lancia.');
+    }
+
+    if (!MISSIONI.length) {
+      throw new HttpsError('failed-precondition', 'Non ci sono missioni in elenco.');
+    }
+  }
+
+  await fondoRef().update({ acceso, spentoPerche: acceso ? '' : 'a mano' });
+
+  return { ok: true, acceso };
+}
+
+/**
+ * Salta la prossima missione in coda. **Non la toglie dall'elenco: la rimanda
+ * al giro dopo.** Una missione che oggi assomiglia alla sfida del giorno fra
+ * due settimane non assomigliera' a niente.
+ */
+async function salta() {
+  await fondoRef().update({ saltate: admin.firestore.FieldValue.increment(1) });
+
+  return { ok: true };
+}
+
+/**
+ * **Apre la pagina di Stripe per ricaricare il fondo.** Torna l'indirizzo: il
+ * numero della carta non passa mai da CRASY, come per i premi.
+ */
+async function creaRicarica({ euro, origine, chi, email }) {
+  const cents = calendario.centesimi(euro);
+
+  if (cents < RICARICA_MINIMA || cents > RICARICA_MASSIMA) {
+    throw new HttpsError('invalid-argument', 'Una ricarica va da 5 a 500 euro.');
+  }
+
+  const sito = SITI.includes(origine) ? origine : SITI[0];
+  const ritorno = `${sito}/admin/#/automatiche`;
+  const stripe = pagamenti.stripeClient();
+
+  const sessione = await stripe.checkout.sessions.create({
+    mode: 'payment',
+    line_items: [
+      {
+        quantity: 1,
+        price_data: {
+          currency: 'eur',
+          unit_amount: cents,
+          product_data: {
+            name: 'Ricarica del fondo missioni automatiche',
+            description: 'Premi delle missioni lanciate da CRASY. Arriva nel fondo tolte le commissioni di Stripe.',
+          },
+        },
+      },
+    ],
+    ...(email ? { customer_email: email } : {}),
+    // Il segno sta anche sul pagamento, non solo sulla sessione: e' quello che
+    // fa saltare `accendiLaGara` quando arriva `payment_intent.succeeded`, e
+    // quello che resta leggibile su Stripe fra un anno.
+    metadata: { kind: 'ricaricaFondo', chi },
+    payment_intent_data: {
+      metadata: { kind: 'ricaricaFondo', chi },
+      description: 'Ricarica del fondo missioni automatiche CRASY',
+    },
+    success_url: `${ritorno}/ricaricato`,
+    cancel_url: ritorno,
+  });
+
+  return { url: sessione.url };
+}
+
+/**
+ * **I soldi sono arrivati: entrano nel fondo, tolte le commissioni.**
+ *
+ * Nel fondo si scrive quello che e' arrivato davvero, non quello che e'
+ * partito dalla carta: ogni euro qui dentro diventa un premio che qualcuno
+ * vincera' e prelevera', e un fondo che conta le commissioni come soldi
+ * promette premi con denaro che non c'e'.
+ *
+ * Se Stripe non ha ancora scritto il movimento con le commissioni, si
+ * risponde con un errore: il webhook lo rimanda piu' tardi, e intanto non si
+ * e' scritto niente. Una sessione si conta una volta sola, comunque arrivi.
+ */
+async function registraRicarica(sessione) {
+  if (!sessione || sessione.payment_status !== 'paid' || !sessione.payment_intent) {
+    return;
+  }
+
+  const ricevuta = fondoRef().collection('ricariche').doc(sessione.id);
+
+  if ((await ricevuta.get()).exists) {
+    return;
+  }
+
+  const stripe = pagamenti.stripeClient();
+  const pagamento = await stripe.paymentIntents.retrieve(sessione.payment_intent, {
+    expand: ['latest_charge.balance_transaction'],
+  });
+  const carico = pagamento.latest_charge;
+  const movimento = carico && typeof carico === 'object' ? carico.balance_transaction : null;
+
+  if (!movimento || typeof movimento !== 'object' || !Number.isInteger(movimento.fee)) {
+    throw new Error('movimento della ricarica non ancora pronto');
+  }
+
+  const lordo = carico.amount;
+  const commissione = movimento.fee;
+  const netto = lordo - commissione;
+
+  await db.runTransaction(async (transaction) => {
+    const gia = await transaction.get(ricevuta);
+    const fondo = await transaction.get(fondoRef());
+
+    if (gia.exists) {
+      return;
+    }
+
+    transaction.set(ricevuta, {
+      tipo: 'stripe',
+      lordoCents: lordo,
+      commissioneCents: commissione,
+      nettoCents: netto,
+      pagamento: pagamento.id,
+      chi: (sessione.metadata && sessione.metadata.chi) || '',
+      quando: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    transaction.set(
+      fondoRef(),
+      {
+        ...(fondo.exists ? {} : INIZIALE),
+        fondoCents: admin.firestore.FieldValue.increment(netto),
+        ricaricatiCents: admin.firestore.FieldValue.increment(netto),
+        // Una ricarica riarma l'avviso di fine fondo.
+        avvisato: false,
+        ...(fondo.exists && fondo.get('spentoPerche') === 'finiti' ? { spentoPerche: 'ricaricato' } : {}),
+      },
+      { merge: true }
+    );
+  });
+
+  logger.info('fondo ricaricato', { sessione: sessione.id, lordo, commissione, netto });
+}
+
+/**
+ * **Porta nel fondo unico quello che resta in un fondo vecchio**, uno di
+ * quelli per persona di prima. Il vecchio si spegne e si ricorda dove sono
+ * andati i suoi soldi (`unitoIn`): se una sua gara ancora aperta va a vuoto,
+ * il premio torna direttamente qui (vedi `refundChallenge`).
+ */
+async function unisci(uid) {
+  if (!uid || uid === CENTRALE) {
+    throw new HttpsError('invalid-argument', 'Quale fondo?');
+  }
+
+  const vecchio = db.collection('salvadanai').doc(uid);
+  const ricevuta = fondoRef().collection('ricariche').doc();
+
+  const spostati = await db.runTransaction(async (transaction) => {
+    const dati = await transaction.get(vecchio);
+    const fondo = await transaction.get(fondoRef());
+    const quanto = (dati.exists && dati.get('fondoCents')) || 0;
+
+    if (quanto <= 0) {
+      return 0;
+    }
+
+    transaction.update(vecchio, {
+      fondoCents: 0,
+      acceso: false,
+      spentoPerche: 'unito',
+      unitoIn: CENTRALE,
+    });
+
+    transaction.set(
+      fondoRef(),
+      {
+        ...(fondo.exists ? {} : INIZIALE),
+        fondoCents: admin.firestore.FieldValue.increment(quanto),
+        ricaricatiCents: admin.firestore.FieldValue.increment(quanto),
+        avvisato: false,
+      },
+      { merge: true }
+    );
+
+    transaction.set(ricevuta, {
+      tipo: 'trasferimento',
+      da: uid,
+      lordoCents: quanto,
+      commissioneCents: 0,
+      nettoCents: quanto,
+      quando: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return quanto;
+  });
+
+  return { ok: true, spostati };
+}
+
+exports.CENTRALE = CENTRALE;
+exports.FONDATORI = FONDATORI;
 exports.MISSIONI = MISSIONI;
-exports.pagaDalFondo = pagaDalFondo;
+exports.lanciaUna = lanciaUna;
+exports.stato = stato;
+exports.imposta = imposta;
+exports.impostaAutori = impostaAutori;
+exports.accendi = accendi;
+exports.salta = salta;
+exports.creaRicarica = creaRicarica;
+exports.registraRicarica = registraRicarica;
+exports.unisci = unisci;

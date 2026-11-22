@@ -922,12 +922,15 @@ class _BottomAction extends ConsumerWidget {
         (true, _, _) => ChallengeMetaRow(challenge: challenge),
         (false, true, _) => Row(
           children: [
-            const Expanded(child: OwnChallengeNote()),
+            Expanded(child: OwnChallengeNote(daCrasy: challenge.paidByCrasy)),
             // **Si cancella solo finche' e' vuota.** Dalla prima foto in poi la
             // gara non e' piu' solo di chi l'ha lanciata: chi ha partecipato ha
             // speso una delle sue cinque del giorno, e toglierla da sotto
             // vorrebbe dire prendergliela senza dargli niente in cambio.
-            if (challenge.participantsCount == 0) ...[
+            //
+            // **E una missione del fondo non si tocca da qui**: porta il tuo
+            // nome ma i soldi sono di CRASY. Il server la rifiuta comunque.
+            if (challenge.participantsCount == 0 && !challenge.paidByCrasy) ...[
               // Finche' non e' entrato nessuno si corregge: istantanea invece che
               // archiviata, dieci posti invece di quindici. Vedi `ModificaMissione`.
               if (!challenge.isDuel)
