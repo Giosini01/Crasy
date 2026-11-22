@@ -3,6 +3,7 @@ import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/app_background.dart';
 import 'package:crasy/core/widgets/empty_state.dart';
 import 'package:crasy/core/widgets/flame_waiting.dart';
+import 'package:crasy/features/gioco/domain/sfide_in_vista.dart';
 import 'package:crasy/features/gioco/presentation/providers/gioco_providers.dart';
 import 'package:crasy/features/gioco/presentation/widgets/gioco_widgets.dart';
 import 'package:flutter/material.dart';
@@ -80,10 +81,10 @@ class _SfidePageState extends ConsumerState<SfidePage> {
                     sfideCompletate: stato.value!.sfideCompletate,
                   ),
                   const SizedBox(height: AppSpacing.xl),
-                  const _Titolo(
-                    'SFIDE DI OGGI',
-                    'Cambiano ogni giorno a mezzanotte, e si completano da '
-                        'sole mentre giochi.',
+                  _Titolo(
+                    'OGGI',
+                    '${oggi.where((s) => s.stato == StatoSfida.completata).length}'
+                        '/${oggi.length} · cambiano a mezzanotte',
                   ),
                   if (oggi.isEmpty)
                     const _Vuoto('Le sfide di oggi stanno arrivando.')
@@ -92,12 +93,23 @@ class _SfidePageState extends ConsumerState<SfidePage> {
                   const SizedBox(height: AppSpacing.xl),
                   const _Titolo(
                     'TRAGUARDI',
-                    'Non scadono e non si azzerano: quello che fai resta.',
+                    'Non scadono: quello che fai resta.',
                   ),
                   if (traguardi.isEmpty)
                     const _Vuoto('Nessun traguardo, per ora.')
                   else
-                    for (final voce in traguardi) SfidaCard(voce: voce),
+                    GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisSpacing: AppSpacing.sm,
+                      mainAxisSpacing: AppSpacing.sm,
+                      childAspectRatio: 1.15,
+                      children: [
+                        for (final voce in traguardi)
+                          TraguardoMattone(voce: voce),
+                      ],
+                    ),
                 ],
               ),
       ),
@@ -106,10 +118,10 @@ class _SfidePageState extends ConsumerState<SfidePage> {
 }
 
 class _Titolo extends StatelessWidget {
-  const _Titolo(this.titolo, this.sotto);
+  const _Titolo(this.titolo, this.nota);
 
   final String titolo;
-  final String sotto;
+  final String nota;
 
   @override
   Widget build(BuildContext context) {
@@ -117,18 +129,22 @@ class _Titolo extends StatelessWidget {
     final texts = context.texts;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+      child: Row(
         children: [
           Text(
             titolo,
             style: texts.labelSmall?.copyWith(color: palette.accent),
           ),
-          const SizedBox(height: 2),
-          Text(
-            sotto,
-            style: texts.bodySmall?.copyWith(color: palette.textSecondary),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              nota,
+              textAlign: TextAlign.end,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: texts.bodySmall?.copyWith(color: palette.textFaint),
+            ),
           ),
         ],
       ),

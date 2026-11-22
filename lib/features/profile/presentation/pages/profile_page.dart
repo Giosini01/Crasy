@@ -12,7 +12,6 @@ import 'package:crasy/core/widgets/media_frame.dart';
 import 'package:crasy/core/widgets/media_gestures.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
 import 'package:crasy/core/widgets/photo_viewer.dart';
-import 'package:crasy/features/auth/presentation/controllers/auth_action_controller.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
@@ -20,6 +19,7 @@ import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/suggested_drawer.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
+import 'package:crasy/features/gioco/presentation/providers/gioco_providers.dart';
 import 'package:crasy/features/gioco/presentation/widgets/gioco_widgets.dart';
 import 'package:crasy/features/onboarding/presentation/utils/onboarding_validators.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
@@ -159,15 +159,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     // alla cifra, dentro una schermata che parla d'altro. I
                     // soldi che uno ha vinto sono la cosa piu' importante che
                     // ci sia qui dentro, e non devono stare a meta' pagina.
-                    IconButton(
-                      onPressed: () => context.push(AppRoutes.wallet),
-                      icon: const Icon(
-                        Icons.account_balance_wallet_outlined,
-                        size: 20,
-                      ),
-                      tooltip: 'Portafoglio',
-                      color: palette.textFaint,
-                    ),
                     if (profileState.valueOrNull case final mio?)
                       IconButton(
                         onPressed: () => editProfile(context, ref, mio),
@@ -298,33 +289,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                         challenges: commissions,
                                       )),
                         },
-                        const SizedBox(height: AppSpacing.xl),
-                        // **Uscire resta in chiaro.** Non e' un'impostazione:
-                        // e' un gesto che si fa spesso e in fretta, e mettergli
-                        // davanti un menu vorrebbe dire due tocchi per una cosa
-                        // che ne chiede uno.
-                        //
-                        // Privacy e cancellazione dell'account stavano qui
-                        // sotto e ora stanno nell'ingranaggio in alto a destra.
-                        // Non sono state nascoste, e la differenza conta perche'
-                        // il GDPR chiede che revocare un consenso sia facile
-                        // quanto darlo: qui in fondo cadevano dopo una griglia
-                        // di foto che si allunga a ogni gara, cioe' **piu'
-                        // lontane ogni mese**. In cima stanno sempre allo
-                        // stesso posto.
-                        Center(
-                          child: TextButton(
-                            onPressed: () => ref
-                                .read(authActionControllerProvider.notifier)
-                                .signOut(),
-                            child: Text(
-                              'Esci',
-                              style: context.texts.titleMedium?.copyWith(
-                                color: palette.textFaint,
-                              ),
-                            ),
-                          ),
-                        ),
                       ],
                     );
                   },
@@ -348,20 +312,26 @@ class _Identity extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final texts = context.texts;
 
+    // **Il livello gira attorno alla faccia.** L'anello si riempie con gli XP
+    // verso il livello dopo; il numero sta nel cerchio rosso in basso. Lo
+    // stato vero e' quello del gioco, che arriva in tempo reale; finche' non
+    // c'e', vale la copia sul profilo.
+    final gioco = ref.watch(statoDelGiocoProvider).valueOrNull;
+    final livello = gioco?.livello ?? profile.livello;
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _Avatar(
-              profile: profile,
-              onTap: () => _changePhoto(ref),
-              caricando: ref.watch(caricamentoFotoProvider).isLoading,
-            ),
-          ],
+        AnelloDelLivello(
+          livello: livello,
+          xp: gioco?.xp ?? 0,
+          diametro: _Avatar._size + 16,
+          child: _Avatar(
+            profile: profile,
+            onTap: () => _changePhoto(ref),
+            caricando: ref.watch(caricamentoFotoProvider).isLoading,
+          ),
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.sm),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -388,16 +358,24 @@ class _Identity extends ConsumerWidget {
         // dal primo giorno: e' lo stesso che vede chi apre questo profilo.
         const SizedBox(height: AppSpacing.xs),
         Wrap(
+          alignment: WrapAlignment.center,
           spacing: AppSpacing.xs,
           runSpacing: AppSpacing.xxs,
           children: [
-            LivelloBadge(livello: profile.livello),
+            LivelloBadge(
+              livello: livello,
+              onTap: () => context.push(AppRoutes.sfide),
+            ),
             if (profile.streak >= 2) StreakBadge(giorni: profile.streak),
           ],
         ),
         if (profile.hasBio) ...[
-          const SizedBox(height: AppSpacing.xxs),
-          Text(profile.bio, style: texts.bodyMedium),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            profile.bio,
+            style: texts.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
         ],
       ],
     );

@@ -79,21 +79,42 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light(),
-        home: Scaffold(
-          body: ListView(
-            children: [
-              const LivelloInGrande(
-                livello: livello,
-                xp: 1100,
-                sfideCompletate: 12,
-              ),
-              SfidaCard(voce: voce('a', StatoSfida.daFare, 0)),
-              SfidaCard(voce: voce('b', StatoSfida.inCorso, 2)),
-              SfidaCard(voce: voce('c', StatoSfida.completata, 5)),
-              SfidaCard(voce: voce('d', StatoSfida.bloccata, 1)),
-            ],
+      ProviderScope(
+        overrides: [
+          regoleDelGiocoProvider.overrideWith((ref) => Stream.value(null)),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: ListView(
+              children: [
+                const LivelloInGrande(
+                  livello: livello,
+                  xp: 1100,
+                  sfideCompletate: 12,
+                ),
+                SfidaCard(voce: voce('a', StatoSfida.daFare, 0)),
+                SfidaCard(voce: voce('b', StatoSfida.inCorso, 2)),
+                SfidaCard(voce: voce('c', StatoSfida.completata, 5)),
+                SizedBox(
+                  height: 170,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TraguardoMattone(
+                          voce: voce('d', StatoSfida.bloccata, 1),
+                        ),
+                      ),
+                      Expanded(
+                        child: TraguardoMattone(
+                          voce: voce('e', StatoSfida.completata, 5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -102,15 +123,16 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('ESPLORATORE'), findsOneWidget);
+    expect(find.text('LIVELLO 4'), findsOneWidget);
     expect(find.text('400 al prossimo'), findsOneWidget);
     expect(find.text('12 sfide completate'), findsOneWidget);
-    expect(find.text('+150 XP'), findsNWidgets(4));
-    expect(find.text('DA FARE'), findsOneWidget);
-    expect(find.text('IN CORSO'), findsOneWidget);
-    expect(find.text('FATTA'), findsOneWidget);
-    expect(find.text('BLOCCATA'), findsOneWidget);
+    expect(find.text('+150 XP'), findsNWidgets(5));
+    expect(find.text('0/5'), findsOneWidget);
     expect(find.text('2/5'), findsOneWidget);
+    expect(find.text('FATTA'), findsOneWidget);
+    expect(find.text('Dopo la precedente'), findsOneWidget);
+    expect(find.text('Fatto'), findsOneWidget);
     expect(find.byIcon(Icons.lock_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.check_rounded), findsNWidgets(2));
   });
 }

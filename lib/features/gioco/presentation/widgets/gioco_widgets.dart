@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:crasy/core/constants/app_routes.dart';
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_radius.dart';
@@ -23,13 +25,13 @@ IconData iconaDelGioco(String nome) => switch (nome) {
   _ => Icons.star_rounded,
 };
 
-/// **La barra che si riempie.** Quando il numero cambia scorre fino al punto
-/// nuovo invece di saltarci: e' cosi' che si vede che qualcosa e' appena
-/// successo.
+/// **La barra sottile che si riempie.** Quando il numero cambia scorre fino
+/// al punto nuovo invece di saltarci: e' cosi' che si vede che qualcosa e'
+/// appena successo.
 class BarraDelGioco extends StatelessWidget {
   const BarraDelGioco({
     required this.frazione,
-    this.altezza = 8,
+    this.altezza = 4,
     this.spenta = false,
     super.key,
   });
@@ -55,7 +57,7 @@ class BarraDelGioco extends StatelessWidget {
           builder: (context, valore, _) => LinearProgressIndicator(
             value: valore,
             minHeight: altezza,
-            backgroundColor: palette.line,
+            backgroundColor: palette.surfaceMuted,
             color: spenta ? palette.textFaint : palette.accent,
           ),
         ),
@@ -64,16 +66,16 @@ class BarraDelGioco extends StatelessWidget {
   }
 }
 
-/// **Il livello accanto al nome, che vedono tutti.**
-///
-/// **Rosso pieno, il rosso di CRASY.** Accanto c'e' la serie, che e' solo
-/// contornata di rosso: pieno e contorno si distinguono a colpo d'occhio, e
-/// il livello e' la cosa che si nota per prima. Il nome del livello viene
-/// dalle regole; finche' non arrivano basta il numero.
+/// **Il livello accanto al nome, che vedono tutti.** Fondo bianco, scritta
+/// rossa, e il numero dentro un cerchio rosso: si nota senza gridare, e
+/// accanto alla serie — contornata di rosso — non si confonde.
 class LivelloBadge extends ConsumerWidget {
-  const LivelloBadge({required this.livello, super.key});
+  const LivelloBadge({required this.livello, this.onTap, super.key});
 
   final int livello;
+
+  /// Sul proprio profilo si tocca e si aprono le sfide.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -82,31 +84,120 @@ class LivelloBadge extends ConsumerWidget {
     final numero = livello < 1 ? 1 : livello;
     final nome = regole?.nomeDelLivello(numero);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: 3,
-      ),
-      decoration: BoxDecoration(
-        color: palette.accent,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.military_tech_rounded,
-            size: 13,
-            color: palette.onAccent,
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(2, 2, 10, 2),
+        decoration: BoxDecoration(
+          color: palette.background,
+          border: Border.all(
+            color: palette.accent.withValues(alpha: 0.25),
+            width: 1.5,
           ),
-          const SizedBox(width: 3),
-          Text(
-            nome == null
-                ? 'LIVELLO $numero'
-                : 'LIV. $numero · ${nome.toUpperCase()}',
-            style: context.texts.labelSmall?.copyWith(
-              fontSize: 11,
-              color: palette.onAccent,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 19,
+              height: 19,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: palette.accent,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                '$numero',
+                style: context.texts.labelSmall?.copyWith(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  color: palette.onAccent,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              nome == null
+                  ? 'LIVELLO $numero'
+                  : 'LIV. $numero · ${nome.toUpperCase()}',
+              style: context.texts.labelSmall?.copyWith(
+                fontSize: 11,
+                color: palette.accent,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// **Il livello che gira attorno alla foto del profilo.** Un anello sottile
+/// che si riempie con gli XP verso il livello dopo, e in basso il numero del
+/// livello in un cerchio rosso.
+class AnelloDelLivello extends ConsumerWidget {
+  const AnelloDelLivello({
+    required this.child,
+    required this.livello,
+    required this.xp,
+    required this.diametro,
+    super.key,
+  });
+
+  final Widget child;
+  final int livello;
+  final int xp;
+  final double diametro;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+    final regole = ref.watch(regoleDelGiocoProvider).valueOrNull;
+    final progresso = regole == null ? 0.0 : regole.livelloPer(xp).progresso;
+    final numero = livello < 1 ? 1 : livello;
+
+    return SizedBox(
+      width: diametro,
+      height: diametro + 8,
+      child: Stack(
+        alignment: Alignment.topCenter,
+        clipBehavior: Clip.none,
+        children: [
+          TweenAnimationBuilder<double>(
+            tween: Tween(end: progresso),
+            duration: const Duration(milliseconds: 900),
+            curve: Curves.easeOutCubic,
+            builder: (context, valore, _) => CustomPaint(
+              size: Size.square(diametro),
+              painter: _Anello(
+                valore: valore,
+                binario: palette.surfaceMuted,
+                colore: palette.accent,
+              ),
+            ),
+          ),
+          Positioned(top: 8, child: child),
+          Positioned(
+            top: diametro - 18,
+            child: Container(
+              width: 26,
+              height: 26,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: palette.accent,
+                shape: BoxShape.circle,
+                border: Border.all(color: palette.background, width: 3),
+              ),
+              child: Text(
+                '$numero',
+                style: context.texts.labelSmall?.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: palette.onAccent,
+                ),
+              ),
             ),
           ),
         ],
@@ -115,10 +206,44 @@ class LivelloBadge extends ConsumerWidget {
   }
 }
 
-/// **Il livello, sul profilo.** Dice a che punto sei e si apre sulle sfide.
-///
-/// Sta sotto il portafoglio, con la stessa forma e senza il suo colore: il
-/// portafoglio vale dei soldi, questo racconta quanto giochi.
+class _Anello extends CustomPainter {
+  _Anello({required this.valore, required this.binario, required this.colore});
+
+  final double valore;
+  final Color binario;
+  final Color colore;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const spessore = 4.0;
+    final area = (Offset.zero & size).deflate(spessore / 2);
+    final tratto = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = spessore
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(area, 0, math.pi * 2, false, tratto..color = binario);
+
+    if (valore > 0) {
+      canvas.drawArc(
+        area,
+        -math.pi / 2,
+        math.pi * 2 * valore,
+        false,
+        tratto..color = colore,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_Anello vecchio) =>
+      vecchio.valore != valore ||
+      vecchio.colore != colore ||
+      vecchio.binario != binario;
+}
+
+/// **Le sfide di oggi, sul profilo: una riga sola.** Quante ne hai fatte,
+/// quanto manca al livello dopo, e si apre sulle sfide.
 class LivelloCard extends ConsumerWidget {
   const LivelloCard({super.key});
 
@@ -134,94 +259,81 @@ class LivelloCard extends ConsumerWidget {
     final livello = ref.watch(livelloAttualeProvider);
     final stato = ref.watch(statoDelGiocoProvider).valueOrNull;
     final oggi = ref.watch(sfideDiOggiProvider);
-    final fatteOggi = oggi
-        .where((s) => s.stato == StatoSfida.completata)
-        .length;
+    final fatte = oggi.where((s) => s.stato == StatoSfida.completata).length;
 
     return GestureDetector(
       onTap: () => context.push(AppRoutes.sfide),
       behavior: HitTestBehavior.opaque,
       child: Container(
         margin: const EdgeInsets.only(bottom: AppSpacing.md),
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         decoration: BoxDecoration(
           border: Border.all(color: palette.line),
-          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'LIVELLO E SFIDE',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+            Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: palette.accentTint,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.bolt_rounded, size: 20, color: palette.accent),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'SFIDE DI OGGI',
                     style: texts.labelSmall?.copyWith(color: palette.accent),
                   ),
-                ),
-                if (oggi.isNotEmpty)
+                  const SizedBox(height: 2),
                   Text(
-                    'OGGI $fatteOggi/${oggi.length}',
-                    style: texts.labelSmall?.copyWith(
+                    livello == null || stato == null
+                        ? 'Stanno arrivando'
+                        : [
+                            '$fatte su ${oggi.length} fatte',
+                            if (livello.ultimo)
+                              'livello massimo'
+                            else
+                              '${livello.xpA! - stato.xp} XP al livello '
+                                  '${livello.numero + 1}',
+                          ].join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: texts.bodySmall?.copyWith(
                       color: palette.textSecondary,
                     ),
                   ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: 18,
-                  color: palette.accent,
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            if (livello == null || stato == null)
-              Text(
-                'Le sfide di oggi stanno arrivando.',
-                style: texts.bodySmall?.copyWith(color: palette.textSecondary),
-              )
-            else ...[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '${livello.numero}',
-                    style: texts.displaySmall?.copyWith(color: palette.accent),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(
-                        livello.nome.toUpperCase(),
-                        style: texts.titleMedium,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text('${stato.xp} XP', style: texts.labelLarge),
-                  ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.xs),
-              BarraDelGioco(frazione: livello.progresso),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                [
-                  if (livello.ultimo)
-                    'Livello massimo'
-                  else
-                    '${livello.xpA! - stato.xp} XP al livello ${livello.numero + 1}',
-                  stato.sfideCompletate == 1
-                      ? '1 sfida completata'
-                      : '${stato.sfideCompletate} sfide completate',
-                ].join(' · '),
-                style: texts.bodySmall?.copyWith(color: palette.textSecondary),
+            ),
+            for (final voce in oggi)
+              Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.only(left: 4),
+                decoration: BoxDecoration(
+                  color: voce.stato == StatoSfida.completata
+                      ? palette.accent
+                      : palette.line,
+                  shape: BoxShape.circle,
+                ),
               ),
-            ],
+            const SizedBox(width: AppSpacing.xxs),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: palette.textFaint,
+            ),
           ],
         ),
       ),
@@ -229,8 +341,113 @@ class LivelloCard extends ConsumerWidget {
   }
 }
 
-/// **Una sfida, del giorno o di sempre.** Icona, titolo, cosa chiede, quanto
-/// vale, a che punto sei. Fatta si colora; bloccata si spegne e dice perche'.
+/// **Il livello in cima alla schermata delle sfide**: il nome in grande, la
+/// barra sottile, quanto manca.
+class LivelloInGrande extends ConsumerWidget {
+  const LivelloInGrande({
+    required this.livello,
+    required this.xp,
+    required this.sfideCompletate,
+    super.key,
+  });
+
+  final LivelloAttuale livello;
+  final int xp;
+  final int sfideCompletate;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.palette;
+    final texts = context.texts;
+    final prossimo = livello.ultimo
+        ? null
+        : ref
+              .watch(regoleDelGiocoProvider)
+              .valueOrNull
+              ?.nomeDelLivello(livello.numero + 1);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'LIVELLO ${livello.numero}',
+          style: texts.labelSmall?.copyWith(color: palette.accent),
+        ),
+        const SizedBox(height: 2),
+        Text(livello.nome.toUpperCase(), style: texts.displayMedium),
+        const SizedBox(height: AppSpacing.sm),
+        BarraDelGioco(frazione: livello.progresso),
+        const SizedBox(height: AppSpacing.xs),
+        Row(
+          children: [
+            Text(
+              '$xp XP',
+              style: texts.labelMedium?.copyWith(color: palette.textSecondary),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                livello.ultimo
+                    ? 'Livello massimo'
+                    : '${livello.xpA! - xp} al prossimo'
+                          '${prossimo == null ? '' : ' · $prossimo'}',
+                textAlign: TextAlign.end,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: texts.labelMedium?.copyWith(
+                  color: palette.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          sfideCompletate == 1
+              ? '1 sfida completata'
+              : '$sfideCompletate sfide completate',
+          style: texts.bodySmall?.copyWith(color: palette.textFaint),
+        ),
+      ],
+    );
+  }
+}
+
+/// Il tondo dell'icona: rosso tenue, rosso pieno con la spunta se e' fatta,
+/// il lucchetto se aspetta.
+class _Tondo extends StatelessWidget {
+  const _Tondo({required this.voce});
+
+  final SfidaInVista voce;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final fatta = voce.stato == StatoSfida.completata;
+
+    return Container(
+      width: 36,
+      height: 36,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: fatta ? palette.accent : palette.accentTint,
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        fatta
+            ? Icons.check_rounded
+            : voce.stato == StatoSfida.bloccata
+            ? Icons.lock_rounded
+            : iconaDelGioco(voce.sfida.icona),
+        size: 19,
+        color: fatta ? palette.onAccent : palette.accent,
+      ),
+    );
+  }
+}
+
+/// **Una sfida di oggi: una riga compatta.** Il tondo, il titolo con il
+/// conto, la barra sottile, i punti a destra.
 class SfidaCard extends StatelessWidget {
   const SfidaCard({required this.voce, super.key});
 
@@ -245,36 +462,15 @@ class SfidaCard extends StatelessWidget {
     final bloccata = voce.stato == StatoSfida.bloccata;
 
     return Opacity(
-      opacity: bloccata ? 0.55 : 1,
+      opacity: bloccata ? 0.45 : 1,
       child: Container(
-        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
         decoration: BoxDecoration(
-          color: fatta ? palette.accentTint : null,
-          border: Border.all(color: fatta ? palette.accentTint : palette.line),
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border(bottom: BorderSide(color: palette.line)),
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: fatta ? palette.accent : palette.surfaceMuted,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                fatta
-                    ? Icons.check_rounded
-                    : bloccata
-                    ? Icons.lock_rounded
-                    : iconaDelGioco(sfida.icona),
-                size: 20,
-                color: fatta ? palette.onAccent : palette.accent,
-              ),
-            ),
+            _Tondo(voce: voce),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
@@ -282,20 +478,21 @@ class SfidaCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Expanded(
+                      Flexible(
                         child: Text(
                           sfida.titolo,
                           style: texts.titleMedium,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: AppSpacing.xs),
                       Text(
-                        '+${sfida.xp} XP',
-                        style: texts.labelLarge?.copyWith(
-                          color: fatta || bloccata
-                              ? palette.textSecondary
-                              : palette.accent,
+                        fatta
+                            ? 'FATTA'
+                            : '${voce.progresso}/${sfida.obiettivo}',
+                        style: texts.labelSmall?.copyWith(
+                          color: fatta ? palette.accent : palette.textFaint,
                         ),
                       ),
                     ],
@@ -303,43 +500,22 @@ class SfidaCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     sfida.descrizione,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: texts.bodySmall?.copyWith(
                       color: palette.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
-                  BarraDelGioco(
-                    frazione: voce.frazione,
-                    altezza: 6,
-                    spenta: bloccata,
-                  ),
                   const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Text(
-                        '${voce.progresso}/${sfida.obiettivo}',
-                        style: texts.labelMedium,
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Expanded(
-                        child: Text(
-                          switch (voce.stato) {
-                            StatoSfida.daFare => 'DA FARE',
-                            StatoSfida.inCorso => 'IN CORSO',
-                            StatoSfida.completata => 'FATTA',
-                            StatoSfida.bloccata => 'BLOCCATA',
-                          },
-                          textAlign: TextAlign.end,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: texts.labelSmall?.copyWith(
-                            color: fatta ? palette.accent : palette.textFaint,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  BarraDelGioco(frazione: voce.frazione, spenta: bloccata),
                 ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              '+${sfida.xp} XP',
+              style: texts.labelLarge?.copyWith(
+                color: fatta ? palette.textFaint : palette.accent,
               ),
             ),
           ],
@@ -349,72 +525,66 @@ class SfidaCard extends StatelessWidget {
   }
 }
 
-/// **Il livello in grande**, in cima alla schermata delle sfide.
-class LivelloInGrande extends StatelessWidget {
-  const LivelloInGrande({
-    required this.livello,
-    required this.xp,
-    required this.sfideCompletate,
-    super.key,
-  });
+/// **Un traguardo: un mattone della griglia.** Fatto si colora, bloccato si
+/// sbiadisce e dice che viene dopo il precedente.
+class TraguardoMattone extends StatelessWidget {
+  const TraguardoMattone({required this.voce, super.key});
 
-  final LivelloAttuale livello;
-  final int xp;
-  final int sfideCompletate;
+  final SfidaInVista voce;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
     final texts = context.texts;
+    final sfida = voce.sfida;
+    final fatta = voce.stato == StatoSfida.completata;
+    final bloccata = voce.stato == StatoSfida.bloccata;
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: palette.accentTint,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'LIVELLO ${livello.numero}',
-            style: texts.labelSmall?.copyWith(color: palette.accent),
-          ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            livello.nome.toUpperCase(),
-            style: texts.displaySmall?.copyWith(color: palette.accent),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          BarraDelGioco(frazione: livello.progresso, altezza: 10),
-          const SizedBox(height: AppSpacing.xs),
-          Row(
-            children: [
-              Text('$xp XP', style: texts.labelLarge),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Text(
-                  livello.ultimo
-                      ? 'Livello massimo'
-                      : '${livello.xpA! - xp} al prossimo',
-                  textAlign: TextAlign.end,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: texts.labelMedium?.copyWith(
-                    color: palette.textSecondary,
+    return Opacity(
+      opacity: bloccata ? 0.45 : 1,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: fatta ? palette.accentTint : null,
+          border: Border.all(color: fatta ? palette.accentTint : palette.line),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                _Tondo(voce: voce),
+                const Spacer(),
+                Text(
+                  '+${sfida.xp} XP',
+                  style: texts.labelSmall?.copyWith(
+                    color: fatta ? palette.textFaint : palette.accent,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            sfideCompletate == 1
-                ? '1 sfida completata'
-                : '$sfideCompletate sfide completate',
-            style: texts.bodySmall?.copyWith(color: palette.textSecondary),
-          ),
-        ],
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              sfida.titolo,
+              style: texts.titleMedium,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              bloccata
+                  ? 'Dopo la precedente'
+                  : fatta
+                  ? 'Fatto'
+                  : '${voce.progresso}/${sfida.obiettivo} · ${sfida.descrizione}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: texts.bodySmall?.copyWith(color: palette.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            BarraDelGioco(frazione: voce.frazione, spenta: bloccata),
+          ],
+        ),
       ),
     );
   }

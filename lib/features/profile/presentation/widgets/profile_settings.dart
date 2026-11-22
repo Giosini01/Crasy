@@ -1,11 +1,13 @@
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/modal_sheet.dart';
+import 'package:crasy/features/auth/presentation/controllers/auth_action_controller.dart';
 import 'package:crasy/features/legal/presentation/widgets/privacy_settings.dart';
 import 'package:crasy/features/moderation/presentation/widgets/blocked_people.dart';
 import 'package:crasy/features/notifications/presentation/widgets/notifications_setting.dart';
 import 'package:crasy/features/profile/presentation/widgets/delete_account.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Le impostazioni del profilo: l'ingranaggio in alto a destra.
 ///
@@ -22,8 +24,9 @@ import 'package:flutter/material.dart';
 /// un tocco per scegliere: due, come prima, ma nessuno dei due e' uno scorrere
 /// alla cieca fino in fondo.
 ///
-/// **Non ci sta "Esci".** Uscire non e' un'impostazione, e' un gesto che si fa
-/// spesso e in fretta: resta dov'e', in chiaro, senza un menu davanti.
+/// **E ci sta anche "Esci"**, l'ultima voce normale prima di "Cancella
+/// account". Stava in fondo al profilo, sotto tutte le foto: chi lo cercava
+/// doveva scorrere fino alla fine, e chi scorreva le foto ci finiva sopra.
 Future<void> showProfileSettings(BuildContext context) async {
   final scelta = await ModalSheet.show<_SettingsChoice>(
     context: context,
@@ -57,10 +60,14 @@ Future<void> showProfileSettings(BuildContext context) async {
     _SettingsChoice.privacy => showPrivacySettings(context),
     _SettingsChoice.blocked => showBlockedPeople(context),
     _SettingsChoice.deleteAccount => showDeleteAccount(context),
+    _SettingsChoice.esci => ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(authActionControllerProvider.notifier).signOut(),
   };
 }
 
-enum _SettingsChoice { notifiche, privacy, blocked, deleteAccount }
+enum _SettingsChoice { notifiche, privacy, blocked, esci, deleteAccount }
 
 class _ProfileSettings extends StatelessWidget {
   const _ProfileSettings({required this.onPick});
@@ -105,6 +112,12 @@ class _ProfileSettings extends StatelessWidget {
           label: 'Persone bloccate',
           note: 'Chi non vedi più. Da qui li puoi sbloccare.',
           onTap: () => onPick(_SettingsChoice.blocked),
+        ),
+        Divider(color: palette.line, height: 1),
+        _SettingsRow(
+          label: 'Esci',
+          note: 'Torni all\'ingresso. Foto, soldi e livello restano dove sono.',
+          onTap: () => onPick(_SettingsChoice.esci),
         ),
         Divider(color: palette.line, height: 1),
         // Staccata e rossa. **E' l'unica voce che non si disfa**, e deve
