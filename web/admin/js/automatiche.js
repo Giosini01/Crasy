@@ -176,7 +176,7 @@ function facce(f) {
     <label for="nomi">Un nome per riga, o separati da virgole</label>
     <textarea id="nomi" rows="4">${nomi.join(', ')}</textarea>
     <div class="comandi"><button class="tasto tasto--nero" data-fai="salvaFacce">Salva chi lancia</button></div>
-    <p class="sotto-riga" style="margin-top:6px">Sulla missione compaiono nome e foto della persona, con accanto “premio di CRASY”. Chi è in questo elenco, e chi ha fondato CRASY, non può partecipare alle missioni del fondo. Se un account viene sospeso o cancellato, il turno passa al successivo.</p>
+    <p class="sotto-riga" style="margin-top:6px">Sulla missione compaiono nome e foto della persona, con accanto “premio di CRASY”. Chi lancia una missione non può partecipare a quella; a tutte le altre sì. Se un account viene sospeso o cancellato, il turno passa al successivo.</p>
   </article>`;
 }
 

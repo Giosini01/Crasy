@@ -301,9 +301,10 @@ test('il blocco lo tocca solo chi lo scrive, e non vale su se stessi o su CRASY'
   );
 });
 
-test('chi presta la faccia al fondo non entra nelle sue missioni', async () => {
+test('nelle missioni del fondo resta fuori solo chi la firma', async () => {
   // Una missione del fondo: firmata da anna, pagata da CRASY. Bruno presta la
-  // faccia a un'altra missione del fondo e sta fra gli `esclusi`.
+  // faccia ad altre missioni del fondo: in questa entra come tutti. Il campo
+  // `esclusi` c'e' su quelle uscite il primo giorno, e non conta piu'.
   await prepara('challenges/fondo1', {
     title: 'Del fondo',
     createdByUserId: 'anna',
@@ -321,8 +322,8 @@ test('chi presta la faccia al fondo non entra nelle sue missioni', async () => {
   const entra = (chi) =>
     scrittura(`challenges/fondo1/entries/${chi}`, partecipazione(chi), { soloSeNuovo: true });
 
-  assert.equal(await scrive('bruno', entra('bruno')), false, 'una faccia del fondo resta fuori');
   assert.equal(await scrive('anna', entra('anna')), false, 'chi la firma resta fuori');
+  assert.equal(await scrive('bruno', entra('bruno')), true, 'chi firma le altre entra');
   assert.equal(await scrive('dino', entra('dino')), true, 'tutti gli altri entrano');
 });
 

@@ -44,10 +44,10 @@
  *
  * - **non contano nella classifica di chi fa giocare**: quella e' per chi mette
  *   soldi suoi, e questi non lo sono;
- * - **chi presta la faccia non ci partecipa**, e nemmeno chi ha fondato CRASY:
- *   vincere un premio pagato dalla casa, stando dentro la casa, non e' una
- *   gara. Il server scrive l'elenco in `esclusi` sulla gara, e
- *   `firestore.rules` non li fa entrare.
+ * - **chi la firma non ci partecipa**, come in tutte le gare a premio (vedi
+ *   `lanciataDa` in `firestore.rules`). Tutti gli altri si', anche chi presta
+ *   la faccia alle altre: per un giorno c'era un elenco di esclusi, ma teneva
+ *   fuori proprio chi stava provando le missioni, ed e' stato tolto.
  *
  * ## Dove si accende
  *
@@ -88,16 +88,6 @@ const MISSIONI = require('./dati/missioni_automatiche.json');
 
 /** Il fondo, e anche il nome con cui scrive nel registro. */
 const CENTRALE = 'crasy';
-
-/**
- * **Chi ha fondato CRASY**: non partecipa alle missioni del fondo, chiunque
- * le firmi. Gli stessi due identificativi stanno in `firestore.rules`, per le
- * gare firmate @crasy di prima.
- */
-const FONDATORI = [
-  'vlwARzcTJUO71knlvXJEc5b711y1', // giosyni
-  'zialfmbJK7XawXbBUWcXKGff2xj2', // franksy
-];
 
 /** Dove arrivano gli avvisi del fondo: e' un fatto del team, non di una persona. */
 const CASELLA_DEL_TEAM = 'info@crasyapp.com';
@@ -172,9 +162,6 @@ async function scriviLaGara(autore, missione, fondo, premio) {
     // **Il segno che il premio e' nostro**, in chiaro sulla gara: l'app lo
     // legge per scrivere "premio di CRASY" accanto al nome.
     pagataDalFondo: true,
-    // Chi non puo' partecipare: tutte le facce del fondo e chi ha fondato
-    // CRASY. Lo controlla `firestore.rules` quando arriva una foto.
-    esclusi: [...new Set([...(fondo.autori || []).map((a) => a.uid), ...FONDATORI])],
     startsAt: adesso,
     endsAt: admin.firestore.Timestamp.fromMillis(adesso.toMillis() + ore * 3600000),
     participantsCount: 0,
@@ -837,7 +824,6 @@ async function unisci(uid) {
 }
 
 exports.CENTRALE = CENTRALE;
-exports.FONDATORI = FONDATORI;
 exports.MISSIONI = MISSIONI;
 exports.lanciaUna = lanciaUna;
 exports.stato = stato;
