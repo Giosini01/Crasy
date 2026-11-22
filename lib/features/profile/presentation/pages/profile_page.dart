@@ -20,6 +20,7 @@ import 'package:crasy/features/challenges/presentation/widgets/fullscreen_media.
 import 'package:crasy/features/friends/presentation/providers/friends_providers.dart';
 import 'package:crasy/features/friends/presentation/widgets/suggested_drawer.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
+import 'package:crasy/features/gioco/presentation/widgets/gioco_widgets.dart';
 import 'package:crasy/features/onboarding/presentation/utils/onboarding_validators.dart';
 import 'package:crasy/features/payments/domain/entities/prize_status.dart';
 import 'package:crasy/features/payments/presentation/widgets/wallet_card.dart';
@@ -222,6 +223,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           ),
                           child: WalletCard(),
                         ),
+                        // **Il livello e le sfide**, subito sotto: il
+                        // portafoglio dice cosa ti spetta, questo cosa ti
+                        // manca per il prossimo passo. Si apre sulle sfide.
+                        const Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: AppSpacing.page,
+                          ),
+                          child: LivelloCard(),
+                        ),
                         const SizedBox(height: AppSpacing.xs),
                         _Stats(
                           wins: mieiTrofei.hasValue ? trophies.length : null,
@@ -373,10 +383,18 @@ class _Identity extends ConsumerWidget {
         // Un contatore privato e' un promemoria, e i promemoria si ignorano.
         // Qui e' una cosa che chiunque apra il profilo puo' guardare, ed e'
         // quello il motivo per cui le serie si tengono.
-        if (profile.streak >= 2) ...[
-          const SizedBox(height: AppSpacing.xs),
-          StreakBadge(giorni: profile.streak),
-        ],
+        //
+        // **E il livello del gioco, accanto alla serie.** Ce l'hanno tutti,
+        // dal primo giorno: e' lo stesso che vede chi apre questo profilo.
+        const SizedBox(height: AppSpacing.xs),
+        Wrap(
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xxs,
+          children: [
+            LivelloBadge(livello: profile.livello),
+            if (profile.streak >= 2) StreakBadge(giorni: profile.streak),
+          ],
+        ),
         if (profile.hasBio) ...[
           const SizedBox(height: AppSpacing.xxs),
           Text(profile.bio, style: texts.bodyMedium),

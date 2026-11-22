@@ -1164,6 +1164,9 @@ function personaPerIlPannello(doc, conto) {
     totalWonCount: d.totalWonCount || 0,
     followersCount: d.followersCount || 0,
     followingCount: d.followingCount || 0,
+    // Il livello del gioco, copiato dal server: chi non ha giocato e' al primo.
+    livello: Number(d.livello) || 1,
+    xp: Number(d.xp) || 0,
     verificato: d.verificato === true,
     conContoStripe: Boolean(d.stripeAccountId),
     payoutReady: d.payoutReady === true,
@@ -1343,6 +1346,10 @@ async function persona({ uid }) {
   ]);
 
   // Il conto Stripe si chiede per ultimo, e se non risponde non ferma niente.
+  // Il gioco: XP, livello, contatori, traguardi, le sfide di oggi.
+  const gioco = await senzaFermarsi(db.collection('gioco').doc(id).get(), null, 'gioco');
+  const statoDelGioco = gioco && gioco.exists ? gioco.data() : null;
+
   let stripe = null;
   const contoStripe = doc.get('stripeAccountId');
 
@@ -1411,6 +1418,20 @@ async function persona({ uid }) {
       bloccataDa,
       fiammeRicevute: foto.reduce((totale, f) => totale + f.votes, 0),
     },
+    gioco: statoDelGioco
+      ? {
+          xp: statoDelGioco.xp || 0,
+          livello: statoDelGioco.livello || 1,
+          sfideCompletate: statoDelGioco.sfideCompletate || 0,
+          contatori: statoDelGioco.contatori || {},
+          traguardi: Object.keys(statoDelGioco.completate || {}),
+          giorno: statoDelGioco.giorno || '',
+          oggi: {
+            scelte: (statoDelGioco.oggi && statoDelGioco.oggi.scelte) || [],
+            completate: Object.keys((statoDelGioco.oggi && statoDelGioco.oggi.completate) || {}),
+          },
+        }
+      : null,
     stripe,
     sospensione,
     movimenti: movimenti ? movimenti.docs.map(movimentoDi) : [],

@@ -1,0 +1,40 @@
+{
+  "versione": 1,
+  "giornaliere": {
+    "quante": 4,
+    "sempre": ["foto"],
+    "elenco": [
+      { "id": "prima_foto", "gruppo": "foto", "titolo": "Prima foto", "descrizione": "Manda una foto in gara", "icona": "foto", "metrica": "foto", "obiettivo": 1, "xp": 20 },
+      { "id": "doppietta", "gruppo": "foto", "titolo": "Doppietta", "descrizione": "Manda 2 foto in due missioni diverse", "icona": "foto", "metrica": "foto", "obiettivo": 2, "xp": 30 },
+      { "id": "social", "gruppo": "fiamme", "titolo": "Social", "descrizione": "Dai 5 fiamme alle foto degli altri", "icona": "fiamma", "metrica": "fiammeDate", "obiettivo": 5, "xp": 10 },
+      { "id": "popolare_oggi", "gruppo": "popolarita", "titolo": "Popolare", "descrizione": "Ricevi 3 fiamme", "icona": "fiamma", "metrica": "fiammeRicevute", "obiettivo": 3, "xp": 20 },
+      { "id": "nuovo_amico", "gruppo": "amici", "titolo": "Nuovo amico", "descrizione": "Fai amicizia con una persona", "icona": "amici", "metrica": "amici", "obiettivo": 1, "xp": 30 },
+      { "id": "chiacchierone", "gruppo": "commenti", "titolo": "Chiacchierone", "descrizione": "Commenta le foto di 2 persone", "icona": "commento", "metrica": "commenti", "obiettivo": 2, "xp": 15 }
+    ]
+  },
+  "permanenti": [
+    { "id": "primi_scatti", "titolo": "Primi scatti", "descrizione": "Manda 10 foto in gara", "icona": "foto", "metrica": "foto", "obiettivo": 10, "xp": 50 },
+    { "id": "fotografo", "titolo": "Fotografo", "descrizione": "Manda 50 foto in gara", "icona": "foto", "metrica": "foto", "obiettivo": 50, "xp": 150 },
+    { "id": "collezionista", "titolo": "Collezionista", "descrizione": "Manda 100 foto in gara", "icona": "foto", "metrica": "foto", "obiettivo": 100, "xp": 300 },
+    { "id": "socializzatore", "titolo": "Socializzatore", "descrizione": "Dai 100 fiamme", "icona": "fiamma", "metrica": "fiammeDate", "obiettivo": 100, "xp": 100 },
+    { "id": "popolare", "titolo": "Popolare", "descrizione": "Ricevi 100 fiamme", "icona": "fiamma", "metrica": "fiammeRicevute", "obiettivo": 100, "xp": 150 },
+    { "id": "prima_vittoria", "titolo": "Prima vittoria", "descrizione": "Vinci una missione", "icona": "coppa", "metrica": "vittorie", "obiettivo": 1, "xp": 100 },
+    { "id": "campione", "titolo": "Campione", "descrizione": "Vinci 10 missioni", "icona": "coppa", "metrica": "vittorie", "obiettivo": 10, "xp": 250 },
+    { "id": "fuoriclasse", "titolo": "Fuoriclasse", "descrizione": "Vinci 25 missioni", "icona": "coppa", "metrica": "vittorie", "obiettivo": 25, "xp": 500 },
+    { "id": "in_compagnia", "titolo": "In compagnia", "descrizione": "Fai amicizia con 10 persone", "icona": "amici", "metrica": "amici", "obiettivo": 10, "xp": 150 },
+    { "id": "amato", "titolo": "Amato", "descrizione": "Fai amicizia con 50 persone", "icona": "amici", "metrica": "amici", "obiettivo": 50, "xp": 300 },
+    { "id": "conversatore", "titolo": "Conversatore", "descrizione": "Commenta le foto di 10 persone", "icona": "commento", "metrica": "commenti", "obiettivo": 10, "xp": 100 },
+    { "id": "costante", "titolo": "Costante", "descrizione": "Gioca 7 giorni di fila", "icona": "serie", "metrica": "serieRecord", "obiettivo": 7, "xp": 100 },
+    { "id": "di_casa", "titolo": "Di casa", "descrizione": "Gioca in 30 giorni diversi", "icona": "calendario", "metrica": "giorniGiocati", "obiettivo": 30, "xp": 200 }
+  ],
+  "livelli": [
+    { "numero": 1, "nome": "Novizio", "xp": 0 },
+    { "numero": 2, "nome": "Curioso", "xp": 100 },
+    { "numero": 3, "nome": "Attivo", "xp": 300 },
+    { "numero": 4, "nome": "Esploratore", "xp": 700 },
+    { "numero": 5, "nome": "Esperto", "xp": 1500 },
+    { "numero": 6, "nome": "Veterano", "xp": 3000 },
+    { "numero": 7, "nome": "Elite", "xp": 6000 },
+    { "numero": 8, "nome": "Leggenda", "xp": 12000 }
+  ]
+}

@@ -1487,6 +1487,73 @@ exports.adminSaltaLaProssima = onCall(async (request) => {
   return fondo.salta();
 });
 
+/**
+ * **Le regole del gioco**: sfide del giorno, traguardi e livelli, lette e
+ * salvate dal pannello senza toccare il codice. Si salvano solo se passano
+ * `valida`: una soglia scritta male non deve regalare XP a tutti, ne' fermare
+ * il gioco. Ogni salvataggio alza la versione e finisce nel registro.
+ */
+exports.adminRegoleDelGioco = onCall(async (request) => {
+  const chi = soloAdmin(request);
+  const dati = request.data || {};
+  const gioco = require('./gioco');
+  const regoleDelGioco = require('./gioco_regole');
+
+  if (dati.salva) {
+    let pulite;
+
+    try {
+      pulite = regoleDelGioco.valida(dati.regole);
+    } catch (errore) {
+      throw new HttpsError('invalid-argument', String(errore.message || errore));
+    }
+
+    const attuale = await gioco.CONFIG.get();
+    const versione = ((attuale.exists && Number(attuale.get('versione'))) || 1) + 1;
+
+    await gioco.CONFIG.set({ ...pulite, versione });
+    await registra(chi, 'regole-gioco', { versione });
+
+    return { ok: true, regole: { ...pulite, versione } };
+  }
+
+  const regole = await gioco.leRegole();
+
+  // **Chi gioca di piu', e come sono distribuiti i livelli.** Il livello sta
+  // nel profilo (lo copia `giocoSulProfilo`); chi non ha mai giocato non ha
+  // il campo ed e' al primo, quindi il primo si conta per differenza.
+  const [migliori, tutti, conteggi] = await Promise.all([
+    db.collection('users').orderBy('xp', 'desc').limit(20).get(),
+    db.collection('users').count().get(),
+    Promise.all(
+      regole.livelli
+        .filter((livello) => livello.numero > 1)
+        .map((livello) => db.collection('users').where('livello', '==', livello.numero).count().get())
+    ),
+  ]);
+  const sopra = conteggi.map((conto) => conto.data().count);
+  const totale = tutti.data().count;
+
+  return {
+    regole,
+    metriche: regoleDelGioco.METRICHE,
+    icone: regoleDelGioco.ICONE,
+    classifica: migliori.docs.map((doc) => ({
+      uid: doc.id,
+      username: doc.get('username') || doc.id,
+      livello: Number(doc.get('livello')) || 1,
+      xp: Number(doc.get('xp')) || 0,
+    })),
+    perLivello: regole.livelli.map((livello) => ({
+      numero: livello.numero,
+      nome: livello.nome,
+      quanti: livello.numero === 1
+        ? Math.max(0, totale - sopra.reduce((somma, n) => somma + n, 0))
+        : sopra[livello.numero - 2],
+    })),
+  };
+});
+
 /** Porta nel fondo unico quello che resta in uno dei fondi per persona di prima. */
 exports.adminUnisciIlFondo = onCall(async (request) => {
   const chi = soloAdmin(request);

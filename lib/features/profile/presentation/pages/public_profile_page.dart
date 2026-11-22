@@ -20,6 +20,7 @@ import 'package:crasy/features/friends/presentation/providers/friends_providers.
 import 'package:crasy/features/friends/presentation/widgets/friend_avatar.dart';
 import 'package:crasy/features/friends/presentation/widgets/unfollow_dialog.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
+import 'package:crasy/features/gioco/presentation/widgets/gioco_widgets.dart';
 import 'package:crasy/features/moderation/domain/report_reason.dart';
 import 'package:crasy/features/moderation/presentation/providers/moderation_providers.dart';
 import 'package:crasy/features/moderation/presentation/widgets/report_sheet.dart';
@@ -207,10 +208,16 @@ class _BodyState extends ConsumerState<_Body> {
                 ],
               ),
               // Si vede anche da fuori: e' il punto di tutta la cosa.
-              if (profile.streak >= 2) ...[
-                const SizedBox(height: AppSpacing.xs),
-                StreakBadge(giorni: profile.streak),
-              ],
+              // Con il livello del gioco, che ha chiunque.
+              const SizedBox(height: AppSpacing.xs),
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xxs,
+                children: [
+                  LivelloBadge(livello: profile.livello),
+                  if (profile.streak >= 2) StreakBadge(giorni: profile.streak),
+                ],
+              ),
               if (profile.hasBio) ...[
                 const SizedBox(height: AppSpacing.xxs),
                 Text(profile.bio, style: texts.bodyMedium),

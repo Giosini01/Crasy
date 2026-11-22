@@ -99,6 +99,10 @@ abstract final class AppRoutes {
   /// aprirsi.
   static const wallet = '/portafoglio';
 
+  /// **Le sfide: quelle di oggi, i traguardi, il livello.** Si apre dal
+  /// riquadro del livello nel profilo, e dalla notifica di un livello nuovo.
+  static const sfide = '/sfide';
+
   /// L'estratto conto: tutti i movimenti, anche quelli che il portafoglio non
   /// vede perche' passati dalla carta.
   static const ledger = '/movimenti';

@@ -292,7 +292,12 @@ service cloud.firestore {
                && !('stripeAccountId' in request.resource.data.diff(resource.data).affectedKeys())
                && !('payoutReady' in request.resource.data.diff(resource.data).affectedKeys())
                && !('verificato' in request.resource.data.diff(resource.data).affectedKeys())
-               && !('verificatoDa' in request.resource.data.diff(resource.data).affectedKeys());
+               && !('verificatoDa' in request.resource.data.diff(resource.data).affectedKeys())
+               // Il livello del gioco e i suoi XP: li copia il server da
+               // `gioco/{uid}` (vedi `giocoSulProfilo`). Scritti da qui
+               // sarebbero un livello che ognuno si da' da solo.
+               && !('livello' in request.resource.data.diff(resource.data).affectedKeys())
+               && !('xp' in request.resource.data.diff(resource.data).affectedKeys());
       }
 
       // **Il numero di telefono nel profilo non ci torna.**
@@ -321,7 +326,9 @@ service cloud.firestore {
                     // Il verificato lo da' solo il server: chi si iscrive
                     // non puo' nascere con la spunta.
                     && !('verificato' in request.resource.data)
-                    && !('verificatoDa' in request.resource.data);
+                    && !('verificatoDa' in request.resource.data)
+                    && !('livello' in request.resource.data)
+                    && !('xp' in request.resource.data);
 
       // **La data in cui si sono accettati i documenti la mette il server.** Una
       // firma con la data scelta da chi firma non dimostra niente.
@@ -1432,6 +1439,23 @@ service cloud.firestore {
 
     match /impostazioni/{documento} {
       allow read, write: if false;
+    }
+
+    // **Il gioco: XP, livello, sfide del giorno e traguardi.**
+    //
+    // Lo legge solo il diretto interessato e non lo scrive nessun telefono:
+    // punti e progressi li muove il server (`functions/gioco.js`) quando
+    // succede un fatto vero. Un contatore che si potesse scrivere da qui
+    // sarebbe un contatore che vale quanto chi lo scrive vuole. Le sfide e i
+    // livelli, invece, stanno in `config/gioco`, che leggono tutti.
+    match /gioco/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;
+
+      match /{sotto=**} {
+        allow read: if signedIn() && request.auth.uid == uid;
+        allow write: if false;
+      }
     }
 
     match /limiti/{contatore} {

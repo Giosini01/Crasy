@@ -45,7 +45,7 @@ function rigaPersona(p) {
       <div class="chi">
         ${faccia(p.photoUrl)}
         <div style="min-width:0">
-          <div><b>@${p.username || p.uid}</b>${p.verificato ? html` <span class="rosso" title="Sostenitore">✔</span>` : ''}${
+          <div><b>@${p.username || p.uid}</b> <span class="fioco">· liv. ${numero(p.livello)}</span>${p.verificato ? html` <span class="rosso" title="Sostenitore">✔</span>` : ''}${
             p.disabled ? html` <span class="pastiglia pastiglia--piena">sospesa</span>` : ''
           }</div>
           <div class="sotto-riga">${p.email || p.displayName || ''}</div>
@@ -202,7 +202,7 @@ export async function mostraPersona(contenuto, parametri, ancoraQui) {
     return;
   }
 
-  const { persona: p, profilo, numeri, stripe, sospensione, movimenti, registro, proposte, gare, foto } = scheda;
+  const { persona: p, profilo, numeri, stripe, sospensione, movimenti, registro, proposte, gare, foto, gioco } = scheda;
   const eta = profilo.birthDate
     ? Math.floor((Date.now() - profilo.birthDate) / (365.25 * 24 * 3600 * 1000))
     : null;
@@ -278,6 +278,21 @@ export async function mostraPersona(contenuto, parametri, ancoraQui) {
           <div class="numero ${numeri.bloccataDa ? 'numero--allarme' : ''}"><div class="occhiello">Bloccata da</div><div class="numero__cifra">${numero(numeri.bloccataDa)}</div><div class="numero__nota">persone</div></div>
           <div class="numero ${numeri.segnalazioniContro ? 'numero--allarme' : ''}"><div class="occhiello">Segnalata</div><div class="numero__cifra">${numero(numeri.segnalazioniContro)}</div><div class="numero__nota">volte</div></div>
         </div>
+      </div>
+
+      <div class="sezione">
+        <h2>Il gioco</h2>
+        ${gioco
+          ? html`<div class="numeri">
+              <div class="numero"><div class="occhiello occhiello--rosso">Livello</div><div class="numero__cifra">${numero(gioco.livello)}</div><div class="numero__nota">${numero(gioco.xp)} XP</div></div>
+              <div class="numero"><div class="occhiello">Sfide completate</div><div class="numero__cifra">${numero(gioco.sfideCompletate)}</div><div class="numero__nota">${numero(gioco.traguardi.length)} traguardi</div></div>
+              <div class="numero"><div class="occhiello">Oggi</div><div class="numero__cifra">${numero(gioco.oggi.completate.length)}/${numero(gioco.oggi.scelte.length)}</div><div class="numero__nota">${gioco.giorno}</div></div>
+              ${Object.entries(gioco.contatori).map(
+                ([cosa, quanto]) => html`<div class="numero"><div class="occhiello">${cosa}</div><div class="numero__cifra">${numero(quanto)}</div></div>`
+              )}
+            </div>
+            ${gioco.traguardi.length ? html`<p class="sotto-riga" style="margin-top:8px">Traguardi: ${gioco.traguardi.join(', ')}</p>` : ''}`
+          : html`<p class="vuoto">Non ha ancora giocato: è al livello 1.</p>`}
       </div>
 
       <div class="sezione">

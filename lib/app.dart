@@ -5,6 +5,8 @@ import 'package:crasy/core/theme/app_theme.dart';
 import 'package:crasy/core/widgets/keyboard_closer.dart';
 import 'package:crasy/core/widgets/opening_curtain.dart';
 import 'package:crasy/features/challenges/presentation/controllers/coda_invio_controller.dart';
+import 'package:crasy/features/gioco/presentation/providers/gioco_providers.dart';
+import 'package:crasy/features/gioco/presentation/widgets/celebrazioni.dart';
 import 'package:crasy/features/legal/presentation/controllers/consent_controller.dart';
 import 'package:crasy/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:crasy/routing/app_router.dart';
@@ -168,6 +170,47 @@ class _CrasyAppState extends ConsumerState<CrasyApp> {
             duration: const Duration(seconds: 5),
           ),
         );
+    });
+
+    // **I premi del gioco, festeggiati dove si e'.** Una sfida fatta arriva
+    // mentre si sta facendo altro — si manda una foto, e un attimo dopo il
+    // server la conta — quindi la festa sta qui, non in una schermata.
+    ref.listen(premiNuoviProvider, (_, arrivo) {
+      final premio = arrivo.valueOrNull;
+
+      if (premio != null) {
+        _avvisi.currentState?.showSnackBar(premioArrivato(premio));
+      }
+    });
+
+    // **E il livello nuovo, con la festa grande.** Solo quando si sale, e
+    // non al cambio di account: `isLoading` e' il passaggio da uno all'altro.
+    ref.listen(statoDelGiocoProvider, (prima, dopo) {
+      final da = prima?.valueOrNull?.livello;
+      final a = dopo.valueOrNull?.livello;
+
+      if (prima == null || prima.isLoading || dopo.isLoading) {
+        return;
+      }
+
+      if (da == null || a == null || a <= da) {
+        return;
+      }
+
+      final contesto = router.routerDelegate.navigatorKey.currentContext;
+
+      if (contesto == null) {
+        return;
+      }
+
+      mostraNuovoLivello(
+        contesto,
+        numero: a,
+        nome:
+            ref.read(regoleDelGiocoProvider).valueOrNull?.nomeDelLivello(a) ??
+            'Livello $a',
+        apriLeSfide: () => router.push(AppRoutes.sfide),
+      );
     });
 
     // **E qui si ascolta chi tocca una notifica.** Sta accanto al registro per

@@ -27,6 +27,7 @@ class UserProfile {
     this.tutorialSeen = false,
     this.phoneVerified = false,
     this.streak = 0,
+    this.livello = 1,
     this.bestStreak = 0,
     this.contactsPromptSeen = false,
     this.permissionsSeen = false,
@@ -160,6 +161,11 @@ class UserProfile {
   /// per tutti.
   final int streak;
 
+  /// **Il livello del gioco, che vedono tutti.** Lo scrive il server copiandolo
+  /// da `gioco/{uid}` (vedi `giocoSulProfilo`): dal telefono non si tocca. Chi
+  /// non ha ancora giocato e' al primo.
+  final int livello;
+
   /// La serie piu' lunga mai fatta. Non si azzera mai: una cosa fatta resta
   /// fatta anche il giorno in cui si salta.
   final int bestStreak;
@@ -285,6 +291,7 @@ class UserProfile {
     bool? tutorialSeen,
     bool? phoneVerified,
     int? streak,
+    int? livello,
     int? bestStreak,
     bool? contactsPromptSeen,
     bool? permissionsSeen,
@@ -308,6 +315,7 @@ class UserProfile {
       tutorialSeen: tutorialSeen ?? this.tutorialSeen,
       phoneVerified: phoneVerified ?? this.phoneVerified,
       streak: streak ?? this.streak,
+      livello: livello ?? this.livello,
       bestStreak: bestStreak ?? this.bestStreak,
       contactsPromptSeen: contactsPromptSeen ?? this.contactsPromptSeen,
       permissionsSeen: permissionsSeen ?? this.permissionsSeen,
@@ -345,6 +353,7 @@ class UserProfile {
         other.tutorialSeen == tutorialSeen &&
         other.phoneVerified == phoneVerified &&
         other.streak == streak &&
+        other.livello == livello &&
         other.bestStreak == bestStreak &&
         other.contactsPromptSeen == contactsPromptSeen &&
         other.permissionsSeen == permissionsSeen &&

@@ -17,6 +17,7 @@ import 'package:crasy/features/friends/presentation/pages/following_page.dart';
 import 'package:crasy/features/friends/presentation/pages/friends_page.dart';
 import 'package:crasy/features/friends/presentation/pages/launch_duel_page.dart';
 import 'package:crasy/features/friends/presentation/pages/who_you_know_page.dart';
+import 'package:crasy/features/gioco/presentation/pages/sfide_page.dart';
 import 'package:crasy/features/home/presentation/pages/home_page.dart';
 import 'package:crasy/features/home/presentation/pages/splash_page.dart';
 import 'package:crasy/features/legal/presentation/controllers/consent_controller.dart';
@@ -416,6 +417,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         (state) => const RecentlyEndedPage(),
       ),
       _pushedRoute(AppRoutes.wallet, (state) => const WalletPage()),
+      _pushedRoute(AppRoutes.sfide, (state) => const SfidePage()),
       _pushedRoute(AppRoutes.ledger, (state) => const LedgerPage()),
       _pushedRoute(AppRoutes.tip, (state) => const TipPage()),
       _pushedRoute(

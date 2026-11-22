@@ -327,6 +327,26 @@ test('nelle missioni del fondo resta fuori solo chi la firma', async () => {
   assert.equal(await scrive('dino', entra('dino')), true, 'tutti gli altri entrano');
 });
 
+test('il gioco lo legge solo chi gioca, e non lo scrive nessun telefono', async () => {
+  await prepara('gioco/anna', { xp: 120, livello: 2 });
+  await prepara('gioco/anna/xp/p_primi_scatti', { xp: 50 });
+  await prepara('config/gioco', { versione: 1 });
+
+  assert.equal(await legge('anna', 'gioco/anna'), 200);
+  assert.equal(await legge('anna', 'gioco/anna/xp/p_primi_scatti'), 200);
+  assert.equal(await legge('bruno', 'gioco/anna'), 403, 'quello di un altro no');
+  assert.equal(await legge('bruno', 'gioco/anna/xp/p_primi_scatti'), 403);
+  assert.equal(await legge('bruno', 'config/gioco'), 200, 'le regole le leggono tutti');
+
+  assert.equal(await scrive('anna', scrittura('gioco/anna', { xp: 999999 })), false, 'gli XP non si scrivono');
+  assert.equal(
+    await scrive('anna', scrittura('gioco/anna/xp/finto', { xp: 500 })),
+    false,
+    'un premio non si inventa'
+  );
+  assert.equal(await scrive('anna', scrittura('config/gioco', { versione: 2 })), false);
+});
+
 test('una foto nasce in attesa, e per pubblicare serve aver accettato', async () => {
   const gara3 = {
     title: 'Terza',

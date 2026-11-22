@@ -21,6 +21,7 @@ import { mostraBlocchi } from './blocchi.js';
 import { mostraSoldi } from './soldi.js';
 import { mostraSpese } from './spese.js';
 import { mostraAutomatiche } from './automatiche.js';
+import { mostraGioco } from './gioco.js';
 import { mostraRegole } from './regole.js';
 import { mostraRegistro } from './registro.js';
 
@@ -37,6 +38,7 @@ const VOCI = [
   { id: 'soldi', nome: 'Soldi', mostra: mostraSoldi },
   { id: 'spese', nome: 'Spese', mostra: mostraSpese },
   { id: 'automatiche', nome: 'Automatiche', mostra: mostraAutomatiche },
+  { id: 'gioco', nome: 'Gioco', mostra: mostraGioco },
   { id: 'regole', nome: 'Regole', mostra: mostraRegole },
   { id: 'registro', nome: 'Registro', mostra: mostraRegistro },
 ];

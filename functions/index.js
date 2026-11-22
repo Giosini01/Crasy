@@ -282,6 +282,19 @@ exports.linkContoStripe = payments.linkContoStripe;
 // Vedi `salvadanaio.js`: una spinta per far partire il motore all'inizio, con
 // un fondo, una data di fine e un interruttore.
 exports.lanciaLeMissioni = require('./salvadanaio').lanciaLeMissioni;
+
+// **Il gioco: sfide del giorno, traguardi, XP e livelli.** Vedi `gioco.js`:
+// ogni trigger guarda un fatto vero (foto approvata, fiamma, amicizia,
+// commento, vittoria) e lo conta una volta sola.
+const gioco = require('./gioco');
+
+exports.giocoFoto = gioco.giocoFoto;
+exports.giocoFiamme = gioco.giocoFiamme;
+exports.giocoAmici = gioco.giocoAmici;
+exports.giocoCommenti = gioco.giocoCommenti;
+exports.giocoVittorie = gioco.giocoVittorie;
+exports.apriLeSfide = gioco.apriLeSfide;
+exports.giocoSulProfilo = gioco.giocoSulProfilo;
 exports.adminListMance = payments.adminListMance;
 exports.adminListPayouts = payments.adminListPayouts;
 exports.adminMarkPayoutPaid = payments.adminMarkPayoutPaid;
@@ -320,6 +333,8 @@ exports.adminRicaricaIlFondo = amministrazione.adminRicaricaIlFondo;
 exports.adminImpostaIlFondo = amministrazione.adminImpostaIlFondo;
 exports.adminAutoriDelFondo = amministrazione.adminAutoriDelFondo;
 exports.adminUnisciIlFondo = amministrazione.adminUnisciIlFondo;
+// Le regole del gioco (sfide, traguardi, livelli), dal pannello.
+exports.adminRegoleDelGioco = amministrazione.adminRegoleDelGioco;
 exports.adminListReports = amministrazione.adminListReports;
 exports.adminResolveReport = amministrazione.adminResolveReport;
 exports.adminOnline = amministrazione.adminOnline;
@@ -403,6 +418,9 @@ exports.adminPannello = require('./pannello').adminPannello;
  */
 const ARGOMENTO = {
   win: 'vittorie',
+  // Il livello nuovo sta con le vittorie: chi le ha spente non vuole sentirsi
+  // dire nemmeno questo.
+  livello: 'vittorie',
   ended: 'vittorie',
   soloJudge: 'vittorie',
   pickWinner: 'vittorie',
@@ -4051,11 +4069,11 @@ exports.aggiornaLaSerie = onDocumentCreated(
     const utente = db.collection('users').doc(userId);
 
     try {
-      await db.runTransaction(async (giro) => {
+      const record = await db.runTransaction(async (giro) => {
         const profilo = await giro.get(utente);
 
         if (!profilo.exists) {
-          return;
+          return null;
         }
 
         const ultimo = profilo.get('lastPlayedOn') || '';
@@ -4064,7 +4082,7 @@ exports.aggiornaLaSerie = onDocumentCreated(
         // giorno vuol dire cinque passaggi di qui, e senza questa riga la
         // serie direbbe cinque giorni dopo un pomeriggio.
         if (ultimo === oggi) {
-          return;
+          return null;
         }
 
         const ieri = new Intl.DateTimeFormat('en-CA', {
@@ -4072,19 +4090,55 @@ exports.aggiornaLaSerie = onDocumentCreated(
         }).format(new Date(Date.now() - 24 * 60 * 60 * 1000));
 
         const serie = ultimo === ieri ? (profilo.get('streak') || 0) + 1 : 1;
-        const record = Math.max(serie, profilo.get('bestStreak') || 0);
+        const migliore = Math.max(serie, profilo.get('bestStreak') || 0);
 
         giro.update(utente, {
           streak: serie,
-          bestStreak: record,
+          bestStreak: migliore,
           lastPlayedOn: oggi,
         });
+
+        return migliore;
       });
+
+      // **Il record della serie entra nel gioco** (il traguardo "Costante").
+      // Si legge da qui e non si ricalcola: la serie e' una sola, e la conta
+      // questa funzione. Un gioco che non si aggiorna non ferma la serie.
+      if (record) {
+        await gioco.proteggi(
+          () => gioco.registra(userId, { metrica: 'serieRecord', valore: record }),
+          'serie'
+        );
+      }
     } catch (error) {
       logger.warn(`Serie non aggiornata per ${userId}.`, error);
     }
   }
 );
+
+/**
+ * **Il livello nuovo, detto con una notifica.** Solo questo: le sfide fatte si
+ * festeggiano dentro l'app, mentre la si usa. Una notifica per ogni sfida
+ * sarebbero quattro al giorno per la stessa cosa — e una notifica che arriva
+ * sempre e' una notifica che si spegne.
+ */
+exports.avvisaDelLivello = onDocumentUpdated('gioco/{userId}', async (event) => {
+  const prima = Number(event.data.before.get('livello')) || 1;
+  const dopo = Number(event.data.after.get('livello')) || 1;
+
+  if (dopo <= prima) {
+    return;
+  }
+
+  const giocate = await gioco.leRegole();
+  const livello = giocate.livelli.find((l) => l.numero === dopo);
+
+  await mandaAUnaPersona(
+    event.params.userId,
+    livello ? `Sei salito al livello ${dopo}: ${livello.nome}` : `Sei salito al livello ${dopo}`,
+    { kind: 'livello' }
+  );
+});
 
 /**
  * **Spegne le serie di chi ha saltato un giorno.**

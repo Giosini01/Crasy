@@ -382,6 +382,19 @@ PushTap pushTapOf(Map<String, dynamic> dati, {required bool daFermo}) {
   final valore = dati['kind'];
   final kind = AppNotification.kindFromName(valore is String ? valore : null);
 
+  // **Il livello nuovo porta alle sfide**, sopra il profilo: e' li' che si
+  // vede cosa e' cambiato, e cosa c'e' da fare per il prossimo.
+  if (valore == 'livello') {
+    return (
+      scheda: AppRoutes.profile,
+      apri: AppRoutes.sfide,
+      evidenzia: null,
+      notificationId: null,
+      daFermo: daFermo,
+      quando: DateTime.now().microsecondsSinceEpoch,
+    );
+  }
+
   // Una missione nuova o la sfida del giorno riguardano **una gara**: si va
   // dove stanno le gare, e non c'e' niente da aprire sopra.
   //
