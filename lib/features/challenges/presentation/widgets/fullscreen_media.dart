@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:crasy/core/constants/app_routes.dart';
+import 'package:crasy/core/services/share/instagram_story.dart';
 import 'package:crasy/core/services/share/share_entry.dart';
 import 'package:crasy/core/theme/app_colors.dart';
 import 'package:crasy/core/theme/app_palette.dart';
@@ -12,6 +13,7 @@ import 'package:crasy/core/widgets/video_frame.dart';
 import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:crasy/features/challenges/presentation/controllers/vote_controller.dart';
 import 'package:crasy/features/challenges/presentation/providers/challenge_providers.dart';
+import 'package:crasy/features/challenges/presentation/widgets/condividi_su_instagram.dart';
 import 'package:crasy/features/challenges/presentation/widgets/entry_comments.dart';
 import 'package:crasy/features/challenges/presentation/widgets/fire_tap.dart';
 import 'package:crasy/features/friends/presentation/widgets/verified_tick.dart';
@@ -712,6 +714,24 @@ class _Actions extends ConsumerWidget {
         tooltip: 'Condividi',
         vertical: vertical,
       ),
+      // **Su Instagram, solo le proprie foto.** Le foto degli altri restano
+      // dentro CRASY (vedi `MainActivity.kt`); la propria la si porta dove si
+      // vuole. I video no: una Storia composta e' un'immagine.
+      if (InstagramStory.possibile &&
+          !entry.isVideo &&
+          entry.userId == ref.watch(currentUserIdProvider)) ...[
+        if (!vertical) const SizedBox(width: AppSpacing.lg),
+        _Action(
+          onTap: () =>
+              condividiSuInstagram(context, entry, userId: entry.userId),
+          icon: Icons.camera_alt_outlined,
+          glifo: const IconaInstagram(size: 26, color: AppColors.paper),
+          color: AppColors.paper,
+          label: '',
+          tooltip: 'Condividi su Instagram',
+          vertical: vertical,
+        ),
+      ],
     ];
 
     if (!vertical) {
@@ -741,10 +761,14 @@ class _Action extends StatefulWidget {
     required this.label,
     required this.tooltip,
     this.vertical = false,
+    this.glifo,
   });
 
   final VoidCallback? onTap;
   final IconData icon;
+
+  /// Un disegno al posto dell'icona, per i segni che le icone non hanno.
+  final Widget? glifo;
   final Color color;
   final String label;
   final String tooltip;
@@ -808,12 +832,14 @@ class _ActionState extends State<_Action> {
                   duration: const Duration(milliseconds: 180),
                   transitionBuilder: (child, animation) =>
                       ScaleTransition(scale: animation, child: child),
-                  child: Icon(
-                    widget.icon,
-                    key: ValueKey(widget.icon),
-                    size: 27,
-                    color: widget.color,
-                  ),
+                  child:
+                      widget.glifo ??
+                      Icon(
+                        widget.icon,
+                        key: ValueKey(widget.icon),
+                        size: 27,
+                        color: widget.color,
+                      ),
                 ),
                 if (widget.label.isNotEmpty) ...[
                   SizedBox(

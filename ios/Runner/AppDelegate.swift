@@ -81,6 +81,60 @@ import UserNotifications
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     apriIlFiloConDart(engineBridge)
+    apriIlFiloConInstagram(engineBridge)
+  }
+
+  /// **Una propria foto su Instagram Stories**, con il sistema ufficiale di
+  /// Meta: l'immagine negli appunti con la chiave che Instagram legge, poi
+  /// `instagram-stories://share` con l'ID dell'app Facebook. Gli appunti
+  /// scadono dopo cinque minuti: la foto non resta li' a disposizione di altre
+  /// app. Vedi `lib/core/services/share/instagram_story.dart`.
+  private func apriIlFiloConInstagram(_ engineBridge: FlutterImplicitEngineBridge) {
+    guard
+      let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "CrasyInstagram")
+    else {
+      return
+    }
+
+    let filo = FlutterMethodChannel(
+      name: "crasy/instagram",
+      binaryMessenger: registrar.messenger()
+    )
+
+    filo.setMethodCallHandler { chiamata, rispondi in
+      switch chiamata.method {
+      case "disponibile":
+        guard let indirizzo = URL(string: "instagram-stories://share") else {
+          rispondi(false)
+          return
+        }
+
+        rispondi(UIApplication.shared.canOpenURL(indirizzo))
+      case "storia":
+        guard
+          let argomenti = chiamata.arguments as? [String: Any],
+          let immagine = argomenti["immagine"] as? FlutterStandardTypedData,
+          let appId = argomenti["appId"] as? String,
+          !appId.isEmpty,
+          let indirizzo = URL(string: "instagram-stories://share?source_application=\(appId)"),
+          UIApplication.shared.canOpenURL(indirizzo)
+        else {
+          rispondi(false)
+          return
+        }
+
+        UIPasteboard.general.setItems(
+          [["com.instagram.sharedSticker.backgroundImage": immagine.data]],
+          options: [.expirationDate: Date().addingTimeInterval(5 * 60)]
+        )
+
+        UIApplication.shared.open(indirizzo, options: [:]) { aperto in
+          rispondi(aperto)
+        }
+      default:
+        rispondi(FlutterMethodNotImplemented)
+      }
+    }
   }
 
   /// Un filo diretto perche' anche Dart possa azzerare il pallino.

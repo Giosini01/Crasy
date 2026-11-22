@@ -96,3 +96,9 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // FileProvider, per passare la Storia a Instagram (InstagramFileProvider).
+    // C'era gia' fra le dipendenze dei plugin: qui si dice che la usa l'app.
+    implementation("androidx.core:core:1.13.1")
+}

@@ -157,5 +157,12 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<!-- Per sapere se Instagram c'e' e aprirne le Storie con la propria foto:
+	     senza dichiararli, iOS risponde sempre "non installato". -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>instagram-stories</string>
+		<string>instagram</string>
+	</array>
 </dict>
 </plist>

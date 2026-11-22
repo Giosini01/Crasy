@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- L'unica cartella che Instagram puo' leggere: quella dove si prepara la
+     Storia da condividere. Vedi InstagramFileProvider e MainActivity. -->
+<paths>
+    <cache-path name="instagram" path="instagram/" />
+</paths>

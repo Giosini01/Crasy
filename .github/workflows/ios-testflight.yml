@@ -247,7 +247,7 @@ jobs:
         # mai. Era acceso solo in codemagic.yaml, ma le build per TestFlight
         # le fa questo file.
         run: |
-          flutter build ios --release --no-codesign --build-number=$NUMERO --dart-define=CRASY_PAYMENTS=true
+          flutter build ios --release --no-codesign --build-number=$NUMERO --dart-define=CRASY_PAYMENTS=true --dart-define=CRASY_META_APP_ID=${{ vars.META_APP_ID }}
 
           sed -i '' '/DEVELOPMENT_TEAM = /d' ios/Runner.xcodeproj/project.pbxproj
           sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' ios/Runner.xcodeproj/project.pbxproj

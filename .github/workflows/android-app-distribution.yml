@@ -113,7 +113,7 @@ jobs:
         # Un APK solo per tutti i telefoni: e' quello che si scarica da un
         # link, e non bisogna chiedere a nessuno che processore ha.
         run: |
-          flutter build apk --release --build-number=$NUMERO --dart-define=CRASY_PAYMENTS=true
+          flutter build apk --release --build-number=$NUMERO --dart-define=CRASY_PAYMENTS=true --dart-define=CRASY_META_APP_ID=${{ vars.META_APP_ID }}
 
       - name: App bundle per Google Play
         # Lo stesso codice, la stessa chiave e lo stesso numero dell'APK, ma
@@ -121,7 +121,7 @@ jobs:
         # si carica a mano. Play da' a ogni telefono solo i pezzi che gli
         # servono, e un .aab non si installa direttamente su un telefono.
         run: |
-          flutter build appbundle --release --build-number=$NUMERO --dart-define=CRASY_PAYMENTS=true
+          flutter build appbundle --release --build-number=$NUMERO --dart-define=CRASY_PAYMENTS=true --dart-define=CRASY_META_APP_ID=${{ vars.META_APP_ID }}
 
       - name: Firebase CLI
         # Solo da `main`: un avvio a mano da un altro ramo compila e basta, e

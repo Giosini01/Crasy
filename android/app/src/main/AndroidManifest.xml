@@ -112,6 +112,17 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="crasy" />
+        <!-- La foto preparata per Instagram Stories: Instagram la legge da qui,
+             e solo da qui. Vedi InstagramFileProvider. -->
+        <provider
+            android:name=".InstagramFileProvider"
+            android:authorities="${applicationId}.instagram"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/instagram_percorsi" />
+        </provider>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
@@ -119,6 +130,8 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <!-- Per sapere se Instagram c'e', prima di aprirne le Storie. -->
+        <package android:name="com.instagram.android" />
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
