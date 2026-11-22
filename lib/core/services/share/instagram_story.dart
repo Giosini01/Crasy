@@ -2,21 +2,21 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:crasy/core/services/share/share_entry.dart';
+import 'package:crasy/core/theme/app_colors.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
-/// **Una propria foto su Instagram Stories.**
+/// **Una propria foto su Instagram Stories, con la missione e il marchio.**
 ///
-/// Chi condivide vuole far vedere una bella foto di se', non fare pubblicita'
-/// a CRASY: la foto prende quasi tutto lo spazio, intera e senza tagli, e il
-/// marchio sta in basso, piccolo — il logo e "Scopri CRASY ↗". Oppure la foto
-/// da sola, se si preferisce.
+/// La foto e' la protagonista: intera, senza tagli, al centro. Sopra, la
+/// missione per cui e' stata scattata — e' la storia dietro la foto, ed e'
+/// quello che fa venire voglia di provarci. Sotto, piccolo, il marchio.
 ///
 /// ## Come arriva a Instagram
 ///
-/// Con il sistema ufficiale di Meta per le Storie: su iPhone la foto passa
+/// Con il sistema ufficiale di Meta per le Storie: su iPhone l'immagine passa
 /// dagli appunti e si apre `instagram-stories://`, su Android con l'intento
 /// `com.instagram.share.ADD_TO_STORY` (vedi `AppDelegate.swift` e
 /// `MainActivity.kt`, canale `crasy/instagram`). **Meta chiede l'ID di
@@ -99,18 +99,9 @@ abstract final class InstagramStory {
     }
   }
 
-  /// Il tipo dell'immagine, letto dai primi byte.
-  static String tipoDi(Uint8List byte) {
-    if (byte.length > 3 && byte[0] == 0x89 && byte[1] == 0x50) {
-      return 'image/png';
-    }
-
-    return 'image/jpeg';
-  }
-
   /// **Prova ad aprire direttamente le Storie.** Falso se non si puo': senza
   /// l'ID di Meta, senza Instagram, o se Instagram rifiuta.
-  static Future<bool> apriLeStorie(Uint8List immagine, String tipo) async {
+  static Future<bool> apriLeStorie(Uint8List immagine) async {
     if (!possibile || appIdMeta.isEmpty) {
       return false;
     }
@@ -118,7 +109,7 @@ abstract final class InstagramStory {
     try {
       return await _filo.invokeMethod<bool>('storia', {
             'immagine': immagine,
-            'tipo': tipo,
+            'tipo': 'image/png',
             'appId': appIdMeta,
           }) ??
           false;
@@ -140,27 +131,23 @@ abstract final class InstagramStory {
     }
   }
 
-  /// **La condivisione del telefono, con l'immagine pronta.** Torna falso se
-  /// chi condivide ci ha ripensato.
-  static Future<bool> condividiAltrove(
-    Uint8List immagine,
-    String tipo, {
+  /// **La condivisione del telefono, con l'immagine pronta.**
+  static Future<void> condividiAltrove(
+    Uint8List immagine, {
     Rect? origine,
   }) async {
-    final esito = await SharePlus.instance.share(
+    await SharePlus.instance.share(
       ShareParams(
         files: [
           XFile.fromData(
             immagine,
-            mimeType: tipo,
-            name: tipo == 'image/png' ? 'crasy-storia.png' : 'crasy-foto.jpg',
+            mimeType: 'image/png',
+            name: 'crasy-storia.png',
           ),
         ],
         sharePositionOrigin: origine,
       ),
     );
-
-    return esito.status != ShareResultStatus.dismissed;
   }
 }
 
@@ -174,14 +161,23 @@ class ErroreStoria implements Exception {
   String toString() => messaggio;
 }
 
-/// **La Storia: 1080 × 1920, la foto al centro, il marchio in fondo.**
+/// **La Storia: 1080 × 1920.**
 ///
-/// Sotto, la stessa foto ingrandita a riempire, sfocata e scurita: e' cio'
-/// che fanno le Storie belle, e tiene la foto intera senza bande nere. Sopra,
-/// la foto vera, **intera e senza deformazioni**, il piu' grande possibile
-/// fra la striscia in alto (dove Instagram mette nome e tasti) e quella in
-/// basso, dove stanno il logo e la scritta: niente le passa sopra.
-Future<Uint8List> componiLaStoria(Uint8List foto, Uint8List logo) async {
+/// - Sotto tutto, la stessa foto a riempire, sfocata e scurita verso i bordi:
+///   niente bande nere, e il colore della Storia e' quello della foto.
+/// - In alto l'etichetta rossa **MISSIONE** e il titolo in grande, come le
+///   card dell'app: e' la ragione per cui la foto esiste.
+/// - Al centro **la foto intera**, mai tagliata ne' deformata, con gli angoli
+///   arrotondati, un filo di luce sul bordo e un'ombra che la stacca.
+/// - In fondo il logo ufficiale e "Scopri CRASY ↗", piccoli.
+///
+/// Tutto sta fra i 250 pixel in alto e i 250 in basso che Instagram copre
+/// con il nome, la barra del tempo e il campo dei messaggi.
+Future<Uint8List> componiLaStoria(
+  Uint8List foto,
+  Uint8List logo, {
+  String titolo = '',
+}) async {
   final immagine = await _decodifica(foto, altezzaMassima: 2400);
   final segno = await _decodifica(logo);
 
@@ -199,61 +195,116 @@ Future<Uint8List> componiLaStoria(Uint8List foto, Uint8List logo) async {
     );
     final pennello = Paint()..filterQuality = FilterQuality.high;
 
-    // Il fondo: la foto a riempire, sfocata e scurita.
+    // Il fondo: la foto a riempire, sfocata; piu' scura in alto e in basso,
+    // dove stanno le scritte.
     tela
       ..saveLayer(
         tutto,
-        Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: 48, sigmaY: 48),
+        Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: 56, sigmaY: 56),
       )
       ..drawImageRect(immagine, origine, _riempi(origine.size, tutto), pennello)
       ..restore()
-      ..drawRect(tutto, Paint()..color = const Color(0x73000000));
+      ..drawRect(
+        tutto,
+        Paint()
+          ..shader = ui.Gradient.linear(
+            Offset.zero,
+            const Offset(0, h),
+            const [Color(0xB3000000), Color(0x59000000), Color(0xB3000000)],
+            const [0, 0.5, 1],
+          ),
+      );
+
+    // La missione, in alto.
+    var sopraLaFoto = 290.0;
+    final missione = titolo.trim();
+
+    if (missione.isNotEmpty) {
+      final etichetta = _riga(
+        'MISSIONE',
+        dimensione: 24,
+        peso: FontWeight.w800,
+        spaziatura: 5,
+        larghezza: w,
+      );
+      final pillola = Rect.fromCenter(
+        center: const Offset(w / 2, 300),
+        width: etichetta.maxIntrinsicWidth + 48,
+        height: 48,
+      );
+
+      tela
+        ..drawRRect(
+          RRect.fromRectAndRadius(pillola, const Radius.circular(24)),
+          Paint()..color = AppColors.crasyRed,
+        )
+        ..drawParagraph(
+          etichetta,
+          Offset(0, pillola.center.dy - etichetta.height / 2),
+        );
+
+      final testo = _riga(
+        missione.toUpperCase(),
+        dimensione: 62,
+        peso: FontWeight.w900,
+        spaziatura: -0.5,
+        larghezza: w - 160,
+        righe: 2,
+        interlinea: 1.05,
+      );
+
+      tela.drawParagraph(testo, const Offset(80, 350));
+      sopraLaFoto = 350 + testo.height + 46;
+    }
 
     // La foto, intera.
     final dove = _contieni(
       origine.size,
-      const Rect.fromLTRB(56, 170, w - 56, 1620),
+      Rect.fromLTRB(60, sopraLaFoto, w - 60, 1500),
     );
-    final bordo = RRect.fromRectAndRadius(dove, const Radius.circular(40));
+    final bordo = RRect.fromRectAndRadius(dove, const Radius.circular(44));
 
     tela
       ..drawRRect(
-        bordo.shift(const Offset(0, 14)),
+        bordo.shift(const Offset(0, 18)),
         Paint()
-          ..color = const Color(0x66000000)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 28),
+          ..color = const Color(0x80000000)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 36),
       )
       ..save()
       ..clipRRect(bordo)
       ..drawImageRect(immagine, origine, dove, pennello)
-      ..restore();
+      ..restore()
+      ..drawRRect(
+        bordo,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3
+          ..color = const Color(0x33FFFFFF),
+      );
 
-    // Il marchio: piccolo, in fondo, sopra la parte sfocata.
-    const altezzaLogo = 54.0;
+    // Il marchio, in fondo.
+    const altezzaLogo = 50.0;
     final larghezzaLogo = altezzaLogo * segno.width / segno.height;
 
     tela.drawImageRect(
       segno,
       Rect.fromLTWH(0, 0, segno.width.toDouble(), segno.height.toDouble()),
-      Rect.fromLTWH((w - larghezzaLogo) / 2, 1700, larghezzaLogo, altezzaLogo),
+      Rect.fromLTWH((w - larghezzaLogo) / 2, 1552, larghezzaLogo, altezzaLogo),
       pennello,
     );
 
-    final scritta =
-        (ui.ParagraphBuilder(ui.ParagraphStyle(textAlign: TextAlign.center))
-              ..pushStyle(
-                ui.TextStyle(
-                  color: const Color(0xD9FFFFFF),
-                  fontSize: 30,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 1.5,
-                ),
-              )
-              ..addText('Scopri CRASY ↗'))
-            .build()
-          ..layout(const ui.ParagraphConstraints(width: w));
-
-    tela.drawParagraph(scritta, const Offset(0, 1782));
+    tela.drawParagraph(
+      _riga(
+        'Scopri CRASY ↗',
+        dimensione: 27,
+        peso: FontWeight.w500,
+        spaziatura: 1.5,
+        larghezza: w,
+        colore: const Color(0xD9FFFFFF),
+      ),
+      const Offset(0, 1616),
+    );
 
     final quadro = registratore.endRecording();
     final finale = await quadro.toImage(w.toInt(), h.toInt());
@@ -274,6 +325,38 @@ Future<Uint8List> componiLaStoria(Uint8List foto, Uint8List logo) async {
     immagine.dispose();
     segno.dispose();
   }
+}
+
+/// Una riga di testo centrata, gia' misurata.
+ui.Paragraph _riga(
+  String testo, {
+  required double dimensione,
+  required FontWeight peso,
+  required double spaziatura,
+  required double larghezza,
+  int righe = 1,
+  double? interlinea,
+  Color colore = const Color(0xFFFFFFFF),
+}) {
+  return (ui.ParagraphBuilder(
+          ui.ParagraphStyle(
+            textAlign: TextAlign.center,
+            maxLines: righe,
+            ellipsis: '…',
+          ),
+        )
+        ..pushStyle(
+          ui.TextStyle(
+            color: colore,
+            fontSize: dimensione,
+            fontWeight: peso,
+            letterSpacing: spaziatura,
+            height: interlinea,
+          ),
+        )
+        ..addText(testo))
+      .build()
+    ..layout(ui.ParagraphConstraints(width: larghezza));
 }
 
 Future<ui.Image> _decodifica(Uint8List byte, {int? altezzaMassima}) async {

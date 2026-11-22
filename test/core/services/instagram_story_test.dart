@@ -80,14 +80,22 @@ void main() {
     expect(link.queryParameters['utm_medium'], 'story');
   });
 
-  test('il tipo si legge dai primi byte', () {
-    expect(
-      InstagramStory.tipoDi(Uint8List.fromList([0x89, 0x50, 0x4E, 0x47])),
-      'image/png',
-    );
-    expect(
-      InstagramStory.tipoDi(Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0])),
-      'image/jpeg',
-    );
+  testWidgets('con il titolo della missione resta 1080 x 1920', (tester) async {
+    await tester.runAsync(() async {
+      final logo = File(
+        'assets/brand/crasy-wordmark-dark.png',
+      ).readAsBytesSync();
+      final storia = await componiLaStoria(
+        await _foto(900, 1600),
+        logo,
+        titolo: 'Una foto con il tuo migliore amico, la piu bella di sempre',
+      );
+      final immagine = (await (await ui.instantiateImageCodec(
+        storia,
+      )).getNextFrame()).image;
+
+      expect(immagine.width, InstagramStory.larghezza);
+      expect(immagine.height, InstagramStory.altezza);
+    });
   });
 }

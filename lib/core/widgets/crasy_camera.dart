@@ -7,6 +7,7 @@ import 'package:crasy/core/theme/app_spacing.dart';
 import 'package:crasy/core/widgets/flame_waiting.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// La fotocamera di CRASY: schermo intero, un tasto, niente galleria.
 ///
@@ -251,6 +252,19 @@ class _CrasyCameraState extends State<CrasyCamera> with WidgetsBindingObserver {
       );
 
       await controller.initialize();
+
+      // **Sempre in verticale, anche girando il telefono.** L'app e' bloccata
+      // in verticale, la fotocamera no: girando il telefono l'anteprima
+      // ruotava dentro una schermata rimasta dritta e si allargava a
+      // dismisura, e lo scatto usciva orizzontale. Bloccata qui, l'anteprima
+      // resta quella che si vede e foto e video escono sempre verticali.
+      try {
+        await controller.lockCaptureOrientation(DeviceOrientation.portraitUp);
+      } on Object {
+        // Sul sito non tutti i browser lo sanno fare: li' il telefono si
+        // tiene in mano come viene, e l'anteprima segue la pagina.
+      }
+
       await _applicaIlFlash(controller);
 
       if (!mounted) {

@@ -66,8 +66,9 @@ class BarraDelGioco extends StatelessWidget {
 
 /// **Il livello accanto al nome, che vedono tutti.**
 ///
-/// Pieno e scuro, non rosso: accanto c'e' la serie, contornata di rosso, e
-/// due distintivi uguali si leggerebbero come uno. Il nome del livello viene
+/// **Rosso pieno, il rosso di CRASY.** Accanto c'e' la serie, che e' solo
+/// contornata di rosso: pieno e contorno si distinguono a colpo d'occhio, e
+/// il livello e' la cosa che si nota per prima. Il nome del livello viene
 /// dalle regole; finche' non arrivano basta il numero.
 class LivelloBadge extends ConsumerWidget {
   const LivelloBadge({required this.livello, super.key});
@@ -87,7 +88,7 @@ class LivelloBadge extends ConsumerWidget {
         vertical: 3,
       ),
       decoration: BoxDecoration(
-        color: palette.textPrimary,
+        color: palette.accent,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -96,7 +97,7 @@ class LivelloBadge extends ConsumerWidget {
           Icon(
             Icons.military_tech_rounded,
             size: 13,
-            color: palette.background,
+            color: palette.onAccent,
           ),
           const SizedBox(width: 3),
           Text(
@@ -105,7 +106,7 @@ class LivelloBadge extends ConsumerWidget {
                 : 'LIV. $numero · ${nome.toUpperCase()}',
             style: context.texts.labelSmall?.copyWith(
               fontSize: 11,
-              color: palette.background,
+              color: palette.onAccent,
             ),
           ),
         ],

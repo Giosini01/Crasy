@@ -8,9 +8,6 @@ import 'package:crasy/features/challenges/domain/entities/challenge_entry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Come si condivide: la Storia con il marchio, o la foto da sola.
-enum ModoStoria { crasy, soloFoto }
-
 /// **Il segno di Instagram**, disegnato: un quadrato arrotondato, un cerchio,
 /// un punto. Nessun file e nessuna libreria in piu' per tre forme.
 class IconaInstagram extends StatelessWidget {
@@ -65,7 +62,8 @@ class _Glifo extends CustomPainter {
 
 /// **Condividere una propria foto su Instagram Stories.**
 ///
-/// Si sceglie come, si prepara l'immagine, si copia il link, si apre
+/// Si prepara la Storia — foto, missione, marchio — e la si fa vedere prima di
+/// partire: chi condivide sa cosa pubblichera'. Poi il link negli appunti e
 /// Instagram. Ogni intoppo — niente rete, foto illeggibile, Instagram assente
 /// — finisce in una riga che dice cosa e' successo, mai in un silenzio.
 Future<void> condividiSuInstagram(
@@ -86,15 +84,6 @@ Future<void> condividiSuInstagram(
       SnackBar(content: Text(testo), behavior: SnackBarBehavior.floating),
     );
 
-  final modo = await ModalSheet.show<ModoStoria>(
-    context: context,
-    builder: (_) => const _SceltaDelModo(),
-  );
-
-  if (modo == null || !context.mounted) {
-    return;
-  }
-
   // Il velo mentre si prepara: scaricare e comporre richiede un secondo o due.
   showDialog<void>(
     context: context,
@@ -104,35 +93,16 @@ Future<void> condividiSuInstagram(
         const PopScope(canPop: false, child: Center(child: FiammaCheGira())),
   );
 
-  Uint8List immagine;
-  String tipo;
+  Uint8List storia;
 
   try {
     final foto = await InstagramStory.scarica(entry.mediaUrl);
+    final logo = await rootBundle.load('assets/brand/crasy-wordmark-dark.png');
 
-    if (modo == ModoStoria.crasy) {
-      final logo = await rootBundle.load(
-        'assets/brand/crasy-wordmark-dark.png',
-      );
-
-      immagine = await componiLaStoria(foto, logo.buffer.asUint8List());
-      tipo = 'image/png';
-    } else {
-      immagine = foto;
-      tipo = InstagramStory.tipoDi(foto);
-    }
-
-    // Il link prima di partire: in Instagram basta incollarlo nello sticker.
-    await Clipboard.setData(
-      ClipboardData(
-        text: InstagramStory.link(
-          challengeId: entry.challengeId,
-          entryId: entry.id,
-          challengeTitle: entry.challengeTitle,
-          authorName: entry.authorName,
-          userId: userId,
-        ),
-      ),
+    storia = await componiLaStoria(
+      foto,
+      logo.buffer.asUint8List(),
+      titolo: entry.challengeTitle,
     );
   } on ErroreStoria catch (errore) {
     navigator.pop();
@@ -148,7 +118,33 @@ Future<void> condividiSuInstagram(
 
   navigator.pop();
 
-  if (await InstagramStory.apriLeStorie(immagine, tipo)) {
+  if (!context.mounted) {
+    return;
+  }
+
+  final vai = await ModalSheet.show<bool>(
+    context: context,
+    builder: (_) => _Anteprima(storia: storia),
+  );
+
+  if (vai != true) {
+    return;
+  }
+
+  // Il link prima di partire: in Instagram basta incollarlo nello sticker.
+  await Clipboard.setData(
+    ClipboardData(
+      text: InstagramStory.link(
+        challengeId: entry.challengeId,
+        entryId: entry.id,
+        challengeTitle: entry.challengeTitle,
+        authorName: entry.authorName,
+        userId: userId,
+      ),
+    ),
+  );
+
+  if (await InstagramStory.apriLeStorie(storia)) {
     return;
   }
 
@@ -162,101 +158,52 @@ Future<void> condividiSuInstagram(
   }
 
   try {
-    await InstagramStory.condividiAltrove(immagine, tipo, origine: origine);
+    await InstagramStory.condividiAltrove(storia, origine: origine);
   } on Object {
     dillo('La condivisione non si è aperta. Riprova.');
   }
 }
 
-class _SceltaDelModo extends StatefulWidget {
-  const _SceltaDelModo();
+/// La Storia pronta, prima di aprire Instagram.
+class _Anteprima extends StatelessWidget {
+  const _Anteprima({required this.storia});
 
-  @override
-  State<_SceltaDelModo> createState() => _SceltaDelModoState();
-}
-
-class _SceltaDelModoState extends State<_SceltaDelModo> {
-  var _modo = ModoStoria.crasy;
+  final Uint8List storia;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
     final texts = context.texts;
 
-    Widget voce(ModoStoria modo, String titolo, String sotto, IconData icona) {
-      final scelta = _modo == modo;
-
-      return GestureDetector(
-        onTap: () => setState(() => _modo = modo),
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: scelta ? palette.accentTint : null,
-            border: Border.all(color: scelta ? palette.accent : palette.line),
-            borderRadius: BorderRadius.circular(AppRadius.md),
-          ),
-          child: Row(
-            children: [
-              Icon(icona, color: palette.accent),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(titolo, style: texts.titleMedium),
-                    Text(
-                      sotto,
-                      style: texts.bodySmall?.copyWith(
-                        color: palette.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                scelta
-                    ? Icons.radio_button_checked_rounded
-                    : Icons.radio_button_off_rounded,
-                color: scelta ? palette.accent : palette.textFaint,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     return ModalSheet(
-      title: 'Condividi su Instagram',
+      title: 'La tua Storia',
       confirmLabel: 'Apri Instagram',
-      onConfirm: () => Navigator.of(context).pop(_modo),
+      onConfirm: () => Navigator.of(context).pop(true),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          voce(
-            ModoStoria.crasy,
-            'Story CRASY',
-            'La tua foto, con il logo piccolo in fondo.',
-            Icons.auto_awesome_rounded,
+          Center(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              child: Image.memory(
+                storia,
+                height: 380,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.medium,
+              ),
+            ),
           ),
-          voce(
-            ModoStoria.soloFoto,
-            'Solo foto',
-            'La foto com\'è, senza niente intorno.',
-            Icons.photo_rounded,
-          ),
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: AppSpacing.md),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.link_rounded, size: 18, color: palette.textSecondary),
+              Icon(Icons.link_rounded, size: 18, color: palette.accent),
               const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Text(
                   'Il link a CRASY lo copiamo noi. In Instagram tocca '
-                  'l\'icona degli sticker, scegli «Link» e incolla.',
+                  'l\'icona degli sticker, scegli «Link» e incolla: chi '
+                  'lo tocca arriva alla tua foto.',
                   style: texts.bodySmall?.copyWith(
                     color: palette.textSecondary,
                   ),
