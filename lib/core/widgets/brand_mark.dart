@@ -1,5 +1,6 @@
 import 'package:crasy/core/theme/app_palette.dart';
 import 'package:crasy/core/theme/app_spacing.dart';
+import 'package:crasy/core/theme/seasons/season_skin.dart';
 import 'package:flutter/material.dart';
 
 /// Il logotipo di CRASY.
@@ -17,21 +18,9 @@ class CrasyWordmark extends StatelessWidget {
     this.size = header,
     this.alignment = Alignment.centerLeft,
     this.onDark = false,
-    this.beta = true,
+    this.seme = '',
     super.key,
   });
-
-  /// L'etichetta **beta** accanto al segno.
-  ///
-  /// **Sta attaccata al marchio e non in un angolo dello schermo**, ed e' il
-  /// punto: chi apre l'app deve sapere che sta usando una cosa non finita
-  /// **mentre** legge come si chiama, non dopo averla cercata. Una scritta in
-  /// fondo alla schermata delle impostazioni non l'ha mai letta nessuno.
-  ///
-  /// Si spegne su un trofeo: li' il marchio non e' l'intestazione di una
-  /// schermata, e' il retro di una figurina — un oggetto che si tiene, e su cui
-  /// una targhetta provvisoria non ha senso.
-  final bool beta;
 
   /// Il segno per i fondi scuri: **lettere bianche, fiamme rosse**.
   ///
@@ -59,6 +48,10 @@ class CrasyWordmark extends StatelessWidget {
   /// schermo senza che nessuno gliel'avesse chiesto.
   final Alignment alignment;
 
+  /// **Di che pagina e' il marchio**: a Natale ogni scheda ha la sua
+  /// decorazione accanto, non sempre la stessa. Vedi `decoraMarchio`.
+  final String seme;
+
   @override
   Widget build(BuildContext context) {
     final segno = Image.asset(
@@ -72,42 +65,7 @@ class CrasyWordmark extends StatelessWidget {
       semanticLabel: 'CRASY',
     );
 
-    if (!beta || onDark) {
-      return segno;
-    }
-
-    // **La riga esterna serve, e non e' un involucro di troppo.**
-    //
-    // La colonna qui dentro allinea a destra — "beta" va sotto la coda della
-    // "y" — ma una colonna dentro un elenco prende **tutta** la larghezza della
-    // pagina, e allineare a destra vuol dire mandare a destra anche il
-    // logotipo. E' successo: nella schermata di accesso il marchio e' finito
-    // dall'altra parte. La riga stretta attorno tiene la colonna larga quanto
-    // il segno, cosi' "a destra" vuol dire *a destra del marchio* e non *a
-    // destra dello schermo*.
-    // **Accanto al marchio e in alto, non sotto.**
-    //
-    // Stava sotto la coda della "y", grande un terzo del segno e con "ta" in
-    // rosso: da lontano sembrava una seconda parola del marchio, come se l'app
-    // si chiamasse *crasy beta*. E il rosso peggiorava la cosa — qui dentro il
-    // rosso vuol dire premio, fiamma, attivo, e non c'e' niente di attivo
-    // nell'essere una versione di prova.
-    //
-    // Adesso e' una targhetta piccola e grigia appesa in alto a destra del
-    // segno, come sul sito: si legge se la si cerca, e smette di far parte del
-    // nome.
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        segno,
-        SizedBox(width: size * 0.12),
-        Padding(
-          padding: EdgeInsets.only(top: size * 0.04),
-          child: _BetaWord(size: size * 0.26),
-        ),
-      ],
-    );
+    return context.stagione.decoraMarchio(segno, misura: size, seme: seme);
   }
 }
 
@@ -125,7 +83,10 @@ class CrasyWordmark extends StatelessWidget {
 /// finisce dentro: con o senza comando a destra, il segno si posa sempre alla
 /// stessa quota.
 class CrasyHeader extends StatelessWidget {
-  const CrasyHeader({this.middle, this.action, super.key});
+  const CrasyHeader({this.middle, this.action, this.seme = '', super.key});
+
+  /// Di che scheda e': vedi `CrasyWordmark.seme`.
+  final String seme;
 
   /// Cosa sta **in mezzo**, fra il marchio e i comandi.
   ///
@@ -154,7 +115,7 @@ class CrasyHeader extends StatelessWidget {
       height: height,
       child: Row(
         children: [
-          const CrasyWordmark(),
+          CrasyWordmark(seme: seme),
           const Spacer(),
           ?middle,
           const Spacer(),
@@ -295,7 +256,10 @@ class EyebrowLabel extends StatelessWidget {
 /// decimo dell'altezza. In cambio, quattro schede su cinque hanno lo stesso
 /// punto fermo in cima, e la quinta — la ricerca — ce l'aveva gia'.
 class CrasyHeaderBar extends StatelessWidget {
-  const CrasyHeaderBar({this.middle, this.action, super.key});
+  const CrasyHeaderBar({this.middle, this.action, this.seme = '', super.key});
+
+  /// Di che scheda e': vedi `CrasyWordmark.seme`.
+  final String seme;
 
   /// Cosa sta in mezzo, fra il marchio e i comandi. Vedi [CrasyHeader.middle].
   final Widget? middle;
@@ -324,49 +288,7 @@ class CrasyHeaderBar extends StatelessWidget {
         action == null ? AppSpacing.page : AppSpacing.page - AppSpacing.xs,
         AppSpacing.sm,
       ),
-      child: CrasyHeader(middle: middle, action: action),
-    );
-  }
-}
-
-/// La parola sotto il marchio: **be** nero, **ta** rosso.
-///
-/// Ripete la regola del logotipo — una meta' neutra e una in fiamme — e la
-/// ripete sulle stesse due lettere finali, cosi' la seconda meta' rossa cade
-/// sotto la "sy" rossa che le sta sopra. Non e' un caso che si legga come una
-/// firma: e' la stessa cosa scritta due volte, in piccolo.
-///
-/// **Niente fondo colorato e niente riquadro.** Una pillola scura accanto a un
-/// logotipo su fondo bianco e' un secondo oggetto che compete con il primo; qui
-/// invece la parola appartiene al marchio, e per farlo deve essere fatta della
-/// stessa sostanza — inchiostro su carta, e basta.
-///
-/// Il carattere e' quello di sistema al peso piu' grasso che ha, con la
-/// spaziatura stretta. Le lettere del logotipo sono **disegnate** e nessun font
-/// le riproduce; questo e' quanto ci si avvicina senza portarsi dietro un file
-/// di caratteri solo per quattro lettere.
-class _BetaWord extends StatelessWidget {
-  const _BetaWord({required this.size});
-
-  /// L'altezza delle lettere. Tutto il resto si ricava da qui, cosi' la parola
-  /// cresce **insieme** al marchio invece di avere una misura sua.
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      'BETA',
-      style: TextStyle(
-        fontSize: size,
-        height: 1,
-        fontWeight: FontWeight.w800,
-        // **Larga, non stretta.** Il logotipo ha le lettere quasi attaccate:
-        // una targhetta spaziata accanto si legge come una cosa diversa da lui,
-        // ed e' quello che deve essere. Stretta sarebbe sembrata la coda del
-        // nome.
-        letterSpacing: size * 0.14,
-        color: context.palette.textFaint,
-      ),
+      child: CrasyHeader(middle: middle, action: action, seme: seme),
     );
   }
 }

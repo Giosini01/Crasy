@@ -254,7 +254,7 @@ class _FriendsActivityPageState extends ConsumerState<FriendsActivityPage> {
             children: [
               // **In cima solo il marchio, come sulle altre schede.** Questa
               // e' una delle cinque, non una pagina in cui si e' entrati.
-              const CrasyHeaderBar(),
+              const CrasyHeaderBar(seme: 'amici'),
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(

@@ -69,6 +69,7 @@ class ChallengesPage extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               CrasyHeaderBar(
+                seme: 'missioni',
                 middle: _Lives(
                   left: ref.watch(livesLeftProvider),
                   palette: context.palette,

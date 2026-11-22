@@ -43,6 +43,13 @@ class ChristmasSkin extends SeasonSkin {
       (Offset(-1.15, -0.85), 0.42),
       (Offset(1.05, -0.5), 0.3),
       (Offset(-0.8, 0.95), 0.24),
+      (Offset(0.2, -1.35), 0.2),
+      (Offset(1.3, 0.55), 0.26),
+      (Offset(-1.45, 0.1), 0.18),
+      (Offset(0.7, 1.25), 0.2),
+      (Offset(-0.35, -1.6), 0.14),
+      (Offset(1.6, -1.1), 0.16),
+      (Offset(-1.7, -1.4), 0.12),
     ];
 
     return Stack(
@@ -102,10 +109,26 @@ class ChristmasSkin extends SeasonSkin {
     );
   }
 
+  /// **Neve e palline, dietro.** I fiocchi cadono su tutta la pagina e le
+  /// palline pendono dall'alto, ma **dietro** i contenuti: si vedono negli
+  /// spazi fra le carte e scompaiono dietro foto e riquadri, come fuori da
+  /// una finestra. Davanti resta solo la neve posata sul bordo. Ogni pagina
+  /// ha le palline in un punto suo.
   @override
   Widget decora(BuildContext context, Widget pagina) {
+    final seme =
+        '${ModalRoute.of(context)?.settings.name ?? ''}${pagina.runtimeType}';
+
     return Stack(
       children: [
+        const Positioned.fill(child: IgnorePointer(child: _NeveCheCade())),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: RepaintBoundary(
+              child: CustomPaint(painter: _Palline(seme.hashCode)),
+            ),
+          ),
+        ),
         pagina,
         Positioned.fill(
           child: IgnorePointer(child: CustomPaint(painter: _NeveSulBordo())),
@@ -113,6 +136,233 @@ class ChristmasSkin extends SeasonSkin {
       ],
     );
   }
+
+  /// **Accanto al marchio, una cosa diversa per scheda**: l'alberello sulle
+  /// missioni, un regalo fra gli amici, il bastoncino sul profilo, il
+  /// leccalecca fra i vincitori, un fiocco nella ricerca.
+  @override
+  Widget decoraMarchio(
+    Widget marchio, {
+    required double misura,
+    String seme = '',
+  }) {
+    final (CustomPainter disegno, double larga, double alta) = switch (seme) {
+      'amici' => (_Regalo(), 0.8, 0.8),
+      'profilo' => (_Bastoncino(), 0.45, 1.05),
+      'vincitori' => (_Leccalecca(), 0.62, 1.1),
+      'cerca' => (_Fiocco(colore: const Color(0xFFC3CCD8)), 0.7, 0.7),
+      _ => (_Albero(), 0.78, 1.1),
+    };
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        marchio,
+        SizedBox(width: misura * 0.18),
+        SizedBox(
+          width: misura * larga,
+          height: misura * alta,
+          child: CustomPaint(painter: disegno),
+        ),
+      ],
+    );
+  }
+
+  /// Un fiocco nell'angolo della riga del premio, se l'angolo e' libero.
+  @override
+  Widget decoraMissione(
+    Widget missione, {
+    required String seme,
+    bool angoloLibero = true,
+  }) {
+    if (!angoloLibero) {
+      return missione;
+    }
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        missione,
+        Positioned(
+          top: -4,
+          right: -2,
+          child: IgnorePointer(
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CustomPaint(
+                painter: _Fiocco(colore: const Color(0xFFC9D3DE)),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// **I fiocchi che scendono, dietro i contenuti.** Grigio chiaro, perche' sul
+/// fondo bianco la neve bianca non si vede. Con le animazioni ridotte dal
+/// telefono restano fermi.
+class _NeveCheCade extends StatefulWidget {
+  const _NeveCheCade();
+
+  @override
+  State<_NeveCheCade> createState() => _NeveCheCadeState();
+}
+
+class _NeveCheCadeState extends State<_NeveCheCade>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _tempo = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 16),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _tempo
+        ..stop()
+        ..value = 0.37;
+    } else if (!_tempo.isAnimating) {
+      _tempo.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _tempo.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: CustomPaint(painter: _Fiocchi(_tempo), willChange: true),
+    );
+  }
+}
+
+class _Fiocchi extends CustomPainter {
+  _Fiocchi(this.tempo) : super(repaint: tempo);
+
+  final Animation<double> tempo;
+
+  static const _quanti = 30;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = tempo.value;
+
+    for (var i = 0; i < _quanti; i++) {
+      // Ogni fiocco ha la sua strada, sempre la stessa: posizione, velocita',
+      // misura e partenza vengono dal suo numero.
+      final caso = math.Random(i * 7919 + 17);
+      final x0 = caso.nextDouble();
+      final velocita = 0.6 + caso.nextDouble() * 0.8;
+      final partenza = caso.nextDouble();
+      final raggio = 1.6 + caso.nextDouble() * 2.2;
+      final giro = (t * velocita + partenza) % 1;
+      final y = giro * size.height;
+      final x =
+          x0 * size.width + math.sin((t * 2 + partenza) * math.pi * 2) * 10;
+      // Compaiono in cima e si spengono in fondo, invece di apparire e
+      // sparire di colpo.
+      final alfa = 0.8 * math.min(1, math.min(giro * 12, (1 - giro) * 8));
+
+      canvas.drawCircle(
+        Offset(x, y),
+        raggio,
+        Paint()..color = const Color(0xFFC3CCD8).withValues(alpha: alfa),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_Fiocchi vecchio) => false;
+}
+
+/// **L'alberello**: tre piani innevati, qualche pallina, la stella.
+class _Albero extends CustomPainter {
+  _Albero();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final sx = size.width / 60;
+    final sy = size.height / 84;
+
+    Offset p(double x, double y) => Offset(x * sx, y * sy);
+
+    Path piano(double cima, double base, double mezzaBase) => Path()
+      ..moveTo(p(30, cima).dx, p(30, cima).dy)
+      ..lineTo(p(30 + mezzaBase, base).dx, p(30 + mezzaBase, base).dy)
+      ..lineTo(p(30 - mezzaBase, base).dx, p(30 - mezzaBase, base).dy)
+      ..close();
+
+    canvas
+      ..drawRect(
+        Rect.fromLTWH(p(26, 68).dx, p(26, 68).dy, 8 * sx, 12 * sy),
+        Paint()..color = const Color(0xFF7A4B2A),
+      )
+      ..drawPath(piano(4, 32, 20), Paint()..color = const Color(0xFF1D6B4A))
+      ..drawPath(piano(18, 52, 26), Paint()..color = const Color(0xFF1D6B4A))
+      ..drawPath(piano(34, 72, 30), Paint()..color = const Color(0xFF124D35));
+
+    final neve = Paint()
+      ..color = const Color(0xFFFFFFFF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.6 * sx
+      ..strokeCap = StrokeCap.round;
+
+    for (final (y, mezza) in [(31.0, 12.0), (51.0, 19.0), (71.0, 24.0)]) {
+      canvas.drawPath(
+        Path()
+          ..moveTo(p(30 - mezza, y).dx, p(30 - mezza, y).dy)
+          ..quadraticBezierTo(
+            p(30, y - 5).dx,
+            p(30, y - 5).dy,
+            p(30 + mezza, y).dx,
+            p(30 + mezza, y).dy,
+          ),
+        neve,
+      );
+    }
+
+    const palline = [
+      (22.0, 42.0, Color(0xFFFA0000)),
+      (38.0, 38.0, Color(0xFFE7B04A)),
+      (16.0, 62.0, Color(0xFFE7B04A)),
+      (32.0, 58.0, Color(0xFFFA0000)),
+      (46.0, 64.0, Color(0xFFFA0000)),
+    ];
+
+    for (final (x, y, colore) in palline) {
+      canvas.drawCircle(p(x, y), 3 * sx, Paint()..color = colore);
+    }
+
+    final stella = Path();
+
+    for (var i = 0; i < 10; i++) {
+      final angolo = -math.pi / 2 + i * math.pi / 5;
+      final raggio = (i.isEven ? 6.5 : 2.8) * sx;
+      final punto =
+          p(30, 6) + Offset(math.cos(angolo), math.sin(angolo)) * raggio;
+
+      if (i == 0) {
+        stella.moveTo(punto.dx, punto.dy);
+      } else {
+        stella.lineTo(punto.dx, punto.dy);
+      }
+    }
+
+    canvas.drawPath(stella..close(), Paint()..color = const Color(0xFFE7B04A));
+  }
+
+  @override
+  bool shouldRepaint(_Albero vecchio) => false;
 }
 
 /// Un fiocco di neve: sei braccia, ognuna con due rametti.
@@ -214,4 +464,195 @@ class _NeveSulBordo extends CustomPainter {
 
   @override
   bool shouldRepaint(_NeveSulBordo altro) => false;
+}
+
+/// **Le palline appese**, dietro i contenuti: due o tre, a fili di lunghezze
+/// diverse, in punti che cambiano da una pagina all'altra.
+class _Palline extends CustomPainter {
+  _Palline(this.seme);
+
+  final int seme;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final caso = math.Random(seme);
+    final quante = 2 + caso.nextInt(2);
+    const colori = [Color(0xFFFA0000), Color(0xFFE7B04A), Color(0xFFFA0000)];
+    final filo = Paint()
+      ..color = const Color(0xFFD5D5DA)
+      ..strokeWidth = 1;
+
+    for (var i = 0; i < quante; i++) {
+      // Sparse: una per fascia, mai due attaccate.
+      final x = size.width * ((i + 0.2 + caso.nextDouble() * 0.6) / quante);
+      final lungo = 70.0 + caso.nextDouble() * 90;
+      final raggio = 8.0 + caso.nextDouble() * 4;
+      final colore = colori[(i + seme) % colori.length];
+      final centro = Offset(x, lungo + raggio);
+
+      canvas
+        ..drawLine(Offset(x, 0), Offset(x, lungo), filo)
+        ..drawRect(
+          Rect.fromCenter(
+            center: Offset(x, lungo + 1),
+            width: raggio * 0.7,
+            height: 4,
+          ),
+          Paint()..color = const Color(0xFFB9B9C0),
+        )
+        ..drawCircle(centro, raggio, Paint()..color = colore)
+        ..drawCircle(
+          centro + Offset(-raggio * 0.35, -raggio * 0.35),
+          raggio * 0.28,
+          Paint()..color = const Color(0x80FFFFFF),
+        );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_Palline vecchio) => vecchio.seme != seme;
+}
+
+/// **Un regalo**: rosso, nastro bianco, fiocco.
+class _Regalo extends CustomPainter {
+  _Regalo();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final bianco = Paint()..color = const Color(0xFFFFFFFF);
+
+    canvas
+      ..drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(w * 0.06, h * 0.4, w * 0.88, h * 0.6),
+          Radius.circular(w * 0.08),
+        ),
+        Paint()..color = const Color(0xFFFA0000),
+      )
+      ..drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, h * 0.27, w, h * 0.18),
+          Radius.circular(w * 0.05),
+        ),
+        Paint()..color = const Color(0xFFD90000),
+      )
+      ..drawRect(Rect.fromLTWH(w * 0.43, h * 0.27, w * 0.14, h * 0.73), bianco);
+
+    final fiocco = Paint()
+      ..color = const Color(0xFFFFFFFF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.07;
+
+    for (final lato in [-1.0, 1.0]) {
+      canvas
+        ..save()
+        ..translate(w * 0.5 + lato * w * 0.17, h * 0.18)
+        ..rotate(lato * 0.35)
+        ..drawOval(
+          Rect.fromCenter(
+            center: Offset.zero,
+            width: w * 0.36,
+            height: h * 0.2,
+          ),
+          fiocco,
+        )
+        ..restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(_Regalo vecchio) => false;
+}
+
+/// **Il bastoncino di zucchero**: un uncino bianco a righe rosse.
+class _Bastoncino extends CustomPainter {
+  _Bastoncino();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final spessore = w * 0.32;
+    final percorso = Path()
+      ..moveTo(w * 0.3, h * 0.98)
+      ..lineTo(w * 0.3, h * 0.3)
+      ..arcToPoint(Offset(w * 0.8, h * 0.3), radius: Radius.circular(w * 0.25))
+      ..lineTo(w * 0.8, h * 0.4);
+
+    canvas.drawPath(
+      percorso,
+      Paint()
+        ..color = const Color(0xFFFFFFFF)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = spessore
+        ..strokeCap = StrokeCap.round,
+    );
+
+    final rosso = Paint()
+      ..color = const Color(0xFFFA0000)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = spessore;
+
+    for (final tratto in percorso.computeMetrics()) {
+      for (var d = 0.0; d < tratto.length; d += spessore * 1.6) {
+        canvas.drawPath(
+          tratto.extractPath(d, math.min(d + spessore * 0.7, tratto.length)),
+          rosso,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_Bastoncino vecchio) => false;
+}
+
+/// **Il leccalecca a spirale**: spicchi rossi e bianchi, il bastoncino sotto.
+class _Leccalecca extends CustomPainter {
+  _Leccalecca();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final raggio = w * 0.46;
+    final centro = Offset(w / 2, raggio + 1);
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.45, centro.dy, w * 0.1, h - centro.dy),
+        Radius.circular(w * 0.05),
+      ),
+      Paint()..color = const Color(0xFFEDE6D8),
+    );
+
+    const spicchi = 12;
+
+    for (var i = 0; i < spicchi; i++) {
+      canvas.drawArc(
+        Rect.fromCircle(center: centro, radius: raggio),
+        i * math.pi * 2 / spicchi + 0.3,
+        math.pi * 2 / spicchi,
+        true,
+        Paint()
+          ..color = i.isEven
+              ? const Color(0xFFFA0000)
+              : const Color(0xFFFFFFFF),
+      );
+    }
+
+    canvas.drawCircle(
+      centro,
+      raggio,
+      Paint()
+        ..color = const Color(0xFFF1D0D0)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_Leccalecca vecchio) => false;
 }

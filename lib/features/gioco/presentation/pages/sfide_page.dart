@@ -98,18 +98,29 @@ class _SfidePageState extends ConsumerState<SfidePage> {
                   if (traguardi.isEmpty)
                     const _Vuoto('Nessun traguardo, per ora.')
                   else
-                    GridView.count(
-                      crossAxisCount: 2,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisSpacing: AppSpacing.sm,
-                      mainAxisSpacing: AppSpacing.sm,
-                      childAspectRatio: 1.15,
-                      children: [
-                        for (final voce in traguardi)
-                          TraguardoMattone(voce: voce),
-                      ],
-                    ),
+                    // **Due per riga, alti quanto serve.** Una griglia ad
+                    // altezza fissa, su un Android piccolo con il testo
+                    // ingrandito, tagliava il fondo dei mattoni.
+                    for (var i = 0; i < traguardi.length; i += 2)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        child: IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: TraguardoMattone(voce: traguardi[i]),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: i + 1 < traguardi.length
+                                    ? TraguardoMattone(voce: traguardi[i + 1])
+                                    : const SizedBox.shrink(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                 ],
               ),
       ),

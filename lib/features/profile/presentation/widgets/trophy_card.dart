@@ -2191,7 +2191,6 @@ class _Showcase extends StatelessWidget {
                           size: 30,
                           alignment: Alignment.center,
                           onDark: true,
-                          beta: false,
                         ),
                         // La data solo da dietro: davanti la coppa e' la cosa
                         // da guardare, e una scritta in piu' le toglierebbe

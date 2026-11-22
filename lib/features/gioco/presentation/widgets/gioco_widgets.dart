@@ -118,13 +118,19 @@ class LivelloBadge extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 6),
-            Text(
-              nome == null
-                  ? 'LIVELLO $numero'
-                  : 'LIV. $numero · ${nome.toUpperCase()}',
-              style: context.texts.labelSmall?.copyWith(
-                fontSize: 11,
-                color: palette.accent,
+            // Su un Android piccolo con il testo grande si accorcia, non
+            // sborda: il numero nel cerchio resta comunque.
+            Flexible(
+              child: Text(
+                nome == null
+                    ? 'LIVELLO $numero'
+                    : 'LIV. $numero · ${nome.toUpperCase()}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.texts.labelSmall?.copyWith(
+                  fontSize: 11,
+                  color: palette.accent,
+                ),
               ),
             ),
           ],
@@ -555,11 +561,17 @@ class TraguardoMattone extends StatelessWidget {
             Row(
               children: [
                 _Tondo(voce: voce),
-                const Spacer(),
-                Text(
-                  '+${sfida.xp} XP',
-                  style: texts.labelSmall?.copyWith(
-                    color: fatta ? palette.textFaint : palette.accent,
+                const SizedBox(width: AppSpacing.xs),
+                // Su un telefono stretto i punti si accorciano, non sbordano.
+                Expanded(
+                  child: Text(
+                    '+${sfida.xp} XP',
+                    textAlign: TextAlign.end,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: texts.labelSmall?.copyWith(
+                      color: fatta ? palette.textFaint : palette.accent,
+                    ),
                   ),
                 ),
               ],

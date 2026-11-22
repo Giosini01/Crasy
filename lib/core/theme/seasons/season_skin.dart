@@ -109,6 +109,15 @@ abstract class SeasonSkin {
   /// Chi decora **deve** lasciar passare i tocchi: il velo copre tutta la
   /// schermata, e uno che li ferma rende l'app inutilizzabile per due settimane.
   Widget decora(BuildContext context, Widget pagina) => pagina;
+
+  /// **Accanto al marchio.** A Natale un alberello; fuori stagione niente.
+  /// [misura] e' l'altezza del logotipo, per stare in proporzione; [seme]
+  /// dice di che pagina e', per non mettere sempre la stessa cosa.
+  Widget decoraMarchio(
+    Widget marchio, {
+    required double misura,
+    String seme = '',
+  }) => marchio;
 }
 
 class _NessunaStagione extends SeasonSkin {

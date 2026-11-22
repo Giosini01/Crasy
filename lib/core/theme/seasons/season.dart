@@ -26,7 +26,7 @@ enum Season {
   /// Tutto ottobre, e basta.
   halloween,
 
-  /// Dall'8 dicembre al 6 gennaio.
+  /// Dal 10 dicembre al 6 gennaio.
   natale;
 
   /// La stagione di una data.
@@ -48,7 +48,7 @@ enum Season {
       return Season.halloween;
     }
 
-    if ((mese == 12 && giorno >= 8) || (mese == 1 && giorno <= 6)) {
+    if ((mese == 12 && giorno >= 10) || (mese == 1 && giorno <= 6)) {
       return Season.natale;
     }
 
@@ -85,7 +85,7 @@ enum Season {
   ///
   /// Riacceso il 19 ottobre 2026 per l'uscita del 31: per tutto ottobre l'app ha
   /// ragnatele, zucche, pipistrelli e fantasmi; dal 1° novembre torna bianca nera
-  /// e rossa da sola, e dall'8 dicembre arriva il natale.
+  /// e rossa da sola, e dal 10 dicembre arriva il natale.
   ///
   /// **E' una riga sola di proposito.** Un vestito di stagione deve potersi
   /// togliere in fretta quanto si mette: il giorno in cui non piace piu', o

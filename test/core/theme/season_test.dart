@@ -30,8 +30,8 @@ void main() {
     });
 
     test('il natale scavalca il capodanno', () {
-      expect(Season.of(DateTime(2026, 12, 7)), Season.base);
-      expect(Season.of(DateTime(2026, 12, 8)), Season.natale);
+      expect(Season.of(DateTime(2026, 12, 9)), Season.base);
+      expect(Season.of(DateTime(2026, 12, 10)), Season.natale);
       expect(Season.of(DateTime(2026, 12, 25)), Season.natale);
       expect(Season.of(DateTime(2027, 1, 6)), Season.natale);
       expect(Season.of(DateTime(2027, 1, 7)), Season.base);

@@ -132,7 +132,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               // Adesso l'impalcatura e' identica a quella degli amici e dei
               // vincitori: `CrasyHeader` decide l'altezza, e la casella sta
               // sotto, dove le altre schede mettono la loro prima riga.
-              const CrasyHeaderBar(),
+              const CrasyHeaderBar(seme: 'cerca'),
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.page,

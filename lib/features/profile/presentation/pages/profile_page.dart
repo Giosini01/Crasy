@@ -120,6 +120,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               // una volta nella vita, e in fondo alla pagina si allontanavano a
               // ogni gara vinta, sotto una griglia di foto che cresce.
               CrasyHeaderBar(
+                seme: 'profilo',
                 action: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

@@ -112,7 +112,7 @@ class WinnersPage extends ConsumerWidget {
               // Il logotipo al posto del titolo. Questa schermata e' la
               // vetrina della promessa — qualcuno ha vinto davvero — ed e' il
               // posto giusto perche' il marchio ci metta la faccia.
-              const CrasyHeaderBar(),
+              const CrasyHeaderBar(seme: 'vincitori'),
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(
