@@ -12,17 +12,36 @@
  */
 
 /**
- * **Le ore in cui parte una missione, in Italia.**
+ * **A che ora parte una missione, in Italia, a seconda di quante al giorno.**
  *
- * Cinque, a tre ore di distanza: mattina, pranzo, pomeriggio, rientro, sera.
- * Con `alGiorno` piu' basso si usano le prime: a quattro si salta la sera.
- * Durando ventiquattro ore, si chiudono alle stesse ore — tutte in orari in
- * cui il telefono e' in mano.
- *
- * **Le stesse ore stanno nella riga `schedule` di `lanciaLeMissioni`**: si
- * cambiano insieme.
+ * Non le prime ore di una fila: con tre al giorno sarebbero uscite alle dieci,
+ * all'una e alle quattro, e la sera — quando il telefono e' in mano a tutti —
+ * non sarebbe uscito niente. Ogni numero ha le sue ore: tre sono mattina,
+ * pomeriggio e sera. Durando ventiquattro ore, si chiudono alle stesse ore, e
+ * in ogni momento ce ne sono aperte tante quante ne escono in un giorno.
  */
-const ORE_DI_LANCIO = [10, 13, 16, 19, 21];
+const ORARI = {
+  1: [19],
+  2: [13, 19],
+  3: [10, 14, 19],
+  4: [10, 13, 16, 19],
+  5: [10, 13, 16, 19, 21],
+};
+
+/** Quante al giorno, al massimo. */
+const MASSIMO_AL_GIORNO = 5;
+
+/**
+ * **Tutte le ore in cui la funzione a orario si sveglia**: a ogni ora guarda se
+ * con le regole di oggi quella e' un'ora di lancio. Stanno anche nella riga
+ * `schedule` di `lanciaLeMissioni`, scritte a mano: si cambiano insieme.
+ */
+const ORE_DI_LANCIO = [...new Set(Object.values(ORARI).flat())].sort((a, b) => a - b);
+
+/** Le ore di lancio per `alGiorno` missioni al giorno. */
+function oreDelGiorno(alGiorno) {
+  return ORARI[Math.max(1, Math.min(MASSIMO_AL_GIORNO, Number(alGiorno) || 1))];
+}
 
 const UN_GIORNO = 24 * 60 * 60 * 1000;
 
@@ -121,7 +140,8 @@ function prossime(fondo, missioni, adesso = new Date(), quante = 60) {
 
   const oggi = oggiInItalia(adesso);
   const oraAdesso = oraInItalia(adesso);
-  const alGiorno = Math.max(1, Math.min(ORE_DI_LANCIO.length, fondo.alGiorno || 1));
+  const alGiorno = Math.max(1, Math.min(MASSIMO_AL_GIORNO, fondo.alGiorno || 1));
+  const orari = oreDelGiorno(alGiorno);
   const fatteOggi = fondo.giorno === oggi ? fondo.fatte || 0 : 0;
   let soldi = fondo.fondoCents || 0;
   let indice = (fondo.lanciate || 0) + (fondo.saltate || 0);
@@ -139,10 +159,10 @@ function prossime(fondo, missioni, adesso = new Date(), quante = 60) {
     }
 
     // Oggi: solo le ore che devono ancora suonare, e solo quante ne restano
-    // sotto il tetto. Gli altri giorni: le prime `alGiorno` ore.
+    // sotto il tetto. Gli altri giorni: tutte le ore di `alGiorno`.
     const ore = giorni === 0
-      ? ORE_DI_LANCIO.filter((ora) => ora > oraAdesso).slice(0, Math.max(0, alGiorno - fatteOggi))
-      : ORE_DI_LANCIO.slice(0, alGiorno);
+      ? orari.filter((ora) => ora > oraAdesso).slice(0, Math.max(0, alGiorno - fatteOggi))
+      : orari;
 
     for (const ora of ore) {
       const missione = missioneAl(missioni, indice);
@@ -176,7 +196,10 @@ function prossime(fondo, missioni, adesso = new Date(), quante = 60) {
 }
 
 module.exports = {
+  ORARI,
+  MASSIMO_AL_GIORNO,
   ORE_DI_LANCIO,
+  oreDelGiorno,
   oggiInItalia,
   oraInItalia,
   giornoDopo,

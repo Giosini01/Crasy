@@ -109,7 +109,8 @@ const INIZIALE = {
   fondoCents: 0,
   spesiCents: 0,
   ricaricatiCents: 0,
-  alGiorno: 5,
+  // Tre: mattina, pomeriggio e sera (vedi `ORARI` in `calendario_del_fondo.js`).
+  alGiorno: 3,
   premioCents: 100,
   oreDiGara: 24,
   maxPartecipanti: 10,
@@ -425,15 +426,21 @@ async function lanciaUna({ aMano = false } = {}) {
 /**
  * Lancia le missioni del fondo, se e' acceso.
  *
- * **Le ore stanno anche in `calendario_del_fondo.js`** (`ORE_DI_LANCIO`), che
- * le usa per l'anteprima: si cambiano insieme.
+ * Si sveglia a **tutte** le ore che una qualunque regola puo' usare
+ * (`ORE_DI_LANCIO` in `calendario_del_fondo.js`, scritte qui a mano: si
+ * cambiano insieme) e lancia solo se quella e' un'ora di lancio per il numero
+ * di missioni al giorno scelto adesso: con tre, le dieci, le due e le sette.
  */
 exports.lanciaLeMissioni = onSchedule(
-  { schedule: '0 10,13,16,19,21 * * *', timeZone: 'Europe/Rome' },
+  { schedule: '0 10,13,14,16,19,21 * * *', timeZone: 'Europe/Rome' },
   async () => {
     const fondo = await fondoRef().get();
 
     if (!fondo.exists || fondo.get('acceso') !== true) {
+      return;
+    }
+
+    if (!calendario.oreDelGiorno(fondo.get('alGiorno')).includes(calendario.oraInItalia())) {
       return;
     }
 
@@ -519,6 +526,9 @@ async function stato() {
     fino: fondo.fino || '',
     fatteOggi: fondo.giorno === oggi ? fondo.fatte || 0 : 0,
     autori: fondo.autori || [],
+    // Le ore di lancio per ogni numero al giorno: la pagina le scrive accanto
+    // alla scelta, e le prende da qui per non doverle copiare.
+    orari: calendario.ORARI,
     missioniInElenco: MISSIONI.length,
     prossime: calendario.prossime(fondo, MISSIONI, new Date(), 60),
     ultime: lanciate.docs.map((riga) => ({
@@ -544,7 +554,7 @@ async function stato() {
 /** Le regole del fondo. Crea il fondo, spento, se non c'era. */
 async function imposta(valori) {
   const scelte = {
-    alGiorno: intero(valori.alGiorno, 1, calendario.ORE_DI_LANCIO.length, 'Missioni al giorno'),
+    alGiorno: intero(valori.alGiorno, 1, calendario.MASSIMO_AL_GIORNO, 'Missioni al giorno'),
     // Ventiquattro ore al massimo: e' il tetto di tutte le gare (vedi
     // `payments.js`), e una gara del fondo non fa eccezione.
     oreDiGara: intero(valori.oreDiGara, 1, 24, 'Ore di gara'),

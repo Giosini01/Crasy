@@ -120,14 +120,23 @@ function saldo(f) {
   </article>`;
 }
 
+/** `10, 14 e 19`: le ore di lancio dette come si dicono. */
+function ore(lista) {
+  const scritte = (lista || []).map(String);
+
+  return scritte.length > 1 ? `${scritte.slice(0, -1).join(', ')} e ${scritte[scritte.length - 1]}` : scritte.join('');
+}
+
 function regole(f) {
+  const orari = f.orari || {};
+
   return html`<article class="carta" style="margin-bottom:18px">
     <div class="occhiello" style="margin-bottom:12px">Regole</div>
     <div class="soglie">
       <div>
         <label for="alGiorno">Missioni al giorno</label>
         <select id="alGiorno">
-          ${[1, 2, 3, 4, 5].map((n) => html`<option value="${n}" ${n === f.alGiorno ? 'selected' : ''}>${n} · fino alle ${['10', '13', '16', '19', '21'][n - 1]}:00</option>`)}
+          ${Object.keys(orari).map(Number).map((n) => html`<option value="${n}" ${n === f.alGiorno ? 'selected' : ''}>${n} · alle ${ore(orari[n])}</option>`)}
         </select>
       </div>
       <div>
@@ -152,7 +161,7 @@ function regole(f) {
       </div>
     </div>
     <div class="comandi"><button class="tasto tasto--nero" data-fai="salvaRegole">Salva le regole</button></div>
-    <p class="sotto-riga" style="margin-top:6px">Parte alle 10, 13, 16, 19 e 21: con meno missioni al giorno si usano le prime ore. Prima del giorno di partenza non esce niente da sola.</p>
+    <p class="sotto-riga" style="margin-top:6px">Adesso escono alle ${ore(orari[f.alGiorno])}, e ognuna dura ${numero(f.oreDiGara)} ore. Prima del giorno di partenza non esce niente da sola.</p>
   </article>`;
 }
 

@@ -5,6 +5,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const c = require('../calendario_del_fondo');
 const MISSIONI = require('../dati/missioni_automatiche.json');
@@ -57,6 +59,33 @@ test('cinque al giorno, alle ore giuste, a turno fra le facce', () => {
   assert.deepEqual(lista.map((p) => p.premioCents), [100, 150, 200, 100, 150, 200, 100]);
   assert.equal(lista[0].giorno, '2026-12-02');
   assert.equal(lista[5].giorno, '2026-12-03');
+});
+
+test('tre al giorno: mattina, pomeriggio e sera, non tutte prima delle cinque', () => {
+  const lista = c.prossime(fondo({ alGiorno: 3 }), ELENCO, MATTINA, 6);
+  const ore = lista.map((p) =>
+    new Date(p.quando).toLocaleTimeString('it-IT', { timeZone: 'Europe/Rome', hour: '2-digit' })
+  );
+
+  assert.deepEqual(ore, ['10', '14', '19', '10', '14', '19']);
+  assert.deepEqual(c.oreDelGiorno(3), [10, 14, 19]);
+  // Un numero fuori scala non rompe niente: si tiene dentro da uno a cinque.
+  assert.deepEqual(c.oreDelGiorno(9), c.ORARI[5]);
+  assert.deepEqual(c.oreDelGiorno(0), c.ORARI[1]);
+});
+
+test('la funzione a orario si sveglia a tutte le ore che servono', () => {
+  // Le ore della riga `schedule` sono scritte a mano: se una manca, le
+  // missioni di quell'ora non escono e nessuno se ne accorge.
+  const sorgente = fs.readFileSync(path.join(__dirname, '..', 'salvadanaio.js'), 'utf8');
+  const riga = sorgente.match(/schedule: '0 ([\d,]+) \* \* \*'/);
+
+  assert.ok(riga, 'riga schedule non trovata');
+  assert.deepEqual(riga[1].split(',').map(Number), c.ORE_DI_LANCIO);
+
+  for (const ore of Object.values(c.ORARI)) {
+    assert.ok(ore.every((ora) => c.ORE_DI_LANCIO.includes(ora)));
+  }
 });
 
 test('si ferma quando i soldi non bastano per la prossima', () => {
