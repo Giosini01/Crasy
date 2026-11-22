@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:crasy/core/theme/seasons/season_skin.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 /// **Natale: un fiocco e la neve sui bordi.**
 ///
@@ -116,17 +117,22 @@ class ChristmasSkin extends SeasonSkin {
   /// ha le palline in un punto suo.
   @override
   Widget decora(BuildContext context, Widget pagina) {
-    final seme =
-        '${ModalRoute.of(context)?.settings.name ?? ''}${pagina.runtimeType}';
+    var dove = '';
+
+    // Dove si e': l'indirizzo della pagina, che decide la disposizione delle
+    // palline. Fuori dal router (l'apertura, i fogli) basta il nome.
+    try {
+      dove = GoRouterState.of(context).matchedLocation;
+    } on Object {
+      dove = ModalRoute.of(context)?.settings.name ?? '';
+    }
 
     return Stack(
       children: [
         const Positioned.fill(child: IgnorePointer(child: _NeveCheCade())),
         Positioned.fill(
           child: IgnorePointer(
-            child: RepaintBoundary(
-              child: CustomPaint(painter: _Palline(seme.hashCode)),
-            ),
+            child: RepaintBoundary(child: CustomPaint(painter: _Palline(dove))),
           ),
         ),
         pagina,
@@ -202,7 +208,8 @@ class ChristmasSkin extends SeasonSkin {
   }
 }
 
-/// **I fiocchi che scendono, dietro i contenuti.** Grigio chiaro, perche' sul
+/// **I fiocchi che scendono, dietro i contenuti**: pochi, piccoli e chiari,
+/// quasi impercettibili — si notano solo guardando. Grigio chiaro, perche' sul
 /// fondo bianco la neve bianca non si vede. Con le animazioni ridotte dal
 /// telefono restano fermi.
 class _NeveCheCade extends StatefulWidget {
@@ -216,7 +223,7 @@ class _NeveCheCadeState extends State<_NeveCheCade>
     with SingleTickerProviderStateMixin {
   late final AnimationController _tempo = AnimationController(
     vsync: this,
-    duration: const Duration(seconds: 16),
+    duration: const Duration(seconds: 26),
   );
 
   @override
@@ -251,7 +258,7 @@ class _Fiocchi extends CustomPainter {
 
   final Animation<double> tempo;
 
-  static const _quanti = 30;
+  static const _quanti = 10;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -264,14 +271,14 @@ class _Fiocchi extends CustomPainter {
       final x0 = caso.nextDouble();
       final velocita = 0.6 + caso.nextDouble() * 0.8;
       final partenza = caso.nextDouble();
-      final raggio = 1.6 + caso.nextDouble() * 2.2;
+      final raggio = 1.1 + caso.nextDouble() * 1.3;
       final giro = (t * velocita + partenza) % 1;
       final y = giro * size.height;
       final x =
           x0 * size.width + math.sin((t * 2 + partenza) * math.pi * 2) * 10;
       // Compaiono in cima e si spengono in fondo, invece di apparire e
       // sparire di colpo.
-      final alfa = 0.8 * math.min(1, math.min(giro * 12, (1 - giro) * 8));
+      final alfa = 0.3 * math.min(1, math.min(giro * 12, (1 - giro) * 8));
 
       canvas.drawCircle(
         Offset(x, y),
@@ -466,28 +473,68 @@ class _NeveSulBordo extends CustomPainter {
   bool shouldRepaint(_NeveSulBordo altro) => false;
 }
 
-/// **Le palline appese**, dietro i contenuti: due o tre, a fili di lunghezze
-/// diverse, in punti che cambiano da una pagina all'altra.
+/// **Le palline appese**, dietro i contenuti, con una disposizione diversa
+/// per ogni pagina: due agli angoli sulle missioni, una scaletta a sinistra
+/// fra gli amici, una grande a destra sul profilo, tre larghe fra i
+/// vincitori, un grappolo al centro nella ricerca. Le altre pagine ne
+/// prendono una delle cinque, sempre la stessa per la stessa pagina.
 class _Palline extends CustomPainter {
-  _Palline(this.seme);
+  _Palline(this.dove);
 
-  final int seme;
+  final String dove;
+
+  /// Ogni pallina: dove pende (frazione della larghezza), quanto e' lungo il
+  /// filo, quanto e' grande.
+  static const _disposizioni = [
+    [(0.12, 92.0, 11.0), (0.86, 64.0, 9.0)],
+    [(0.1, 140.0, 12.0), (0.24, 96.0, 10.0), (0.38, 62.0, 8.0)],
+    [(0.68, 70.0, 9.0), (0.84, 132.0, 13.0)],
+    [(0.22, 60.0, 9.0), (0.5, 104.0, 11.0), (0.78, 72.0, 9.0)],
+    [(0.44, 74.0, 9.0), (0.52, 118.0, 12.0), (0.6, 86.0, 9.0)],
+  ];
+
+  int get _quale {
+    if (dove.startsWith('/challenges')) {
+      return 0;
+    }
+
+    if (dove.startsWith('/amici')) {
+      return 1;
+    }
+
+    if (dove.startsWith('/profile')) {
+      return 2;
+    }
+
+    if (dove.startsWith('/winners')) {
+      return 3;
+    }
+
+    if (dove.startsWith('/cerca')) {
+      return 4;
+    }
+
+    var somma = 0;
+
+    for (final unita in dove.codeUnits) {
+      somma = (somma * 31 + unita) % 100003;
+    }
+
+    return somma % _disposizioni.length;
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
-    final caso = math.Random(seme);
-    final quante = 2 + caso.nextInt(2);
-    const colori = [Color(0xFFFA0000), Color(0xFFE7B04A), Color(0xFFFA0000)];
+    const colori = [Color(0xFFFA0000), Color(0xFFE7B04A)];
     final filo = Paint()
       ..color = const Color(0xFFD5D5DA)
       ..strokeWidth = 1;
+    final disposizione = _disposizioni[_quale];
 
-    for (var i = 0; i < quante; i++) {
-      // Sparse: una per fascia, mai due attaccate.
-      final x = size.width * ((i + 0.2 + caso.nextDouble() * 0.6) / quante);
-      final lungo = 70.0 + caso.nextDouble() * 90;
-      final raggio = 8.0 + caso.nextDouble() * 4;
-      final colore = colori[(i + seme) % colori.length];
+    for (var i = 0; i < disposizione.length; i++) {
+      final (dx, lungo, raggio) = disposizione[i];
+      final x = size.width * dx;
+      final colore = colori[i % colori.length];
       final centro = Offset(x, lungo + raggio);
 
       canvas
@@ -510,7 +557,7 @@ class _Palline extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_Palline vecchio) => vecchio.seme != seme;
+  bool shouldRepaint(_Palline vecchio) => vecchio.dove != dove;
 }
 
 /// **Un regalo**: rosso, nastro bianco, fiocco.
